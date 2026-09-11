@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   filtering/sorting, and step state.
 - Ant Design v6 baseline (`antd@6.6.3`, `@ant-design/icons@6.3.4`) themed
   through one root `ConfigProvider` with project CSS variables and classes.
+- Example contract inputs (`apps/web/src/demo-contracts.ts`) following the
+  `../agent-comp` evaluation-fixture clause structure (甲方/乙方, 第一条…第八条,
+  签订日期), selectable in the New Audit Drawer: 设备采购 70%、原材料 30%、
+  电子元件 50%. The fixtures express the advance ratio as Chinese numerals
+  (`百分之三十`), which the deterministic extractor cannot read, so the samples
+  put the advance ratio in Arabic digits in 第三条 with no earlier `%`.
 
 ### Changed
 
@@ -77,6 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value; the detail stream no longer uses a relative path.
 - Status and stage copy is Chinese across the workbench while wire values are
   unchanged.
+- The payment-terms audit skill prompt now requires Simplified Chinese
+  `rationale` and `remediation`; a real-LLM run previously wrote English copy
+  into the Chinese-only workbench.
 
 ### Fixed
 
@@ -129,3 +138,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard sweep of the queue: every reachable control (brand, nav, refresh,
   create, search, filters, record link, actions) shows a visible focus
   outline.
+- Real LLM endpoint (`AUDIT_AGENT_MODE=pi`, XYG `deepseek-v4-flash`): the 70%
+  sample reached `AWAITING_REVIEW` in 30–45 s with `advancePaymentRatio` 0.7
+  vs `policyLimitRatio` 0.3 and disposition `POLICY_CONFLICT`; the finding
+  cited `contract-payment` + `policy-limit` and rendered in the workbench
+  (待复核, evidence `70%`), then persisted through 接受建议 to `COMPLETED`
+  (`已断开`), with no 375 px overflow. `agent_runs` recorded provider `pi`,
+  model `deepseek-v4-flash`, duration 45031 ms, usage input 7281 / output
+  1200 / total 8481.
+- Note: the dispatcher has no agent-run timeout; one real-LLM request stalled
+  indefinitely (445 s, then cancelled) and held the single concurrency slot.
+  Adding a bounded agent timeout is a recommended follow-up, not done here.
