@@ -1,0 +1,285 @@
+import type {
+  AuditSnapshot,
+  FindingProposal,
+  FindingRevision,
+  HumanReview,
+} from "@contract-audit/audit/model";
+import type { AgentRunTelemetry, AuditAgentPort, AuditEvent } from "@contract-audit/audit/ports";
+import type { AuditCaseRepository } from "../db/repositories";
+import type { AuditDispatcher } from "../dispatcher";
+import type { AuditEventBroker } from "../sse";
+
+interface FakeCaseState {
+  status: string;
+  stage: string;
+  snapshot: AuditSnapshot | null;
+  findings: FakeFindingState[];
+}
+
+interface FakeFindingState {
+  id: string;
+  auditCaseId: string;
+  proposal: FindingProposal;
+  supersedesId: string | null;
+  review: HumanReview | null;
+}
+
+export interface RecordedAgentRun {
+  auditCaseId: string;
+  telemetry: AgentRunTelemetry;
+  durationMs: number | null;
+  error: string | null;
+}
+
+/**
+ * In-memory stand-in for AuditCaseRepository. Only the surface used by the
+ * dispatcher and routes is implemented; tests cast it to the repository type.
+ */
+export class InMemoryAuditCaseRepository {
+  cases = new Map<string, FakeCaseState>();
+  recordedRuns: RecordedAgentRun[] = [];
+  interruptedStaleRuns = 0;
+  databaseAvailable = true;
+
+  async createPendingCase(sourceRecordId: string, snapshot: AuditSnapshot): Promise<{ caseId: string; snapshotId: string }> {
+    const caseId = `case-${this.cases.size + 1}`;
+    this.cases.set(caseId, { status: "PENDING", stage: "QUEUED", snapshot, findings: [] });
+    return { caseId, snapshotId: `snapshot-${caseId}` };
+  }
+
+  async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string } | null> {
+    for (const [caseId, state] of this.cases) {
+      if (state.status === "PENDING") {
+        state.status = "RUNNING";
+        return { caseId, snapshotId: `snapshot-${caseId}` };
+      }
+    }
+    return null;
+  }
+
+  async claimCase(auditCaseId: string): Promise<{ caseId: string; snapshotId: string } | null> {
+    const state = this.cases.get(auditCaseId);
+    if (!state || state.status !== "PENDING") return null;
+    state.status = "RUNNING";
+    return { caseId: auditCaseId, snapshotId: `snapshot-${auditCaseId}` };
+  }
+
+  async getPendingCaseIds(): Promise<string[]> {
+    return [...this.cases.entries()].filter(([, state]) => state.status === "PENDING").map(([id]) => id);
+  }
+
+  async getCase(caseId: string) {
+    const state = this.cases.get(caseId);
+    if (!state) return null;
+    return {
+      id: caseId,
+      status: state.status,
+      stage: state.stage,
+      sourceRecordId: `source-${caseId}`,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    };
+  }
+
+  async getSnapshot(snapshotId: string): Promise<AuditSnapshot | null> {
+    const caseId = snapshotId.replace(/^snapshot-/, "");
+    return this.cases.get(caseId)?.snapshot ?? null;
+  }
+
+  async getSnapshotByCase(caseId: string): Promise<AuditSnapshot | null> {
+    return this.cases.get(caseId)?.snapshot ?? null;
+  }
+
+  async completeAgentRun(run: RecordedAgentRun): Promise<string> {
+    this.recordedRuns.push(run);
+    return `run-${this.recordedRuns.length}`;
+  }
+
+  async appendFindingRevision(auditCaseId: string, proposal: FindingProposal, supersedesId: string | null): Promise<string> {
+    const state = this.cases.get(auditCaseId);
+    if (!state) throw new Error(`unknown case ${auditCaseId}`);
+    const id = `finding-${auditCaseId}-${state.findings.length + 1}`;
+    state.findings.push({ id, auditCaseId, proposal, supersedesId, review: null });
+    return id;
+  }
+
+  async appendReviewRevision(findingId: string, review: HumanReview): Promise<string> {
+    const state = [...this.cases.values()].find((candidate) =>
+      candidate.findings.some((finding) => finding.id === findingId),
+    );
+    if (!state) throw new Error(`FINDING_NOT_FOUND: ${findingId}`);
+    const existing = state.findings.find((finding) => finding.id === findingId)!;
+    if (existing.review !== null) throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
+    if (state.findings.some((finding) => finding.supersedesId === findingId)) {
+      throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
+    }
+    const id = `finding-${existing.auditCaseId}-${state.findings.length + 1}`;
+    state.findings.push({
+      id,
+      auditCaseId: existing.auditCaseId,
+      proposal: existing.proposal,
+      supersedesId: findingId,
+      review,
+    });
+    return id;
+  }
+
+  async markStaleRunsInterrupted(): Promise<number> {
+    let count = 0;
+    for (const state of this.cases.values()) {
+      if (state.status === "RUNNING") {
+        state.status = "INTERRUPTED";
+        state.stage = "INTERRUPTED";
+        count += 1;
+      }
+    }
+    this.interruptedStaleRuns = count;
+    return count;
+  }
+
+  async updateCaseStatus(caseId: string, status: string, stage: string): Promise<void> {
+    const state = this.cases.get(caseId);
+    if (!state) throw new Error(`unknown case ${caseId}`);
+    state.status = status;
+    state.stage = stage;
+  }
+
+  async getFindingsByCase(caseId: string): Promise<FindingRevision[]> {
+    const state = this.cases.get(caseId);
+    if (!state) return [];
+    const superseded = new Set(
+      state.findings.filter((finding) => finding.supersedesId !== null).map((finding) => finding.supersedesId!),
+    );
+    return state.findings
+      .filter((finding) => !superseded.has(finding.id))
+      .map((finding) => ({
+        id: finding.id,
+        auditCaseId: finding.auditCaseId,
+        proposal: finding.proposal,
+        supersedesId: finding.supersedesId,
+        review: finding.review,
+        createdAt: new Date(0).toISOString(),
+      }));
+  }
+
+  async getCases() {
+    return [...this.cases.entries()].map(([caseId, state]) => ({
+      id: caseId,
+      status: state.status,
+      stage: state.stage,
+      sourceRecordId: `source-${caseId}`,
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }));
+  }
+
+  async getFinding(findingId: string): Promise<FindingRevision | null> {
+    for (const state of this.cases.values()) {
+      const finding = state.findings.find((candidate) => candidate.id === findingId);
+      if (finding) {
+        return {
+          id: finding.id,
+          auditCaseId: finding.auditCaseId,
+          proposal: finding.proposal,
+          supersedesId: finding.supersedesId,
+          review: finding.review,
+          createdAt: new Date(0).toISOString(),
+        };
+      }
+    }
+    return null;
+  }
+
+  async ping(): Promise<boolean> {
+    return this.databaseAvailable;
+  }
+
+  asRepository(): AuditCaseRepository {
+    return this as unknown as AuditCaseRepository;
+  }
+}
+
+export class FakeDispatcher {
+  enqueued: string[] = [];
+  cancelled: string[] = [];
+  retried: string[] = [];
+  isStarted = false;
+
+  async enqueue(auditCaseId: string): Promise<void> {
+    this.enqueued.push(auditCaseId);
+  }
+
+  async cancel(auditCaseId: string): Promise<void> {
+    this.cancelled.push(auditCaseId);
+  }
+
+  async retry(auditCaseId: string): Promise<void> {
+    this.retried.push(auditCaseId);
+  }
+
+  asDispatcher(): AuditDispatcher {
+    return this as unknown as AuditDispatcher;
+  }
+}
+
+/** Records every published product event, per audit case. */
+export class RecordingEventBroker {
+  private subscribers = new Map<string, Set<(event: AuditEvent) => void>>();
+  events: AuditEvent[] = [];
+
+  subscribe(auditCaseId: string, handler: (event: AuditEvent) => void): () => void {
+    let handlers = this.subscribers.get(auditCaseId);
+    if (!handlers) {
+      handlers = new Set();
+      this.subscribers.set(auditCaseId, handlers);
+    }
+    handlers.add(handler);
+    return () => handlers?.delete(handler);
+  }
+
+  publish(event: AuditEvent): void {
+    this.events.push(event);
+    for (const handler of this.subscribers.get(event.auditCaseId) ?? []) handler(event);
+  }
+
+  asBroker(): AuditEventBroker {
+    return this as unknown as AuditEventBroker;
+  }
+}
+
+/**
+ * Agent stub whose runs block until the test resolves them, so dispatcher
+ * concurrency and cancellation can be observed deterministically.
+ */
+export class ControlledAgent implements AuditAgentPort {
+  startedCaseIds: string[] = [];
+  abortedRuns = 0;
+  private pending: { resolve: (result: { proposal: FindingProposal; telemetry: AgentRunTelemetry }) => void; reject: (reason?: unknown) => void }[] = [];
+
+  async run(input: AuditSnapshot, signal: AbortSignal): Promise<{ proposal: FindingProposal; telemetry: AgentRunTelemetry }> {
+    this.startedCaseIds.push(input.sourceRecordId);
+    return new Promise((resolve, reject) => {
+      const entry = { resolve, reject };
+      this.pending.push(entry);
+      signal.addEventListener("abort", () => {
+        this.abortedRuns += 1;
+        reject(signal.reason ?? new Error("ABORTED"));
+      }, { once: true });
+    });
+  }
+
+  /** Resolves the oldest pending run with the given proposal. */
+  resolveRun(proposal: FindingProposal, telemetry?: AgentRunTelemetry): void {
+    const entry = this.pending.shift();
+    entry?.resolve({
+      proposal,
+      telemetry: telemetry ?? { provider: "test", model: "test-model", version: "0", usage: null },
+    });
+  }
+
+  /** Rejects the oldest pending run with the given error. */
+  rejectRun(reason: unknown): void {
+    const entry = this.pending.shift();
+    entry?.reject(reason);
+  }
+}

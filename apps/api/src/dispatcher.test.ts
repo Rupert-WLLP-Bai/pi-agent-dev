@@ -1,0 +1,162 @@
+import { beforeEach, expect, test } from "bun:test";
+import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
+import { AuditDispatcher } from "./dispatcher";
+import { ControlledAgent, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
+
+const snapshotFor = (sourceRecordId: string): AuditSnapshot => ({
+  sourceRecordId,
+  contractDocument: { hash: `hash-${sourceRecordId}`, blocks: [] },
+  facts: { advancePaymentRatio: 0.7, policyLimitRatio: 0.3 },
+  evidence: [
+    {
+      id: "contract-payment",
+      sourceRecordId,
+      contractDocumentHash: `hash-${sourceRecordId}`,
+      blockId: "p-1",
+      startOffset: 0,
+      endOffset: 3,
+      quotedText: "70%",
+    },
+  ],
+  ruleAssessment: {
+    disposition: "POLICY_CONFLICT",
+    ruleCode: "ADVANCE_PAYMENT_LIMIT",
+    evidenceIds: ["contract-payment", "policy-limit"],
+  },
+  createdAt: new Date(0).toISOString(),
+});
+
+const proposal: FindingProposal = {
+  findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+  severity: "HIGH",
+  rationale: "Advance payment exceeds the policy limit",
+  evidenceIds: ["contract-payment"],
+  remediation: "Reduce the advance payment ratio",
+};
+
+let repository: InMemoryAuditCaseRepository;
+let agent: ControlledAgent;
+let broker: RecordingEventBroker;
+let dispatcher: AuditDispatcher;
+
+beforeEach(async () => {
+  repository = new InMemoryAuditCaseRepository();
+  agent = new ControlledAgent();
+  broker = new RecordingEventBroker();
+  dispatcher = new AuditDispatcher(repository.asRepository(), () => agent, broker.asBroker(), 1);
+  await dispatcher.start();
+});
+
+test("does not run more than one audit when concurrency is one", async () => {
+  const { caseId: caseA } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  const { caseId: caseB } = await repository.createPendingCase("source-b", snapshotFor("source-b"));
+  await dispatcher.enqueue(caseA);
+  await dispatcher.enqueue(caseB);
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(agent.startedCaseIds).toEqual(["source-a"]);
+
+  agent.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(agent.startedCaseIds).toEqual(["source-a", "source-b"]);
+  agent.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+});
+
+test("completes the audit for the enqueued case and records telemetry", async () => {
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  await dispatcher.enqueue(caseId);
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  agent.resolveRun(proposal, { provider: "test", model: "test-model", version: "1.0", usage: { input: 10, output: 5 } });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const auditCase = await repository.getCase(caseId);
+  expect(auditCase).toMatchObject({ status: "COMPLETED", stage: "AWAITING_REVIEW" });
+  expect(repository.recordedRuns).toHaveLength(1);
+  expect(repository.recordedRuns[0]).toMatchObject({ auditCaseId: caseId, model: "test-model", error: null });
+  expect((await repository.getFindingsByCase(caseId))[0].proposal).toEqual(proposal);
+  expect(broker.events.map((event) => event.type)).toEqual([
+    "audit.started",
+    "rules.completed",
+    "agent.started",
+    "finding.proposed",
+    "audit.awaiting_review",
+  ]);
+});
+
+test("marks an active run cancelled after explicit cancellation", async () => {
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  await dispatcher.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  await dispatcher.cancel(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(agent.abortedRuns).toBe(1);
+  expect(await repository.getCase(caseId)).toMatchObject({ status: "CANCELLED", stage: "CANCELLED" });
+  expect(broker.events.at(-1)?.type).toBe("audit.cancelled");
+  expect(repository.recordedRuns).toHaveLength(1);
+});
+
+test("cancels a queued case without running it", async () => {
+  const { caseId: running } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  const { caseId: queued } = await repository.createPendingCase("source-b", snapshotFor("source-b"));
+  await dispatcher.enqueue(running);
+  await dispatcher.enqueue(queued);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  await dispatcher.cancel(queued);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(agent.startedCaseIds).toEqual(["source-a"]);
+  expect(await repository.getCase(queued)).toMatchObject({ status: "CANCELLED", stage: "CANCELLED" });
+  expect(broker.events.some((event) => event.type === "audit.cancelled" && event.auditCaseId === queued)).toBe(true);
+
+  agent.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+});
+
+test("marks a failed agent run as FAILED and records the error", async () => {
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  await dispatcher.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  agent.rejectRun(new Error("XYG_ENDPOINT_UNREACHABLE"));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(await repository.getCase(caseId)).toMatchObject({ status: "FAILED", stage: "FAILED" });
+  expect(repository.recordedRuns[0].error).toBe("XYG_ENDPOINT_UNREACHABLE");
+  expect(broker.events.at(-1)).toMatchObject({ type: "audit.failed", auditCaseId: caseId, error: "XYG_ENDPOINT_UNREACHABLE" });
+});
+
+test("ignores a stale queued entry whose case is no longer pending", async () => {
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  // The case is claimed directly (e.g. through a concurrent path).
+  await repository.claimCase(caseId);
+  await repository.updateCaseStatus(caseId, "RUNNING", "AGENT_RUNNING");
+
+  await dispatcher.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(agent.startedCaseIds).toEqual([]);
+  expect((await repository.getCase(caseId))?.status).toBe("RUNNING");
+});
+
+test("marks stale RUNNING cases interrupted and re-enqueues pending cases on start", async () => {
+  const repository2 = new InMemoryAuditCaseRepository();
+  const agent2 = new ControlledAgent();
+  const broker2 = new RecordingEventBroker();
+  const { caseId: stale } = await repository2.createPendingCase("source-stale", snapshotFor("source-stale"));
+  await repository2.updateCaseStatus(stale, "RUNNING", "AGENT_RUNNING");
+  const { caseId: pending } = await repository2.createPendingCase("source-pending", snapshotFor("source-pending"));
+
+  const dispatcher2 = new AuditDispatcher(repository2.asRepository(), () => agent2, broker2.asBroker(), 1);
+  await dispatcher2.start();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(await repository2.getCase(stale)).toMatchObject({ status: "INTERRUPTED" });
+  expect(agent2.startedCaseIds).toEqual(["source-pending"]);
+  agent2.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+});

@@ -1,0 +1,28 @@
+{
+  "name": "@contract-audit/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.6.0",
+    "@contract-audit/api": "workspace:*",
+    "@contract-audit/audit": "workspace:*",
+    "@elysiajs/eden": "^1.4.9",
+    "@tanstack/react-query": "^5.65.0",
+    "@tanstack/react-router": "^1.170.35",
+    "antd": "^5.22.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

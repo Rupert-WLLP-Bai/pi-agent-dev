@@ -1,0 +1,130 @@
+import type { AuditSnapshot } from "@contract-audit/audit/model";
+import type { AgentRunResult, AgentRunTelemetry, AuditAgentPort } from "@contract-audit/audit/ports";
+import type { AuditCaseRepository } from "./db/repositories";
+import { AuditEventBroker } from "./sse";
+
+const isAbortError = (error: unknown): boolean =>
+  error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
+
+const PLACEHOLDER_TELEMETRY: AgentRunTelemetry = {
+  provider: "pi",
+  model: "unknown",
+  version: "unknown",
+  usage: null,
+};
+
+export class AuditDispatcher {
+  private activeSessions = new Map<string, { abort: () => void }>();
+  private cancelledCaseIds = new Set<string>();
+  private queue: string[] = [];
+  private running = 0;
+  private started = false;
+
+  constructor(
+    private readonly repository: AuditCaseRepository,
+    private readonly agentFactory: (snapshot: AuditSnapshot) => AuditAgentPort,
+    private readonly broker: AuditEventBroker,
+    private readonly maxConcurrent: number,
+  ) {}
+
+  get isStarted(): boolean {
+    return this.started;
+  }
+
+  async start(): Promise<void> {
+    await this.repository.markStaleRunsInterrupted();
+    this.started = true;
+    const pendingCaseIds = await this.repository.getPendingCaseIds();
+    this.queue.push(...pendingCaseIds);
+    await this.processQueue();
+  }
+
+  async enqueue(auditCaseId: string): Promise<void> {
+    this.queue.push(auditCaseId);
+    await this.processQueue();
+  }
+
+  private async processQueue(): Promise<void> {
+    while (this.running < this.maxConcurrent && this.queue.length > 0) {
+      const auditCaseId = this.queue.shift()!;
+      this.running += 1;
+      void this.runAudit(auditCaseId);
+    }
+  }
+
+  private async runAudit(auditCaseId: string): Promise<void> {
+    try {
+      // Claim the exact enqueued case; a stale or raced entry is a no-op.
+      const claimed = await this.repository.claimCase(auditCaseId);
+      if (!claimed) return;
+      const snapshot = await this.repository.getSnapshot(claimed.snapshotId);
+      if (!snapshot) throw new Error(`Audit snapshot not found for case ${auditCaseId}`);
+
+      this.broker.publish({ type: "audit.started", auditCaseId });
+      this.broker.publish({ type: "rules.completed", auditCaseId });
+
+      const controller = new AbortController();
+      this.activeSessions.set(auditCaseId, { abort: () => controller.abort() });
+      this.broker.publish({ type: "agent.started", auditCaseId });
+
+      const agent = this.agentFactory(snapshot);
+      const startedAt = Date.now();
+      let result: AgentRunResult | undefined;
+      let runError: unknown;
+      try {
+        result = await agent.run(snapshot, controller.signal);
+      } catch (error) {
+        runError = error;
+      }
+
+      await this.repository.completeAgentRun({
+        auditCaseId,
+        ...(result?.telemetry ?? PLACEHOLDER_TELEMETRY),
+        durationMs: Date.now() - startedAt,
+        error: runError === undefined ? null : (runError instanceof Error ? runError.message : String(runError)),
+      });
+      if (runError !== undefined) throw runError;
+      if (!result) throw new Error("AGENT_RUN_MISSING_RESULT");
+
+      await this.repository.appendFindingRevision(auditCaseId, result.proposal, null);
+      this.broker.publish({ type: "finding.proposed", auditCaseId, proposal: result.proposal });
+      this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
+      await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+    } catch (error) {
+      const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);
+      if (cancelled) {
+        this.broker.publish({ type: "audit.cancelled", auditCaseId });
+        await this.repository.updateCaseStatus(auditCaseId, "CANCELLED", "CANCELLED");
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        this.broker.publish({ type: "audit.failed", auditCaseId, error: message });
+        await this.repository.updateCaseStatus(auditCaseId, "FAILED", "FAILED");
+      }
+    } finally {
+      this.activeSessions.delete(auditCaseId);
+      this.running -= 1;
+      await this.processQueue();
+    }
+  }
+
+  async cancel(auditCaseId: string): Promise<void> {
+    const session = this.activeSessions.get(auditCaseId);
+    if (session) {
+      this.cancelledCaseIds.add(auditCaseId);
+      session.abort();
+      return;
+    }
+    // Not running: drop it from the queue and cancel it if it is still pending.
+    this.queue = this.queue.filter((id) => id !== auditCaseId);
+    const auditCase = await this.repository.getCase(auditCaseId);
+    if (auditCase?.status === "PENDING") {
+      this.broker.publish({ type: "audit.cancelled", auditCaseId });
+      await this.repository.updateCaseStatus(auditCaseId, "CANCELLED", "CANCELLED");
+    }
+  }
+
+  async retry(auditCaseId: string): Promise<void> {
+    await this.repository.updateCaseStatus(auditCaseId, "PENDING", "QUEUED");
+    await this.enqueue(auditCaseId);
+  }
+}

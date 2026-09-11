@@ -1,0 +1,16 @@
+{
+  "name": "@contract-audit/audit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./model": "./src/model.ts",
+    "./payment-rule": "./src/payment-rule.ts",
+    "./plaintext-adapter": "./src/plaintext-adapter.ts",
+    "./fact-builder": "./src/fact-builder.ts",
+    "./orchestrator": "./src/orchestrator.ts",
+    "./ports": "./src/ports.ts",
+    "./workspace": "./src/workspace.ts"
+  }
+}
