@@ -24,7 +24,7 @@ export default function AuditCasesList() {
 
   return (
     <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
-      <Typography.Title level={2}>合同审计</Typography.Title>
+      <Typography.Title level={2}>审计队列</Typography.Title>
       <Card title="开始新的审计" style={{ marginBottom: 24 }}>
         <Form onFinish={() => createMutation.mutate(contractText)} layout="vertical">
           <Form.Item label="合同文本" required>
