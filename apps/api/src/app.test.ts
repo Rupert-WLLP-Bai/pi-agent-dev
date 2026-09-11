@@ -72,7 +72,10 @@ test("records a review as an append-only revision", async () => {
   expect(findings).toHaveLength(1);
   expect(findings[0].review).toMatchObject({ decision: "ACCEPTED", reviewerId: "anonymous" });
   expect(findings[0].supersedesId).toBe(findingId);
-  expect(broker.events.at(-1)).toMatchObject({ type: "audit.completed", auditCaseId: caseId });
+  expect(await repository.getCase(caseId)).toMatchObject({
+    status: "COMPLETED",
+    stage: "COMPLETED",
+  });
 });
 
 test("rejects a second review of the same finding", async () => {
@@ -89,6 +92,36 @@ test("rejects a second review of the same finding", async () => {
   const response = await app.handle(json("POST", `/api/findings/${findingId}/reviews`, { decision: "REJECTED" }));
 
   expect(response.status).toBe(409);
+});
+
+test("completes a rejected human review", async () => {
+  const { caseId } = await repository.createPendingCase("source-rejected", snapshotStub());
+  const findingId = await repository.appendFindingRevision(caseId, {
+    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+    severity: "HIGH",
+    rationale: "Advance payment exceeds the policy limit",
+    evidenceIds: ["contract-payment"],
+    remediation: "Reduce the advance payment ratio",
+  }, null);
+
+  const response = await app.handle(json("POST", `/api/findings/${findingId}/reviews`, {
+    decision: "REJECTED",
+    reason: "Evidence does not support the proposed severity",
+  }));
+
+  expect(response.status).toBe(200);
+  expect((await repository.getFindingsByCase(caseId))[0].review).toMatchObject({
+    decision: "REJECTED",
+    reason: "Evidence does not support the proposed severity",
+  });
+  expect(await repository.getCase(caseId)).toMatchObject({
+    status: "COMPLETED",
+    stage: "COMPLETED",
+  });
+  expect(broker.events.at(-1)).toMatchObject({
+    type: "audit.completed",
+    auditCaseId: caseId,
+  });
 });
 
 test("returns case detail with snapshot and findings", async () => {

@@ -35,10 +35,8 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
       throw error;
     }
 
-    if (body.decision === "ACCEPTED") {
-      broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
-      await repository.updateCaseStatus(finding.auditCaseId, "COMPLETED", "COMPLETED");
-    }
+    broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
+    await repository.updateCaseStatus(finding.auditCaseId, "COMPLETED", "COMPLETED");
     return { id: params.id, reviewed: true as const };
   }, { body: reviewBody });
 }
