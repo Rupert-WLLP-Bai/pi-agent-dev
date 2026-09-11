@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "smoke": "bun run src/smoke.ts"
+    "smoke": "bun --env-file=../../.env run src/smoke.ts"
   },
   "dependencies": {
     "@contract-audit/audit": "workspace:*",

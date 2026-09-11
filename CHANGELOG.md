@@ -108,6 +108,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   workbench was unreachable from the Windows host under WSL2. It now binds all
   interfaces. Reachability is required for the documented
   `http://localhost:5173/audit-cases` entry point.
+- The documented API dev command failed with `LLM_NOT_CONFIGURED`: Bun reads
+  `.env` from the process working directory, and `bun --filter` runs the
+  package script inside `apps/api`, so the root `.env` was never loaded. The
+  API `dev` script and the Pi `smoke` script now load it explicitly with
+  `--env-file=../../.env`.
 
 ### Verified
 
@@ -173,3 +178,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output 1337 / total 8601, and no error.
 - Queue and detail rendered the persisted record after a full reload
   (待复核 count 1, record `59437df9…`, stage 人工复核).
+- Second real-LLM run started with the documented
+  `bun --filter @contract-audit/api dev` command reached `AWAITING_REVIEW` in
+  80.1 s with the same `POLICY_CONFLICT` finding and no `LLM_NOT_CONFIGURED`.
