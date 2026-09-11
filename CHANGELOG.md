@@ -86,6 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The payment-terms audit skill prompt now requires Simplified Chinese
   `rationale` and `remediation`; a real-LLM run previously wrote English copy
   into the Chinese-only workbench.
+- Local PostgreSQL upgraded from 16 to 18 (`postgres:18`). The 18+ Docker
+  images changed the data directory convention, so the compose volume now
+  mounts `/var/lib/postgresql` instead of `/var/lib/postgresql/data`.
 
 ### Fixed
 
@@ -101,6 +104,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The creation Drawer blocks Escape, mask close, and duplicate submission
   while submitting; the shell exposes a mobile menu trigger below 768 px.
 - Removed the prohibited `.ant-btn` selector from project CSS.
+- The web dev server bound only to IPv6 loopback (`[::1]:5173`), so the
+  workbench was unreachable from the Windows host under WSL2. It now binds all
+  interfaces. Reachability is required for the documented
+  `http://localhost:5173/audit-cases` entry point.
 
 ### Verified
 
@@ -149,3 +156,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Note: the dispatcher has no agent-run timeout; one real-LLM request stalled
   indefinitely (445 s, then cancelled) and held the single concurrency slot.
   Adding a bounded agent timeout is a recommended follow-up, not done here.
+
+### Verified — Local stack on PostgreSQL 18
+
+- `docker compose exec postgres psql -c "select version()"`:
+  `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2)`.
+- `bun --filter @contract-audit/api migrate`: migrations applied successfully
+  against the fresh 18 volume; all five tables present.
+- `bun run typecheck`: clean.
+- `bun test packages apps`: 45 pass / 0 fail (99 assertions, 12 files),
+  including the repository integration tests against PostgreSQL 18.
+- Real LLM run through the workbench (`AUDIT_AGENT_MODE=pi`, XYG
+  `deepseek-v4-flash`): the 70% demo contract reached `AWAITING_REVIEW` in
+  30.6 s with `POLICY_CONFLICT`, `agent_runs` recording provider `pi`, model
+  `deepseek-v4-flash`, version `0.85.1`, duration 30610 ms, usage input 7264 /
+  output 1337 / total 8601, and no error.
+- Queue and detail rendered the persisted record after a full reload
+  (待复核 count 1, record `59437df9…`, stage 人工复核).
