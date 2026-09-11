@@ -115,3 +115,7 @@ export function filterAndSortCases(
       && auditCase.id.toLocaleLowerCase().includes(normalizedSearch))
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
+
+/** Compact, stable label for an audit ID: full slug when short, 8-char prefix for UUIDs. */
+export const shortAuditId = (id: string): string =>
+  id.length <= 12 ? id : `${id.slice(0, 8)}…`;
