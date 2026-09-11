@@ -4,25 +4,43 @@
 
 **Goal:** Replace the bare two-page frontend with the approved Modern Authority audit command center and decision-first review workbench, wiring every existing audit action and making both review decisions terminal.
 
-**Architecture:** Keep TanStack Query as the server-state owner and keep route components responsible for queries and mutations. Introduce one pure presentation module that translates domain lifecycle values into user-facing state, focused view components for the shell, queue, creation flow, and review flow, and one shared CSS/token system layered over Ant Design 5.29.3. Preserve the existing Elysia/Eden boundary; the only backend behavior change makes `REJECTED` review completion match `ACCEPTED` completion.
+**Architecture:** Keep TanStack Query as the server-state owner and keep route components responsible for queries and mutations. Introduce one pure presentation module that translates domain lifecycle values into user-facing state, focused view components for the shell, queue, creation flow, and review flow, and one shared CSS/token system layered over Ant Design 6.6.3. Preserve the existing Elysia/Eden boundary; the only backend behavior change makes `REJECTED` review completion match `ACCEPTED` completion.
 
-**Tech Stack:** Bun 1.3.14, TypeScript, React 19, Vite 6, Ant Design 5.29.3, `@ant-design/icons` 5.6.1, TanStack Router, TanStack Query, Eden Treaty, Elysia, Bun Test, Playwright.
+**Tech Stack:** Bun 1.3.14, TypeScript, React 19, Vite 6, Ant Design 6.6.3, `@ant-design/icons` 6.3.4, TanStack Router, TanStack Query, Eden Treaty, Elysia, Bun Test, Playwright.
 
 ## Global Constraints
 
 - Source of truth: `docs/superpowers/specs/2026-09-11-modern-audit-workbench-design.md`.
 - Do not execute this plan until the user has switched models and explicitly asks for implementation.
 - At execution start, invoke `using-git-worktrees` and implement in an isolated worktree because the current workspace contains unrelated changes.
-- Preserve and exclude from task commits the existing changes to `README.md`, `apps/api/package.json`, `apps/api/start.sh`, `diag-pi.ts`, and `.superpowers/`.
+- Preserve unrelated changes if they appear in this worktree, especially `apps/api/package.json`, `apps/api/start.sh`, `diag-pi.ts`, and `.superpowers/`; `README.md`, the root `package.json`, and the web package files are explicitly in scope for this Ant Design v6 upgrade.
 - Use exact-path `git add` commands from each task; never stage the whole worktree.
-- Add no runtime dependency and do not migrate to Next.js, shadcn/ui, Tailwind, Geist components, or a web font.
+- Add no runtime dependency and do not migrate to Next.js, shadcn/ui, Tailwind, Geist components, or a web font. TypeScript remains a root development dependency so the existing `bun run typecheck` script is reproducible.
+- Use `antd@^6.6.3` with `@ant-design/icons@^6.3.4`; React 19 satisfies the v6 peer requirement.
+- Treat the v5-to-v6 migration as part of this plan: use `Space.orientation`, `Descriptions.items`, `Alert.title`, `Drawer.size` plus `mask.closable`, contextual `App.useApp()` feedback, and `Listy` instead of deprecated `List`.
+- Do not add `@ant-design/v5-patch-for-react-19`; Ant Design v6 supports React 19 directly.
 - Show no list-level severity, contract title, user, navigation destination, or live datum unavailable from the API.
 - Never fetch every case detail to enrich the list; summary values come from `GET /api/audit-cases` only.
 - Use one root Ant Design `ConfigProvider`; theme with tokens first and project CSS classes second. Never target internal `.ant-*` selectors.
-- Before editing a component, run `antd info <Component> --version 5.29.3 --format json`. After each frontend task, run `antd lint <changed-path> --format json`.
+- Before editing a component, run `antd info <Component> --version 6.6.3 --format json`. After each frontend task, run `antd lint <changed-path> --format json`.
 - Preserve visible focus, semantic landmarks, text-plus-color status cues, 4.5:1 text contrast, reduced-motion behavior, and 44×44 px mobile targets.
 - Verify at 375, 768, 1024, and 1440 CSS pixels without horizontal page overflow.
 - All status and stage copy shown to users is Chinese; wire values remain unchanged.
+
+## Ant Design v6 Migration Gate
+
+The workbench is implemented against the current stable Ant Design v6 line, not the v5 API surface that the original plan was written against. Before any frontend task changes code, query the exact v6.6.3 component API with `antd info <Component> --version 6.6.3 --format json`.
+
+The migration rules for this worktree are concrete:
+
+- `Space direction="vertical"` becomes `Space orientation="vertical"`.
+- `Descriptions.Item` children become a `Descriptions items` array with `{ key, label, children }` entries.
+- `Alert message="..."` becomes `Alert title="..."` when the value is the alert heading.
+- Static `message.error/warning/success` imports are forbidden; routes call `const { message } = App.useApp()` inside the root `App` provider.
+- The deprecated `List` component becomes `Listy`; use `items`, `rowKey`, and `itemRender`, and render `Empty` explicitly when the collection is empty because `Listy` has no `locale.emptyText` prop.
+- `Drawer width`/`maskClosable` examples use v6 `size`/`mask={{ closable }}`.
+
+After each changed frontend path, run `antd lint <changed-path> --format json`. The final frontend check must report zero deprecated and usage findings, followed by `bun run typecheck` and the focused Playwright flows.
 
 ## File Structure
 
@@ -459,13 +477,13 @@ git commit -m "feat: define audit workbench presentation model"
 Run:
 
 ```bash
-antd info ConfigProvider --version 5.29.3 --format json
-antd info App --version 5.29.3 --format json
-antd info Button --version 5.29.3 --format json
-antd info Tooltip --version 5.29.3 --format json
+antd info ConfigProvider --version 6.6.3 --format json
+antd info App --version 6.6.3 --format json
+antd info Button --version 6.6.3 --format json
+antd info Tooltip --version 6.6.3 --format json
 ```
 
-Expected: JSON output confirms `ConfigProvider.theme`, `App`, documented button props, and Tooltip accessible title support for Ant Design 5.29.3.
+Expected: JSON output confirms `ConfigProvider.theme`, `App`, documented button props, and Tooltip accessible title support for Ant Design 6.6.3. The v6 provider is rendered as one root `ConfigProvider` wrapping `App`.
 
 - [ ] **Step 2: Extend the real acceptance path with shell landmarks**
 
@@ -670,13 +688,13 @@ git commit -m "feat: add modern audit application shell"
 Run:
 
 ```bash
-antd info Drawer --version 5.29.3 --format json
-antd info Form --version 5.29.3 --format json
-antd info Input --version 5.29.3 --format json
-antd info InputNumber --version 5.29.3 --format json
+antd info Drawer --version 6.6.3 --format json
+antd info Form --version 6.6.3 --format json
+antd info Input --version 6.6.3 --format json
+antd info InputNumber --version 6.6.3 --format json
 ```
 
-Expected: JSON confirms `Drawer.open`, `destroyOnHidden`, `footer`, Form validation props, `Input.TextArea.showCount`, and `InputNumber.suffix/min/max/precision`.
+Expected: JSON confirms `Drawer.open`, `destroyOnHidden`, `footer`, `size`, `mask.closable`, Form validation props, `Input.TextArea.showCount`, and `InputNumber.suffix/min/max/precision`.
 
 - [ ] **Step 2: Change the acceptance path to use the Drawer and explicit policy field**
 
@@ -723,7 +741,7 @@ interface NewAuditFormValues {
 }
 ```
 
-The Drawer uses `width="min(520px, 100vw)"`, `destroyOnHidden`, `maskClosable={!submitting}`, and a stable footer. The Form uses `layout="vertical"`, `validateTrigger="onBlur"`, `scrollToFirstError={{ focus: true }}`, and initial `policyLimitPercent: 30`.
+The Drawer uses `size="min(520px, 100vw)"`, `destroyOnHidden`, `mask={{ closable: !submitting }}`, and a stable footer. The Form uses `layout="vertical"`, `validateTrigger="onBlur"`, `scrollToFirstError={{ focus: true }}`, and initial `policyLimitPercent: 30`.
 
 The contract rule is:
 
@@ -766,7 +784,7 @@ Render the page heading “审计队列,” a “新建审计” button, and the
 
 - [ ] **Step 6: Add creation-flow styles and verify**
 
-Add Drawer content spacing, helper copy, `.drawer-footer`, full-width mobile Drawer behavior through `width="min(520px, 100vw)"`, and a stable inline error region with `role="alert"`.
+Add Drawer content spacing, helper copy, `.drawer-footer`, full-width mobile Drawer behavior through `size="min(520px, 100vw)"`, and a stable inline error region with `role="alert"`.
 
 Run:
 
@@ -805,11 +823,11 @@ git commit -m "feat: add guided audit creation drawer"
 Run:
 
 ```bash
-antd info Table --version 5.29.3 --format json
-antd info Segmented --version 5.29.3 --format json
-antd info Popconfirm --version 5.29.3 --format json
-antd info Result --version 5.29.3 --format json
-antd info Skeleton --version 5.29.3 --format json
+antd info Table --version 6.6.3 --format json
+antd info Segmented --version 6.6.3 --format json
+antd info Popconfirm --version 6.6.3 --format json
+antd info Result --version 6.6.3 --format json
+antd info Skeleton --version 6.6.3 --format json
 ```
 
 Expected: JSON confirms stable `rowKey`, controlled Segmented value/options, Popconfirm title/description/onConfirm, Result status/extra, and Skeleton loading props.
@@ -972,16 +990,16 @@ git commit -m "feat: build audit queue command center"
 Run:
 
 ```bash
-antd info Steps --version 5.29.3 --format json
-antd info Drawer --version 5.29.3 --format json
-antd info Form --version 5.29.3 --format json
-antd info Descriptions --version 5.29.3 --format json
-antd info Alert --version 5.29.3 --format json
-antd info Button --version 5.29.3 --format json
-antd info Typography --version 5.29.3 --format json
+antd info Steps --version 6.6.3 --format json
+antd info Drawer --version 6.6.3 --format json
+antd info Form --version 6.6.3 --format json
+antd info Descriptions --version 6.6.3 --format json
+antd info Alert --version 6.6.3 --format json
+antd info Button --version 6.6.3 --format json
+antd info Typography --version 6.6.3 --format json
 ```
 
-Expected: JSON confirms `Steps.items/current/status/responsive`, controlled Drawer and Form APIs, documented Descriptions/Alert/Button props, and `Typography.Text.copyable`.
+Expected: JSON confirms `Steps.items/current/status/responsive`, controlled Drawer and Form APIs, `Descriptions.items`, `Alert.title`, `Space.orientation`, `Listy.items/itemRender/rowKey`, documented Button props, and `Typography.Text.copyable`.
 
 - [ ] **Step 2: Extend the accepted-review scenario**
 
@@ -1165,7 +1183,8 @@ git commit -m "feat: build decision-first audit review"
 
 **Files:**
 - Modify after verification: `CHANGELOG.md:8-70`
-- Do not modify: the currently dirty `README.md`
+- Modify for the dependency/API baseline: `README.md`, `package.json`, `apps/web/package.json`, `bun.lock`, and this plan/spec.
+- Do not modify unrelated API/bootstrap files: `apps/api/package.json`, `apps/api/start.sh`, `diag-pi.ts`, or `.superpowers/`.
 
 **Interfaces:**
 - Consumes: all behavior from Tasks 1–6.
@@ -1254,4 +1273,4 @@ git add CHANGELOG.md
 git commit -m "docs: record modern workbench verification"
 ```
 
-Do not stage the pre-existing `README.md`, `apps/api/package.json`, `apps/api/start.sh`, `diag-pi.ts`, or `.superpowers/` changes.
+Stage only the verified files belonging to this worktree's feature and Ant Design v6 upgrade; keep unrelated API/bootstrap changes and `.superpowers/` out of commits.

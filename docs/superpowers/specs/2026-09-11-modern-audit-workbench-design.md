@@ -16,7 +16,7 @@ This redesign must make the existing single-user audit loop feel complete withou
 - Localize status and stage labels while keeping domain values unchanged over the wire.
 - Provide explicit loading, empty, success, error, disconnected, and terminal states.
 - Work without horizontal scrolling at 375, 768, 1024, and 1440 CSS pixels.
-- Retain the current React, Vite, TanStack Router/Query, Eden Treaty, and Ant Design stack.
+- Retain the current React, Vite, TanStack Router/Query, Eden Treaty, and Ant Design stack, upgraded to `antd@6.6.3` with `@ant-design/icons@6.3.4`.
 
 ## Non-goals
 
@@ -87,6 +87,10 @@ Deep links and browser Back remain authoritative. The detail header also include
 - Risk, warning, progress, and success colors appear only with a text label or icon; color is never the sole signal.
 
 Exact values are expressed through one root Ant Design `ConfigProvider` theme plus project CSS variables. Component code must not contain a second ad hoc color system.
+
+### Ant Design v6 Baseline
+
+The workbench targets the stable Ant Design v6 API surface. Use the documented v6 equivalents throughout the UI: `Space.orientation`, `Descriptions.items`, `Alert.title`, `Drawer.size` with `mask.closable`, and `App.useApp()` for contextual feedback. The deprecated `List` component is not part of the design; long or dynamic collections use `Listy` with explicit empty states. The root `ConfigProvider` wraps one Ant Design `App`, and React 19 requires no v5 compatibility patch.
 
 ### Typography
 

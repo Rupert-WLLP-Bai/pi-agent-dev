@@ -38,4 +38,14 @@ bunx playwright install         # 安装浏览器（首次）
 bunx playwright test            # 验收测试
 ```
 
+## Ant Design 版本基线
+
+Web 工作台统一使用当前稳定的 Ant Design v6：
+
+- `antd`: `^6.6.3`
+- `@ant-design/icons`: `^6.3.4`
+- React 19，无需 `@ant-design/v5-patch-for-react-19`
+
+组件代码按 v6 API 编写：使用 `Space.orientation`、`Descriptions.items`、`Alert.title`、`Drawer.size` 与 `mask={{ closable }}`，全局反馈通过根 `App` 的 `App.useApp()` 获取；列表使用 `Listy`，不再新增已弃用的 `List`。修改组件前先运行 `antd info <Component> --version 6.6.3 --format json`，修改后运行 `antd lint <changed-path> --format json`。
+
 详细步骤见 [runbook](./docs/runbook/mvp-local.md)。
