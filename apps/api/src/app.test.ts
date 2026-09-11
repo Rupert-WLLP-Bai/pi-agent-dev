@@ -124,6 +124,26 @@ test("completes a rejected human review", async () => {
   });
 });
 
+test("publishes completion only after the case reaches its terminal state", async () => {
+  const { caseId } = await repository.createPendingCase("source-order", snapshotStub());
+  const findingId = await repository.appendFindingRevision(caseId, {
+    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+    severity: "HIGH",
+    rationale: "Advance payment exceeds the policy limit",
+    evidenceIds: ["contract-payment"],
+    remediation: "Reduce the advance payment ratio",
+  }, null);
+
+  const statusAtPublish: Array<Promise<string | undefined>> = [];
+  broker.subscribe(caseId, () => {
+    statusAtPublish.push(repository.getCase(caseId).then((current) => current?.status));
+  });
+
+  await app.handle(json("POST", `/api/findings/${findingId}/reviews`, { decision: "ACCEPTED" }));
+
+  expect(await Promise.all(statusAtPublish)).toEqual(["COMPLETED"]);
+});
+
 test("returns case detail with snapshot and findings", async () => {
   const { caseId } = await repository.createPendingCase("source-1", snapshotStub());
   await repository.appendFindingRevision(caseId, {

@@ -35,8 +35,8 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
       throw error;
     }
 
-    broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
     await repository.updateCaseStatus(finding.auditCaseId, "COMPLETED", "COMPLETED");
+    broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
     return { id: params.id, reviewed: true as const };
   }, { body: reviewBody });
 }
