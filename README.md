@@ -4,7 +4,9 @@
 
 ## 当前状态
 
-架构和实现计划已确认，尚未开始应用代码脚手架。领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [MVP Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md)。
+Contract Audit MVP 已完成并在 `main` 上落地。审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、React 工作台和 Playwright 验收流程均已实现；现代化审计工作台（审计队列指挥中心与 decision-first 复核工作台）已通过 `origin/modern-audit-workbench` 快进合并进 `main`。
+
+领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [MVP Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md) 和 [modern workbench plan](./docs/superpowers/plans/2026-09-11-modern-audit-workbench.md)。
 
 ## MVP 边界
 

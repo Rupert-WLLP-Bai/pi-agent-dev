@@ -1,8 +1,12 @@
 # Modern Audit Workbench Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the bare two-page frontend with the approved Modern Authority audit command center and decision-first review workbench, wiring every existing audit action and making both review decisions terminal.
+
+## Implementation Status
+
+Completed and merged into `main` by fast-forward from `origin/modern-audit-workbench` (`c214e71`). The seven tasks below are implemented and verified; final evidence is recorded in `CHANGELOG.md`.
 
 **Architecture:** Keep TanStack Query as the server-state owner and keep route components responsible for queries and mutations. Introduce one pure presentation module that translates domain lifecycle values into user-facing state, focused view components for the shell, queue, creation flow, and review flow, and one shared CSS/token system layered over Ant Design 6.6.3. Preserve the existing Elysia/Eden boundary; the only backend behavior change makes `REJECTED` review completion match `ACCEPTED` completion.
 
@@ -80,7 +84,7 @@ After each changed frontend path, run `antd lint <changed-path> --format json`. 
 - Consumes: `AuditCaseRepository.appendReviewRevision()`, `AuditCaseRepository.updateCaseStatus()`, and `AuditEventBroker.publish()`.
 - Produces: `POST /api/findings/:id/reviews` records either decision, updates the case to `{ status: "COMPLETED", stage: "COMPLETED" }`, and only then publishes `audit.completed`.
 
-- [ ] **Step 1: Add the rejected-review state-transition test**
+- [x] **Step 1: Add the rejected-review state-transition test**
 
 First extend the existing accepted-review test so it also protects the terminal state:
 
@@ -125,7 +129,7 @@ test("completes a rejected human review", async () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and confirm the current asymmetry**
+- [x] **Step 2: Run the focused test and confirm the current asymmetry**
 
 Run:
 
@@ -135,7 +139,7 @@ bun test apps/api/src/app.test.ts -t "completes a rejected human review"
 
 Expected: FAIL because the rejected review is persisted but the case remains `PENDING`/`QUEUED` in the in-memory repository and no completion event is published.
 
-- [ ] **Step 3: Remove the acceptance-only completion branch**
+- [x] **Step 3: Remove the acceptance-only completion branch**
 
 After `appendReviewRevision()` succeeds, make completion unconditional:
 
@@ -147,7 +151,7 @@ return { id: params.id, reviewed: true as const };
 
 Delete the `if (body.decision === "ACCEPTED")` wrapper. Do not change unknown-Finding or duplicate-review behavior.
 
-- [ ] **Step 4: Run all API route tests**
+- [x] **Step 4: Run all API route tests**
 
 Run:
 
@@ -157,7 +161,7 @@ bun test apps/api/src/app.test.ts
 
 Expected: every route test passes, including accepted review, rejected review, duplicate review, create, and detail behavior.
 
-- [ ] **Step 5: Commit the transition correction**
+- [x] **Step 5: Commit the transition correction**
 
 ```bash
 git add apps/api/src/routes/findings.ts apps/api/src/app.test.ts
@@ -183,7 +187,7 @@ git commit -m "fix: complete rejected audit reviews"
   - `AuditLifecycleFilter`, `AuditDisplayState`, `AuditQueueStats`
   - `getAuditDisplayState()`, `getAuditStageLabel()`, `getAuditStep()`, `getAvailableCaseActions()`, `deriveQueueStats()`, and `filterAndSortCases()`
 
-- [ ] **Step 1: Write lifecycle precedence and queue derivation tests**
+- [x] **Step 1: Write lifecycle precedence and queue derivation tests**
 
 Create `apps/web/src/audit-presentation.test.ts` with fixed timestamps and explicit cases:
 
@@ -248,7 +252,7 @@ test("filters by product lifecycle and sorts by latest update", () => {
 });
 ```
 
-- [ ] **Step 2: Run the pure tests and verify the module is missing**
+- [x] **Step 2: Run the pure tests and verify the module is missing**
 
 Run:
 
@@ -258,7 +262,7 @@ bun test apps/web/src/audit-presentation.test.ts
 
 Expected: FAIL because `audit-presentation.ts` does not exist.
 
-- [ ] **Step 3: Implement one authoritative lifecycle mapping**
+- [x] **Step 3: Implement one authoritative lifecycle mapping**
 
 Create `audit-presentation.ts` with these public types and keys:
 
@@ -384,7 +388,7 @@ export function filterAndSortCases(
 
 Do not introduce severity, contract-title, or detail fetches into these helpers.
 
-- [ ] **Step 4: Run the presentation tests**
+- [x] **Step 4: Run the presentation tests**
 
 Run:
 
@@ -394,7 +398,7 @@ bun test apps/web/src/audit-presentation.test.ts
 
 Expected: 3 tests pass.
 
-- [ ] **Step 5: Centralize API origin, request errors, and action calls**
+- [x] **Step 5: Centralize API origin, request errors, and action calls**
 
 Replace positional creation arguments and preserve the existing Eden calls:
 
@@ -437,7 +441,7 @@ export function getAuditEventsUrl(id: string): string {
 
 Make `getAuditCases()`, `getAuditCase()`, `submitReview()`, `cancelAuditCase()`, and `retryAuditCase()` throw `ApiRequestError` with their safe Chinese operation label and `error.status`. This lets the review route distinguish 409 without parsing message text.
 
-- [ ] **Step 6: Run frontend type checking and the pure tests**
+- [x] **Step 6: Run frontend type checking and the pure tests**
 
 Run:
 
@@ -447,7 +451,7 @@ bun test apps/web/src/audit-presentation.test.ts && bun run typecheck
 
 Expected: presentation tests pass and TypeScript is clean after callers are migrated in the same change to `createAuditCase({ contractText, policyLimitRatio })` with the current 30% default.
 
-- [ ] **Step 7: Commit the contracts**
+- [x] **Step 7: Commit the contracts**
 
 ```bash
 git add apps/web/src/api.ts apps/web/src/audit-presentation.ts apps/web/src/audit-presentation.test.ts apps/web/src/routes/audit-cases.tsx
@@ -472,7 +476,7 @@ git commit -m "feat: define audit workbench presentation model"
 - Consumes: `getApiHealth()`, `getAuditDisplayState()`, TanStack Router `Link`/`Outlet`, and Ant Design provider APIs.
 - Produces: `appTheme`, `AppShell`, `AuditStateBadge`, global CSS variables/classes, and semantic `banner`, `navigation`, and `main` landmarks around both routes.
 
-- [ ] **Step 1: Query exact Ant Design APIs used by the shell**
+- [x] **Step 1: Query exact Ant Design APIs used by the shell**
 
 Run:
 
@@ -485,7 +489,7 @@ antd info Tooltip --version 6.6.3 --format json
 
 Expected: JSON output confirms `ConfigProvider.theme`, `App`, documented button props, and Tooltip accessible title support for Ant Design 6.6.3. The v6 provider is rendered as one root `ConfigProvider` wrapping `App`.
 
-- [ ] **Step 2: Extend the real acceptance path with shell landmarks**
+- [x] **Step 2: Extend the real acceptance path with shell landmarks**
 
 At the start of the existing acceptance test, after `page.goto("/audit-cases")`, add:
 
@@ -496,7 +500,7 @@ await expect(page.getByRole("link", { name: "审计工作台" })).toBeVisible();
 await expect(page.getByRole("heading", { name: "审计队列" })).toBeVisible();
 ```
 
-- [ ] **Step 3: Run the acceptance test and verify the shell is absent**
+- [x] **Step 3: Run the acceptance test and verify the shell is absent**
 
 Run:
 
@@ -506,7 +510,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: FAIL at the missing banner/navigation or the missing “审计队列” heading.
 
-- [ ] **Step 4: Define the root theme**
+- [x] **Step 4: Define the root theme**
 
 Create `theme.ts` with a `ThemeConfig` that maps the approved tokens:
 
@@ -540,7 +544,7 @@ export const appTheme: ThemeConfig = {
 };
 ```
 
-- [ ] **Step 5: Compose providers once and import global CSS**
+- [x] **Step 5: Compose providers once and import global CSS**
 
 Update `main.tsx`:
 
@@ -566,7 +570,7 @@ createRoot(document.getElementById("root")!).render(
 
 Change the document title to `合同审计工作台`.
 
-- [ ] **Step 6: Implement semantic shell and real navigation only**
+- [x] **Step 6: Implement semantic shell and real navigation only**
 
 `AppShell` must render:
 
@@ -614,7 +618,7 @@ Use `useQuery({ queryKey: ["api-health"], queryFn: getApiHealth, refetchInterval
 
 Change the root route in `app.tsx` from a bare `<Outlet />` to `<AppShell />`.
 
-- [ ] **Step 7: Add the shell and token CSS**
+- [x] **Step 7: Add the shell and token CSS**
 
 Define `:root` variables for all approved colors and spacing, `box-sizing: border-box`, body margin/background/font, visible `:focus-visible`, the 190 px desktop sidebar, 54 px header, and max 1200 px content frame. Add these breakpoint contracts now:
 
@@ -646,11 +650,11 @@ Define `:root` variables for all approved colors and spacing, `box-sizing: borde
 
 Use project-owned classes only; do not add `.ant-*` selectors.
 
-- [ ] **Step 8: Implement the shared lifecycle badge**
+- [x] **Step 8: Implement the shared lifecycle badge**
 
 `AuditStateBadge` accepts `{ auditCase: AuditCase }`, calls `getAuditDisplayState()`, and renders a text label plus an `aria-hidden` tone dot. The CSS must provide distinct neutral/info/warning/danger/success foreground, border, and background pairs with sufficient contrast.
 
-- [ ] **Step 9: Verify shell behavior and Ant Design usage**
+- [x] **Step 9: Verify shell behavior and Ant Design usage**
 
 Run:
 
@@ -662,7 +666,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: Ant Design lint returns no a11y/deprecated errors, TypeScript is clean, and the existing audit flow passes with the new landmarks visible.
 
-- [ ] **Step 10: Commit the shell**
+- [x] **Step 10: Commit the shell**
 
 ```bash
 git add apps/web/index.html apps/web/src/main.tsx apps/web/src/app.tsx apps/web/src/theme.ts apps/web/src/styles.css apps/web/src/components/app-shell.tsx apps/web/src/components/audit-state-badge.tsx tests/acceptance/audit-case.spec.ts
@@ -683,7 +687,7 @@ git commit -m "feat: add modern audit application shell"
 - Consumes: `CreateAuditCaseInput`, the route-owned create mutation, and Ant Design Drawer/Form/Input/InputNumber APIs.
 - Produces: `NewAuditDrawer({ open, submitting, submitError, onClose, onSubmit })` and an accessible “新建审计” flow that sends percentage input as a decimal ratio.
 
-- [ ] **Step 1: Query exact form component APIs**
+- [x] **Step 1: Query exact form component APIs**
 
 Run:
 
@@ -696,7 +700,7 @@ antd info InputNumber --version 6.6.3 --format json
 
 Expected: JSON confirms `Drawer.open`, `destroyOnHidden`, `footer`, `size`, `mask.closable`, Form validation props, `Input.TextArea.showCount`, and `InputNumber.suffix/min/max/precision`.
 
-- [ ] **Step 2: Change the acceptance path to use the Drawer and explicit policy field**
+- [x] **Step 2: Change the acceptance path to use the Drawer and explicit policy field**
 
 Replace the direct “加载演示合同” click with:
 
@@ -712,7 +716,7 @@ await page.getByRole("button", { name: "开始审计" }).click();
 
 Keep the existing URL, Finding, review, and reload assertions after submission.
 
-- [ ] **Step 3: Run the acceptance test and verify the Drawer is absent**
+- [x] **Step 3: Run the acceptance test and verify the Drawer is absent**
 
 Run:
 
@@ -722,7 +726,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: FAIL because “新建审计” and its dialog do not exist.
 
-- [ ] **Step 4: Implement the controlled Drawer contract**
+- [x] **Step 4: Implement the controlled Drawer contract**
 
 Use this public shape:
 
@@ -764,7 +768,7 @@ onSubmit({
 
 “加载演示合同” calls `form.setFieldValue("contractText", demoContract)` and never submits.
 
-- [ ] **Step 5: Convert the queue route into data orchestration**
+- [x] **Step 5: Convert the queue route into data orchestration**
 
 The route owns:
 
@@ -782,7 +786,7 @@ const createMutation = useMutation({
 
 Render the page heading “审计队列,” a “新建审计” button, and the controlled Drawer. Preserve form input after errors; clearing occurs when a successful close destroys the Drawer.
 
-- [ ] **Step 6: Add creation-flow styles and verify**
+- [x] **Step 6: Add creation-flow styles and verify**
 
 Add Drawer content spacing, helper copy, `.drawer-footer`, full-width mobile Drawer behavior through `size="min(520px, 100vw)"`, and a stable inline error region with `role="alert"`.
 
@@ -796,7 +800,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: validation appears inline, the demo text fills without submitting, 30% is sent, and the browser navigates to the created case.
 
-- [ ] **Step 7: Commit the creation flow**
+- [x] **Step 7: Commit the creation flow**
 
 ```bash
 git add apps/web/src/components/new-audit-drawer.tsx apps/web/src/routes/audit-cases.tsx apps/web/src/styles.css tests/acceptance/audit-case.spec.ts
@@ -818,7 +822,7 @@ git commit -m "feat: add guided audit creation drawer"
 - Consumes: presentation helpers from Task 2, `AuditStateBadge`, `AuditCase[]`, route navigation, and cancel/retry API calls.
 - Produces: `useMediaQuery(query)`, plus `AuditQueue` with summary, search, lifecycle filters, refresh timestamp, one responsive desktop-or-mobile result surface, state-specific actions, and confirmed mutations.
 
-- [ ] **Step 1: Query queue and confirmation component APIs**
+- [x] **Step 1: Query queue and confirmation component APIs**
 
 Run:
 
@@ -832,7 +836,7 @@ antd info Skeleton --version 6.6.3 --format json
 
 Expected: JSON confirms stable `rowKey`, controlled Segmented value/options, Popconfirm title/description/onConfirm, Result status/extra, and Skeleton loading props.
 
-- [ ] **Step 2: Write deterministic queue interaction tests**
+- [x] **Step 2: Write deterministic queue interaction tests**
 
 Create `tests/acceptance/audit-queue.spec.ts`. Intercept `**/api/audit-cases` with an in-memory array containing a running case, failed case, interrupted case, waiting-review case, and completed case. For GET return the array; for `/running/cancel` mutate the running row to cancelled; for `/failed/retry` mutate the failed row to pending.
 
@@ -863,7 +867,7 @@ In a third test set `page.setViewportSize({ width: 375, height: 812 })`, assert 
 expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 ```
 
-- [ ] **Step 3: Run the queue tests and verify the command center is missing**
+- [x] **Step 3: Run the queue tests and verify the command center is missing**
 
 Run:
 
@@ -873,7 +877,7 @@ bunx playwright test tests/acceptance/audit-queue.spec.ts
 
 Expected: FAIL on missing summary/filter labels and mobile audit list.
 
-- [ ] **Step 4: Implement the queue view contract**
+- [x] **Step 4: Implement the queue view contract**
 
 Use this prop boundary:
 
@@ -924,7 +928,7 @@ export function useMediaQuery(query: string): boolean {
 
 The desktop Table uses `rowKey="id"`, `pagination={{ pageSize: 10, hideOnSinglePage: true }}`, and explicit focusable action buttons. Call `useMediaQuery("(max-width: 767px)")` once. When true, render a semantic `<ul aria-label="审计记录">` populated by `filteredCases.map()` and a private `AuditRecordItem`; when false, render the Table. Each list item contains the same ID, localized lifecycle, stage, update time, and allowed actions as its table row. Render no offscreen interactive duplicate.
 
-- [ ] **Step 5: Wire queue mutations in the route**
+- [x] **Step 5: Wire queue mutations in the route**
 
 Create separate mutations so pending state is scoped by row:
 
@@ -942,11 +946,11 @@ Import `App as AntApp` from Ant Design and use the contextual `message` instance
 
 Cancellation is shown only for `PENDING`/`RUNNING`; retry only for `FAILED`/`CANCELLED`/`INTERRUPTED`. Both use Popconfirm with a description of the state change.
 
-- [ ] **Step 6: Implement connected-grid, table, and mobile styles**
+- [x] **Step 6: Implement connected-grid, table, and mobile styles**
 
 Add project classes for `.queue-header`, `.queue-summary`, `.queue-summary__item`, `.queue-surface`, `.queue-toolbar`, `.audit-record`, and `.audit-records-mobile`. Use borders rather than card shadows. At 767 px and below render the semantic card list; retain 44 px action targets. At 768 px and above render the Table.
 
-- [ ] **Step 7: Verify queue behavior**
+- [x] **Step 7: Verify queue behavior**
 
 Run:
 
@@ -958,7 +962,7 @@ bunx playwright test tests/acceptance/audit-queue.spec.ts
 
 Expected: filters/search work, cancel and retry expose confirmation and update the row state, and the 375 px test has no page overflow.
 
-- [ ] **Step 8: Commit the command center**
+- [x] **Step 8: Commit the command center**
 
 ```bash
 git add apps/web/src/components/audit-queue.tsx apps/web/src/hooks/use-media-query.ts apps/web/src/routes/audit-cases.tsx apps/web/src/styles.css tests/acceptance/audit-queue.spec.ts
@@ -985,7 +989,7 @@ git commit -m "feat: build audit queue command center"
   - `AuditCaseWorkbench` for all case lifecycle states
   - persisted accepted and rejected browser flows
 
-- [ ] **Step 1: Query detail-page Ant Design APIs**
+- [x] **Step 1: Query detail-page Ant Design APIs**
 
 Run:
 
@@ -1001,7 +1005,7 @@ antd info Typography --version 6.6.3 --format json
 
 Expected: JSON confirms `Steps.items/current/status/responsive`, controlled Drawer and Form APIs, `Descriptions.items`, `Alert.title`, `Space.orientation`, `Listy.items/itemRender/rowKey`, documented Button props, and `Typography.Text.copyable`.
 
-- [ ] **Step 2: Extend the accepted-review scenario**
+- [x] **Step 2: Extend the accepted-review scenario**
 
 After the Finding becomes visible, replace the instant review click with:
 
@@ -1015,7 +1019,7 @@ await expect(page.getByText("已接受")).toBeVisible();
 await expect(page.getByText("已完成").first()).toBeVisible();
 ```
 
-- [ ] **Step 3: Add the rejected-review scenario**
+- [x] **Step 3: Add the rejected-review scenario**
 
 Extract a local `createDemoAudit(page)` helper that opens the creation Drawer, loads demo text, submits, and waits for the conflict Finding. Add:
 
@@ -1036,7 +1040,7 @@ test("requires a reason and retains a rejected decision", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 4: Run the detail acceptance tests and verify the explicit review flow is missing**
+- [x] **Step 4: Run the detail acceptance tests and verify the explicit review flow is missing**
 
 Run:
 
@@ -1046,7 +1050,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: FAIL because review dialogs, reason validation, and terminal rejected review presentation do not exist.
 
-- [ ] **Step 5: Implement the SSE hook with one URL source**
+- [x] **Step 5: Implement the SSE hook with one URL source**
 
 Create:
 
@@ -1080,7 +1084,7 @@ export function useAuditEvents(
 
 The route must pass a `useCallback()` refetch/invalidate function so the hook does not reconnect on every render.
 
-- [ ] **Step 6: Implement the controlled review Drawer**
+- [x] **Step 6: Implement the controlled review Drawer**
 
 Use these public props:
 
@@ -1108,7 +1112,7 @@ The visible title is `接受审计建议` or `驳回审计建议`. Use one `Form
 
 Submit a trimmed reason only when non-empty. Disable close and duplicate submit while pending. Use buttons “确认接受” and “确认驳回.”
 
-- [ ] **Step 7: Implement the workbench lifecycle body**
+- [x] **Step 7: Implement the workbench lifecycle body**
 
 The component accepts the fetched detail data, connection state, mutation state, and callbacks. It must:
 
@@ -1134,7 +1138,7 @@ const citedEvidence = finding.proposal.evidenceIds.map((evidenceId) => ({
 
 Translate Finding values for users: `ADVANCE_PAYMENT_POLICY_CONFLICT` → `预付款比例超过制度上限`, `NEEDS_HUMAN_REVIEW` → `需要人工复核`, and LOW/MEDIUM/HIGH → 低/中/高风险.
 
-- [ ] **Step 8: Replace route markup with query and mutation orchestration**
+- [x] **Step 8: Replace route markup with query and mutation orchestration**
 
 The route keeps `useQuery({ queryKey: ["audit-case", id], queryFn: () => getAuditCase(id) })`. Add cancel, retry, and review mutations. Import `App as AntApp`, obtain `const { message } = AntApp.useApp()`, and do not use the static message API. On success invalidate both `["audit-case", id]` and `["audit-cases"]`.
 
@@ -1153,11 +1157,11 @@ message.error(error.message);
 
 Initial loading uses a stable Skeleton workbench. Initial failure uses Result with “重新加载.” A background refetch must keep existing content visible.
 
-- [ ] **Step 9: Add review-workbench responsive styles**
+- [x] **Step 9: Add review-workbench responsive styles**
 
 Create a two-column grid with `minmax(0, 1.35fr) minmax(280px, .85fr)` at desktop, one column below 900 px, compact metadata wrapping, quoted evidence with semantic `<blockquote>`, fact comparison cells, and the sticky review surface. Use border and background differences rather than shadowed Card stacks. Ensure no content is covered at 375 px.
 
-- [ ] **Step 10: Verify detail behavior and Ant Design usage**
+- [x] **Step 10: Verify detail behavior and Ant Design usage**
 
 Run:
 
@@ -1170,7 +1174,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts
 
 Expected: accepted and rejected flows pass; both persist after reload; rejection requires a reason; no Ant Design a11y/deprecated issue is reported.
 
-- [ ] **Step 11: Commit the review workbench**
+- [x] **Step 11: Commit the review workbench**
 
 ```bash
 git add apps/web/src/hooks/use-audit-events.ts apps/web/src/components/review-drawer.tsx apps/web/src/components/audit-case-workbench.tsx apps/web/src/routes/audit-case-detail.tsx apps/web/src/styles.css tests/acceptance/audit-case.spec.ts
@@ -1190,7 +1194,7 @@ git commit -m "feat: build decision-first audit review"
 - Consumes: all behavior from Tasks 1–6.
 - Produces: exact automated and visual proof for the redesigned surface and a changelog entry grounded in observed output.
 
-- [ ] **Step 1: Run focused unit and API regression tests**
+- [x] **Step 1: Run focused unit and API regression tests**
 
 Run:
 
@@ -1200,7 +1204,7 @@ bun test apps/api/src/app.test.ts apps/web/src/audit-presentation.test.ts
 
 Expected: all focused tests pass, including rejected-review terminal completion and lifecycle precedence.
 
-- [ ] **Step 2: Run Ant Design lint and project type checking**
+- [x] **Step 2: Run Ant Design lint and project type checking**
 
 Run:
 
@@ -1211,7 +1215,7 @@ bun run typecheck
 
 Expected: Ant Design lint reports no deprecated, accessibility, or performance finding for changed files; TypeScript exits successfully.
 
-- [ ] **Step 3: Run the two acceptance files**
+- [x] **Step 3: Run the two acceptance files**
 
 Ensure PostgreSQL is available and migrations are applied, then run:
 
@@ -1221,7 +1225,7 @@ bunx playwright test tests/acceptance/audit-case.spec.ts tests/acceptance/audit-
 
 Expected: creation, accept, reject, queue filter, cancel, retry, and 375 px overflow scenarios all pass with `AUDIT_AGENT_MODE=fake` from Playwright configuration.
 
-- [ ] **Step 4: Exercise the actual desktop surface**
+- [x] **Step 4: Exercise the actual desktop surface**
 
 Start PostgreSQL, API with `AUDIT_AGENT_MODE=fake`, and Web using project-scoped long-running processes. Open `http://localhost:5173/audit-cases` at 1440×900 in the browser and exercise this exact scenario:
 
@@ -1236,7 +1240,7 @@ Start PostgreSQL, API with `AUDIT_AGENT_MODE=fake`, and Web using project-scoped
 
 Expected: no console exception, no fake navigation item or list severity, no layout jump during mutation, and every action has visible feedback.
 
-- [ ] **Step 5: Exercise responsive layouts**
+- [x] **Step 5: Exercise responsive layouts**
 
 At 1024×768, 768×900, and 375×812 inspect the queue, New Audit Drawer, running detail, waiting-review detail, and completed detail. At each viewport evaluate:
 
@@ -1246,7 +1250,7 @@ document.documentElement.scrollWidth <= window.innerWidth
 
 Expected: `true` at every width; 375 px uses audit cards, one-column Finding/evidence, full-width Drawer, and 44 px controls without covered content.
 
-- [ ] **Step 6: Perform post-proof cleanup**
+- [x] **Step 6: Perform post-proof cleanup**
 
 After the smoke path passes:
 
@@ -1255,7 +1259,7 @@ After the smoke path passes:
 - Confirm no `console.log`, disabled fake navigation, temporary fixture, screenshot, or generated visual-companion file is staged.
 - Keep `.superpowers/` untracked and out of commits.
 
-- [ ] **Step 7: Update the changelog with observed facts**
+- [x] **Step 7: Update the changelog with observed facts**
 
 Under `[Unreleased]`, add concise entries for:
 
@@ -1266,7 +1270,7 @@ Under `[Unreleased]`, add concise entries for:
 
 Do not copy expected counts from this plan; record only the counts printed by the completed commands.
 
-- [ ] **Step 8: Commit verified documentation only**
+- [x] **Step 8: Commit verified documentation only**
 
 ```bash
 git add CHANGELOG.md
