@@ -9,11 +9,12 @@ const demoContract = "乙方签订后支付合同金额的70%作为预付款。"
 
 export default function AuditCasesList() {
   const [contractText, setContractText] = useState("");
+  const [policyLimitRatio, setPolicyLimitRatio] = useState(0.3);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const casesQuery = useQuery({ queryKey: ["audit-cases"], queryFn: getAuditCases });
   const createMutation = useMutation({
-    mutationFn: (text: string) => createAuditCase(text),
+    mutationFn: (text: string) => createAuditCase({ contractText: text, policyLimitRatio }),
     onSuccess: ({ id }) => {
       void queryClient.invalidateQueries({ queryKey: ["audit-cases"] });
       void navigate({ to: "/audit-cases/$id", params: { id } });
@@ -33,6 +34,19 @@ export default function AuditCasesList() {
             <Button onClick={() => setContractText(demoContract)}>加载演示合同</Button>
             <Button type="primary" htmlType="submit" loading={createMutation.isPending} disabled={!contractText.trim()}>开始审计</Button>
           </Space>
+          <Form.Item label="制度允许的预付款上限">
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={Math.round(policyLimitRatio * 100)}
+              onChange={(event) => {
+                const percent = Number(event.target.value);
+                setPolicyLimitRatio(!Number.isNaN(percent) ? percent / 100 : 0.3);
+              }}
+              suffix="%"
+            />
+          </Form.Item>
         </Form>
       </Card>
       <Card title="审计记录">
