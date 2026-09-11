@@ -1,7 +1,7 @@
-import { Form, Input, InputNumber, Drawer, Button, Space } from "antd";
+import { useState } from "react";
+import { Form, Input, InputNumber, Drawer, Button, Segmented, Space } from "antd";
 import type { CreateAuditCaseInput } from "../api";
-
-const demoContract = "乙方签订后支付合同金额的70%作为预付款。";
+import { demoContracts } from "../demo-contracts";
 
 export interface NewAuditDrawerProps {
   open: boolean;
@@ -24,6 +24,8 @@ export function NewAuditDrawer({
   onSubmit,
 }: NewAuditDrawerProps) {
   const [form] = Form.useForm<NewAuditFormValues>();
+  const [sampleId, setSampleId] = useState(demoContracts[0]!.id);
+  const sample = demoContracts.find((item) => item.id === sampleId) ?? demoContracts[0]!;
 
   const handleSubmit = (values: NewAuditFormValues) => {
     onSubmit({
@@ -111,12 +113,22 @@ export function NewAuditDrawer({
           />
         </Form.Item>
 
-        <Button
-          onClick={() => form.setFieldValue("contractText", demoContract)}
-          disabled={submitting}
-        >
-          加载演示合同
-        </Button>
+        <div className="demo-contract-picker">
+          <Segmented
+            size="small"
+            value={sampleId}
+            onChange={(value) => setSampleId(String(value))}
+            disabled={submitting}
+            options={demoContracts.map((item) => ({ value: item.id, label: item.shortLabel }))}
+          />
+          <Button
+            onClick={() => form.setFieldValue("contractText", sample.text)}
+            disabled={submitting}
+          >
+            加载演示合同
+          </Button>
+        </div>
+        <p className="demo-contract-summary">{sample.summary}</p>
 
         {submitError && (
           <div role="alert" style={{ marginTop: 16, color: "#b91c1c" }}>

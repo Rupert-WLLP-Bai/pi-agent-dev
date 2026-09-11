@@ -616,3 +616,18 @@ body {
     position: static;
   }
 }
+
+/* ── Demo Contract Picker ─────────────────────────── */
+
+.demo-contract-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.demo-contract-summary {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
