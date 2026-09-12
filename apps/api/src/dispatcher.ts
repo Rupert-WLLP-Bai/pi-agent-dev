@@ -32,6 +32,7 @@ export class AuditDispatcher {
     private readonly broker: AuditEventBroker,
     private readonly maxConcurrent: number,
     private readonly subjectVerificationPort: SubjectVerificationPort,
+    private readonly agentTimeoutMs: number = 0,
   ) {}
 
   get isStarted(): boolean {
@@ -104,7 +105,7 @@ export class AuditDispatcher {
       let result: AgentRunResult | undefined;
       let runError: unknown;
       try {
-        result = await agent.run(context, controller.signal);
+        result = await this.runAgentWithTimeout(agent, context, controller);
       } catch (error) {
         runError = error;
       }
@@ -141,6 +142,38 @@ export class AuditDispatcher {
       this.activeSessions.delete(auditCaseId);
       this.running -= 1;
       await this.processQueue();
+    }
+  }
+
+  /**
+   * Runs the agent with an optional wall-clock deadline. When `agentTimeoutMs`
+   * is 0, no timer is set and the call is only bounded by the caller's
+   * `AbortSignal` (cancel). Otherwise a timer fires at the deadline and the
+   * resulting rejection is rethrown as `AGENT_TIMEOUT`.
+   */
+  private async runAgentWithTimeout(
+    agent: AuditAgentPort,
+    context: AuditSnapshot,
+    parentController: AbortController,
+  ): Promise<AgentRunResult> {
+    if (this.agentTimeoutMs <= 0) {
+      return agent.run(context, parentController.signal);
+    }
+
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      parentController.abort();
+    }, this.agentTimeoutMs);
+    try {
+      return await agent.run(context, parentController.signal);
+    } catch (error) {
+      if (timedOut) {
+        throw new Error(`AGENT_TIMEOUT after ${this.agentTimeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

@@ -275,3 +275,34 @@ test("marks stale RUNNING cases interrupted and re-enqueues pending cases on sta
   agent2.resolveRun(proposal);
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
+
+test("times out a stalled agent run and marks the case FAILED", async () => {
+  const repo = new InMemoryAuditCaseRepository();
+  const stalledAgent = new ControlledAgent();
+  const stalledBroker = new RecordingEventBroker();
+  const { caseId } = await repo.createPendingCase("source-timeout", snapshotFor("source-timeout"));
+
+  const timeoutDispatcher = new AuditDispatcher(
+    repo.asRepository(),
+    () => stalledAgent,
+    stalledBroker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+    50, // 50 ms deadline
+  );
+  await timeoutDispatcher.start();
+  await timeoutDispatcher.enqueue(caseId);
+
+  // Integration test: the dispatcher's timeout uses a real setTimeout, so we
+  // must wait on the platform clock. Fake timers cannot drive the abort path
+  // because the ControlledAgent's signal listener fires synchronously.
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  expect(stalledAgent.abortedRuns).toBe(1);
+  expect(await repo.getCase(caseId)).toMatchObject({ status: "FAILED", stage: "FAILED" });
+  expect(repo.recordedRuns[0].error).toContain("AGENT_TIMEOUT");
+  expect(stalledBroker.events.at(-1)).toMatchObject({
+    type: "audit.failed",
+    auditCaseId: caseId,
+  });
+});

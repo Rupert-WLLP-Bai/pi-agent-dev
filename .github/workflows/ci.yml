@@ -70,7 +70,7 @@ jobs:
         run: bun run migrate
 
       - name: Run acceptance tests
-        run: npx playwright test --reporter=line
+        run: npx playwright test
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

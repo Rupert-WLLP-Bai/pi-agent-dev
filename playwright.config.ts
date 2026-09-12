@@ -8,7 +8,9 @@ const reuseExistingServer =
 const config: Config = {
   testDir: "./tests",
   // The web server is Vite in dev mode, which compiles routes on first request.
-  // Generous per-assertion timeouts keep parallel runs deterministic.
+  // Line for console + HTML for artifact upload. The CLI `--reporter` flag
+  // overrides this entirely, so CI must not pass one.
+  reporter: [["line"], ["html", { open: "never" }]],
   expect: { timeout: 15_000 },
   workers:
     process.env.CI === "true" && process.env.PLAYWRIGHT_REUSE_SERVERS !== "1" ? 4 : undefined,

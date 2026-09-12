@@ -203,6 +203,7 @@ if (import.meta.main) {
     broker,
     config.maxConcurrentAudits,
     subjectVerificationPortFor(config),
+    config.agentTimeoutMs,
   );
   app = createApp({ repository, dispatcher, broker });
   await dispatcher.start();
