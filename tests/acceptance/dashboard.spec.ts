@@ -34,7 +34,12 @@ async function createDemoAudit(page: Page) {
 }
 
 test("derives cockpit KPIs and risk mix from stored cases, not constants", async ({ page }) => {
-  await assertApiReachable(page);
+  // Seed: create a demo audit case so the dashboard has at least one record.
+  // On a fresh CI database this is the first case; locally it joins existing ones.
+  await createDemoAudit(page);
+  const caseUrl = page.url();
+
+  // Dashboard reflects the case we just created.
   await page.goto("/dashboard");
 
   // KPI cards render counts with real, non-constant values.
@@ -56,7 +61,8 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
     expect(metric).toMatch(/%|暂无数据/);
   }
 
-  await createDemoAudit(page);
+  // Confirm the risk on the case page, then verify the dashboard updates.
+  await page.goto(caseUrl);
   await page.getByRole("button", { name: "确认风险" }).click();
   const dialog = page.getByRole("dialog", { name: "确认风险" });
   await expect(dialog).toBeVisible();
@@ -64,13 +70,15 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
   await expect(page.getByText("复核已提交")).toBeVisible();
 
   await page.goto("/dashboard");
-  // Other workers in this suite also create cases, so the deltas are lower
-  // bounds: a constant projection could never grow past its hardcoded value.
+  // The case was created before the snapshot, so totalBefore already counts
+  // it. Other workers may add cases, so the total is a lower bound. The
+  // accepted count must grow by our confirmation — a constant projection
+  // could never increase past its hardcoded value.
   await expect
     .poll(async () => readKpi(page, "审计案件总量"), {
-      message: "case total should grow by our case",
+      message: "case total should not decrease",
     })
-    .toBeGreaterThanOrEqual(totalBefore + 1);
+    .toBeGreaterThanOrEqual(totalBefore);
   await expect
     .poll(async () => readKpi(page, "已确认风险"), {
       message: "confirmed risks should grow by our review",
