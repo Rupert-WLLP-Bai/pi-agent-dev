@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同智能审计智能体 — 全页面设计草图</title>
+<style>
+  :root{
+    --brand:#0B6BB5;--brand-hover:#0A5C9B;--nav:#0C2D48;
+    --canvas:#F5F7FA;--surface:#FFFFFF;--text:#1F2329;--text-2:#667085;--text-3:#8A96A8;
+    --line:#D9DEE7;--line-soft:#E9EDF2;--paper:#E7EBF1;
+    --risk:#A51F1F;--risk-bg:#FDECEC;--warn:#8A5A00;--warn-bg:#FEF6E7;
+    --ok:#12692F;--ok-bg:#E9F6EC;--info:#0B5C99;--info-bg:#E8F2FB;
+    --shadow:0 6px 20px rgba(12,45,72,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--paper);color:var(--text);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+
+  /* ---------- top bar ---------- */
+  .bar{position:sticky;top:0;z-index:90;background:#08273F;color:#DCEAF5;
+       padding:9px 20px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 12px rgba(0,0,0,.22)}
+  .brand-org{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .plate{width:28px;height:28px;background:#fff;border-radius:7px;padding:2px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .plate img{width:100%;height:100%;object-fit:contain}
+  .plate.is-missing::after{content:"移";color:#0B6BB5;font-weight:700;font-size:14px}
+  .org-name{font-size:13px;font-weight:650;color:#fff;letter-spacing:.02em}
+  .bar h1{font-size:13.5px;font-weight:650;color:#fff;white-space:nowrap}
+  .bar h1 small{font-weight:400;color:#8FB2CE;font-size:11.5px;margin-left:6px}
+  .bar .sp{flex:1}
+  .contest{display:flex;align-items:center;gap:6px;color:#8FB2CE;font-size:11px;white-space:nowrap}
+  .contest img{width:20px;height:20px;object-fit:contain}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1560px;margin:0 auto;padding:18px 20px 60px}
+  .layout{display:grid;grid-template-columns:214px minmax(0,1fr);gap:18px;align-items:start}
+
+  /* ---------- toc ---------- */
+  .toc{position:sticky;top:62px;background:#fff;border:1px solid var(--line);border-radius:10px;
+       padding:12px 10px;box-shadow:var(--shadow);max-height:calc(100vh - 84px);overflow:auto}
+  .toc h2{font-size:10px;letter-spacing:.1em;color:var(--text-3);margin:0 0 8px 8px;font-weight:650}
+  .toc-group{margin-bottom:9px}
+  .toc-group>span{display:block;padding:3px 8px;font-size:10px;letter-spacing:.06em;color:var(--text-3)}
+  .toc a{display:flex;align-items:center;gap:7px;padding:4px 8px;border-radius:5px;font-size:12px;color:#40506A}
+  .toc a:hover{background:var(--canvas);color:var(--brand)}
+  .toc a .dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:#C3CDD9}
+  .toc a .dot.done{background:#21A45D}
+  .toc a .dot.plan{background:#E0A93B}
+  .toc-foot{border-top:1px solid var(--line-soft);margin-top:8px;padding:9px 8px 2px;font-size:11px;color:var(--text-3);line-height:1.7}
+
+  /* ---------- intro ---------- */
+  .intro{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .intro h2{font-size:15px;margin-bottom:6px}
+  .intro p{color:var(--text-2);font-size:12.5px;max-width:96ch}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:11.5px;color:var(--text-2)}
+  .legend b{display:inline-flex;align-items:center;gap:6px;font-weight:550}
+  .pill{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 8px;border-radius:10px;font-size:10.5px;font-weight:650;white-space:nowrap}
+  .pill.done{background:var(--ok-bg);color:var(--ok)}
+  .pill.plan{background:var(--warn-bg);color:var(--warn)}
+  .pill.core{background:var(--info-bg);color:var(--info)}
+
+  /* ---------- board ---------- */
+  .board{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow);scroll-margin-top:62px}
+  .board-hd{padding:11px 16px;border-bottom:1px solid var(--line-soft);background:linear-gradient(180deg,#FBFCFE,#F3F7FB);
+            display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .no{width:24px;height:24px;border-radius:6px;background:var(--nav);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:650;flex:0 0 auto}
+  .board-hd h3{font-size:13.5px}
+  .route{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--text-3);background:var(--canvas);
+         border:1px solid var(--line-soft);border-radius:4px;padding:1px 6px}
+  .board-hd .sp{flex:1}
+  .goal{padding:9px 16px;font-size:12px;color:var(--text-2);border-bottom:1px solid var(--line-soft);background:#FCFDFE}
+  .goal b{color:var(--text)}
+
+  .board-grid{display:grid;grid-template-columns:minmax(0,1fr) 274px}
+  .wf-wrap{padding:14px;background:var(--canvas);border-right:1px solid var(--line-soft);min-width:0}
+  .notes{padding:13px 15px;font-size:12px}
+  .notes h4{font-size:10px;letter-spacing:.1em;color:var(--text-3);margin-bottom:8px;font-weight:650}
+  .notes ol{list-style:none;display:flex;flex-direction:column;gap:8px}
+  .notes li{display:flex;gap:7px;color:#3A4A60;line-height:1.5}
+  .notes li p{min-width:0}
+  .notes li b{color:var(--text);font-weight:650}
+  .notes code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--canvas);border:1px solid var(--line-soft);border-radius:3px;padding:0 3px}
+  .n8{color:var(--text-2);font-size:11.5px;line-height:1.6;margin-top:10px;padding-top:9px;border-top:1px dashed var(--line)}
+  .p{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--brand);color:#fff;
+     font-size:9px;font-weight:700;flex:0 0 auto;margin-top:1px}
+
+  /* ---------- wireframe primitives ---------- */
+  .wf{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .wf-top{height:32px;display:flex;align-items:center;gap:7px;padding:0 10px;border-bottom:1px solid var(--line-soft);background:#FBFCFE}
+  .crumb{font-size:10.5px;color:var(--text-3)}
+  .wf-top .sp{flex:1}
+  .wf-av{width:19px;height:19px;border-radius:50%;background:#D6E2EE;flex:0 0 auto}
+  .wf-cols{display:grid;grid-template-columns:126px minmax(0,1fr)}
+  .wf-cols.slim{grid-template-columns:44px minmax(0,1fr)}
+  .wf-sider{background:var(--nav);padding:8px 7px;display:flex;flex-direction:column;gap:4px}
+  .wf-brand{height:20px;border-radius:4px;background:rgba(255,255,255,.28);margin-bottom:2px}
+  .wf-sider em{display:block;height:6px;width:46%;border-radius:2px;background:rgba(255,255,255,.24);margin:4px 0 1px}
+  .wf-sider i{display:block;height:15px;border-radius:3px;background:rgba(255,255,255,.13)}
+  .wf-sider i.on{background:rgba(87,180,242,.5);box-shadow:inset 2px 0 0 #57B4F2}
+  .wf-main{padding:10px;display:flex;flex-direction:column;gap:7px;background:var(--canvas);min-width:0}
+  .wf-hd{display:flex;align-items:baseline;gap:8px}
+  .wf-hd b{font-size:12px}
+  .wf-hd span{font-size:10px;color:var(--text-3)}
+
+  .box{border:1px dashed #BFCCDB;border-radius:5px;background:#fff;padding:6px 8px;font-size:10px;line-height:1.45;color:#5A6B84;min-width:0}
+  .box.solid{border-style:solid;border-color:var(--line)}
+  .box.tint{background:#F4F8FC}
+  .box.hero{background:#FBFDFF;border-color:#B9D2E8}
+  .box>.h{display:flex;align-items:center;gap:5px;font-weight:650;color:var(--text);font-size:10.5px;margin-bottom:4px}
+  .box .sub{font-weight:400;color:var(--text-3);font-size:9.5px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:7px;min-width:0}
+  .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;min-width:0}
+  .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;min-width:0}
+  .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;min-width:0}
+  .stack{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .hrow{display:flex;align-items:center;gap:6px;min-width:0}
+
+  .bar{height:6px;border-radius:4px;background:#E4EAF1;margin-top:3px}
+  .bar.b2{background:#CFDCE8}
+  .btn{display:inline-flex;align-items:center;height:18px;padding:0 8px;border-radius:4px;background:var(--brand);color:#fff;font-size:9.5px;font-weight:650;white-space:nowrap}
+  .btn.ghost{background:#fff;border:1px solid #C6D3E0;color:#3A4A60;font-weight:550}
+  .btn.dim{background:#DCE3EB;color:#7A8798}
+  .inp{flex:1;height:18px;border:1px solid #C6D3E0;border-radius:4px;background:#fff;display:flex;align-items:center;padding:0 6px;font-size:9.5px;color:var(--text-3);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .chips{display:flex;gap:4px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;height:16px;padding:0 6px;border-radius:8px;font-size:9.5px;background:#EEF2F7;color:#54627A;white-space:nowrap}
+  .chip.r{background:var(--risk-bg);color:var(--risk)}
+  .chip.w{background:var(--warn-bg);color:var(--warn)}
+  .chip.o{background:var(--ok-bg);color:var(--ok)}
+  .chip.blue{background:var(--info-bg);color:var(--info)}
+  .flag{display:inline-block;width:3px;height:11px;border-radius:2px;background:var(--brand);flex:0 0 auto}
+  .flag.r{background:var(--risk)}.flag.w{background:#D99B12}.flag.o{background:#21A45D}.flag.blue{background:var(--brand)}
+
+  /* sketch table */
+  .tbl{border:1px solid var(--line);border-radius:5px;overflow:hidden;background:#fff}
+  .tbl .tr{display:grid;border-top:1px solid var(--line-soft);font-size:9.5px;color:#5A6B84}
+  .tbl .tr:first-child{border-top:0}
+  .tbl .th{background:#F7F9FC;color:#3A4A60;font-weight:650}
+  .tbl .td{padding:5px 7px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .tbl .td.line{white-space:normal;line-height:1.3}
+  .c-contract{grid-template-columns:1.5fr .85fr .6fr .9fr .75fr .95fr}
+  .c-rules{grid-template-columns:1.4fr .95fr .9fr .7fr .65fr .85fr}
+  .c-verify{grid-template-columns:1fr 1fr .85fr .8fr .7fr}
+  .c-users{grid-template-columns:1fr 1fr 1.3fr .9fr}
+
+  /* three-pane sketch */
+  .panes{display:grid;grid-template-columns:96px minmax(0,1fr) 118px;gap:7px;min-width:0}
+  .pane{border:1px solid var(--line);border-radius:5px;background:#fff;padding:6px;min-width:0}
+  .pane>span{display:block;font-size:9px;font-weight:650;color:var(--text-3);letter-spacing:.05em;margin-bottom:5px}
+  .doc{font-size:9.5px;color:#5A6B84;line-height:1.5}
+  .doc p{margin:0 0 5px}
+  .mark{background:var(--risk-bg);border-left:2px solid var(--risk);padding:3px 4px;border-radius:0 3px 3px 0;color:#7A1B1B}
+  .mark.w{background:var(--warn-bg);border-left-color:#D99B12;color:#6B4600}
+  .mark.blue{background:var(--info-bg);border-left-color:var(--brand);color:#0B4A79}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:9.5px;color:#5A6B84}
+  .kv b{font-weight:650;color:var(--text);text-align:right}
+
+  /* kanban */
+  .kan{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;min-width:0}
+  .col{background:#F4F7FB;border:1px solid var(--line-soft);border-radius:5px;padding:6px;min-width:0}
+  .col>span{display:flex;align-items:center;gap:5px;font-size:9.5px;font-weight:650;color:#3A4A60;margin-bottom:6px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:4px;padding:5px 6px;font-size:9.5px;color:#5A6B84;margin-bottom:5px}
+  .card:last-child{margin-bottom:0}
+  .card.more{color:var(--text-3);text-align:center;border-style:dashed;background:transparent}
+
+  /* nav tree */
+  .tree{font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.85;color:#3A4A60;white-space:pre;overflow:auto;
+        background:var(--canvas);border:1px solid var(--line-soft);border-radius:6px;padding:11px 13px}
+  .tree i{font-style:normal;color:var(--text-3)}
+  .tree em{font-style:normal;color:var(--brand)}
+
+  @media (max-width:1180px){
+    .layout{grid-template-columns:1fr}
+    .toc{position:static;max-height:none}
+    .board-grid{grid-template-columns:1fr}
+    .wf-wrap{border-right:0;border-bottom:1px solid var(--line-soft)}
+  }
+  @media (max-width:720px){
+    .wrap{padding:12px}
+    .bar{flex-wrap:wrap;gap:9px}
+    .contest{display:none}
+    .wf-cols{grid-template-columns:44px minmax(0,1fr)}
+    .g4,.g5{grid-template-columns:1fr 1fr}
+    .panes{grid-template-columns:1fr}
+    .kan{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="brand-org">
+    <span class="plate"><img src="brands/chinamobileltd-com-logo.png" alt="中国移动"
+      onerror="this.parentElement.classList.add('is-missing');this.remove()"></span>
+    <span class="org-name">中国移动</span>
+  </div>
+  <h1>合同智能审计智能体 <small>全页面设计草图 · v1.2</small></h1>
+  <span class="sp"></span>
+  <span class="contest"><img src="brands/hjs.png" alt="">第一届黄桷树AI智能体开发大赛</span>
+</div>
+
+<div class="wrap">
+  <div class="layout">
+
+    <!-- ======================= TOC ======================= -->
+    <aside class="toc">
+      <h2>页面索引</h2>
+      <div class="toc-group"><span>总览</span>
+        <a href="#p01"><span class="dot done"></span>审计驾驶舱</a>
+      </div>
+      <div class="toc-group"><span>审计作业</span>
+        <a href="#p02"><span class="dot done"></span>审计队列</a>
+        <a href="#p03"><span class="dot done"></span>审计案件工作区</a>
+        <a href="#p04"><span class="dot plan"></span>复核中心</a>
+        <a href="#p05"><span class="dot plan"></span>整改跟踪</a>
+      </div>
+      <div class="toc-group"><span>规则治理</span>
+        <a href="#p06"><span class="dot plan"></span>规则管理</a>
+        <a href="#p07"><span class="dot plan"></span>规则编辑器</a>
+        <a href="#p08"><span class="dot plan"></span>案例验证</a>
+        <a href="#p09"><span class="dot plan"></span>法规知识库</a>
+      </div>
+      <div class="toc-group"><span>能力与集成</span>
+        <a href="#p10"><span class="dot plan"></span>能力插件</a>
+        <a href="#p11"><span class="dot plan"></span>外部核验</a>
+        <a href="#p12"><span class="dot plan"></span>数据源与集成</a>
+      </div>
+      <div class="toc-group"><span>系统管理</span>
+        <a href="#p13"><span class="dot plan"></span>用户与权限</a>
+        <a href="#p14"><span class="dot plan"></span>系统设置</a>
+      </div>
+      <div class="toc-group"><span>附录</span>
+        <a href="#pA"><span class="dot plan"></span>信息架构与状态</a>
+      </div>
+      <div class="toc-foot">
+        <span class="dot done" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#21A45D"></span> 已实现 ·
+        <span class="dot plan" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#E0A93B"></span> 规划中<br>
+        12 个侧栏目的地<br>14 个路由页面
+      </div>
+    </aside>
+
+    <!-- ======================= MAIN ======================= -->
+    <main>
+
+      <section class="intro">
+        <h2>页面设计草图</h2>
+        <p>按信息架构逐页给出的低保真布局草图。每页包含：页面目标、布局分区、关键控件与设计要点。
+           <b>绿色</b>为比赛演示版已实现页面，<b>黄色</b>为设计蓝图页面——蓝图完整不等于要交付空壳页面，
+           未完成的路由不注册侧栏入口，不渲染不可点击的"即将上线"菜单。</p>
+        <div class="legend">
+          <b><span class="pill done">已实现</span> P0 已上线，可点开真实路由</b>
+          <b><span class="pill plan">规划中</span> P1/P2 蓝图，尚未注册路由</b>
+          <b><span class="pie" style="width:12px;height:12px;border-radius:3px;background:var(--brand);display:inline-block"></span> 品牌蓝 = 主操作</b>
+          <b><span style="width:12px;height:12px;border-radius:3px;background:var(--risk-bg);border:1px solid var(--risk);display:inline-block"></span> 红 = 风险原文</b>
+          <b><span style="width:12px;height:12px;border-radius:3px;background:var(--info-bg);border:1px solid var(--brand);display:inline-block"></span> 蓝 = 制度依据</b>
+        </div>
+      </section>
+
+      <!-- ============ 01 驾驶舱 ============ -->
+      <section class="board" id="p01">
+        <div class="board-hd">
+          <span class="no">01</span><h3>审计驾驶舱</h3><code class="route">/dashboard</code>
+          <span class="sp"></span><span class="pill done">已实现</span>
+        </div>
+        <div class="goal"><b>目标：</b>一屏回答四个问题——处理了多少、要处理什么、耗时如何、确认了哪些风险。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">审计驾驶舱</span><span class="sp"></span><span class="btn ghost">刷新</span><span class="wf-av"></span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider">
+                  <span class="wf-brand"></span><em></em>
+                  <i class="on"></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><em></em><i></i><i></i>
+                </aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>审计驾驶舱</b><span>截至今日的审计运营概览</span></div>
+                  <div class="g4">
+                    <div class="box tint"><div class="h"><span class="flag"></span>本期审计案件数 <span class="p">1</span></div><div class="bar b2" style="width:70%"></div></div>
+                    <div class="box tint"><div class="h"><span class="flag"></span>审查中位耗时</div><div class="bar b2" style="width:52%"></div></div>
+                    <div class="box tint"><div class="h"><span class="flag"></span>待复核案件数</div><div class="bar b2" style="width:61%"></div></div>
+                    <div class="box tint"><div class="h"><span class="flag r"></span>未闭环高风险数</div><div class="bar b2" style="width:34%"></div></div>
+                  </div>
+                  <div class="g2">
+                    <div class="box solid"><div class="h">近 30 天趋势 <span class="sub">折线 · 完成数 / 待复核新增</span><span class="p">2</span></div><div class="bar" style="width:100%"></div><div class="bar" style="width:78%"></div><div class="bar" style="width:56%"></div></div>
+                    <div class="box solid"><div class="h">风险类型分布 <span class="sub">横向条形</span><span class="p">2</span></div><div class="bar" style="width:88%"></div><div class="bar" style="width:62%"></div><div class="bar" style="width:40%"></div></div>
+                  </div>
+                  <div class="g2">
+                    <div class="box solid"><div class="h">质量指标 <span class="p">3</span></div>
+                      <div class="chips"><span class="chip o">证据完整率 92%</span><span class="chip blue">风险确认率 78%</span><span class="chip">自动完成率 85%</span></div></div>
+                    <div class="box solid"><div class="h">待办列表 <span class="sub">最多 5 条</span><span class="p">4</span></div>
+                      <div class="hrow"><span class="flag r"></span><span class="chip">设备采购合同</span><span class="chip w">待人工复核</span></div>
+                      <div class="hrow"><span class="flag w"></span><span class="chip">未命名合同</span><span class="chip">审查中</span></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p><b>KPI 整卡可点击</b>，跳转到已带筛选条件的队列；移动端 <code>xs=24</code> 换行显示。</p></li>
+              <li><span class="p">2</span><p><b>只用折线和横向条形</b>。条长负责比较，颜色只区分风险等级；不使用环形图、饼图、仪表盘。</p></li>
+              <li><span class="p">3</span><p>质量指标每项<b>必须带口径说明</b>，避免出现无法解释的百分比。</p></li>
+              <li><span class="p">4</span><p>待办按更新时间排序，主操作随状态变化（复核 / 查看 / 重试）。</p></li>
+              <li><span class="p">7</span><p><b>样本不足时不显示趋势百分比</b>，直接显示"样本不足"，不用 0% 假装有数据。</p></li>
+            </ol>
+            <p class="n8">不使用"平均耗时"作为唯一耗时指标——少数长尾案件会扭曲结果，改用中位耗时。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 02 队列 ============ -->
+      <section class="board" id="p02">
+        <div class="board-hd">
+          <span class="no">02</span><h3>审计队列</h3><code class="route">/audit-cases</code>
+          <span class="sp"></span><span class="pill done">已实现</span>
+        </div>
+        <div class="goal"><b>目标：</b>按最近更新排序，优先处理待复核、异常和未闭环高风险案件。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">审计队列</span><span class="sp"></span><span class="btn ghost">刷新</span><span class="btn">新建审计</span><span class="wf-av"></span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider">
+                  <span class="wf-brand"></span><em></em>
+                  <i></i><em></em><i class="on"></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><em></em><i></i><i></i>
+                </aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>审计队列</b><span>按最近更新排序</span></div>
+                  <div class="g4">
+                    <div class="box tint"><div class="h"><span class="flag w"></span>待复核 <span class="p">5</span></div><span class="sub">需人工决策</span></div>
+                    <div class="box tint"><div class="h"><span class="flag blue"></span>处理中</div><span class="sub">Agent 审查中</span></div>
+                    <div class="box tint"><div class="h"><span class="flag r"></span>异常</div><span class="sub">需重试</span></div>
+                    <div class="box tint"><div class="h"><span class="flag o"></span>今日完成</div><span class="sub">已产出发现</span></div>
+                  </div>
+                  <div class="hrow">
+                    <span class="inp"><span class="p">6</span>&nbsp;搜索合同名称 / 审计 ID / 来源记录 ID</span>
+                    <span class="btn ghost">状态</span><span class="btn ghost">风险</span><span class="btn ghost">更多筛选</span><span class="btn ghost">列设置</span>
+                  </div>
+                  <div class="tbl">
+                    <div class="tr th c-contract"><span class="td">合同 <span class="p">1</span></span><span class="td">审计 ID <span class="p">2</span></span><span class="td">风险 <span class="p">3</span></span><span class="td">状态</span><span class="td">更新时间</span><span class="td">操作</span></div>
+                    <div class="tr c-contract"><span class="td line">设备采购合同<br><i style="color:#8A96A8">V3 · MinIO</i></span><span class="td">a3f1c2e8⋯ <span class="chip">⧉</span></span><span class="td"><span class="chip r">高 · 1</span></span><span class="td"><span class="chip w">待复核</span></span><span class="td">12 分钟前</span><span class="td">打开</span></div>
+                    <div class="tr c-contract"><span class="td line">未命名合同<br><i style="color:#8A96A8">V1 · 文本粘贴</i></span><span class="td">7b21d904⋯ <span class="chip">⧉</span></span><span class="td"><span class="chip">—</span></span><span class="td"><span class="chip">处理中</span></span><span class="td">3 分钟前</span><span class="td">取消</span></div>
+                    <div class="tr c-contract"><span class="td line">技术服务协议<br><i style="color:#8A96A8">V2 · MinIO</i></span><span class="td">c9e40ab1⋯ <span class="chip">⧉</span></span><span class="td"><span class="chip w">中 · 2</span></span><span class="td"><span class="chip">已完成</span></span><span class="td">1 小时前</span><span class="td">打开</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p><b>合同名称是主身份</b>，审计 ID 降为独立副列带 24px 复制按钮。没有名称时显示"未命名合同"+ 设置入口，<b>绝不把 ID 伪装成合同编号</b>。</p></li>
+              <li><span class="p">2</span><p>短 ID 展示，完整 ID 放 tooltip；复制按钮命中区 ≥24px。</p></li>
+              <li><span class="p">3</span><p>风险列显示<b>最高等级 + 发现数量</b>（如 高 · 1），无发现显示 <code>—</code>，不用 0 混淆"未发现"和"未审查"。</p></li>
+              <li><span class="p">5</span><p>汇总卡浅色底 + 左侧色条 + 文字三重编码，整卡可点击筛选；<b>颜色不是唯一手段</b>。</p></li>
+              <li><span class="p">6</span><p>搜索覆盖合同名 / 审计 ID / 来源记录 ID；主要按钮不超过 5 个，低频操作收进 Dropdown。</p></li>
+            </ol>
+            <p class="n8">行点击打开详情，但键盘用户仍有明确的"打开"按钮。状态、时间、操作列单行不换行，空值统一 <code>—</code>。移动端表格内部横向滚动（<code>scroll.x=940</code>），页面本身不溢出。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 03 工作区 ============ -->
+      <section class="board" id="p03">
+        <div class="board-hd">
+          <span class="no">03</span><h3>审计案件工作区</h3><code class="route">/audit-cases/:id</code>
+          <span class="sp"></span><span class="pill done">已实现</span><span class="pill core">v1.2 核心改造</span>
+        </div>
+        <div class="goal"><b>目标：</b>以合同原文为中心的同步审查——选中发现即定位原文，右侧给出依据并完成复核。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">← 审计队列 / 审计案件</span><span class="sp"></span><span class="chip blue">实时更新</span><span class="wf-av"></span></div>
+              <div class="wf-cols slim">
+                <aside class="wf-sider"><span class="wf-brand"></span><i></i><i class="on"></i><i></i><i></i></aside>
+                <div class="wf-main">
+                  <div class="box hero">
+                    <div class="h">设备采购合同 · V3 <span class="chip r">高风险</span><span class="chip w">待人工复核</span></div>
+                    <div class="kv"><b>审计 ID</b><span>a3f1c2e8⋯ <span class="chip">⧉</span></span><b>来源</b><span>MinIO</span><b>创建</b><span>2026-09-11 20:15</span></div>
+                  </div>
+                  <div class="panes">
+                    <div class="pane"><span>风险发现 280</span>
+                      <div class="chips" style="margin-bottom:5px"><span class="chip">全部 5</span><span class="chip w">待复核 2</span></div>
+                      <div class="box tint" style="margin-bottom:4px"><span class="flag r"></span> 预付款超限<br><i style="color:#8A96A8">第 4 章 · 待复核</i></div>
+                      <div class="box tint" style="margin-bottom:4px"><span class="flag w"></span> 主体信息冲突<br><i style="color:#8A96A8">第 1 章 · 待复核</i></div>
+                      <div class="box tint"><span class="flag w"></span> 资质待核验</div>
+                      <div class="box" style="margin-top:5px">审查覆盖<br><i style="color:#8A96A8">通过 18 / 不适用 4</i></div>
+                    </div>
+                    <div class="pane"><span>合同原文</span>
+                      <div class="doc">
+                        <p><b>第 4 章 付款与结算</b></p>
+                        <p class="mark">4.2 甲方应在合同签订后五日内支付预付款 70%，余款在验收后支付。</p>
+                        <p>第 5 章 交付与验收</p>
+                        <p class="mark blue">5.1 乙方应于 2026-10-31 前交付标的物。</p>
+                      </div>
+                    </div>
+                    <div class="pane"><span>依据与复核 392</span>
+                      <div class="box" style="margin-bottom:5px"><b>预付款比例超过制度上限</b><br><span class="chip r">高风险</span> <span class="chip w">待复核</span></div>
+                      <div class="kv" style="margin-bottom:5px"><b>实际值</b><span>70%</span><b>制度上限</b><span>30%</span><b>差额</b><span>+40pp</span></div>
+                      <div class="hrow" style="margin-bottom:5px"><span class="chip blue">违反规则 1 条</span><span class="chip blue">证据 2 条</span></div>
+                      <div class="box tint" style="margin-bottom:5px">判断依据：条款约定 70%，政策上限 0.3（30%）。<br>修复建议：调整至 30% 以内或走高级管理层审批。</div>
+                      <div class="hrow"><span class="btn ghost">判定误报</span><span class="btn">确认风险</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">7</span><p><b>返回是来源感知的</b>：左箭头 + 文本，命中区 ≥32px；从驾驶舱或复核中心进入时跟随 <code>origin</code> 参数，无来源才回队列。</p></li>
+              <li><span class="p">8</span><p>风险原文用<b>浅红底 + 红色左标记</b>，制度依据用<b>品牌蓝</b>，待核验证据用浅橙——三种语义绝不同色。</p></li>
+              <li><span class="p">9</span><p>右栏顺序固定：标题等级 → 事实比较 → 违反规则 → 证据来源 → 修复建议 → 复核操作，降低复核成本。</p></li>
+              <li><span class="p">10</span><p>案件头部用对齐的<b>元数据网格</b>（描述列表），而不是散落的徽标。</p></li>
+              <li><span class="p">3</span><p>操作文案用业务结论：主操作 <b>确认风险</b> → <code>ACCEPTED</code>，次操作 <b>判定误报</b> → <code>REJECTED</code> 且必须填理由。</p></li>
+            </ol>
+            <p class="n8">选中发现滚动到 <code>blockId + startOffset + endOffset</code> 并保留上下文，不只显示被截断的引文。一个发现可关联<b>多条规则评估和多条证据</b>；证据冲突时提供"转人工补充核验"，系统不替人作结论。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 04 复核中心 ============ -->
+      <section class="board" id="p04">
+        <div class="board-hd">
+          <span class="no">04</span><h3>复核中心</h3><code class="route">/reviews</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P1</span>
+        </div>
+        <div class="goal"><b>目标：</b>面向人工处理的专用工作台，按 SLA 排队，<b>不复制审计队列</b>。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">复核中心</span><span class="sp"></span><span class="wf-av"></span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i class="on"></i><i></i><em></em><i></i><i></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>复核中心</b><span>按 SLA 与风险排序</span></div>
+                  <div class="panes" style="grid-template-columns:126px minmax(0,1fr)">
+                    <div class="pane"><span>复核队列</span>
+                      <div class="chips" style="margin-bottom:5px"><span class="chip blue">待我处理 3</span><span class="chip r">临近超时 1</span></div>
+                      <div class="chips" style="margin-bottom:6px"><span class="chip">证据不足</span><span class="chip">已转交</span></div>
+                      <div class="box tint" style="margin-bottom:4px"><span class="flag r"></span> 预付款超限<br><i style="color:#8A96A8">剩余 42 分钟</i></div>
+                      <div class="box tint" style="margin-bottom:4px"><span class="flag w"></span> 主体信息冲突<br><i style="color:#8A96A8">证据冲突</i></div>
+                      <div class="box tint"><span class="flag w"></span> 资质待核验</div>
+                    </div>
+                    <div class="pane"><span>复用三栏审查工作区</span>
+                      <div class="panes" style="grid-template-columns:76px minmax(0,1fr) 96px">
+                        <div class="box tint">发现列表</div>
+                        <div class="doc"><p><b>第 4 章 付款与结算</b></p><p class="mark">预付款 70%⋯</p><p>第 5 章 交付⋯</p></div>
+                        <div class="box">事实 / 规则 / 证据<br><span class="chip w">转人工补充核验</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>筛选维度是<b>待我处理、临近超时、证据不足、已转交</b>——围绕人的工作节奏，而不是案件字段。</p></li>
+              <li><span class="p">2</span><p>主区<b>复用</b>三栏审查工作区组件，复核人不需要学第二套界面。</p></li>
+              <li><span class="p">3</span><p>批量操作<b>只允许转交和设置优先级</b>；禁止批量确认风险或批量判定误报，避免责任稀释。</p></li>
+            </ol>
+            <p class="n8">证据冲突是强制人工介入信号，排序时优先于高风险但证据充分的案件。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 05 整改跟踪 ============ -->
+      <section class="board" id="p05">
+        <div class="board-hd">
+          <span class="no">05</span><h3>整改跟踪</h3><code class="route">/remediations</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P1</span>
+        </div>
+        <div class="goal"><b>目标：</b>看板只用于阶段流转；打开卡片仍回到审查工作区的整改视图，不在看板上读大段合同。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">整改跟踪</span><span class="sp"></span><span class="wf-av"></span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i class="on"></i><em></em><i></i><i></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>整改跟踪</b><span>按阶段流转</span></div>
+                  <div class="kan">
+                    <div class="col"><span><span class="flag r"></span>待整改 4</span>
+                      <div class="card">设备采购合同<br><i style="color:#8A96A8">预付款超限</i><br>责任人：张 ⋯ 截止 09-20</div>
+                      <div class="card">技术服务协议<br><i style="color:#8A96A8">主体信息冲突</i></div>
+                      <div class="card more">⋯ 还有 2 条</div>
+                    </div>
+                    <div class="col"><span><span class="flag w"></span>整改中 2</span>
+                      <div class="card">框架采购合同<br><i style="color:#8A96A8">资质待核验</i><br>责任人：李 ⋯ 截止 09-18</div>
+                      <div class="card more">⋯ 还有 1 条</div>
+                    </div>
+                    <div class="col"><span><span class="flag blue"></span>待复核 1</span>
+                      <div class="card">工程服务合同<br><i style="color:#8A96A8">违约金比例</i></div>
+                    </div>
+                    <div class="col"><span><span class="flag o"></span>已关闭 7</span>
+                      <div class="card">运维服务合同<br><i style="color:#8A96A8">已复核通过</i></div>
+                      <div class="card more">⋯ 还有 6 条</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>卡片只承载<b>合同名称、风险摘要、责任人、截止时间</b>四要素，保持看板可扫读。</p></li>
+              <li><span class="p">2</span><p>阶段流转有审计日志；关闭需要复核人确认，不能由责任人自行关闭。</p></li>
+              <li><span class="p">3</span><p>逾期卡片用<b>图标 + 文字 + 颜色</b>三重提示，不单靠红色。</p></li>
+            </ol>
+            <p class="n8">整改结论写回原审计案件的发现链，形成"发现 → 整改 → 复核 → 关闭"的闭环证据。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 06 规则管理 ============ -->
+      <section class="board" id="p06">
+        <div class="board-hd">
+          <span class="no">06</span><h3>规则管理</h3><code class="route">/rules</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P1</span>
+        </div>
+        <div class="goal"><b>目标：</b>管理确定性审查规则及其版本，规则产生可执行评估。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">规则治理 / 规则管理</span><span class="sp"></span><span class="btn ghost">刷新</span><span class="btn">新建规则</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i class="on"></i><i></i><i></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>规则管理</b><span>确定性审查规则与版本</span></div>
+                  <div class="hrow"><span class="inp">搜索规则名 / 规则代码</span><span class="btn ghost">状态</span><span class="btn ghost">合同类型</span></div>
+                  <div class="tbl">
+                    <div class="tr th c-rules"><span class="td">规则名</span><span class="td">规则代码</span><span class="td">适用合同类型</span><span class="td">当前版本</span><span class="td">状态</span><span class="td">最近验证</span></div>
+                    <div class="tr c-rules"><span class="td">预付款上限规则</span><span class="td">ADVANCE_PAYMENT_LIMIT</span><span class="td">采购类</span><span class="td">v3</span><span class="td"><span class="chip o">已发布</span></span><span class="td">09-10 通过</span></div>
+                    <div class="tr c-rules"><span class="td">违约金比例规则</span><span class="td">PENALTY_RATIO</span><span class="td">服务类</span><span class="td">v2</span><span class="td"><span class="chip o">已发布</span></span><span class="td">09-08 通过</span></div>
+                    <div class="tr c-rules"><span class="td">主体资格核验</span><span class="td">SUBJECT_QUALIFICATION</span><span class="td">全部</span><span class="td">v5</span><span class="td"><span class="chip w">草稿</span></span><span class="td">09-11 有回归</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>表格字段固定：规则名、规则代码、适用合同类型、当前版本、状态、最近验证、发布人。</p></li>
+              <li><span class="p">2</span><p><b>"规则"和"问题"分开</b>：规则产生可执行评估，问题只补充需要模型回答的上下文。</p></li>
+              <li><span class="p">3</span><p>发布前<b>必须运行案例验证</b>，失败时阻止发布（<code>草稿</code>状态 + 回归告警）。</p></li>
+            </ol>
+            <p class="n8">规则版本一旦被审计快照引用即不可变，历史审计依据永远可追溯。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 07 规则编辑器 ============ -->
+      <section class="board" id="p07">
+        <div class="board-hd">
+          <span class="no">07</span><h3>规则编辑器</h3><code class="route">/rules/:id</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P1</span>
+        </div>
+        <div class="goal"><b>目标：</b>五区配置一条规则，从逻辑到立场到验证到发布形成可审计路径。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">← 规则管理 / 预付款上限规则</span><span class="sp"></span><span class="btn ghost">预览</span><span class="btn dim">发布</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i class="on"></i><i></i><i></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>预付款上限规则</b><span class="chip blue">ADVANCE_PAYMENT_LIMIT</span><span class="chip o">v3</span></div>
+                  <div class="chips"><span class="chip">基础信息</span><span class="chip blue">审查逻辑</span><span class="chip">条款立场</span><span class="chip">验证案例</span><span class="chip">发布记录</span></div>
+                  <div class="g2">
+                    <div class="box solid"><div class="h">输入 / 输出 <span class="p">1</span></div>输入：<code>facts.prepaymentRatio</code><br>输出：<code>violated | passed | needs_review</code></div>
+                    <div class="box solid"><div class="h">条款立场 <span class="p">2</span></div>
+                      <div class="chips"><span class="chip o">首选 ≤30%</span><span class="chip w">可退让 ≤40% 需审批</span><span class="chip r">不可接受 &gt;40%</span></div>
+                    </div>
+                  </div>
+                  <div class="box solid"><div class="h">验证案例 <span class="p">3</span> <span class="sub">正例 / 反例 / 边界例 / 历史误报 / 证据缺失</span></div>
+                    <div class="hrow"><span class="chip o">正例 12 通过</span><span class="chip w">边界 3 通过</span><span class="chip r">反例 1 失败</span><span class="btn ghost">按 v3 运行验证</span></div>
+                  </div>
+                  <div class="box tint"><div class="h">发布</div><span class="btn dim">发布</span> 需验证全通过 · 发布人：规则管理员</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>审查逻辑显式声明<b>确定性输入和输出</b>，让规则可测、可回归。</p></li>
+              <li><span class="p">2</span><p>条款立场区分<b>首选、可接受退让、不可接受、例外审批条件</b>四档，对应真实商务谈判。</p></li>
+              <li><span class="p">3</span><p>验证结果显示<b>通过率、回归差异和具体失败</b>，不用单一分数掩盖错误。</p></li>
+            </ol>
+            <p class="n8">发布按钮在验证失败时为禁用态并提供原因，而不是点击后报错。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 08 案例验证 ============ -->
+      <section class="board" id="p08">
+        <div class="board-hd">
+          <span class="no">08</span><h3>案例验证</h3><code class="route">/cases</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P1</span>
+        </div>
+        <div class="goal"><b>目标：</b>用正例、反例、边界例、历史误报和证据缺失案例守护规则质量。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">规则治理 / 案例验证</span><span class="sp"></span><span class="btn">按规则版本运行验证</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i class="on"></i><i></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>案例验证</b><span>规则 v3 · 最近运行 09-11 16:20</span></div>
+                  <div class="g4">
+                    <div class="box tint"><div class="h">正例</div><span class="chip o">20 / 20 通过</span></div>
+                    <div class="box tint"><div class="h">反例</div><span class="chip r">1 / 8 失败</span></div>
+                    <div class="box tint"><div class="h">边界例</div><span class="chip o">6 / 6 通过</span></div>
+                    <div class="box tint"><div class="h">历史误报 / 证据缺失</div><span class="chip w">复现 2</span></div>
+                  </div>
+                  <div class="tbl">
+                    <div class="tr th" style="grid-template-columns:1.6fr .8fr .9fr 1.4fr"><span class="td">案例</span><span class="td">类型</span><span class="td">结果</span><span class="td">差异说明</span></div>
+                    <div class="tr" style="grid-template-columns:1.6fr .8fr .9fr 1.4fr"><span class="td">预付款 30% 整好命中上限</span><span class="td">边界例</span><span class="td"><span class="chip o">通过</span></span><span class="td">—</span></div>
+                    <div class="tr" style="grid-template-columns:1.6fr .8fr .9fr 1.4fr"><span class="td">预付款 40% 且带董事会决议</span><span class="td">反例</span><span class="td"><span class="chip r">失败</span></span><span class="td">未识别例外审批条件</span></div>
+                    <div class="tr" style="grid-template-columns:1.6fr .8fr .9fr 1.4fr"><span class="td">条款引用但无金额</span><span class="td">证据缺失</span><span class="td"><span class="chip w">待复核</span></span><span class="td">按设计转入人工</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>五类案例并存，<b>覆盖"该报没报"和"不该报却报了"两个方向</b>。</p></li>
+              <li><span class="p">2</span><p>结果显示通过率 + 回归差异 + 具体失败条目，保留失败原因便于定位条款。</p></li>
+              <li><span class="p">3</span><p>"证据缺失"按设计转入人工复核，<b>不计为通过也不计为失败</b>。</p></li>
+            </ol>
+            <p class="n8">验证结果绑定规则版本，规则每次发布都留下可回滚的质量基线。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 09 法规知识库 ============ -->
+      <section class="board" id="p09">
+        <div class="board-hd">
+          <span class="no">09</span><h3>法规知识库</h3><code class="route">/regulations</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>法规条款是审计依据的来源，必须版本化、可追溯、不被覆盖。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">规则治理 / 法规知识库</span><span class="sp"></span><span class="btn ghost">导入法规</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i class="on"></i><em></em><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>法规知识库</b><span>条款树 · 正文 · 引用规则</span></div>
+                  <div class="panes" style="grid-template-columns:104px minmax(0,1fr) 116px">
+                    <div class="pane"><span>法规树</span>
+                      <div class="box tint" style="margin-bottom:4px">公司采购管理办法</div>
+                      <div class="box" style="margin-bottom:4px;padding-left:12px">第 4 章 付款</div>
+                      <div class="box tint" style="margin-bottom:4px;padding-left:12px">4.2 预付款比例</div>
+                      <div class="box" style="padding-left:12px">第 5 章 验收</div>
+                    </div>
+                    <div class="pane"><span>条款正文</span>
+                      <div class="doc"><p><b>4.2 预付款比例</b></p><p>预付款金额不得超过合同总金额的 30%，超过部分须取得高级管理层书面审批。</p></div>
+                      <div class="chips"><span class="chip">版本 v3</span><span class="chip">生效 2025-01-01</span><span class="chip">地域 全国</span><span class="chip">适用范围 采购类</span></div>
+                      <div class="chips" style="margin-top:4px"><span class="chip blue">来源 URL ↗</span></div>
+                    </div>
+                    <div class="pane"><span>引用该条款的规则</span>
+                      <div class="box tint" style="margin-bottom:4px">预付款上限规则<br><i style="color:#8A96A8">v3 已发布</i></div>
+                      <div class="box tint">采购付款审批规则<br><i style="color:#8A96A8">v1 草稿</i></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>三栏：<b>法规树 / 正文 / 引用该条款的规则</b>，从依据反查规则闭环。</p></li>
+              <li><span class="p">2</span><p>条款保留<b>版本、生效时间、地域、适用范围、来源 URL</b>，过期版本仍可追溯。</p></li>
+              <li><span class="p">3</span><p><b>不覆盖历史</b>：新版本生效后，旧审计依据仍指向当时引用的版本。</p></li>
+            </ol>
+            <p class="n8">这一页是"证据冲突"场景的兜底——复核人可以在此核对当时的制度原文。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 10 能力插件 ============ -->
+      <section class="board" id="p10">
+        <div class="board-hd">
+          <span class="no">10</span><h3>能力插件</h3><code class="route">/plugins</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>审计能力插件化——解析、规则、外部查询、语义审查可独立演进和启停。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">能力与集成 / 能力插件</span><span class="sp"></span><span class="btn ghost">刷新健康状态</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i class="on"></i><i></i><i></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>能力插件</b><span>按能力类别分组</span></div>
+                  <div class="g2">
+                    <div class="box solid"><div class="h">解析 <span class="p">1</span></div>
+                      <div class="hrow"><span class="chip o">● 健康</span><span class="chip">minio-parser v2</span></div>
+                      <div class="hrow"><span class="chip o">● 健康</span><span class="chip">docx-parser v1</span></div></div>
+                    <div class="box solid"><div class="h">规则 <span class="p">1</span></div>
+                      <div class="hrow"><span class="chip o">● 健康</span><span class="chip">deterministic-rules v5</span></div></div>
+                    <div class="box solid"><div class="h">外部查询 <span class="p">2</span></div>
+                      <div class="hrow"><span class="chip w">◐ 降级</span><span class="chip">qichacha v1</span></div>
+                      <div class="hrow"><span class="chip o">● 健康</span><span class="chip">mcpserver verifier v3</span></div></div>
+                    <div class="box solid"><div class="h">语义审查 <span class="p">2</span></div>
+                      <div class="hrow"><span class="chip o">● 健康</span><span class="chip">clause-semantic v4</span></div>
+                      <div class="hrow"><span class="chip">权限：读合同原文</span></div></div>
+                  </div>
+                  <div class="box tint"><div class="h">插件详情</div>版本 · 健康状态 · 最近调用 · 权限范围 <span class="btn dim">停用（需确认 + 审计记录）</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>卡片按<b>能力类别分组</b>展示，不按技术实现分组，贴合审计员心智。</p></li>
+              <li><span class="p">2</span><p>启停是<b>高风险操作</b>，需要二次确认并写入审计记录；降级状态必须显式可见。</p></li>
+              <li><span class="p">3</span><p>权限范围明示插件能读什么（例如能否读合同原文），最小授权。</p></li>
+            </ol>
+            <p class="n8">插件降级不等于审计失败——受影响的能力在案件上标记"部分失败"，其余面板照常出结果。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 11 外部核验 ============ -->
+      <section class="board" id="p11">
+        <div class="board-hd">
+          <span class="no">11</span><h3>外部核验</h3><code class="route">/verification</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>核验结果是 <code>Source Record</code>，<b>不是审计结论</b>——来源时效与引用必须可查。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">能力与集成 / 外部核验</span><span class="sp"></span><span class="btn ghost">发起核验</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i class="on"></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>外部核验</b><span>企查查 · MCP 核验服务</span></div>
+                  <div class="hrow"><span class="inp">搜索主体名称 / 统一社会信用代码</span><span class="btn ghost">来源</span><span class="btn ghost">时效</span></div>
+                  <div class="tbl">
+                    <div class="tr th c-verify"><span class="td">查询主体</span><span class="td">命中主体</span><span class="td">来源时间</span><span class="td">缓存时效</span><span class="td">证据引用</span></div>
+                    <div class="tr c-verify"><span class="td">深圳精工科技⋯</span><span class="td">深圳精工科技有限公司</span><span class="td">09-11 16:04</span><span class="td"><span class="chip o">有效 6 天</span></span><span class="td"><span class="chip blue">引用 2 处</span></span></div>
+                    <div class="tr c-verify"><span class="td">重庆华盛贸易⋯</span><span class="td">未命中</span><span class="td">09-11 16:04</span><span class="td"><span class="chip">—</span></span><span class="td"><span class="chip w">转人工</span></span></div>
+                    <div class="tr c-verify"><span class="td">⋯</span><span class="td">经营异常名录</span><span class="td">09-09 10:12</span><span class="td"><span class="chip r">已过期</span></span><span class="td"><span class="chip blue">引用 1 处</span></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>展示<b>查询记录、命中主体、来源时间、缓存时效、证据引用</b>，时效过期必须显式告警。</p></li>
+              <li><span class="p">2</span><p>核验结果是 <code>Source Record</code>，进入证据链但不自动等于风险结论。</p></li>
+              <li><span class="p">3</span><p>"未命中"不等于"主体不存在"，按设计转人工，避免误判。</p></li>
+            </ol>
+            <p class="n8">外部来源不可用时，审计继续进行并在该案件标记核验能力降级。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 12 数据源与集成 ============ -->
+      <section class="board" id="p12">
+        <div class="board-hd">
+          <span class="no">12</span><h3>数据源与集成</h3><code class="route">/integrations</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>展示各连接的健康与凭据配置状态；<b>凭据永不回显明文</b>。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">能力与集成 / 数据源与集成</span><span class="sp"></span><span class="btn ghost">全部连接测试</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i class="on"></i><em></em><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>数据源与集成</b><span>连接健康与凭据状态</span></div>
+                  <div class="g2">
+                    <div class="box solid"><div class="h">MinIO <span class="p">1</span></div>
+                      <div class="hrow"><span class="chip o">● 已连接</span><span class="chip">凭据已配置</span></div>
+                      <div class="kv"><b>最近测试</b><span>09-11 16:20</span><b>延迟</b><span>18 ms</span></div></div>
+                    <div class="box solid"><div class="h">PostgreSQL <span class="p">1</span></div>
+                      <div class="hrow"><span class="chip o">● 已连接</span><span class="chip">凭据已配置</span></div>
+                      <div class="kv"><b>最近测试</b><span>09-11 16:20</span><b>延迟</b><span>3 ms</span></div></div>
+                    <div class="box solid"><div class="h">MCP 服务 <span class="p">2</span></div>
+                      <div class="hrow"><span class="chip w">◐ 降级</span><span class="chip">凭据已配置</span></div>
+                      <div class="kv"><b>最近测试</b><span>09-11 16:20</span><b>错误</b><span>连接超时（可读原因）</span></div></div>
+                    <div class="box solid"><div class="h">模型服务 <span class="p">3</span></div>
+                      <div class="hrow"><span class="chip o">● 已连接</span><span class="chip">凭据已配置</span></div>
+                      <div class="kv"><b>模型</b><span>deepseek-v4-flash</span><b>超时</b><span>60 s</span></div></div>
+                  </div>
+                  <div class="box tint"><span class="chip">凭据：已配置 ●●●●</span> <span class="chip">不回显明文</span> <span class="chip blue">编辑凭据</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>连接测试结果包含<b>时间、延迟和可读错误</b>，不用"失败"两个字打发。</p></li>
+              <li><span class="p">2</span><p>凭据<b>只显示"已配置"状态，永不回显明文</b>，编辑时留空即表示不修改。</p></li>
+              <li><span class="p">3</span><p>模型与超时暴露在集成页，便于把"审查慢"定位到配置而非业务。</p></li>
+            </ol>
+            <p class="n8">这一页是运维视角，与审计员视角的"能力插件"分离，避免混淆抽象层级。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 13 用户与权限 ============ -->
+      <section class="board" id="p13">
+        <div class="board-hd">
+          <span class="no">13</span><h3>用户与权限</h3><code class="route">/settings/users</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>角色最小区分 + 操作级权限 + 数据范围，关键操作全程留痕。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">系统管理 / 用户与权限</span><span class="sp"></span><span class="btn ghost">邀请用户</span><span class="btn">新建角色</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><em></em><i class="on"></i><i></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>用户与权限</b><span>角色 × 操作 × 数据范围</span></div>
+                  <div class="chips"><span class="chip blue">审计员</span><span class="chip blue">复核人</span><span class="chip blue">规则管理员</span><span class="chip blue">系统管理员</span></div>
+                  <div class="tbl">
+                    <div class="tr th c-users"><span class="td">用户</span><span class="td">角色</span><span class="td">数据范围</span><span class="td">最近操作</span></div>
+                    <div class="tr c-users"><span class="td">张 ⋯</span><span class="td">审计员</span><span class="td">本部门合同</span><span class="td">09-11 创建审计</span></div>
+                    <div class="tr c-users"><span class="td">李 ⋯</span><span class="td">复核人</span><span class="td">全部合同（只读原文）</span><span class="td">09-11 确认风险</span></div>
+                    <div class="tr c-users"><span class="td">王 ⋯</span><span class="td">规则管理员</span><span class="td">规则与案例</span><span class="td">09-10 发布规则 v3</span></div>
+                  </div>
+                  <div class="box tint"><div class="h">审计日志 <span class="p">3</span></div>确认风险 · 发布规则 · 导出合同原文 —— 全部记录操作人、时间、对象</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>角色至少区分<b>审计员、复核人、规则管理员、系统管理员</b>四种。</p></li>
+              <li><span class="p">2</span><p>权限按<b>操作 × 数据范围</b>配置，不是单纯的角色勾选表。</p></li>
+              <li><span class="p">3</span><p><b>确认风险、发布规则、导出合同原文</b>三类敏感操作必须写审计日志。</p></li>
+            </ol>
+            <p class="n8">权限不足时解释缺少的权限和可联系角色，不显示空白页。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 14 系统设置 ============ -->
+      <section class="board" id="p14">
+        <div class="board-hd">
+          <span class="no">14</span><h3>系统设置</h3><code class="route">/settings</code>
+          <span class="sp"></span><span class="pill plan">规划中 · P2</span>
+        </div>
+        <div class="goal"><b>目标：</b>分区管理审计策略与系统行为；危险设置单独分区并要求二次确认。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="wf">
+              <div class="wf-top"><span class="crumb">系统管理 / 系统设置</span><span class="sp"></span><span class="btn dim">保存</span></div>
+              <div class="wf-cols">
+                <aside class="wf-sider"><span class="wf-brand"></span><em></em><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><i></i><em></em><i></i><i></i><em></em><i></i><i class="on"></i></aside>
+                <div class="wf-main">
+                  <div class="wf-hd"><b>系统设置</b><span>审计策略 · 模型 · 通知 · 数据保留 · 安全</span></div>
+                  <div class="panes" style="grid-template-columns:104px minmax(0,1fr)">
+                    <div class="pane"><span>分区</span>
+                      <div class="box tint" style="margin-bottom:4px">审计策略</div>
+                      <div class="box" style="margin-bottom:4px">模型与超时</div>
+                      <div class="box" style="margin-bottom:4px">通知</div>
+                      <div class="box" style="margin-bottom:4px">数据保留</div>
+                      <div class="box" style="margin-bottom:4px">安全与审计日志</div>
+                      <div class="box" style="border-color:#EBC08A;background:#FFFBF2">危险设置</div>
+                    </div>
+                    <div class="pane"><span>审计策略</span>
+                      <div class="box solid" style="margin-bottom:5px"><div class="h">预付款比例上限 <span class="p">1</span></div><span class="chip">0.3（30%）</span> <span class="chip">按合同类型覆盖</span></div>
+                      <div class="box solid" style="margin-bottom:5px"><div class="h">默认风险等级映射</div><span class="chip">违反必控规则 → 高</span></div>
+                      <div class="box solid" style="border-color:#EBC08A;background:#FFFBF2"><div class="h">危险设置 <span class="p">2</span></div>重建索引 / 清理历史快照 <span class="btn ghost">二次确认</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>设计要点</h4>
+            <ol>
+              <li><span class="p">1</span><p>审计策略是业务配置（如预付款上限 30%），与规则引擎解耦，可按合同类型覆盖。</p></li>
+              <li><span class="p">2</span><p><b>危险设置单独分区</b>并使用不同底色，执行前二次确认并记录操作人。</p></li>
+              <li><span class="p">3</span><p>保存按钮在无改动时为禁用态；分区各自独立保存，避免整页联动。</p></li>
+            </ol>
+            <p class="n8">数据保留策略影响历史审计依据的可用性，修改时给出影响范围提示。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 附录 ============ -->
+      <section class="board" id="pA">
+        <div class="board-hd">
+          <span class="no">A</span><h3>信息架构与关键状态</h3><code class="route">informative</code>
+          <span class="sp"></span><span class="pill core">附录</span>
+        </div>
+        <div class="goal"><b>说明：</b>导航结构、五组信息架构、路由清单，以及每个页面共同承担的状态设计。</div>
+        <div class="board-grid">
+          <div class="wf-wrap">
+            <div class="stack">
+              <div class="box solid" style="background:#fff">
+                <div class="h">信息架构 <span class="sub">12 个侧栏目的地 · 14 个路由页面</span></div>
+                <div class="tree">总览
+└─ <em>审计驾驶舱</em>              /dashboard      <i>● 已实现</i>
+
+审计作业
+├─ <em>审计队列</em>                /audit-cases    <i>● 已实现</i>
+├─ <em>审计案件工作区</em>          /audit-cases/:id <i>● 已实现</i>
+├─ 复核中心                 /reviews        <i>○ P1</i>
+└─ 整改跟踪                 /remediations   <i>○ P1</i>
+
+规则治理
+├─ 规则管理                 /rules          <i>○ P1</i>
+├─ 规则编辑器               /rules/:id      <i>○ P1</i>
+├─ 案例验证                 /cases          <i>○ P1</i>
+└─ 法规知识库               /regulations    <i>○ P2</i>
+
+能力与集成
+├─ 能力插件                 /plugins        <i>○ P2</i>
+├─ 外部核验                 /verification   <i>○ P2</i>
+└─ 数据源与集成             /integrations   <i>○ P2</i>
+
+系统管理
+├─ 用户与权限               /settings/users <i>○ P2</i>
+└─ 系统设置                 /settings       <i>○ P2</i></div>
+              </div>
+              <div class="box solid" style="background:#fff">
+                <div class="h">侧栏行为 <span class="sub">5 组 · 层级不超过 2 层</span></div>
+                <div class="g3">
+                  <div class="box tint">≥1280px<br><b>232px 侧栏</b>，可收起</div>
+                  <div class="box tint">1024–1279px<br><b>64px 图标栏</b></div>
+                  <div class="box tint">&lt;768px<br><b>顶部按钮 + Drawer</b></div>
+                </div>
+                <div class="chips" style="margin-top:6px"><span class="chip blue">进入 /audit-cases/:id 默认收起 64px</span><span class="chip">用户偏好本地保存</span><span class="chip">徽标只显示需行动数量</span></div>
+              </div>
+              <div class="box solid" style="background:#fff">
+                <div class="h">每个页面都必须设计的状态 <span class="sub">不在实现时临时补</span></div>
+                <div class="g3">
+                  <div class="box tint">首次使用<br><span class="sub">说明能力边界 + 明确主操作</span></div>
+                  <div class="box tint">无搜索结果<br><span class="sub">保留筛选，提供清除</span></div>
+                  <div class="box tint">加载<br><span class="sub">骨架屏保持结构</span></div>
+                  <div class="box tint">部分失败<br><span class="sub">保留已加载内容，就地重试</span></div>
+                  <div class="box tint">实时断开<br><span class="sub">案件头提示，可手动重连</span></div>
+                  <div class="box tint">权限不足<br><span class="sub">解释缺少权限，不显示空白页</span></div>
+                  <div class="box tint">长合同<br><span class="sub">虚拟化区块，锚点可用</span></div>
+                  <div class="box tint">多发现重叠<br><span class="sub">编号标记 + 弹层选择</span></div>
+                  <div class="box tint">无风险发现<br><span class="sub">显示覆盖与证据完整度</span></div>
+                  <div class="box tint">证据冲突<br><span class="sub">强制人工，不自动结论</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="notes">
+            <h4>十条画布标注落实</h4>
+            <ol>
+              <li><span class="p">1</span><p>新增总览、作业、治理、能力与系统<b>五个信息架构分组</b>。</p></li>
+              <li><span class="p">2</span><p>侧栏扩为 232px，支持 64px 收起和移动端 Drawer。</p></li>
+              <li><span class="p">3</span><p>中国移动白色承载板 + 黄桷树赛事标识 + 短产品名。</p></li>
+              <li><span class="p">4</span><p>合同名称前置；审计 ID 独立副列并提供小型复制按钮。</p></li>
+              <li><span class="p">5</span><p>汇总卡使用浅色底、色条、图标/文字多重编码。</p></li>
+              <li><span class="p">6</span><p>增加审计驾驶舱，但改用可解释的运营和质量指标。</p></li>
+              <li><span class="p">7</span><p>返回改为来源感知的面包屑 / 左箭头文本按钮。</p></li>
+              <li><span class="p">8</span><p>详情升级为原文中心三栏工作区；风险原文与制度依据不同编码。</p></li>
+              <li><span class="p">9</span><p>规则评估改为数组；风险发现支持多规则、多证据。</p></li>
+              <li><span class="p">10</span><p>案件头部使用对齐的元数据网格 / 描述列表。</p></li>
+            </ol>
+            <p class="n8">落地顺序：<b>P0</b> 让现有闭环可用（已实现）→ <b>P1</b> 形成业务闭环 → <b>P2</b> 扩展平台能力。每阶段完成后只展示真实可用路由。</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+</body>
+</html>

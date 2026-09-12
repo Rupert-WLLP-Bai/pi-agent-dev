@@ -1,7 +1,11 @@
 import { treaty } from "@elysiajs/eden";
-import type { createApp } from "@contract-audit/api";
+import type { AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+// Same-origin by default so the Vite dev proxy (and a single-origin deployment)
+// carry /api requests. An empty string is NOT a valid Eden base — it resolves
+// requests against an invalid URL and every call fails. Set VITE_API_URL only
+// when the API lives on a different origin.
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 
 // Eden Treaty client typed directly from the Elysia app (architecture
 // constraint: monorepo front/back type derivation through Eden Treaty).
@@ -29,7 +33,35 @@ export async function createAuditCase({ contractText, policyLimitRatio }: Create
   return data;
 }
 
-export async function getAuditCases() {
+export interface UploadContractFileInput {
+  file: File;
+  /** 0–1 ratio; the endpoint also tolerates a percentage above 1. */
+  policyLimitRatio: number;
+}
+
+/**
+ * Uploads a contract file (.docx/.pdf/.txt). Uses raw fetch rather than Eden
+ * Treaty because Treaty's multipart typing adds no value for a single File,
+ * while FormData keeps the browser's native file streaming.
+ */
+export async function createAuditCaseFromFile({ file, policyLimitRatio }: UploadContractFileInput) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("policyLimitRatio", String(policyLimitRatio));
+
+  const response = await fetch(`${API_BASE_URL}/api/audit-cases/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiRequestError(body?.error ?? "上传合同失败", response.status);
+  }
+  return (await response.json()) as { id: string; status: string };
+}
+
+export async function getAuditCases(): Promise<CaseSummary[]> {
   const { data, error } = await api.api["audit-cases"].get();
   if (error) throw new ApiRequestError("加载审计列表失败", Number(error.status));
   return data;
@@ -52,6 +84,12 @@ export async function submitReview(
     ...(reason === undefined ? {} : { reason }),
   });
   if (error) throw new ApiRequestError("提交复核失败", error.status);
+  return data;
+}
+
+export async function getAuditOverview(): Promise<AuditOverview> {
+  const { data, error } = await api.api.stats.overview.get();
+  if (error) throw new ApiRequestError("加载统计失败", Number(error.status));
   return data;
 }
 

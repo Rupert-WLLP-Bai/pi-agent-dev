@@ -15,7 +15,14 @@ import { ReviewDrawer } from "../components/review-drawer";
 import { useAuditEvents } from "../hooks/use-audit-events";
 
 // Stages where the backend can still move the case forward, so live updates are useful.
-const streamStages = new Set(["QUEUED", "NORMALIZING", "RULE_ASSESSMENT", "AGENT_RUNNING", "AWAITING_REVIEW"]);
+const streamStages = new Set([
+  "QUEUED",
+  "NORMALIZING",
+  "RULE_ASSESSMENT",
+  "SUBJECT_VERIFICATION",
+  "AGENT_RUNNING",
+  "AWAITING_REVIEW",
+]);
 
 interface ReviewTarget {
   finding: FindingRevision | null;

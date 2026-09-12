@@ -12,6 +12,10 @@ _Avoid_: Contract Fixture, document
 An immutable version of a Contract that forms the subject of an Audit Case.
 _Avoid_: Contract Fixture, latest contract
 
+**Contract Party**:
+A natural or legal person named as a signatory of a Contract Revision. What is known about it comes from Facts extracted out of the Contract Document, or from Evidence anchored to a Source Record obtained elsewhere.
+_Avoid_: subject, counterparty, company, entity
+
 **Source Record**:
 An immutable snapshot or stable reference to source information, including where it came from and when it was captured.
 _Avoid_: raw data, context
@@ -61,7 +65,7 @@ Traceable support for a Fact or Finding Proposal, anchored to a Source Record. M
 _Avoid_: explanation, confidence, citation without a source locator
 
 **Evidence Locator**:
-The stable identity and bounded location of Evidence within a particular Source Record and Contract Document. Quoted text alone is not an Evidence Locator.
+The stable identity and bounded location of Evidence within a particular Source Record. The location is either a span of the Contract Document or a named record that the Source Record reports. Quoted text alone is not an Evidence Locator.
 _Avoid_: quote, page description, model citation
 
 **Finding Proposal**:

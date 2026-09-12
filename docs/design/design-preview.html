@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合同智能审计智能体 — 设计预览 v1.2</title>
+<style>
+  :root {
+    --brand:#0B6BB5; --brand-hover:#0A5C9B; --nav:#0C2D48; --nav-2:#103A5C;
+    --canvas:#F5F7FA; --surface:#FFFFFF; --text:#1F2329; --text-2:#667085;
+    --border:#D9DEE7; --border-soft:#E9EDF2; --risk:#A51F1F; --risk-bg:#FDECEC;
+    --warn:#8A5A00; --warn-bg:#FEF6E7; --ok:#12692F; --ok-bg:#E9F6EC;
+    --info:#0B5C99; --info-bg:#E8F2FB; --shadow:0 8px 28px rgba(12,45,72,.15);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#DEE4EB;color:var(--text);font-size:13px;line-height:1.5}
+  button{font:inherit}
+  .icon{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+
+  .preview-bar{position:sticky;top:0;z-index:100;min-height:52px;padding:8px 18px;background:#08273F;color:#DCEAF5;display:flex;align-items:center;gap:18px;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+  .preview-bar h1{font-size:14px;font-weight:650;white-space:nowrap}
+  .preview-tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .preview-tabs button{border:1px solid rgba(255,255,255,.17);background:rgba(255,255,255,.06);color:#C7DAEA;border-radius:6px;padding:6px 13px;cursor:pointer}
+  .preview-tabs button.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  .revision-note{padding:8px 20px;background:#FFF8E6;border-bottom:1px solid #EFD995;color:#725300;font-size:12px}
+  .preview-frame{width:1440px;max-width:calc(100% - 32px);margin:18px auto 28px;border-radius:10px;overflow:hidden;background:var(--canvas);box-shadow:var(--shadow)}
+  .screen{display:none}.screen.active{display:block}
+
+  /* product shell */
+  .shell{min-height:760px;display:grid;grid-template-columns:232px minmax(0,1fr)}
+  .shell.immersive{grid-template-columns:64px minmax(0,1fr)}
+  .sider{background:var(--nav);color:#C8D9E8;display:flex;flex-direction:column;min-width:0}
+  .brand-lockup{height:96px;padding:12px 14px 10px;border-bottom:1px solid rgba(255,255,255,.1)}
+  .brand-org{display:flex;align-items:center;gap:8px;min-width:0}
+  .cm-plate{height:30px;width:30px;flex:0 0 auto;background:#fff;border-radius:7px;padding:2px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .cm-plate img{width:100%;height:100%;object-fit:contain}
+  .cm-name{color:#fff;font-size:14px;font-weight:650;letter-spacing:.02em}
+  .product-name{margin-top:8px;color:#fff;font-size:14px;font-weight:650;line-height:1.2}
+  .contest-lockup{margin-top:5px;display:flex;align-items:center;gap:6px;min-width:0;color:#8FB2CE;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .contest-lockup img{width:24px;height:24px;object-fit:contain;flex:0 0 auto}
+  .nav{padding:10px 8px;flex:1;overflow:auto}
+  .nav-group{margin-bottom:10px}
+  .nav-group-title{padding:4px 10px 3px;color:#6F98B9;font-size:10px;letter-spacing:.08em}
+  .nav-item{height:34px;padding:0 10px;border-radius:6px;display:flex;align-items:center;gap:9px;color:#BCD0E1;margin:1px 0;white-space:nowrap}
+  .nav-item.active{background:rgba(35,139,215,.28);color:#fff;font-weight:550;box-shadow:inset 3px 0 0 #57B4F2}
+  .nav-item .label{overflow:hidden;text-overflow:ellipsis}
+  .nav-count{margin-left:auto;min-width:20px;height:18px;padding:0 6px;border-radius:9px;background:#FFF0C9;color:#705000;font-size:10px;font-weight:650;text-align:center;line-height:18px}
+  .sider-foot{border-top:1px solid rgba(255,255,255,.1);padding:8px}
+  .user-tile{height:42px;padding:0 9px;display:flex;align-items:center;gap:9px;color:#BCD0E1}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#1C7FC2;color:#fff;display:grid;place-items:center;font-size:11px;font-weight:650;flex:0 0 auto}
+  .user-meta b{display:block;color:#fff;font-size:12px;font-weight:550}.user-meta span{color:#7FA6C5;font-size:10px}
+
+  .shell.immersive .brand-lockup{height:64px;padding:12px 10px;display:grid;place-items:center}
+  .shell.immersive .brand-lockup>*:not(.compact-mark){display:none}
+  .compact-mark{display:none;width:34px;height:34px;border-radius:7px;background:#fff;padding:4px}
+  .compact-mark img{width:100%;height:100%;object-fit:contain}
+  .shell.immersive .compact-mark{display:block}
+  .shell.immersive .nav-group-title,.shell.immersive .nav-item .label,.shell.immersive .nav-count,.shell.immersive .user-meta{display:none}
+  .shell.immersive .nav{padding:8px}.shell.immersive .nav-item{justify-content:center;padding:0}.shell.immersive .user-tile{justify-content:center;padding:0}
+
+  .app{min-width:0;display:flex;flex-direction:column;background:var(--canvas)}
+  .app-header{height:56px;background:#fff;border-bottom:1px solid var(--border-soft);padding:0 22px;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto}
+  .breadcrumb{color:var(--text-2);font-size:12.5px}.breadcrumb b{color:var(--text);font-weight:600}.breadcrumb span{padding:0 7px;color:#A6AFBA}
+  .header-actions{display:flex;align-items:center;gap:8px}
+  .degraded{display:flex;align-items:center;gap:7px;padding:4px 9px;border-radius:6px;background:var(--warn-bg);color:var(--warn);font-size:11.5px}.degraded i{width:7px;height:7px;border-radius:50%;background:#C57A00}
+  .icon-button{width:32px;height:32px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--text-2);display:grid;place-items:center}
+  .page{padding:20px 22px;min-width:0;flex:1}
+
+  /* common */
+  .page-title{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}
+  .page-title h2{font-size:20px;line-height:1.3;font-weight:650}.page-title p{margin-top:3px;color:var(--text-2);font-size:12px}
+  .btns{display:flex;gap:8px;align-items:center}.btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--border);background:#fff;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}.btn.text{border:none;color:var(--brand);background:transparent;padding:0 6px}.btn.danger-ghost{color:var(--risk);border-color:#EAB8B8;background:#fff}
+  .card{background:#fff;border:1px solid var(--border-soft);border-radius:9px}
+  .tag{display:inline-flex;align-items:center;gap:5px;min-height:22px;border-radius:11px;padding:1px 8px;border:1px solid;font-size:11.5px;white-space:nowrap}.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}.tag.risk{color:var(--risk);background:var(--risk-bg);border-color:#EFB6B6}.tag.warn{color:var(--warn);background:var(--warn-bg);border-color:#E9CE83}.tag.ok{color:var(--ok);background:var(--ok-bg);border-color:#A9D8B4}.tag.info{color:var(--info);background:var(--info-bg);border-color:#A8CBE6}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}.tnum{font-variant-numeric:tabular-nums}
+  .section-heading{font-size:14px;font-weight:650}
+
+  /* IA */
+  .ia-stage{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
+  .ia-card{padding:18px}.ia-card h3{font-size:15px;margin-bottom:4px}.ia-card>p{font-size:12px;color:var(--text-2);margin-bottom:14px}
+  .route-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .route-group{border:1px solid var(--border-soft);border-radius:8px;padding:11px;background:#FAFBFC}.route-group b{font-size:12px;color:var(--brand)}
+  .route-group ul{list-style:none;margin-top:7px}.route-group li{padding:4px 0;display:flex;justify-content:space-between;gap:8px}.route-group code{font-size:10px;color:#8B95A1}
+  .decision-list{display:flex;flex-direction:column;gap:9px}.decision{display:grid;grid-template-columns:26px 1fr;gap:9px;padding:10px;border:1px solid var(--border-soft);border-radius:8px}.decision strong{width:24px;height:24px;border-radius:6px;background:var(--info-bg);color:var(--info);display:grid;place-items:center;font-size:11px}.decision b{display:block;font-size:12.5px}.decision p{font-size:11px;color:var(--text-2);margin-top:2px}
+
+  /* dashboard */
+  .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+  .kpi{padding:14px 15px;border-left:3px solid var(--brand)}.kpi.pending{border-left-color:#C57A00}.kpi.risky{border-left-color:var(--risk)}.kpi.speed{border-left-color:var(--ok)}
+  .kpi .label{font-size:12px;color:var(--text-2)}.kpi .value{font-size:25px;font-weight:680;margin:3px 0 1px}.kpi .hint{font-size:11px;color:var(--text-2)}.kpi .better{color:var(--ok)}
+  .dash-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:12px;margin-bottom:12px}.panel{padding:15px 16px;min-width:0}.panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.panel-head span{font-size:11px;color:var(--text-2)}
+  .line-chart{height:170px;border-left:1px solid var(--border);border-bottom:1px solid var(--border);position:relative;background:repeating-linear-gradient(to bottom,transparent 0,transparent 41px,#EEF1F5 42px)}
+  .line-chart svg{position:absolute;inset:8px 8px 0 0;width:calc(100% - 8px);height:calc(100% - 8px)}
+  .chart-labels{display:flex;justify-content:space-between;color:#98A2B3;font-size:10px;margin:5px 0 0 0}.legend{display:flex;gap:14px;font-size:11px;color:var(--text-2)}.legend i{display:inline-block;width:13px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .hbars{display:flex;flex-direction:column;gap:10px;padding-top:4px}.hbar{display:grid;grid-template-columns:92px 1fr 28px;gap:8px;align-items:center;font-size:11.5px}.track{height:10px;border-radius:5px;background:#EEF1F5;overflow:hidden}.fill{height:100%;border-radius:5px;background:var(--brand)}.fill.red{background:#C44A4A}.fill.amber{background:#C58A20}
+  .quality{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.quality-item{padding:10px;border:1px solid var(--border-soft);border-radius:7px;background:#FAFBFC}.quality-item b{font-size:18px}.quality-item span{display:block;color:var(--text-2);font-size:11px}
+  .todo-list{display:flex;flex-direction:column}.todo-item{min-height:39px;border-bottom:1px solid var(--border-soft);display:grid;grid-template-columns:1fr auto auto;gap:9px;align-items:center;font-size:11.5px}.todo-item:last-child{border-bottom:none}.todo-item b{font-weight:550}.todo-item time{color:var(--text-2)}
+
+  /* queue */
+  .summaries{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:12px}.summary{padding:12px 14px;border-left:3px solid var(--brand);display:flex;justify-content:space-between;align-items:center}.summary.pending{border-left-color:#C57A00;background:linear-gradient(90deg,#FFF9EB,#fff 38%)}.summary.processing{background:linear-gradient(90deg,#EDF6FD,#fff 38%)}.summary.error{border-left-color:var(--risk);background:linear-gradient(90deg,#FFF0F0,#fff 38%)}.summary.done{border-left-color:var(--ok);background:linear-gradient(90deg,#EEF9F0,#fff 38%)}.summary b{display:block;font-size:21px}.summary span{color:var(--text-2);font-size:11.5px}.summary .glyph{width:31px;height:31px;border-radius:7px;background:rgba(255,255,255,.78);display:grid;place-items:center;color:var(--text-2)}
+  .table-card{overflow:hidden}.table-toolbar{padding:11px 12px;border-bottom:1px solid var(--border-soft);display:flex;gap:8px;align-items:center}.searchbox{height:32px;width:330px;border:1px solid var(--border);border-radius:6px;background:#fff;color:#98A2B3;display:flex;align-items:center;gap:7px;padding:0 10px}.selectbox{height:32px;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:#fff;display:flex;align-items:center;gap:9px;color:var(--text-2)}.table-toolbar .spacer{flex:1}
+  table{width:100%;border-collapse:collapse}th{height:36px;background:#FAFBFC;color:var(--text-2);font-size:11.5px;font-weight:550;text-align:left;padding:0 11px;border-bottom:1px solid var(--border-soft)}td{height:58px;padding:8px 11px;border-bottom:1px solid var(--border-soft);font-size:12px;vertical-align:middle}tbody tr:last-child td{border-bottom:none}.contract-title{font-weight:600;font-size:12.5px}.subline{color:var(--text-2);font-size:10.5px;margin-top:3px}.idline{display:flex;align-items:center;gap:5px}.copy-button{width:24px;height:24px;border-radius:5px;border:1px solid var(--border);background:#fff;color:var(--text-2);display:grid;place-items:center}.risk-level{display:flex;gap:5px;align-items:center;font-weight:550}.risk-level::before{content:"";width:7px;height:7px;transform:rotate(45deg);background:currentColor}.risk-level.high{color:var(--risk)}.risk-level.medium{color:var(--warn)}.risk-level.low{color:var(--ok)}
+
+  /* review */
+  .review-page{padding:0;display:flex;flex-direction:column;min-height:704px}
+  .case-banner{background:#fff;border-bottom:1px solid var(--border-soft);padding:11px 16px 10px}.back-link{display:inline-flex;align-items:center;gap:5px;color:var(--brand);font-size:11.5px;margin-bottom:7px}.case-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.case-title-row h2{font-size:17px}.case-status{display:flex;gap:6px}.case-meta{display:flex;gap:18px;margin-top:5px;color:var(--text-2);font-size:10.5px;flex-wrap:wrap}.case-meta b{color:var(--text);font-weight:500}
+  .mobile-review-tabs{display:none}
+  .review-workspace{display:grid;grid-template-columns:280px 5px minmax(430px,1fr) 5px 392px;min-height:621px;flex:1;overflow:hidden}.splitter{background:#EEF1F5;position:relative}.splitter::after{content:"";position:absolute;top:50%;left:1px;width:3px;height:28px;border-left:1px solid #AEB7C2;border-right:1px solid #AEB7C2;transform:translateY(-50%)}
+  .finding-nav,.inspector{background:#fff;min-width:0;overflow:auto}.finding-nav{border-right:1px solid var(--border-soft)}.inspector{border-left:1px solid var(--border-soft)}
+  .pane-head{height:45px;padding:0 13px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between}.pane-head b{font-size:13px}.count-tabs{display:flex;border-bottom:1px solid var(--border-soft);padding:0 10px}.count-tabs span{padding:9px 8px 7px;font-size:11px;color:var(--text-2);border-bottom:2px solid transparent}.count-tabs span.active{color:var(--brand);border-color:var(--brand);font-weight:550}
+  .finding-list{padding:8px}.finding-item{padding:10px;border:1px solid transparent;border-radius:7px;margin-bottom:5px}.finding-item.active{border-color:#8ABCE0;background:#EDF6FD;box-shadow:inset 3px 0 0 var(--brand)}.finding-item .f-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.finding-item .f-title{font-size:12px;font-weight:600;margin:4px 0 3px}.finding-item .f-loc{font-size:10.5px;color:var(--text-2)}.sev-badge{font-size:10px;font-weight:650}.sev-badge.high{color:var(--risk)}.sev-badge.medium{color:var(--warn)}
+  .coverage{margin:9px 8px;padding:10px;border-top:1px solid var(--border-soft);display:flex;justify-content:space-between;color:var(--text-2);font-size:10.5px}.coverage b{color:var(--text)}
+  .document-stage{background:#E7EBF0;overflow:auto;padding:20px 24px}.document-page{max-width:720px;margin:0 auto;background:#fff;min-height:760px;padding:38px 50px;box-shadow:0 3px 14px rgba(31,35,41,.12);font-family:"Songti SC","SimSun",serif;color:#25282D}.document-page h1{text-align:center;font-size:20px;margin-bottom:6px}.doc-no{text-align:center;color:#69717C;font-size:11px;margin-bottom:28px}.document-page h3{font-size:14px;margin:20px 0 8px}.document-page p{font-size:13px;line-height:2;text-indent:2em;margin:5px 0}.document-page .table-like{border:1px solid #C9CED6;padding:8px 10px;margin:8px 0;font-size:12px;line-height:1.8}
+  mark.problem{background:#FADDDD;color:#8F1E1E;border-bottom:2px wavy #B92C2C;padding:2px 3px;border-radius:2px;outline:2px solid rgba(11,107,181,.45);outline-offset:2px}.anchor-pin{display:inline-flex;width:17px;height:17px;border-radius:50%;background:var(--risk);color:#fff;font:10px/17px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:center;text-indent:0;margin-left:4px;vertical-align:middle}
+  .inspector-body{padding:12px 14px 82px}.inspector-title{display:flex;justify-content:space-between;gap:9px;align-items:flex-start}.inspector-title h3{font-size:14px;line-height:1.35}.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:12px 0}.fact{background:#fff;padding:9px}.fact span{display:block;color:var(--text-2);font-size:10px}.fact b{font-size:18px}.fact.bad b{color:var(--risk)}.fact.ref b{color:var(--brand)}
+  .inspect-section{padding:11px 0;border-top:1px solid var(--border-soft)}.inspect-section h4{font-size:11.5px;margin-bottom:7px}.rule-card{border:1px solid var(--border-soft);border-radius:7px;padding:8px 9px;margin-bottom:6px}.rule-card .row{display:flex;justify-content:space-between;gap:8px;font-size:11.5px}.rule-card small{display:block;color:var(--text-2);font-size:10px;margin-top:2px}.source{border-left:3px solid var(--brand);padding:5px 8px;background:#F7FAFD;margin:6px 0;font-size:10.5px}.source strong{display:block;font-size:11px}.recommendation{padding:9px;border-radius:7px;background:#F7F9FB;font-size:11.5px;line-height:1.6}.inspector-actions{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--border-soft);padding:10px 14px;display:flex;justify-content:flex-end;gap:8px;box-shadow:0 -5px 14px rgba(31,35,41,.06)}
+
+  /* blueprint */
+  .blueprint{padding:20px 22px}.blueprint-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.module-card{padding:14px;min-height:122px}.module-card .mod-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}.module-card h3{font-size:13px}.phase{font-size:10px;border-radius:9px;padding:2px 7px;background:var(--info-bg);color:var(--info)}.module-card p{font-size:11.5px;color:var(--text-2)}.module-card ul{list-style:none;margin-top:7px}.module-card li{font-size:11px;padding:2px 0}.module-card li::before{content:"—";color:var(--brand);margin-right:5px}
+
+  @media(max-width:1000px){.preview-frame{max-width:calc(100% - 16px)}.shell{grid-template-columns:64px minmax(0,1fr)}.shell .brand-lockup{height:64px;padding:12px 10px;display:grid;place-items:center}.shell .brand-lockup>*:not(.compact-mark){display:none}.shell .compact-mark{display:block}.shell .nav-group-title,.shell .nav-item .label,.shell .nav-count,.shell .user-meta{display:none}.shell .nav{padding:8px}.shell .nav-item{justify-content:center;padding:0}.shell .user-tile{justify-content:center}.kpis,.summaries{grid-template-columns:repeat(2,1fr)}.dash-grid,.ia-stage{grid-template-columns:1fr}.review-workspace{grid-template-columns:220px 4px minmax(420px,1fr)}.review-workspace>.splitter:nth-of-type(2),.inspector{display:none}.blueprint-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:767px){
+    .preview-bar{align-items:flex-start;flex-direction:column;gap:7px}
+    .preview-tabs{width:100%}
+    .preview-tabs button{flex:1 1 auto;padding:5px 8px}
+    .revision-note{padding:7px 10px}
+    .preview-frame{max-width:calc(100% - 8px);margin:8px auto 16px}
+    .shell,.shell.immersive{display:block}
+    .sider{display:none}
+    .app-header{padding:0 12px}
+    .page,.blueprint{padding:14px 12px}
+    .page-title{align-items:stretch;flex-direction:column}
+    .kpis,.summaries{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .table-card{overflow-x:auto}
+    table{min-width:760px}
+    .blueprint-grid,.route-groups{grid-template-columns:1fr}
+    .case-banner{padding:10px 12px}
+    .case-title-row{align-items:flex-start;flex-direction:column}
+    .case-status{flex-wrap:wrap}
+    .mobile-review-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;margin-top:10px;padding:2px;background:#EEF1F5;border-radius:7px}
+    .mobile-review-tabs button{height:30px;border:0;border-radius:5px;background:transparent;color:var(--text-2);font-size:11.5px}
+    .mobile-review-tabs button.active{background:#fff;color:var(--brand);font-weight:600;box-shadow:0 1px 4px rgba(31,35,41,.12)}
+    .review-workspace.mobile-findings .finding-nav,.review-workspace.mobile-inspector .inspector{display:block;min-height:620px}
+    .review-workspace.mobile-findings .document-stage,.review-workspace.mobile-inspector .document-stage{display:none}
+    .review-workspace{display:block;min-height:0}
+    .finding-nav,.review-workspace>.splitter,.inspector{display:none}
+    .document-stage{display:block;padding:12px 8px}
+    .document-page{min-height:680px;padding:28px 22px}
+  }
+</style>
+</head>
+<body>
+<svg aria-hidden="true" style="display:none">
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></symbol>
+  <symbol id="i-loop" viewBox="0 0 24 24"><path d="M20 7h-6V1M4 17h6v6M19 7a8 8 0 0 0-13-2L4 7M5 17a8 8 0 0 0 13 2l2-2"/></symbol>
+  <symbol id="i-rule" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 9h8M8 13h5M8 17h7"/></symbol>
+  <symbol id="i-data" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 4h7a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4zM20 4h-3a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h3z"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M8 3v6M16 3v6M6 9h12v2a6 6 0 0 1-6 6v4M9 21h6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6 19h12a4 4 0 0 0 .4-8A7 7 0 0 0 5 9a5 5 0 0 0 1 10z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20a6 6 0 0 1 12 0M14 15a5 5 0 0 1 7 4.5"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l-2-.7-.7-1.7.9-1.9-2.1-2.1-1.9.9-1.7-.7-.7-2h-3l-.7 2-1.7.7-1.9-.9-2.1 2.1.9 1.9-.7 1.7-2 .7v3l2 .7.7 1.7-.9 1.9 2.1 2.1 1.9-.9 1.7.7.7 2h3l.7-2 1.7-.7 1.9.9 2.1-2.1-.9-1.9.7-1.7z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7h-6V1M4 17h6v6M19 7a8 8 0 0 0-13-2L4 7M5 17a8 8 0 0 0 13 2l2-2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+</svg>
+
+<header class="preview-bar">
+  <h1>合同智能审计智能体 · 设计预览 v1.2</h1>
+  <nav class="preview-tabs" aria-label="预览页面">
+    <button class="active" data-screen="ia">导航与品牌</button>
+    <button data-screen="dashboard">审计驾驶舱</button>
+    <button data-screen="queue">审计队列</button>
+    <button data-screen="review">原文审查工作区</button>
+    <button data-screen="blueprint">扩展页面蓝图</button>
+  </nav>
+</header>
+<div class="revision-note">本版按评审收敛：原文优先三栏审查、审计 ID 与合同身份分离、驾驶舱改用可解释指标、品牌区压缩且不反色白底 logo。</div>
+
+<main class="preview-frame">
+  <!-- IA + BRAND -->
+  <section class="screen active" id="screen-ia">
+    <div class="shell">
+      <aside class="sider">
+        <div class="brand-lockup">
+          <div class="compact-mark"><img src="../../apps/web/public/brands/hjs.png" alt="黄桷树赛事标识"></div>
+          <div class="brand-org"><span class="cm-plate"><img src="../../apps/web/public/brands/chinamobileltd-com-logo.png" alt=""></span><span class="cm-name">中国移动</span></div>
+          <div class="product-name">合同智能审计智能体</div>
+          <div class="contest-lockup"><img src="../../apps/web/public/brands/hjs.png" alt="">第一届黄桷树AI智能体开发大赛</div>
+        </div>
+        <nav class="nav">
+          <div class="nav-group"><div class="nav-group-title">总览</div><div class="nav-item active"><svg class="icon"><use href="#i-grid"/></svg><span class="label">审计驾驶舱</span></div></div>
+          <div class="nav-group"><div class="nav-group-title">审计作业</div><div class="nav-item"><svg class="icon"><use href="#i-list"/></svg><span class="label">审计队列</span></div><div class="nav-item"><svg class="icon"><use href="#i-check"/></svg><span class="label">复核中心</span><span class="nav-count">3</span></div><div class="nav-item"><svg class="icon"><use href="#i-loop"/></svg><span class="label">整改跟踪</span></div></div>
+          <div class="nav-group"><div class="nav-group-title">规则治理</div><div class="nav-item"><svg class="icon"><use href="#i-rule"/></svg><span class="label">规则管理</span></div><div class="nav-item"><svg class="icon"><use href="#i-data"/></svg><span class="label">案例验证</span></div><div class="nav-item"><svg class="icon"><use href="#i-book"/></svg><span class="label">法规知识库</span></div></div>
+          <div class="nav-group"><div class="nav-group-title">能力与集成</div><div class="nav-item"><svg class="icon"><use href="#i-plug"/></svg><span class="label">能力插件</span></div><div class="nav-item"><svg class="icon"><use href="#i-search"/></svg><span class="label">外部核验</span></div><div class="nav-item"><svg class="icon"><use href="#i-cloud"/></svg><span class="label">数据源与集成</span></div></div>
+          <div class="nav-group"><div class="nav-group-title">系统管理</div><div class="nav-item"><svg class="icon"><use href="#i-users"/></svg><span class="label">用户与权限</span></div><div class="nav-item"><svg class="icon"><use href="#i-settings"/></svg><span class="label">系统设置</span></div></div>
+        </nav>
+        <div class="sider-foot"><div class="user-tile"><span class="avatar">审</span><div class="user-meta"><b>审计管理员</b><span>规则管理员</span></div></div></div>
+      </aside>
+      <div class="app">
+        <header class="app-header"><div class="breadcrumb"><b>产品设计蓝图</b></div><div class="header-actions"><span class="avatar">审</span></div></header>
+        <div class="page">
+          <div class="page-title"><div><h2>导航与品牌</h2><p>完整蓝图包含 12 个目的地；正式构建只显示已实现、可完成操作的页面。</p></div><button class="btn">收起侧栏</button></div>
+          <div class="ia-stage">
+            <article class="card ia-card">
+              <h3>信息架构</h3><p>五个业务分组、两层以内；详情和编辑器通过业务对象进入，不占主导航。</p>
+              <div class="route-groups">
+                <div class="route-group"><b>总览</b><ul><li>审计驾驶舱 <code>/dashboard</code></li></ul></div>
+                <div class="route-group"><b>审计作业</b><ul><li>审计队列 <code>/audit-cases</code></li><li>复核中心 <code>/reviews</code></li><li>整改跟踪 <code>/remediations</code></li></ul></div>
+                <div class="route-group"><b>规则治理</b><ul><li>规则管理 <code>/rules</code></li><li>案例验证 <code>/cases</code></li><li>法规知识库 <code>/regulations</code></li></ul></div>
+                <div class="route-group"><b>能力与集成</b><ul><li>能力插件 <code>/plugins</code></li><li>外部核验 <code>/verification</code></li><li>数据源与集成 <code>/integrations</code></li></ul></div>
+                <div class="route-group"><b>系统管理</b><ul><li>用户与权限 <code>/settings/users</code></li><li>系统设置 <code>/settings</code></li></ul></div>
+                <div class="route-group"><b>对象页面</b><ul><li>审计案件工作区 <code>/:id</code></li><li>规则编辑器 <code>/rules/:id</code></li></ul></div>
+              </div>
+            </article>
+            <article class="card ia-card">
+              <h3>本次评审后的关键决策</h3><p>减少常驻噪声，把屏幕面积留给证据核对。</p>
+              <div class="decision-list">
+                <div class="decision"><strong>01</strong><div><b>品牌区压缩为 96px</b><p>中国移动标识使用白色承载板；完整课题名移到关于页和登录页。</p></div></div>
+                <div class="decision"><strong>02</strong><div><b>未实现导航直接隐藏</b><p>蓝图可以完整，比赛演示不展示不可点击的空壳页面。</p></div></div>
+                <div class="decision"><strong>03</strong><div><b>审查页默认收起侧栏</b><p>64px 导航保留全局位置感，主体空间交给合同原文。</p></div></div>
+                <div class="decision"><strong>04</strong><div><b>服务健康按异常显现</b><p>正常状态不占顶栏；断开、重连或降级时再显示。</p></div></div>
+                <div class="decision"><strong>05</strong><div><b>统一领域语言</b><p>全部使用“审计案件”，不再把 Audit Case 称为“任务”。</p></div></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section class="screen" id="screen-dashboard">
+    <div class="shell immersive">
+      <aside class="sider">
+        <div class="brand-lockup"><div class="compact-mark"><img src="../../apps/web/public/brands/hjs.png" alt="黄桷树赛事标识"></div></div>
+        <nav class="nav"><div class="nav-item active" title="审计驾驶舱"><svg class="icon"><use href="#i-grid"/></svg><span class="label">审计驾驶舱</span></div><div class="nav-item" title="审计队列"><svg class="icon"><use href="#i-list"/></svg><span class="label">审计队列</span></div><div class="nav-item" title="复核中心"><svg class="icon"><use href="#i-check"/></svg><span class="label">复核中心</span><span class="nav-count">3</span></div><div class="nav-item"><svg class="icon"><use href="#i-rule"/></svg><span class="label">规则管理</span></div><div class="nav-item"><svg class="icon"><use href="#i-data"/></svg><span class="label">案例验证</span></div></nav>
+        <div class="sider-foot"><div class="user-tile"><span class="avatar">审</span><div class="user-meta"><b>审计管理员</b></div></div></div>
+      </aside>
+      <div class="app">
+        <header class="app-header"><div class="breadcrumb"><b>审计驾驶舱</b></div><div class="header-actions"><button class="btn">近 30 天</button><span class="avatar">审</span></div></header>
+        <div class="page">
+          <div class="page-title"><div><h2>审计驾驶舱</h2><p>聚焦处理规模、审查时效、待办积压和已确认风险。</p></div><button class="btn">导出数据</button></div>
+          <div class="kpis">
+            <div class="card kpi"><div class="label">本期审计案件</div><div class="value tnum">128</div><div class="hint"><span class="better">+12.5%</span> 较上期</div></div>
+            <div class="card kpi speed"><div class="label">审查中位耗时</div><div class="value tnum">4.2 分钟</div><div class="hint"><span class="better">-23.0%</span> 较上期</div></div>
+            <div class="card kpi pending"><div class="label">待复核案件</div><div class="value tnum">7</div><div class="hint">其中 2 件临近 SLA</div></div>
+            <div class="card kpi risky"><div class="label">未闭环高风险</div><div class="value tnum">12</div><div class="hint">4 件已进入整改</div></div>
+          </div>
+          <div class="dash-grid">
+            <article class="card panel"><div class="panel-head"><h3 class="section-heading">审计处理趋势</h3><div class="legend"><span><i style="background:#0B6BB5"></i>完成案件</span><span><i style="background:#C57A00"></i>新增待复核</span></div></div><div class="line-chart"><svg viewBox="0 0 620 160" preserveAspectRatio="none"><polyline points="0,124 70,112 140,120 210,82 280,91 350,54 420,66 490,31 560,45 620,19" fill="none" stroke="#0B6BB5" stroke-width="3"/><polyline points="0,140 70,136 140,129 210,133 280,115 350,124 420,102 490,109 560,94 620,98" fill="none" stroke="#C57A00" stroke-width="2.5"/></svg></div><div class="chart-labels"><span>08-13</span><span>08-20</span><span>08-27</span><span>09-03</span><span>09-11</span></div></article>
+            <article class="card panel"><div class="panel-head"><h3 class="section-heading">已确认风险类型</h3><span>按数量降序</span></div><div class="hbars"><div class="hbar"><span>付款条件</span><div class="track"><div class="fill red" style="width:88%"></div></div><b>31</b></div><div class="hbar"><span>主体信息</span><div class="track"><div class="fill red" style="width:66%"></div></div><b>23</b></div><div class="hbar"><span>履约责任</span><div class="track"><div class="fill amber" style="width:49%"></div></div><b>17</b></div><div class="hbar"><span>合规条款</span><div class="track"><div class="fill" style="width:34%"></div></div><b>12</b></div><div class="hbar"><span>其他</span><div class="track"><div class="fill" style="width:20%"></div></div><b>7</b></div></div></article>
+          </div>
+          <div class="dash-grid">
+            <article class="card panel"><div class="panel-head"><h3 class="section-heading">质量指标</h3><span>查看口径说明</span></div><div class="quality"><div class="quality-item"><b class="tnum">96.8%</b><span>证据完整率</span></div><div class="quality-item"><b class="tnum">72.4%</b><span>风险确认率</span></div><div class="quality-item"><b class="tnum">91.2%</b><span>自动审查完成率</span></div></div></article>
+            <article class="card panel"><div class="panel-head"><h3 class="section-heading">待我处理</h3><span>查看全部</span></div><div class="todo-list"><div class="todo-item"><b>设备采购合同 · V3</b><span class="tag risk">高风险</span><time>6 分钟前</time></div><div class="todo-item"><b>办公场地租赁合同 · V2</b><span class="tag warn">证据冲突</span><time>18 分钟前</time></div><div class="todo-item"><b>原材料买卖合同 · V1</b><span class="tag info">待复核</span><time>31 分钟前</time></div></div></article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUEUE -->
+  <section class="screen" id="screen-queue">
+    <div class="shell">
+      <aside class="sider">
+        <div class="brand-lockup"><div class="compact-mark"><img src="../../apps/web/public/brands/hjs.png" alt="黄桷树赛事标识"></div><div class="brand-org"><span class="cm-plate"><img src="../../apps/web/public/brands/chinamobileltd-com-logo.png" alt=""></span><span class="cm-name">中国移动</span></div><div class="product-name">合同智能审计智能体</div><div class="contest-lockup"><img src="../../apps/web/public/brands/hjs.png" alt="">第一届黄桷树AI智能体开发大赛</div></div>
+        <nav class="nav"><div class="nav-group"><div class="nav-group-title">总览</div><div class="nav-item"><svg class="icon"><use href="#i-grid"/></svg><span class="label">审计驾驶舱</span></div></div><div class="nav-group"><div class="nav-group-title">审计作业</div><div class="nav-item active"><svg class="icon"><use href="#i-list"/></svg><span class="label">审计队列</span></div><div class="nav-item"><svg class="icon"><use href="#i-check"/></svg><span class="label">复核中心</span><span class="nav-count">3</span></div><div class="nav-item"><svg class="icon"><use href="#i-loop"/></svg><span class="label">整改跟踪</span></div></div><div class="nav-group"><div class="nav-group-title">规则治理</div><div class="nav-item"><svg class="icon"><use href="#i-rule"/></svg><span class="label">规则管理</span></div><div class="nav-item"><svg class="icon"><use href="#i-data"/></svg><span class="label">案例验证</span></div></div></nav>
+        <div class="sider-foot"><div class="user-tile"><span class="avatar">审</span><div class="user-meta"><b>审计管理员</b><span>规则管理员</span></div></div></div>
+      </aside>
+      <div class="app">
+        <header class="app-header"><div class="breadcrumb"><b>审计队列</b></div><div class="header-actions"><span class="avatar">审</span></div></header>
+        <div class="page">
+          <div class="page-title"><div><h2>审计队列</h2><p>按最近更新排序，优先处理待复核、异常和未闭环高风险案件。</p></div><div class="btns"><button class="btn"><svg class="icon"><use href="#i-refresh"/></svg>刷新</button><button class="btn primary"><svg class="icon"><use href="#i-plus"/></svg>新建审计</button></div></div>
+          <div class="summaries"><div class="card summary pending"><div><b class="tnum">7</b><span>待复核</span></div><div class="glyph"><svg class="icon"><use href="#i-check"/></svg></div></div><div class="card summary processing"><div><b class="tnum">3</b><span>处理中</span></div><div class="glyph"><svg class="icon"><use href="#i-loop"/></svg></div></div><div class="card summary error"><div><b class="tnum">1</b><span>异常</span></div><div class="glyph"><svg class="icon"><use href="#i-settings"/></svg></div></div><div class="card summary done"><div><b class="tnum">12</b><span>今日完成</span></div><div class="glyph"><svg class="icon"><use href="#i-check"/></svg></div></div></div>
+          <article class="card table-card">
+            <div class="table-toolbar"><div class="searchbox"><svg class="icon"><use href="#i-search"/></svg>搜索合同名称 / 审计 ID / 来源记录 ID</div><div class="selectbox">全部状态 <span>⌄</span></div><div class="selectbox">风险等级 <span>⌄</span></div><div class="spacer"></div><button class="btn">列设置</button></div>
+            <table><thead><tr><th style="width:27%">合同</th><th style="width:15%">审计 ID</th><th>风险</th><th>状态 / 阶段</th><th>更新时间</th><th>操作</th></tr></thead><tbody>
+              <tr><td><div class="contract-title">设备采购合同</div><div class="subline">V3 · MinIO 导入</div></td><td><div class="idline"><span class="mono">a3f1c2e8…</span><button class="copy-button" aria-label="复制审计 ID"><svg class="icon"><use href="#i-copy"/></svg></button></div></td><td><span class="risk-level high">高 · 3</span></td><td><span class="tag warn">待复核</span><div class="subline">人工复核</div></td><td><div>6 分钟前</div><div class="subline">2026-09-11 21:24</div></td><td><button class="btn text">打开</button></td></tr>
+              <tr><td><div class="contract-title">办公场地租赁合同</div><div class="subline">V2 · 本地上传</div></td><td><div class="idline"><span class="mono">b7e2d9f1…</span><button class="copy-button" aria-label="复制审计 ID"><svg class="icon"><use href="#i-copy"/></svg></button></div></td><td><span class="risk-level medium">中 · 2</span></td><td><span class="tag info">审查中</span><div class="subline">外部核验</div></td><td><div>18 分钟前</div><div class="subline">2026-09-11 21:12</div></td><td><button class="btn text">打开</button></td></tr>
+              <tr><td><div class="contract-title">原材料买卖合同</div><div class="subline">V1 · API 接入</div></td><td><div class="idline"><span class="mono">ce409b65…</span><button class="copy-button" aria-label="复制审计 ID"><svg class="icon"><use href="#i-copy"/></svg></button></div></td><td><span class="risk-level low">低 · 1</span></td><td><span class="tag ok">已完成</span><div class="subline">人工复核完成</div></td><td><div>31 分钟前</div><div class="subline">2026-09-11 20:59</div></td><td><button class="btn text">打开</button></td></tr>
+              <tr><td><div class="contract-title">未命名合同</div><div class="subline">V1 · MinIO 导入 · 需要设置名称</div></td><td><div class="idline"><span class="mono">6ad10e44…</span><button class="copy-button" aria-label="复制审计 ID"><svg class="icon"><use href="#i-copy"/></svg></button></div></td><td>-</td><td><span class="tag risk">异常</span><div class="subline">文档解析</div></td><td><div>1 小时前</div><div class="subline">2026-09-11 20:18</div></td><td><button class="btn text">重试</button></td></tr>
+            </tbody></table>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEW WORKSPACE -->
+  <section class="screen" id="screen-review">
+    <div class="shell immersive">
+      <aside class="sider">
+        <div class="brand-lockup"><div class="compact-mark"><img src="../../apps/web/public/brands/hjs.png" alt="黄桷树赛事标识"></div></div>
+        <nav class="nav"><div class="nav-item"><svg class="icon"><use href="#i-grid"/></svg><span class="label">审计驾驶舱</span></div><div class="nav-item active"><svg class="icon"><use href="#i-list"/></svg><span class="label">审计队列</span></div><div class="nav-item"><svg class="icon"><use href="#i-check"/></svg><span class="label">复核中心</span></div><div class="nav-item"><svg class="icon"><use href="#i-rule"/></svg><span class="label">规则管理</span></div></nav>
+        <div class="sider-foot"><div class="user-tile"><span class="avatar">审</span></div></div>
+      </aside>
+      <div class="app review-page">
+        <div class="case-banner">
+          <div class="back-link"><svg class="icon"><use href="#i-arrow"/></svg>返回审计队列</div>
+          <div class="case-title-row"><h2>设备采购合同 · V3</h2><div class="case-status"><span class="tag risk">高风险</span><span class="tag warn">待人工复核</span><span class="tag info">实时更新</span></div></div>
+          <div class="case-meta"><span>审计 ID <b class="mono">a3f1c2e8…</b></span><span>来源 <b>MinIO</b></span><span>创建时间 <b>2026-09-11 20:15</b></span><span>规则版本 <b>policy-2026.09</b></span></div>
+          <div class="mobile-review-tabs" aria-label="移动端审查视图">
+            <button class="active" data-pane="document">合同原文</button>
+            <button data-pane="findings">风险发现</button>
+            <button data-pane="inspector">依据与复核</button>
+          </div>
+        </div>
+        <div class="review-workspace">
+          <aside class="finding-nav">
+            <div class="pane-head"><b>风险发现</b><button class="icon-button" aria-label="筛选风险"><svg class="icon"><use href="#i-settings"/></svg></button></div>
+            <div class="count-tabs"><span class="active">待处理 3</span><span>全部 5</span></div>
+            <div class="finding-list">
+              <div class="finding-item active"><div class="f-top"><span class="sev-badge high">高风险</span><span class="tag warn">待复核</span></div><div class="f-title">预付款比例超过制度上限</div><div class="f-loc">第 4.2 条 · 付款与结算</div></div>
+              <div class="finding-item"><div class="f-top"><span class="sev-badge medium">中风险</span><span class="tag warn">待复核</span></div><div class="f-title">供应商登记地址不一致</div><div class="f-loc">合同首页 · 主体信息</div></div>
+              <div class="finding-item"><div class="f-top"><span class="sev-badge medium">中风险</span><span class="tag info">待核验</span></div><div class="f-title">履约资质有效期待核验</div><div class="f-loc">第 2.1 条 · 资质声明</div></div>
+              <div class="finding-item"><div class="f-top"><span class="sev-badge medium">中风险</span><span class="tag ok">已确认</span></div><div class="f-title">违约责任上限缺失</div><div class="f-loc">第 8 章 · 违约责任</div></div>
+            </div>
+            <div class="coverage"><span>审查覆盖</span><span><b>通过 18</b> / 不适用 4</span></div>
+          </aside>
+          <div class="splitter" aria-hidden="true"></div>
+          <main class="document-stage">
+            <article class="document-page">
+              <h1>设备采购合同</h1><div class="doc-no">合同版本 V3 · 区块 document-block-042</div>
+              <h3>第一章 合同主体</h3><p>甲方：中国移动通信集团某有限公司。乙方：某某设备科技有限公司。双方依据相关法律法规，经协商一致订立本合同。</p>
+              <h3>第二章 采购标的</h3><p>乙方应按技术规范提供通信设备、配套软件及安装调试服务，具体型号与数量以附件一为准。</p>
+              <div class="table-like">设备总价：人民币 2,400,000.00 元<br>交付期限：合同生效后 30 个自然日</div>
+              <h3>第四章 付款与结算</h3><p>4.1 本合同价款采用银行转账方式支付，乙方应在每次付款前提供合法有效的增值税专用发票。</p>
+              <p>4.2 甲方应在合同签订并收到乙方发票后五个工作日内支付<mark class="problem">合同总价款的 70% 作为预付款</mark><span class="anchor-pin">1</span>，剩余 30% 在设备验收合格后支付。</p>
+              <p>4.3 因乙方原因导致交付延期的，甲方有权暂停支付后续款项，直至乙方完成整改。</p>
+              <h3>第五章 交付与验收</h3><p>乙方完成设备到货、安装和调试后，应书面通知甲方组织验收。验收不合格的，乙方应在十个工作日内完成整改。</p>
+            </article>
+          </main>
+          <div class="splitter" aria-hidden="true"></div>
+          <aside class="inspector">
+            <div class="pane-head"><b>依据与复核</b><span class="mono" style="font-size:10px;color:var(--text-2)">发现 1/5</span></div>
+            <div class="inspector-body">
+              <div class="inspector-title"><h3>预付款比例超过制度上限</h3><span class="tag risk">高风险</span></div>
+              <div class="facts"><div class="fact bad"><span>合同实际值</span><b class="tnum">70%</b></div><div class="fact ref"><span>制度上限</span><b class="tnum">30%</b></div><div class="fact"><span>超出</span><b class="tnum">40pp</b></div></div>
+              <section class="inspect-section"><h4>违反规则 2 条</h4><div class="rule-card"><div class="row"><b>预付款比例控制</b><span class="tag risk">违反</span></div><small>RULE-PAY-001 · v4 · 设备采购合同</small></div><div class="rule-card"><div class="row"><b>大额预付款审批</b><span class="tag warn">需审批</span></div><small>RULE-AUTH-006 · v2 · 金额超过 100 万元</small></div></section>
+              <section class="inspect-section"><h4>证据来源 3 条</h4><div class="source"><strong>合同原文 · 第 4.2 条</strong>block-042 · 字符 31–48 · 当前已定位</div><div class="source"><strong>采购付款管理办法 · 第 12 条</strong>标准预付款比例原则上不得超过合同总价的 30%。</div><div class="source"><strong>外部核验 · 供应商风险记录</strong>企查查快照 · 2026-09-11 20:16</div></section>
+              <section class="inspect-section"><h4>修复建议</h4><div class="recommendation">将预付款比例调整为不高于 30%；若业务确需维持 70%，补充例外审批编号、审批人和付款担保条款。</div></section>
+            </div>
+            <div class="inspector-actions"><button class="btn danger-ghost">判定误报</button><button class="btn primary">确认风险</button></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLUEPRINT -->
+  <section class="screen" id="screen-blueprint">
+    <div class="app" style="min-height:760px">
+      <header class="app-header"><div class="breadcrumb"><b>扩展页面蓝图</b></div><div class="header-actions"><span class="avatar">审</span></div></header>
+      <div class="blueprint">
+        <div class="page-title"><div><h2>完整页面蓝图</h2><p>核心闭环优先；扩展能力按实际完成度加入导航，不制造空壳页面。</p></div><div class="btns"><span class="tag info">14 个路由页面</span><span class="tag ok">12 个导航入口</span></div></div>
+        <div class="blueprint-grid">
+          <article class="card module-card"><div class="mod-head"><h3>审计驾驶舱</h3><span class="phase">P1</span></div><p>处理规模、时效、待办和已确认风险的一屏态势。</p><ul><li>运营 KPI 与质量口径</li><li>折线趋势和横向风险条形图</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>审计队列</h3><span class="phase">P0</span></div><p>合同身份优先、审计 ID 可追溯的案件列表。</p><ul><li>搜索、筛选、状态汇总</li><li>取消、重试、打开</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>审计案件工作区</h3><span class="phase">P0</span></div><p>发现、原文、证据和人工结论同步联动。</p><ul><li>稳定原文定位</li><li>多规则、多证据复核</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>复核中心</h3><span class="phase">P1</span></div><p>以 SLA、风险和证据冲突排序的人工工作台。</p><ul><li>待我处理与转交</li><li>禁止批量作业务结论</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>整改跟踪</h3><span class="phase">P1</span></div><p>风险确认后的责任人、截止时间和闭环状态。</p><ul><li>阶段看板</li><li>整改证据与复核记录</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>规则管理与编辑器</h3><span class="phase">P1</span></div><p>规则版本、条款立场、验证案例和发布记录。</p><ul><li>首选/退让/不可接受立场</li><li>发布前回归验证</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>案例验证</h3><span class="phase">P1</span></div><p>正例、反例、边界例和历史误报回归。</p><ul><li>按规则版本运行</li><li>展示具体失败差异</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>法规知识库</h3><span class="phase">P2</span></div><p>法规正文、版本、生效范围和规则反向引用。</p><ul><li>历史版本不可覆盖</li><li>定位到具体制度条款</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>能力插件</h3><span class="phase">P2</span></div><p>解析、规则、外部查询和语义审查能力治理。</p><ul><li>版本、健康、权限范围</li><li>启停操作审计</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>外部核验</h3><span class="phase">P2</span></div><p>企查查等多源查询的时间、来源和证据引用。</p><ul><li>核验结果是 Source Record</li><li>缓存时效可见</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>数据源与集成</h3><span class="phase">P2</span></div><p>MinIO、PostgreSQL、MCP 和模型服务连接。</p><ul><li>不回显凭据</li><li>连接测试含可读错误</li></ul></article>
+          <article class="card module-card"><div class="mod-head"><h3>用户、权限与系统</h3><span class="phase">P2</span></div><p>角色、数据范围、策略、通知和审计日志。</p><ul><li>高风险操作二次确认</li><li>合同原文导出可追踪</li></ul></article>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const buttons = [...document.querySelectorAll('.preview-tabs button')];
+  const screens = [...document.querySelectorAll('.screen')];
+  buttons.forEach((button) => {
+    button.addEventListener('click', () => {
+      buttons.forEach((item) => item.classList.remove('active'));
+      screens.forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      document.getElementById(`screen-${button.dataset.screen}`).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+  const paneButtons = [...document.querySelectorAll('.mobile-review-tabs button')];
+  const reviewWorkspace = document.querySelector('.review-workspace');
+  paneButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      paneButtons.forEach((item) => item.classList.remove('active'));
+      button.classList.add('active');
+      reviewWorkspace.classList.remove('mobile-findings', 'mobile-inspector');
+      if (button.dataset.pane === 'findings') reviewWorkspace.classList.add('mobile-findings');
+      if (button.dataset.pane === 'inspector') reviewWorkspace.classList.add('mobile-inspector');
+    });
+  });
+</script>
+</body>
+</html>

@@ -9,6 +9,8 @@ import {
 import { AppShell } from "./components/app-shell";
 import AuditCasesList from "./routes/audit-cases";
 import AuditCaseDetail from "./routes/audit-case-detail";
+import DashboardPage from "./routes/dashboard";
+import DemoPage from "./routes/demo";
 
 const queryClient = new QueryClient();
 
@@ -17,7 +19,19 @@ const rootRoute = createRootRoute({ component: () => <AppShell /> });
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => <Navigate to="/audit-cases" />,
+  component: () => <Navigate to="/dashboard" />,
+});
+
+const dashboardRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dashboard",
+  component: DashboardPage,
+});
+
+const demoRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/demo",
+  component: DemoPage,
 });
 
 const listRoute = createRoute({
@@ -37,7 +51,7 @@ const detailRoute = createRoute({
   component: AuditCaseDetailRoute,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, listRoute, detailRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, dashboardRoute, demoRoute, listRoute, detailRoute]);
 
 const router = createRouter({ routeTree });
 

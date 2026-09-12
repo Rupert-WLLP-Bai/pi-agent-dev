@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { App as AntApp } from "antd";
-import { cancelAuditCase, createAuditCase, getAuditCases, retryAuditCase } from "../api";
+import { cancelAuditCase, createAuditCase, createAuditCaseFromFile, getAuditCases, retryAuditCase } from "../api";
 import { AuditQueue } from "../components/audit-queue";
 import { NewAuditDrawer } from "../components/new-audit-drawer";
 
@@ -17,6 +17,16 @@ export default function AuditCasesList() {
 
   const createMutation = useMutation({
     mutationFn: createAuditCase,
+    onSuccess: ({ id }) => {
+      setCreateOpen(false);
+      void settle();
+      void navigate({ to: "/audit-cases/$id", params: { id } });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: createAuditCaseFromFile,
     onSuccess: ({ id }) => {
       setCreateOpen(false);
       void settle();
@@ -52,7 +62,7 @@ export default function AuditCasesList() {
   return (
     <>
       <AuditQueue
-        cases={casesQuery.data ?? []}
+        cases={(casesQuery.data ?? []) as never}
         loading={casesQuery.isLoading}
         refreshing={casesQuery.isFetching && !casesQuery.isLoading}
         error={casesQuery.error as Error | null}
@@ -66,10 +76,15 @@ export default function AuditCasesList() {
       />
       <NewAuditDrawer
         open={createOpen}
-        submitting={createMutation.isPending}
-        submitError={createMutation.isError ? createMutation.error.message : null}
+        submitting={createMutation.isPending || uploadMutation.isPending}
+        submitError={
+          createMutation.isError ? createMutation.error.message
+            : uploadMutation.isError ? uploadMutation.error.message
+              : null
+        }
         onClose={() => setCreateOpen(false)}
         onSubmit={(input) => createMutation.mutate(input)}
+        onUploadFile={(input) => uploadMutation.mutate(input)}
       />
     </>
   );

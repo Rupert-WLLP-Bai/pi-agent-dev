@@ -66,7 +66,28 @@ bun --filter @contract-audit/api dev
 bun --filter @contract-audit/web dev
 ```
 
+Or start both in the background with the helper script:
+
+```bash
+./scripts/dev-up.sh          # start API + web, wait until both ports answer
+./scripts/dev-up.sh --status # show running PIDs
+./scripts/dev-up.sh --stop   # stop both process groups
+```
+
+Logs land in `.dev/api.log` and `.dev/web.log`. The script refuses to start if
+PostgreSQL is not reachable on `127.0.0.1:5432`.
+
 Open http://localhost:5173/audit-cases to use the workbench.
+
+## Acceptance Tests
+
+`bun run acceptance` runs the Playwright suite. It starts the API in
+`fake` agent mode, so no LLM credentials are needed.
+
+- Already-running dev servers are reused; set `CI=true` (or
+  `PLAYWRIGHT_REUSE_SERVERS=0`) to force a clean start.
+- If the Playwright browser download is unreachable, install a system Chrome
+  and run with `PLAYWRIGHT_CHANNEL=chrome`.
 
 ## Real Pi Agent Smoke Test
 

@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contract Audit — UI 标注画布</title>
+<style>
+  :root {
+    --nav-bg: #0a0a0a;
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --text: #18181b;
+    --text-2: #71717a;
+    --border: #e4e4e7;
+    --info: #0369a1;
+    --success: #15803d;
+    --warning: #a16207;
+    --danger: #b91c1c;
+    --sidebar-w: 190px;
+    --header-h: 54px;
+    --annot-pin: #e11d48;
+    --annot-pin-hover: #be123c;
+    --canvas-bg: #e8eaed;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--canvas-bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    position: sticky; top: 0; z-index: 100;
+    background: #1e293b; color: #f1f5f9;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 20px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .toolbar h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar button {
+    background: rgba(255,255,255,.1); color: #f1f5f9;
+    border: 1px solid rgba(255,255,255,.2);
+    padding: 6px 14px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; transition: background .15s;
+  }
+  .toolbar button:hover { background: rgba(255,255,255,.2); }
+  .toolbar button.active { background: #3b82f6; border-color: #3b82f6; }
+  .toolbar .view-switch {
+    display: flex; gap: 0; border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+  .toolbar .view-switch button {
+    border: none; border-radius: 0; padding: 6px 16px;
+  }
+
+  /* ── Canvas Area ── */
+  .canvas-area {
+    padding: 24px;
+    display: flex; justify-content: center;
+  }
+  .canvas-frame {
+    width: 100%; max-width: 1280px;
+    background: var(--bg);
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,.15);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Mock UI: App Shell ── */
+  .mock-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) minmax(0,1fr);
+    min-height: 640px;
+  }
+  .mock-sidebar {
+    background: var(--nav-bg);
+    color: #d4d4d8;
+    display: flex; flex-direction: column;
+    padding: 16px 12px; gap: 24px;
+  }
+  .mock-brand {
+    display: flex; align-items: center; gap: 8px;
+    color: #fafafa; font-weight: 600; font-size: 15px;
+  }
+  .mock-brand-mark {
+    width: 32px; height: 32px; border-radius: 6px;
+    background: rgba(255,255,255,.1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .mock-nav { display: flex; flex-direction: column; gap: 4px; }
+  .mock-nav-link {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: 6px;
+    color: #a1a1aa; text-decoration: none; font-size: 14px;
+    background: rgba(255,255,255,.12); color: #fafafa;
+  }
+  .mock-nav-icon {
+    width: 14px; height: 14px;
+    background: currentColor; opacity: .6;
+    border-radius: 2px; flex-shrink: 0;
+  }
+
+  .mock-frame { display: flex; flex-direction: column; min-width: 0; }
+  .mock-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: var(--header-h);
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .mock-header-title { font-size: 16px; font-weight: 600; }
+  .mock-health {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--text-2);
+  }
+  .mock-health::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success);
+  }
+  .mock-main { padding: 24px; flex: 1; overflow-x: hidden; }
+
+  /* ── Mock: Queue View ── */
+  .mock-queue { display: flex; flex-direction: column; gap: 16px; max-width: 1200px; margin: 0 auto; }
+  .mock-queue-header {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+  }
+  .mock-queue-header h2 { font-size: 22px; font-weight: 700; }
+  .mock-queue-header p { color: var(--text-2); font-size: 13px; }
+  .mock-queue-actions { display: flex; gap: 8px; }
+  .mock-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 16px; border-radius: 6px;
+    font-size: 14px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+  }
+  .mock-btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+
+  .mock-summary {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); overflow: hidden;
+  }
+  .mock-summary-item {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 16px; border-right: 1px solid var(--border);
+  }
+  .mock-summary-item:last-child { border-right: none; }
+  .mock-summary-value { font-size: 24px; font-weight: 600; }
+  .mock-summary-label { font-size: 13px; color: var(--text-2); }
+
+  .mock-surface {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .mock-toolbar {
+    display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .mock-search {
+    max-width: 280px; padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; background: var(--surface);
+  }
+  .mock-segmented {
+    display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+  }
+  .mock-segmented span {
+    padding: 4px 12px; font-size: 13px;
+    background: var(--surface); cursor: pointer;
+  }
+  .mock-segmented span.active { background: var(--text); color: #fff; }
+
+  .mock-table { width: 100%; border-collapse: collapse; }
+  .mock-table th {
+    text-align: left; padding: 8px 12px; font-size: 13px;
+    color: var(--text-2); background: #fafafa;
+    border-bottom: 1px solid var(--border); font-weight: 500;
+  }
+  .mock-table td {
+    padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .mock-table tr:hover td { background: #fafafa; }
+  .mock-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 10px; font-size: 12px;
+  }
+  .mock-badge-info { background: rgba(3,105,161,.1); color: var(--info); }
+  .mock-badge-warning { background: rgba(161,98,7,.1); color: var(--warning); }
+  .mock-badge-success { background: rgba(21,128,61,.1); color: var(--success); }
+  .mock-badge-danger { background: rgba(185,28,28,.1); color: var(--danger); }
+  .mock-badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+
+  /* ── Mock: Detail View ── */
+  .mock-workbench { display: flex; flex-direction: column; gap: 16px; }
+  .mock-wb-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--info); cursor: pointer; font-size: 13px;
+  }
+  .mock-wb-title-row {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+  .mock-wb-id { font-family: monospace; font-size: 13px; color: var(--text-2); }
+  .mock-wb-conn { font-size: 13px; color: var(--success); }
+  .mock-desc {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    padding: 8px 0; font-size: 13px;
+  }
+  .mock-desc-item label { display: block; color: var(--text-2); font-size: 12px; }
+  .mock-steps {
+    display: flex; gap: 0; align-items: center;
+    padding: 8px 0;
+  }
+  .mock-step {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--text-2); flex: 1;
+  }
+  .mock-step-dot {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+  }
+  .mock-step.done .mock-step-dot { background: var(--success); border-color: var(--success); color: #fff; }
+  .mock-step.current .mock-step-dot { background: var(--info); border-color: var(--info); color: #fff; }
+  .mock-step-line { flex: 0 0 24px; height: 2px; background: var(--border); }
+
+  .mock-wb-grid {
+    display: grid; grid-template-columns: 1fr 340px; gap: 16px;
+  }
+  .mock-wb-main { display: flex; flex-direction: column; gap: 12px; }
+  .mock-finding-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .mock-finding-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .mock-finding-title { font-weight: 600; font-size: 15px; }
+  .mock-fact-compare {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin: 8px 0; padding: 8px; background: #fafafa; border-radius: 6px;
+  }
+  .mock-fact-cell label { font-size: 11px; color: var(--text-2); display: block; }
+  .mock-fact-cell span { font-size: 14px; font-weight: 500; }
+  .mock-finding-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+  .mock-wb-context { display: flex; flex-direction: column; gap: 12px; }
+  .mock-context-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .mock-context-card h3 { font-size: 14px; margin-bottom: 8px; }
+  .mock-evidence-item {
+    padding: 8px; border-left: 3px solid var(--border);
+    margin: 4px 0; font-size: 12px; color: var(--text-2);
+    background: #fafafa; border-radius: 0 4px 4px 0;
+  }
+  .mock-evidence-item strong { color: var(--text); }
+
+  /* ── Annotation System ── */
+  .annot-region {
+    position: relative;
+    cursor: crosshair;
+    transition: outline .15s ease;
+    outline: 2px dashed transparent;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .annot-region:hover {
+    outline-color: rgba(225, 29, 72, .4);
+  }
+  .annot-region[data-label]:hover::after {
+    content: attr(data-label);
+    position: absolute; top: -28px; left: 0; z-index: 50;
+    background: #1e293b; color: #f1f5f9;
+    padding: 3px 10px; border-radius: 4px;
+    font-size: 11px; white-space: nowrap;
+    pointer-events: none;
+  }
+  .annot-pin {
+    position: absolute;
+    width: 26px; height: 26px;
+    background: var(--annot-pin); color: #fff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+    cursor: pointer; z-index: 60;
+    border: 2px solid #fff;
+  }
+  .annot-pin span { transform: rotate(45deg); }
+  .annot-pin:hover { background: var(--annot-pin-hover); }
+
+  /* ── Annotation Panel ── */
+  .annot-panel {
+    position: fixed; right: 0; top: 0; bottom: 0;
+    width: 380px; background: #fff;
+    box-shadow: -4px 0 24px rgba(0,0,0,.15);
+    display: flex; flex-direction: column;
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+  }
+  .annot-panel.open { transform: translateX(0); }
+  .annot-panel-header {
+    background: #1e293b; color: #f1f5f9;
+    padding: 16px 20px; font-size: 15px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .annot-panel-header button {
+    background: none; border: none; color: #f1f5f9;
+    font-size: 20px; cursor: pointer; padding: 0;
+  }
+  .annot-list {
+    flex: 1; overflow-y: auto; padding: 16px 20px;
+  }
+  .annot-item {
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; margin-bottom: 12px;
+    position: relative;
+  }
+  .annot-item-head {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .annot-item-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--annot-pin); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .annot-item-region { font-size: 12px; color: var(--text-2); font-weight: 500; }
+  .annot-item-text {
+    font-size: 13px; line-height: 1.6; color: var(--text);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .annot-item-del {
+    position: absolute; top: 8px; right: 8px;
+    background: none; border: none; cursor: pointer;
+    color: var(--danger); font-size: 16px; opacity: .5;
+  }
+  .annot-item-del:hover { opacity: 1; }
+  .annot-empty {
+    text-align: center; color: var(--text-2); padding: 40px 20px;
+    font-size: 13px;
+  }
+
+  /* ── Annotation Editor Popup ── */
+  .annot-editor {
+    position: fixed; z-index: 300;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+    padding: 16px; width: 360px;
+    display: none;
+  }
+  .annot-editor.open { display: block; }
+  .annot-editor h3 { font-size: 14px; margin-bottom: 4px; }
+  .annot-editor .region-name { font-size: 12px; color: var(--text-2); margin-bottom: 12px; }
+  .annot-editor textarea {
+    width: 100%; min-height: 100px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; font-family: inherit; resize: vertical;
+  }
+  .annot-editor textarea:focus { outline: 2px solid var(--info); outline-offset: -1px; }
+  .annot-editor-actions {
+    display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;
+  }
+  .annot-editor-actions button {
+    padding: 6px 16px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .annot-editor-actions .save { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+
+  /* ── View toggle ── */
+  .view-content { display: none; }
+  .view-content.active { display: block; }
+
+  .hint-bar {
+    background: #fef3c7; border-bottom: 1px solid #fcd34d;
+    padding: 8px 20px; font-size: 13px; color: #92400e;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .hint-bar strong { color: #78350f; }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar ── -->
+<div class="toolbar">
+  <h1>UI 标注画布 — Contract Audit</h1>
+  <div class="view-switch">
+    <button id="btn-list" class="active" onclick="switchView('list')">审计队列页</button>
+    <button id="btn-detail" onclick="switchView('detail')">审计详情页</button>
+  </div>
+  <div class="spacer"></div>
+  <button onclick="togglePanel()" id="btn-panel">查看标注 (0)</button>
+  <button onclick="exportAnnotations()" style="background:#3b82f6;border-color:#3b82f6;">导出标注</button>
+  <button onclick="clearAll()" style="background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.3);">清空</button>
+</div>
+
+<!-- ── Hint ── -->
+<div class="hint-bar">
+  <strong>操作说明：</strong> 点击任意虚线高亮区域添加标注 → 输入你的设计意图 → 右侧面板可查看/管理/导出所有标注。鼠标悬停区域会显示其名称。
+</div>
+
+<!-- ── Canvas ── -->
+<div class="canvas-area">
+  <div class="canvas-frame">
+
+    <!-- ════ LIST VIEW ════ -->
+    <div class="view-content active" id="view-list">
+      <div class="mock-shell">
+        <!-- Sidebar -->
+        <div class="mock-sidebar">
+          <div class="annot-region" data-region="sidebar-brand" data-label="侧边栏 — 品牌区">
+            <div class="mock-brand">
+              <span class="mock-brand-mark">审</span>
+              <span>Contract Audit</span>
+            </div>
+          </div>
+          <div class="annot-region" data-region="sidebar-nav" data-label="侧边栏 — 导航（目前仅1项）">
+            <nav class="mock-nav">
+              <a class="mock-nav-link">
+                <span class="mock-nav-icon"></span>
+                <span>审计工作台</span>
+              </a>
+            </nav>
+          </div>
+          <!-- Empty space below nav — potential for more sections -->
+          <div class="annot-region" data-region="sidebar-empty" data-label="侧边栏 — 空白区域（可扩展更多导航）" style="flex:1; min-height:120px;"></div>
+        </div>
+
+        <!-- Main Frame -->
+        <div class="mock-frame">
+          <div class="annot-region" data-region="header" data-label="顶栏 — 标题 + 健康指示">
+            <div class="mock-header">
+              <span class="mock-header-title">合同审计工作台</span>
+              <span class="mock-health">服务正常</span>
+            </div>
+          </div>
+          <div class="mock-main">
+            <div class="mock-queue">
+              <div class="annot-region" data-region="queue-header" data-label="队列 — 标题 + 操作按钮">
+                <div class="mock-queue-header">
+                  <div>
+                    <h2>审计队列</h2>
+                    <p>按最近更新排序，优先处理待复核与异常审计。</p>
+                  </div>
+                  <div class="mock-queue-actions">
+                    <button class="mock-btn">↻ 刷新</button>
+                    <button class="mock-btn mock-btn-primary">+ 新建审计</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="annot-region" data-region="queue-summary" data-label="队列 — 汇总卡片（4格）">
+                <div class="mock-summary">
+                  <div class="mock-summary-item">
+                    <span class="mock-summary-value">3</span>
+                    <span class="mock-summary-label">待复核</span>
+                  </div>
+                  <div class="mock-summary-item">
+                    <span class="mock-summary-value">1</span>
+                    <span class="mock-summary-label">处理中</span>
+                  </div>
+                  <div class="mock-summary-item">
+                    <span class="mock-summary-value">0</span>
+                    <span class="mock-summary-label">异常</span>
+                  </div>
+                  <div class="mock-summary-item">
+                    <span class="mock-summary-value">12</span>
+                    <span class="mock-summary-label">今日完成</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mock-surface">
+                <div class="annot-region" data-region="queue-toolbar" data-label="队列 — 搜索 + 筛选">
+                  <div class="mock-toolbar">
+                    <input class="mock-search" placeholder="搜索任务 ID">
+                    <div class="mock-segmented">
+                      <span class="active">全部</span>
+                      <span>待复核</span>
+                      <span>处理中</span>
+                      <span>异常</span>
+                      <span>已完成</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="annot-region" data-region="queue-table" data-label="队列 — 数据表格">
+                  <table class="mock-table">
+                    <thead>
+                      <tr>
+                        <th>审计任务</th>
+                        <th>状态</th>
+                        <th>阶段</th>
+                        <th>创建时间</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><a style="color:var(--info);">合同审计 a3f1...</a></td>
+                        <td><span class="mock-badge mock-badge-warning">待复核</span></td>
+                        <td>等待人工复核</td>
+                        <td>2026-09-11 14:30</td>
+                        <td>2026-09-11 14:35</td>
+                        <td><span style="color:var(--info);cursor:pointer;">打开</span></td>
+                      </tr>
+                      <tr>
+                        <td><a style="color:var(--info);">合同审计 b7e2...</a></td>
+                        <td><span class="mock-badge mock-badge-info">处理中</span></td>
+                        <td>Agent 运行中</td>
+                        <td>2026-09-11 14:20</td>
+                        <td>2026-09-11 14:32</td>
+                        <td><span style="color:var(--danger);cursor:pointer;">取消</span></td>
+                      </tr>
+                      <tr>
+                        <td><a style="color:var(--info);">合同审计 c1d4...</a></td>
+                        <td><span class="mock-badge mock-badge-success">已完成</span></td>
+                        <td>已完成</td>
+                        <td>2026-09-11 13:00</td>
+                        <td>2026-09-11 13:15</td>
+                        <td><span style="color:var(--info);cursor:pointer;">打开</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ DETAIL VIEW ════ -->
+    <div class="view-content" id="view-detail">
+      <div class="mock-shell">
+        <!-- Same sidebar -->
+        <div class="mock-sidebar">
+          <div class="annot-region" data-region="sidebar-brand" data-label="侧边栏 — 品牌区">
+            <div class="mock-brand">
+              <span class="mock-brand-mark">审</span>
+              <span>Contract Audit</span>
+            </div>
+          </div>
+          <div class="annot-region" data-region="sidebar-nav" data-label="侧边栏 — 导航（目前仅1项）">
+            <nav class="mock-nav">
+              <a class="mock-nav-link">
+                <span class="mock-nav-icon"></span>
+                <span>审计工作台</span>
+              </a>
+            </nav>
+          </div>
+          <div class="annot-region" data-region="sidebar-empty" data-label="侧边栏 — 空白区域（可扩展更多导航）" style="flex:1; min-height:120px;"></div>
+        </div>
+
+        <!-- Main Frame -->
+        <div class="mock-frame">
+          <div class="annot-region" data-region="header" data-label="顶栏 — 标题 + 健康指示">
+            <div class="mock-header">
+              <span class="mock-header-title">合同审计工作台</span>
+              <span class="mock-health">服务正常</span>
+            </div>
+          </div>
+          <div class="mock-main">
+            <div class="mock-workbench">
+              <div class="annot-region" data-region="wb-back" data-label="详情 — 返回按钮">
+                <span class="mock-wb-back">← 返回审计队列</span>
+              </div>
+
+              <div class="annot-region" data-region="wb-title" data-label="详情 — 标题行（状态徽章 + ID + 连接状态）">
+                <div class="mock-wb-title-row">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="mock-badge mock-badge-warning">待复核</span>
+                    <span class="mock-wb-id">a3f1c2e8 · 可复制</span>
+                  </div>
+                  <span class="mock-wb-conn">● 已连接</span>
+                </div>
+              </div>
+
+              <div class="annot-region" data-region="wb-meta" data-label="详情 — 元信息（创建/更新/阶段）">
+                <div class="mock-desc">
+                  <div><label>创建时间</label><div>2026-09-11 14:30:00</div></div>
+                  <div><label>更新时间</label><div>2026-09-11 14:35:00</div></div>
+                  <div><label>当前阶段</label><div>等待人工复核</div></div>
+                </div>
+              </div>
+
+              <div class="annot-region" data-region="wb-steps" data-label="详情 — 审计步骤条">
+                <div class="mock-steps">
+                  <div class="mock-step done"><span class="mock-step-dot">✓</span> 已排队</div>
+                  <div class="mock-step-line"></div>
+                  <div class="mock-step done"><span class="mock-step-dot">✓</span> 已归一化</div>
+                  <div class="mock-step-line"></div>
+                  <div class="mock-step done"><span class="mock-step-dot">✓</span> 规则评估</div>
+                  <div class="mock-step-line"></div>
+                  <div class="mock-step done"><span class="mock-step-dot">✓</span> Agent 运行</div>
+                  <div class="mock-step-line"></div>
+                  <div class="mock-step current"><span class="mock-step-dot">5</span> 人工复核</div>
+                </div>
+              </div>
+
+              <div class="mock-wb-grid">
+                <div class="mock-wb-main">
+                  <div class="annot-region" data-region="wb-finding" data-label="详情 — 审计发现卡片">
+                    <div class="mock-finding-card">
+                      <div class="mock-finding-head">
+                        <span class="mock-finding-title">⚠ 付款条款违规</span>
+                        <span class="mock-badge mock-badge-danger">高危</span>
+                      </div>
+                      <p style="font-size:13px;color:var(--text-2);margin-bottom:8px;">
+                        合同约定付款比例为 30%，但实际提取付款金额占合同总额 45%，超出约定上限。
+                      </p>
+                      <div class="mock-fact-compare">
+                        <div class="mock-fact-cell">
+                          <label>合同约定付款比例</label>
+                          <span>30%</span>
+                        </div>
+                        <div class="mock-fact-cell">
+                          <label>实际付款比例</label>
+                          <span style="color:var(--danger);">45%</span>
+                        </div>
+                      </div>
+                      <div class="mock-finding-actions">
+                        <button class="mock-btn mock-btn-primary">✓ 接受</button>
+                        <button class="mock-btn">✗ 驳回</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mock-wb-context">
+                  <div class="annot-region" data-region="wb-rules" data-label="详情 — 规则评估面板">
+                    <div class="mock-context-card">
+                      <h3>规则评估</h3>
+                      <div style="font-size:13px;line-height:1.8;">
+                        <div>策略：付款比例上限检查</div>
+                        <div>阈值：≤ 30%</div>
+                        <div>结果：<span style="color:var(--danger);font-weight:600;">违规</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="annot-region" data-region="wb-evidence" data-label="详情 — 证据列表面板">
+                    <div class="mock-context-card">
+                      <h3>证据</h3>
+                      <div class="mock-evidence-item">
+                        <strong>合同第 3.2 条</strong><br>
+                        "甲方应在验收后 30 日内支付合同总额的 30%"
+                      </div>
+                      <div class="mock-evidence-item">
+                        <strong>付款记录 PR-0042</strong><br>
+                        实际付款金额 ¥450,000（占比 45%）
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Annotation Panel ── -->
+<div class="annot-panel" id="panel">
+  <div class="annot-panel-header">
+    <span>标注列表</span>
+    <button onclick="togglePanel()">✕</button>
+  </div>
+  <div class="annot-list" id="annot-list">
+    <div class="annot-empty">尚无标注。点击画布中虚线区域开始标注。</div>
+  </div>
+</div>
+
+<!-- ── Annotation Editor ── -->
+<div class="annot-editor" id="editor">
+  <h3>添加标注</h3>
+  <div class="region-name" id="editor-region"></div>
+  <textarea id="editor-text" placeholder="描述你希望这个区域设计成什么样...&#10;&#10;例如：&#10;- 这里应该分成三个导航分组&#10;- 颜色用深蓝色&#10;- 增加面包屑导航"></textarea>
+  <div class="annot-editor-actions">
+    <button onclick="closeEditor()">取消</button>
+    <button class="save" onclick="saveAnnotation()">保存</button>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let annotations = []; // { id, view, region, label, text }
+let nextId = 1;
+let currentView = 'list';
+let editorRegion = null;
+let editorLabel = '';
+
+// ── View switching ──
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  document.querySelectorAll('.view-switch button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + view).classList.add('active');
+  renderPins();
+}
+
+// ── Click handler on regions ──
+document.addEventListener('click', (e) => {
+  // Don't trigger if clicking inside editor or panel
+  if (e.target.closest('.annot-editor') || e.target.closest('.annot-panel') || e.target.closest('.toolbar') || e.target.closest('.hint-bar')) return;
+  // Don't trigger if clicking a pin
+  if (e.target.closest('.annot-pin')) return;
+
+  const region = e.target.closest('.annot-region');
+  if (!region) return;
+
+  editorRegion = region.dataset.region;
+  editorLabel = region.dataset.label || editorRegion;
+  openEditor(e.clientX, e.clientY);
+});
+
+// ── Editor ──
+function openEditor(x, y) {
+  const editor = document.getElementById('editor');
+  document.getElementById('editor-region').textContent = '区域：' + editorLabel;
+  document.getElementById('editor-text').value = '';
+
+  // Position editor near click, but keep on screen
+  let left = x + 20;
+  let top = y - 20;
+  if (left + 380 > window.innerWidth) left = x - 380;
+  if (top < 60) top = 60;
+  if (top + 250 > window.innerHeight) top = window.innerHeight - 260;
+  editor.style.left = left + 'px';
+  editor.style.top = top + 'px';
+  editor.classList.add('open');
+  setTimeout(() => document.getElementById('editor-text').focus(), 100);
+}
+
+function closeEditor() {
+  document.getElementById('editor').classList.remove('open');
+  editorRegion = null;
+}
+
+function saveAnnotation() {
+  const text = document.getElementById('editor-text').value.trim();
+  if (!text) { closeEditor(); return; }
+
+  const annot = {
+    id: nextId++,
+    view: currentView,
+    region: editorRegion,
+    label: editorLabel,
+    text: text,
+  };
+  annotations.push(annot);
+  closeEditor();
+  renderPins();
+  renderPanel();
+  updatePanelButton();
+}
+
+// ── Pins ──
+function renderPins() {
+  // Remove existing pins
+  document.querySelectorAll('.annot-pin').forEach(p => p.remove());
+
+  const viewAnnotations = annotations.filter(a => a.view === currentView);
+  const activeView = document.getElementById('view-' + currentView);
+
+  viewAnnotations.forEach(annot => {
+    const region = activeView.querySelector(`[data-region="${annot.region}"]`);
+    if (!region) return;
+    const pin = document.createElement('div');
+    pin.className = 'annot-pin';
+    pin.style.top = '4px';
+    pin.style.right = '4px';
+    pin.innerHTML = '<span>' + annot.id + '</span>';
+    pin.title = annot.label + ': ' + annot.text.substring(0, 50);
+    pin.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePanel();
+    });
+    region.appendChild(pin);
+  });
+}
+
+// ── Panel ──
+function togglePanel() {
+  document.getElementById('panel').classList.toggle('open');
+}
+
+function updatePanelButton() {
+  document.getElementById('btn-panel').textContent = '查看标注 (' + annotations.length + ')';
+}
+
+function renderPanel() {
+  const list = document.getElementById('annot-list');
+  if (annotations.length === 0) {
+    list.innerHTML = '<div class="annot-empty">尚无标注。点击画布中虚线区域开始标注。</div>';
+    return;
+  }
+  const viewNames = { list: '审计队列页', detail: '审计详情页' };
+  list.innerHTML = annotations.map(annot => `
+    <div class="annot-item">
+      <button class="annot-item-del" onclick="deleteAnnotation(${annot.id})" title="删除">✕</button>
+      <div class="annot-item-head">
+        <div class="annot-item-num">${annot.id}</div>
+        <div>
+          <div class="annot-item-region">${viewNames[annot.view] || annot.view} — ${annot.label}</div>
+        </div>
+      </div>
+      <div class="annot-item-text">${escapeHtml(annot.text)}</div>
+    </div>
+  `).join('');
+}
+
+function deleteAnnotation(id) {
+  annotations = annotations.filter(a => a.id !== id);
+  renderPins();
+  renderPanel();
+  updatePanelButton();
+}
+
+function clearAll() {
+  if (annotations.length === 0) return;
+  if (!confirm('确定清空所有标注？')) return;
+  annotations = [];
+  renderPins();
+  renderPanel();
+  updatePanelButton();
+}
+
+// ── Export ──
+function exportAnnotations() {
+  if (annotations.length === 0) {
+    alert('暂无标注可导出。');
+    return;
+  }
+  const viewNames = { list: '审计队列页', detail: '审计详情页' };
+  const lines = ['# Contract Audit — UI 标注', ''];
+  lines.push('导出时间：' + new Date().toLocaleString('zh-CN'));
+  lines.push('标注总数：' + annotations.length);
+  lines.push('');
+
+  // Group by view
+  const byView = {};
+  annotations.forEach(a => {
+    const key = a.view;
+    if (!byView[key]) byView[key] = [];
+    byView[key].push(a);
+  });
+
+  for (const [view, annots] of Object.entries(byView)) {
+    lines.push('## ' + (viewNames[view] || view));
+    lines.push('');
+    annots.forEach(a => {
+      lines.push(`### ${a.id}. ${a.label}`);
+      lines.push('');
+      lines.push(a.text);
+      lines.push('');
+    });
+  }
+
+  const text = lines.join('\n');
+  const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ui-annotations.md';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  // Also copy to clipboard
+  navigator.clipboard.writeText(text).then(() => {
+    alert('已导出 ' + annotations.length + ' 条标注到 ui-annotations.md，并已复制到剪贴板。\n\n请将内容粘贴给我，我将据此实施设计。');
+  }).catch(() => {
+    alert('已导出 ' + annotations.length + ' 条标注到 ui-annotations.md。');
+  });
+}
+
+// ── Utils ──
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Close editor on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.annot-editor') && !e.target.closest('.annot-region')) {
+    closeEditor();
+  }
+});
+
+// Keyboard: Escape closes editor
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeEditor();
+});
+</script>
+</body>
+</html>

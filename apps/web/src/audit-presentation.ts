@@ -1,4 +1,16 @@
-import type { AuditCase, AuditCaseStatus, AuditStage } from "@contract-audit/audit/model";
+import type {
+  AuditCase,
+  AuditCaseStatus,
+  AuditStage,
+  RuleAssessment,
+  RuleCode,
+  RuleDisposition,
+  SubjectMatchStatus,
+  SubjectRiskDimension,
+  FindingType,
+  Severity,
+} from "@contract-audit/audit/model";
+
 
 export type AuditLifecycleFilter =
   | "ALL"
@@ -45,6 +57,7 @@ export const getAuditStageLabel = (stage: AuditStage): string => ({
   QUEUED: "等待处理",
   NORMALIZING: "合同规范化",
   RULE_ASSESSMENT: "规则评估",
+  SUBJECT_VERIFICATION: "主体核验",
   AGENT_RUNNING: "Agent 分析",
   AWAITING_REVIEW: "人工复核",
   COMPLETED: "已完成",
@@ -57,9 +70,89 @@ export function getAuditStep(auditCase: AuditCase): number {
   if (auditCase.stage === "COMPLETED") return 4;
   if (auditCase.stage === "AWAITING_REVIEW") return 3;
   if (auditCase.stage === "AGENT_RUNNING") return 2;
-  if (auditCase.stage === "RULE_ASSESSMENT" || auditCase.stage === "NORMALIZING") return 1;
+  if (
+    auditCase.stage === "RULE_ASSESSMENT"
+    || auditCase.stage === "SUBJECT_VERIFICATION"
+    || auditCase.stage === "NORMALIZING"
+  ) return 1;
   return 0;
 }
+
+/** Chinese label for a rule, keyed by its stable code. */
+export const getRuleCodeLabel = (code: RuleCode): string => ({
+  ADVANCE_PAYMENT_LIMIT: "预付款上限规则",
+  SUBJECT_RED_LINE_RISK: "主体红线规则",
+  TERMINATION_CLAUSE_PRESENT: "终止条款规则",
+  PENALTY_RATIO_LIMIT: "违约金上限规则",
+  DISPUTE_JURISDICTION: "争议管辖规则",
+})[code];
+
+export const getRuleDispositionLabel = (disposition: RuleDisposition): string => ({
+  POLICY_CONFLICT: "违反",
+  COMPLIANT: "通过",
+  NEEDS_HUMAN_REVIEW: "需人工复核",
+})[disposition];
+
+/** Worst disposition across every assessment, for the workbench coverage summary. */
+export const summarizeRuleOutcome = (assessments: RuleAssessment[]): string => {
+  if (assessments.some((item) => item.disposition === "POLICY_CONFLICT")) return "违反";
+  if (assessments.some((item) => item.disposition === "NEEDS_HUMAN_REVIEW")) return "需人工复核";
+  return assessments.length === 0 ? "无评估" : "通过";
+};
+
+export const getSubjectStatusLabel = (status: SubjectMatchStatus | null): string => ({
+  RESOLVED: "已匹配主体",
+  AMBIGUOUS: "多个候选",
+  UNRESOLVED: "未匹配到主体",
+  UNAVAILABLE: "核验不可用",
+  null: "未核验",
+})[status ?? "null"];
+
+export const getSubjectDimensionSeverityLabel = (
+  severity: SubjectRiskDimension["severity"],
+): string => (severity === "RED_LINE" ? "红线" : "背景");
+
+/**
+ * Queue-row label for counterparty (subject) red-line risk. Distinct from the
+ * clause-risk column: it flags the party, not the contract text.
+ */
+export const subjectRedLineLabel = "主体风险";
+
+export const findingTypeLabels: Record<FindingType, string> = {
+  ADVANCE_PAYMENT_POLICY_CONFLICT: "预付款比例超过制度上限",
+  SUBJECT_RED_LINE_RISK: "相对方主体风险",
+  TERMINATION_CLAUSE_MISSING: "缺少合同终止/解除条款",
+  PENALTY_RATIO_POLICY_CONFLICT: "违约金比例超过制度上限",
+  PENALTY_CLAUSE_MISSING: "缺少违约责任条款",
+  DISPUTE_JURISDICTION_CONFLICT: "争议管辖地与我方不一致",
+  DISPUTE_CLAUSE_MISSING: "缺少争议解决条款",
+  NEEDS_HUMAN_REVIEW: "需要人工复核",
+};
+
+/** Chinese labels for finding severities. */
+export const severityLabels: Record<Severity, string> = {
+  LOW: "低风险",
+
+  MEDIUM: "中风险",
+  HIGH: "高风险",
+};
+
+/** Chinese label for a finding type; unknown codes surface as-is. */
+export function getFindingTypeLabel(type: string): string {
+  if (type in findingTypeLabels) return findingTypeLabels[type as FindingType];
+  return type;
+}
+
+/** Fixed order and labels of the evidence groups shown in the inspector. */
+export const evidenceSourceGroupLabels = {
+  CONTRACT: "合同原文",
+  POLICY: "制度依据",
+  EXTERNAL: "外部核验",
+} as const;
+
+export type EvidenceSourceGroup = keyof typeof evidenceSourceGroupLabels;
+
+export const evidenceSourceGroupOrder: EvidenceSourceGroup[] = ["CONTRACT", "POLICY", "EXTERNAL"];
 
 const retryableStatuses = new Set<AuditCaseStatus>(["FAILED", "CANCELLED", "INTERRUPTED"]);
 
@@ -104,15 +197,20 @@ const matchesLifecycle = (auditCase: AuditCase, filter: AuditLifecycleFilter): b
 };
 
 export function filterAndSortCases(
-  cases: AuditCase[],
+  cases: Array<AuditCase & { contractTitle?: string | null }>,
   filter: AuditLifecycleFilter,
   search: string,
-): AuditCase[] {
+): typeof cases {
   const normalizedSearch = search.trim().toLocaleLowerCase();
   return cases
-    .filter((auditCase) =>
-      matchesLifecycle(auditCase, filter)
-      && auditCase.id.toLocaleLowerCase().includes(normalizedSearch))
+    .filter((auditCase) => {
+      if (!matchesLifecycle(auditCase, filter)) return false;
+      if (!normalizedSearch) return true;
+      const title = (auditCase.contractTitle ?? "").toLocaleLowerCase();
+      return auditCase.id.toLocaleLowerCase().includes(normalizedSearch)
+        || title.includes(normalizedSearch)
+        || auditCase.sourceRecordId.toLocaleLowerCase().includes(normalizedSearch);
+    })
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 

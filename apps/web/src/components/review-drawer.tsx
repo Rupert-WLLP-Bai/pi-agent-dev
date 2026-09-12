@@ -42,7 +42,7 @@ export function ReviewDrawer({
 
   return (
     <Drawer
-      title={rejecting ? "驳回审计建议" : "接受审计建议"}
+      title={rejecting ? "判定误报" : "确认风险"}
       open={open}
       onClose={onClose}
       size="min(480px, 100vw)"
@@ -61,7 +61,7 @@ export function ReviewDrawer({
               form="review-form"
               loading={submitting}
             >
-              {rejecting ? "确认驳回" : "确认接受"}
+              {rejecting ? "确认误报" : "确认风险"}
             </Button>
           </Space>
         </div>
@@ -75,20 +75,20 @@ export function ReviewDrawer({
       >
         {finding && (
           <Typography.Paragraph className="review-summary">
-            <Typography.Text strong>{rejecting ? "驳回" : "接受"}：</Typography.Text>
+            <Typography.Text strong>{rejecting ? "判定误报" : "确认风险"}：</Typography.Text>
             {finding.proposal.rationale}
           </Typography.Paragraph>
         )}
         <Form.Item
           label="复核理由"
           name="reason"
-          extra={rejecting ? "驳回时必须说明理由。" : "可选，用于记录接受原因。"}
+          extra={rejecting ? "判定误报时必须说明理由。" : "可选，用于记录确认依据。"}
           rules={
             rejecting
               ? [
                   {
                     validator: async (_, value?: string) => {
-                      if (!value?.trim()) throw new Error("请输入驳回理由");
+                      if (!value?.trim()) throw new Error("请输入误报理由");
                     },
                   },
                 ]

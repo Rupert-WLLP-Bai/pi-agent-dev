@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Button,
+  Card,
   Empty,
   Input,
   Popconfirm,
@@ -9,9 +10,19 @@ import {
   Skeleton,
   Space,
   Table,
+  Tooltip,
   Typography,
 } from "antd";
-import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  CopyOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
 import type { AuditCase } from "@contract-audit/audit/model";
 import {
   deriveQueueStats,
@@ -19,13 +30,21 @@ import {
   getAuditStageLabel,
   getAvailableCaseActions,
   shortAuditId,
+  subjectRedLineLabel,
   type AuditLifecycleFilter,
 } from "../audit-presentation";
-import { useMediaQuery } from "../hooks/use-media-query";
 import { AuditStateBadge } from "./audit-state-badge";
 
+export interface AuditQueueCase extends AuditCase {
+  contractTitle?: string | null;
+  findingCount?: number;
+  highestSeverity?: "LOW" | "MEDIUM" | "HIGH" | null;
+  /** Optional so list rows predating the subject-risk aggregate still render. */
+  subjectRedLineCount?: number;
+}
+
 export interface AuditQueueProps {
-  cases: AuditCase[];
+  cases: AuditQueueCase[];
   loading: boolean;
   refreshing: boolean;
   error: Error | null;
@@ -50,27 +69,36 @@ const lifecycleOptions: Array<{ value: AuditLifecycleFilter; label: string }> = 
 const formatTimestamp = (value: string | Date): string =>
   new Date(value).toLocaleString("zh-CN", { hour12: false });
 
-// Short label for UUID-style IDs; already-short IDs (fixtures, slugs) render in full.
-const recordLabel = (id: string): string => `合同审计 ${shortAuditId(id)}`;
+const relativeTime = (value: string | Date): string => {
+  const diff = Date.now() - new Date(value).getTime();
+  if (diff < 60_000) return "刚刚";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} 分钟前`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} 小时前`;
+  return formatTimestamp(value);
+};
 
-interface RecordActionProps {
-  auditCase: AuditCase;
+function RecordActions({
+  auditCase,
+  action,
+  onOpen,
+  onCancel,
+  onRetry,
+}: {
+  auditCase: AuditQueueCase;
   action: AuditQueueProps["action"];
   onOpen: (id: string) => void;
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
-}
-
-function RecordActions({ auditCase, action, onOpen, onCancel, onRetry }: RecordActionProps) {
+}) {
   const allowed = getAvailableCaseActions(auditCase);
   const cancelling = action?.id === auditCase.id && action.type === "CANCEL";
   const retrying = action?.id === auditCase.id && action.type === "RETRY";
   return (
-    <Space size="small" wrap>
-      <Button size="small" onClick={() => onOpen(auditCase.id)}>查看</Button>
+    <Space size="small">
+      <Button size="small" onClick={() => onOpen(auditCase.id)}>打开</Button>
       {allowed.includes("CANCEL") && (
         <Popconfirm
-          title="取消该审计？"
+          title="取消该审计案件？"
           description="已完成的审计工作不会回滚。"
           okText="确认取消"
           cancelText="返回"
@@ -82,7 +110,7 @@ function RecordActions({ auditCase, action, onOpen, onCancel, onRetry }: RecordA
       )}
       {allowed.includes("RETRY") && (
         <Popconfirm
-          title="重试该审计？"
+          title="重试该审计案件？"
           description="将重新排队并从头执行审计。"
           okText="确认重试"
           cancelText="返回"
@@ -95,39 +123,12 @@ function RecordActions({ auditCase, action, onOpen, onCancel, onRetry }: RecordA
   );
 }
 
-interface RecordItemProps extends RecordActionProps {
-  onOpen: (id: string) => void;
-}
-
-function AuditRecordItem({ auditCase, action, onOpen, onCancel, onRetry }: RecordItemProps) {
-  return (
-    <li className="audit-record">
-      <div className="audit-record__head">
-        <Button type="link" className="queue-record-link" onClick={() => onOpen(auditCase.id)}>
-          {recordLabel(auditCase.id)}
-        </Button>
-        <AuditStateBadge auditCase={auditCase} />
-      </div>
-      <dl className="audit-record__meta">
-        <div>
-          <dt>阶段</dt>
-          <dd>{getAuditStageLabel(auditCase.stage)}</dd>
-        </div>
-        <div>
-          <dt>更新时间</dt>
-          <dd>{formatTimestamp(auditCase.updatedAt)}</dd>
-        </div>
-      </dl>
-      <RecordActions
-        auditCase={auditCase}
-        action={action}
-        onOpen={onOpen}
-        onCancel={onCancel}
-        onRetry={onRetry}
-      />
-    </li>
-  );
-}
+const summaryIcons: Record<string, React.ReactNode> = {
+  "待复核": <WarningOutlined />,
+  "处理中": <ClockCircleOutlined />,
+  "异常": <ExclamationCircleOutlined />,
+  "今日完成": <CheckCircleOutlined />,
+};
 
 export function AuditQueue({
   cases,
@@ -144,7 +145,6 @@ export function AuditQueue({
 }: AuditQueueProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AuditLifecycleFilter>("ALL");
-  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const stats = useMemo(() => deriveQueueStats(cases), [cases]);
   const filteredCases = useMemo(
@@ -154,150 +154,181 @@ export function AuditQueue({
 
   const initialLoading = loading && cases.length === 0;
   const initialError = error !== null && cases.length === 0 && !loading;
-  const summary: Array<{ key: string; label: string; value: number }> = [
-    { key: "awaiting-review", label: "待复核", value: stats.awaitingReview },
-    { key: "processing", label: "处理中", value: stats.processing },
-    { key: "abnormal", label: "异常", value: stats.abnormal },
-    { key: "completed-today", label: "今日完成", value: stats.completedToday },
+
+  const summaryCards = [
+    { key: "awaiting-review", label: "待复核", value: stats.awaitingReview, cls: "warn" },
+    { key: "processing", label: "处理中", value: stats.processing, cls: "info" },
+    { key: "abnormal", label: "异常", value: stats.abnormal, cls: "danger" },
+    { key: "completed-today", label: "今日完成", value: stats.completedToday, cls: "success" },
   ];
 
   return (
-    <section className="queue">
-      <div className="queue-header">
+    <section className="queue-page">
+      <div className="page-head">
         <div>
-          <Typography.Title level={2} className="queue-title">审计队列</Typography.Title>
-          <Typography.Text type="secondary">
-            按最近更新排序，优先处理待复核与异常审计。
-          </Typography.Text>
+          <Typography.Title level={3} style={{ margin: 0 }}>审计队列</Typography.Title>
+          <Typography.Text type="secondary">按最近更新排序，优先处理待复核、异常和未闭环高风险案件。</Typography.Text>
         </div>
-        <Space wrap>
-          <Button icon={<ReloadOutlined aria-hidden="true" />} loading={refreshing} onClick={onRefresh}>
-            刷新
-          </Button>
-          <Button type="primary" icon={<PlusOutlined aria-hidden="true" />} onClick={onCreate}>
-            新建审计
-          </Button>
+        <Space>
+          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>刷新</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>新建审计</Button>
         </Space>
       </div>
-      <p className="queue-refreshed" role="status" aria-live="polite">
-        最近更新：{refreshedAt ? formatTimestamp(refreshedAt) : "尚未加载"}
-      </p>
 
       <div className="queue-summary">
-        {summary.map((item) => (
-          <div key={item.key} className="queue-summary__item">
-            <span className="queue-summary__value">{item.value}</span>
-            <span className="queue-summary__label">{item.label}</span>
-          </div>
+        {summaryCards.map((item) => (
+          <Card key={item.key} className={`queue-summary-card ${item.cls}`} size="small">
+            <div>
+              <b className="tnum">{item.value}</b>
+              <span>{item.label}</span>
+            </div>
+            <span className="queue-summary-icon">{summaryIcons[item.label]}</span>
+          </Card>
         ))}
       </div>
 
-      <div className="queue-surface">
-        {initialLoading ? (
-          <div className="queue-skeleton" aria-busy="true">
-            <Skeleton active title={false} paragraph={{ rows: 5 }} />
-          </div>
-        ) : initialError ? (
-          <Result
-            status="error"
-            title="无法加载审计队列"
-            subTitle={error?.message}
-            extra={<Button type="primary" onClick={onRefresh}>重新加载</Button>}
-          />
-        ) : cases.length === 0 ? (
+      {initialLoading ? (
+        <Card><Skeleton active paragraph={{ rows: 5 }} /></Card>
+      ) : initialError ? (
+        <Result
+          status="error"
+          title="无法加载审计队列"
+          subTitle={error?.message}
+          extra={<Button type="primary" onClick={onRefresh}>重新加载</Button>}
+        />
+      ) : cases.length === 0 ? (
+        <Card>
           <Empty description="暂无审计记录">
             <Button type="primary" onClick={onCreate}>新建审计</Button>
           </Empty>
-        ) : (
-          <>
-            <div className="queue-toolbar">
-              <Input
-                className="queue-search"
-                placeholder="搜索任务 ID"
-                allowClear
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-              <Segmented
-                options={lifecycleOptions}
-                value={filter}
-                onChange={(value) => setFilter(value as AuditLifecycleFilter)}
-              />
-            </div>
-            {filteredCases.length === 0 ? (
-              <Empty description="没有匹配的审计记录" />
-            ) : isMobile ? (
-              <ul className="audit-records-mobile" aria-label="审计记录">
-                {filteredCases.map((auditCase) => (
-                  <AuditRecordItem
-                    key={auditCase.id}
-                    auditCase={auditCase}
-                    action={action}
-                    onOpen={onOpen}
-                    onCancel={onCancel}
-                    onRetry={onRetry}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <Table<AuditCase>
-                className="queue-table"
-                rowKey="id"
-                dataSource={filteredCases}
-                pagination={{ pageSize: 10, hideOnSinglePage: true }}
-                columns={[
-                  {
-                    title: "审计任务",
-                    dataIndex: "id",
-                    render: (id: string, record) => (
-                      <Button
-                        type="link"
-                        className="queue-record-link"
-                        onClick={() => onOpen(record.id)}
-                      >
-                        {recordLabel(id)}
-                      </Button>
-                    ),
+        </Card>
+      ) : (
+        <Card size="small" className="queue-table">
+          <div className="queue-toolbar">
+            <Input.Search
+              className="queue-search"
+              placeholder="搜索合同名称 / 审计 ID / 来源记录 ID"
+              allowClear
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <Segmented
+              options={lifecycleOptions}
+              value={filter}
+              onChange={(value) => setFilter(value as AuditLifecycleFilter)}
+            />
+          </div>
+          {filteredCases.length === 0 ? (
+            <Empty description="没有匹配的审计记录" />
+          ) : (
+            <Table<AuditQueueCase>
+              rowKey="id"
+              dataSource={filteredCases}
+              scroll={{ x: 968 }}
+              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              columns={[
+                {
+                  title: "合同",
+                  key: "contract",
+                  render: (_, record) => (
+                    <div>
+                      <div className="contract-title">
+                        {record.contractTitle ?? "未命名合同"}
+                      </div>
+                      <div className="contract-sub">
+                        {record.contractTitle ? `来源 · ${record.sourceRecordId.slice(0, 8)}…` : "需要设置合同名称"}
+                      </div>
+                    </div>
+                  ),
+                },
+                {
+                  title: "审计 ID",
+                  key: "id",
+                  width: 160,
+                  render: (_, record) => (
+                    <div className="id-line">
+                      <span className="mono" style={{ fontSize: 12 }}>{shortAuditId(record.id)}</span>
+                      <Tooltip title="复制审计 ID">
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<CopyOutlined />}
+                          aria-label="复制审计 ID"
+                          onClick={() => void navigator.clipboard.writeText(record.id)}
+                        />
+                      </Tooltip>
+                    </div>
+                  ),
+                },
+                {
+                  title: "风险",
+                  key: "risk",
+                  width: 118,
+                  render: (_, record) => {
+                    const severity = record.highestSeverity ?? null;
+                    const count = record.findingCount ?? 0;
+                    const subjectCount = record.subjectRedLineCount ?? 0;
+                    return (
+                      <div className="risk-stack">
+                        {severity !== null && count > 0 ? (
+                          <span className={`risk-cell risk-${severity === "HIGH" ? "high" : severity === "MEDIUM" ? "medium" : "low"}`}>
+                            <span className="risk-dot" />
+                            {severity === "HIGH" ? "高" : severity === "MEDIUM" ? "中" : "低"} · {count}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#98A2B3" }}>—</span>
+                        )}
+                        {subjectCount > 0 && (
+                          <span className="risk-cell risk-subject">
+                            <SafetyCertificateOutlined className="risk-subject-icon" />
+                            {subjectRedLineLabel} · {subjectCount}
+                          </span>
+                        )}
+                      </div>
+                    );
                   },
-                  {
-                    title: "状态",
-                    key: "state",
-                    render: (_, record) => <AuditStateBadge auditCase={record} />,
-                  },
-                  {
-                    title: "阶段",
-                    dataIndex: "stage",
-                    render: (stage: AuditCase["stage"]) => getAuditStageLabel(stage),
-                  },
-                  {
-                    title: "创建时间",
-                    dataIndex: "createdAt",
-                    render: (value: string) => formatTimestamp(value),
-                  },
-                  {
-                    title: "更新时间",
-                    dataIndex: "updatedAt",
-                    render: (value: string) => formatTimestamp(value),
-                  },
-                  {
-                    title: "操作",
-                    key: "actions",
-                    render: (_, record) => (
-                      <RecordActions
-                        auditCase={record}
-                        action={action}
-                        onOpen={onOpen}
-                        onCancel={onCancel}
-                        onRetry={onRetry}
-                      />
-                    ),
-                  },
-                ]}
-              />
-            )}
-          </>
-        )}
-      </div>
+                },
+                {
+                  title: "状态 / 阶段",
+                  key: "state",
+                  width: 140,
+                  render: (_, record) => (
+                    <div>
+                      <AuditStateBadge auditCase={record} />
+                      <div className="contract-sub">{getAuditStageLabel(record.stage)}</div>
+                    </div>
+                  ),
+                },
+                {
+                  title: "更新时间",
+                  key: "updated",
+                  width: 140,
+                  render: (_, record) => (
+                    <div>
+                      <div>{relativeTime(record.updatedAt)}</div>
+                      <div className="contract-sub">{formatTimestamp(record.updatedAt)}</div>
+                    </div>
+                  ),
+                },
+                {
+                  title: "操作",
+                  key: "actions",
+                  width: 140,
+                  render: (_, record) => (
+                    <RecordActions
+                      auditCase={record}
+                      action={action}
+                      onOpen={onOpen}
+                      onCancel={onCancel}
+                      onRetry={onRetry}
+                    />
+                  ),
+                },
+              ]}
+            />
+          )}
+        </Card>
+      )}
     </section>
   );
 }
