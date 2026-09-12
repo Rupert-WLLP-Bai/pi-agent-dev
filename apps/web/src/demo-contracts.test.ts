@@ -5,11 +5,18 @@ import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapt
 import { demoContracts } from "./demo-contracts";
 
 const expectedAdvanceRatio: Record<string, number> = {
-  "equipment-purchase": 0.7,
-  "raw-material-purchase": 0.3,
-  "electronic-components": 0.5,
+  "equipment-lease": 0.5,
   "engineering-service": 0.3,
+  "construction-material": 0.3,
+  "it-outsourcing": 0.3,
+  "advertising-service": 0.3,
+  "logistics-service": 0.3,
+  "maintenance-service": 0.3,
+  "material-supply": 0.3,
   "spare-power-purchase": 0.3,
+  "standard-equipment": 0.3,
+  "consulting-service": 0.2,
+  "tech-license": 0.1,
 };
 
 const paymentFacts = (id: string, text: string): PaymentFacts =>

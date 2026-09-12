@@ -60,6 +60,7 @@ export class InMemoryAuditCaseRepository {
   async createPendingCase(
     _sourceRecordId: string,
     snapshot: AuditSnapshot,
+    _sourceMetadata?: { sourceType: string; sourceDisplayName: string },
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
     this.cases.set(caseId, { status: "PENDING", stage: "QUEUED", snapshot, findings: [] });

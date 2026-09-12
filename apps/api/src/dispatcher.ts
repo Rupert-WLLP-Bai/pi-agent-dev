@@ -124,10 +124,20 @@ export class AuditDispatcher {
       if (runError !== undefined) throw runError;
       if (!result) throw new Error("AGENT_RUN_MISSING_RESULT");
 
-      await this.repository.appendFindingRevision(auditCaseId, result.proposal, null);
-      this.broker.publish({ type: "finding.proposed", auditCaseId, proposal: result.proposal });
-      this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
-      await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+      if (result.proposal === null) {
+        // No issues found — the case passes without review.
+        this.broker.publish({ type: "audit.completed", auditCaseId });
+        await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "COMPLETED");
+      } else {
+        await this.repository.appendFindingRevision(auditCaseId, result.proposal, null);
+        this.broker.publish({
+          type: "finding.proposed",
+          auditCaseId,
+          proposal: result.proposal,
+        });
+        this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
+        await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+      }
     } catch (error) {
       const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);
       if (cancelled) {

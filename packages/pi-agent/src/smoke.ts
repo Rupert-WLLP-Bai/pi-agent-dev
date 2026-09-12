@@ -41,6 +41,10 @@ async function main(): Promise<void> {
   });
   const agent = new PiAuditAgent();
   const result = await agent.run(snapshot, AbortSignal.timeout(120_000));
+  if (!result.proposal) {
+    console.log(JSON.stringify({ finding: "none", telemetry: result.telemetry }, null, 2));
+    return;
+  }
   console.log(
     JSON.stringify(
       {

@@ -588,7 +588,7 @@ export function AuditCaseWorkbench({
             </Tooltip>
           </span>
           <span>
-            来源记录 <b className="mono">{auditCase.sourceRecordId.slice(0, 8)}…</b>
+            来源记录 ID <b className="mono">{auditCase.sourceRecordId}</b>
           </span>
           <span>
             创建时间 <b>{formatTime(auditCase.createdAt)}</b>
@@ -724,7 +724,12 @@ export function AuditCaseWorkbench({
         </div>
       )}
 
-      {!showReview && !running && !failed && (
+      {!showReview && !running && !failed && completed && findings.length === 0 && (
+        <div className="workbench-empty">
+          <Empty description={<span>审计通过 · 各项确定性维度均已评估，未检出制度冲突</span>} />
+        </div>
+      )}
+      {!showReview && !running && !failed && !completed && (
         <div className="workbench-empty">
           <Empty description="等待审计完成" />
         </div>

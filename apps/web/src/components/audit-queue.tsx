@@ -23,7 +23,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   type AuditLifecycleFilter,
   deriveQueueStats,
@@ -41,6 +41,8 @@ export interface AuditQueueCase extends AuditCase {
   highestSeverity?: "LOW" | "MEDIUM" | "HIGH" | null;
   /** Optional so list rows predating the subject-risk aggregate still render. */
   subjectRedLineCount?: number;
+  sourceType?: string;
+  sourceDisplayName?: string;
 }
 
 export interface AuditQueueProps {
@@ -149,6 +151,12 @@ export function AuditQueue({
 }: AuditQueueProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<AuditLifecycleFilter>("ALL");
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setPagination is stable
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  }, [search, filter]);
 
   const stats = useMemo(() => deriveQueueStats(cases), [cases]);
   const filteredCases = useMemo(
@@ -245,7 +253,20 @@ export function AuditQueue({
               rowKey="id"
               dataSource={filteredCases}
               scroll={{ x: 968 }}
-              pagination={{ pageSize: 10, hideOnSinglePage: true }}
+              pagination={{
+                current: pagination.current,
+                pageSize: pagination.pageSize,
+                showSizeChanger: true,
+                pageSizeOptions: [10, 20, 50],
+                hideOnSinglePage: false,
+                showTotal: (total) => `共 ${total} 条`,
+                onChange: (current, pageSize) => {
+                  setPagination((prev) => ({
+                    current: pageSize !== prev.pageSize ? 1 : current,
+                    pageSize,
+                  }));
+                },
+              }}
               columns={[
                 {
                   title: "合同",
@@ -253,10 +274,23 @@ export function AuditQueue({
                   render: (_, record) => (
                     <div>
                       <div className="contract-title">{record.contractTitle ?? "未命名合同"}</div>
+                      <div className="contract-sub">{record.sourceDisplayName ?? "文本粘贴"}</div>
+                    </div>
+                  ),
+                },
+                {
+                  title: "来源",
+                  key: "source",
+                  width: 180,
+                  render: (_, record) => (
+                    <div>
+                      <div>{record.sourceDisplayName ?? "文本粘贴"}</div>
                       <div className="contract-sub">
-                        {record.contractTitle
-                          ? `来源 · ${record.sourceRecordId.slice(0, 8)}…`
-                          : "需要设置合同名称"}
+                        {record.sourceType === "FILE_UPLOAD"
+                          ? "文件上传"
+                          : record.sourceType === "DEMO"
+                            ? "内置演示"
+                            : "文本粘贴"}
                       </div>
                     </div>
                   ),

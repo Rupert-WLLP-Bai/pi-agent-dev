@@ -32,7 +32,10 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
             document: normalizeContractDocument(body.contractText),
             policyLimitRatio: body.policyLimitRatio ?? 0.3,
           });
-          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot);
+          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot, {
+            sourceType: "TEXT_PASTE",
+            sourceDisplayName: "文本粘贴",
+          });
           await dispatcher.enqueue(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };
@@ -77,7 +80,10 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
                   : "不支持的合同格式（仅支持 .docx、.pdf、.txt）",
             };
           }
-          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot);
+          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot, {
+            sourceType: "FILE_UPLOAD",
+            sourceDisplayName: body.file.name,
+          });
           await dispatcher.enqueue(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };

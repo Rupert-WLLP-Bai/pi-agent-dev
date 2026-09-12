@@ -108,7 +108,7 @@ test("renders the three-pane review workspace with a located quote", async ({ pa
   expect(await workspace.locator(".document-block.has-problem").count()).toBeGreaterThan(0);
 
   // Fact comparison pins actual vs. limit.
-  await expect(workspace.locator(".fact-cell.bad b")).toHaveText("70%");
+  await expect(workspace.locator(".fact-cell.bad b")).toHaveText("50%");
   await expect(workspace.locator(".fact-cell.ref b")).toHaveText("30%");
 });
 

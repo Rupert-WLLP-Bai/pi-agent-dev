@@ -58,6 +58,10 @@ export interface CaseSummary extends AuditCase {
    * verification per party. 0 when the counterparty carries no red-line risk.
    */
   subjectRedLineCount: number;
+  /** How the contract entered the system: TEXT_PASTE, FILE_UPLOAD, DEMO. */
+  sourceType: string;
+  /** Human-readable source name: original filename, "文本粘贴", "内置演示", etc. */
+  sourceDisplayName: string;
 }
 
 /**
@@ -132,6 +136,7 @@ export class AuditCaseRepository {
   async createPendingCase(
     sourceRecordId: string,
     snapshot: AuditSnapshot,
+    sourceMetadata?: { sourceType: string; sourceDisplayName: string },
   ): Promise<{ caseId: string; snapshotId: string }> {
     return this.db.transaction(async (tx) => {
       await tx
@@ -139,7 +144,10 @@ export class AuditCaseRepository {
         .values({
           id: sourceRecordId,
           sourceText: snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
-          metadata: { contractDocumentHash: snapshot.contractDocument.hash },
+          metadata: {
+            contractDocumentHash: snapshot.contractDocument.hash,
+            ...(sourceMetadata ?? { sourceType: "TEXT_PASTE", sourceDisplayName: "文本粘贴" }),
+          },
         })
         .onConflictDoNothing({ target: sourceRecords.id });
 
@@ -437,6 +445,8 @@ export class AuditCaseRepository {
       status: string;
       stage: string;
       source_record_id: string;
+      source_type: string;
+      source_display_name: string;
       created_at: string | Date;
       updated_at: string | Date;
       contract_title: string | null;
@@ -446,10 +456,13 @@ export class AuditCaseRepository {
     }>(sql`
       SELECT c.id, c.status, c.stage, c.source_record_id, c.created_at, c.updated_at,
              s.document->'blocks'->0->>'text' AS contract_title,
+             COALESCE(src.metadata->>'sourceType', 'TEXT_PASTE') AS source_type,
+             COALESCE(src.metadata->>'sourceDisplayName', '文本粘贴') AS source_display_name,
              COALESCE(h.finding_count, 0)::int AS finding_count,
              h.highest_severity,
              COALESCE(sr.subject_red_line_count, 0)::int AS subject_red_line_count
       FROM audit_cases c
+      LEFT JOIN source_records src ON src.id = c.source_record_id
       LEFT JOIN audit_snapshots s ON s.audit_case_id = c.id
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS finding_count,
@@ -488,6 +501,8 @@ export class AuditCaseRepository {
       status: row.status as AuditCase["status"],
       stage: row.stage as AuditCase["stage"],
       sourceRecordId: row.source_record_id,
+      sourceType: row.source_type,
+      sourceDisplayName: row.source_display_name,
       createdAt: toDate(row.created_at),
       updatedAt: toDate(row.updated_at),
       contractTitle: contractTitleFromFirstBlock(row.contract_title),

@@ -9,7 +9,8 @@ export interface AgentRunTelemetry {
 }
 
 export interface AgentRunResult {
-  proposal: FindingProposal;
+  /** null when the agent found no issues — the case passes without review. */
+  proposal: FindingProposal | null;
   telemetry: AgentRunTelemetry;
 }
 

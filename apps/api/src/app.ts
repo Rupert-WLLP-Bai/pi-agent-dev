@@ -97,7 +97,7 @@ const ABSENCE_FINDINGS: Array<{
 const assessmentBy = (snapshot: AuditSnapshot, ruleCode: string): RuleAssessment | undefined =>
   snapshot.ruleAssessments.find((item) => item.ruleCode === ruleCode);
 
-const demoProposalFor = (snapshot: AuditSnapshot): FindingProposal => {
+const demoProposalFor = (snapshot: AuditSnapshot): FindingProposal | null => {
   // 1. POLICY_CONFLICT by priority order
   for (const entry of CONFLICT_PRIORITY) {
     const assessment = assessmentBy(snapshot, entry.ruleCode);
@@ -138,15 +138,8 @@ const demoProposalFor = (snapshot: AuditSnapshot): FindingProposal => {
     };
   }
 
-  // 4. All clean
-  const payment = assessmentBy(snapshot, "ADVANCE_PAYMENT_LIMIT");
-  return {
-    findingType: "NEEDS_HUMAN_REVIEW",
-    severity: "LOW",
-    rationale: "各项确定性审计维度均已评估，未检出制度冲突。",
-    evidenceIds: payment?.evidenceIds ?? [],
-    remediation: "无需整改",
-  };
+  // 4. All clean — no finding, the case passes without review.
+  return null;
 };
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {

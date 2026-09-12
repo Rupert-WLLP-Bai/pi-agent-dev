@@ -74,7 +74,9 @@ body {
 /* ── App Shell ──────────────────────────────── */
 
 .app-shell {
-  min-height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-sider {
@@ -270,7 +272,10 @@ body {
 .app-content {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
 }
 
 /* Health */
@@ -603,7 +608,9 @@ body {
 .review-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 .case-banner {
   background: #fff;
@@ -656,6 +663,7 @@ body {
 .review-workspace {
   display: grid;
   grid-template-columns: 280px 1fr 392px;
+  grid-template-rows: minmax(0, 1fr);
   flex: 1;
   overflow: hidden;
   min-height: 0;
@@ -664,6 +672,7 @@ body {
   background: #fff;
   border-right: 1px solid var(--color-border-soft);
   overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
@@ -770,6 +779,7 @@ body {
 .document-stage {
   background: #e7ebf0;
   overflow-y: auto;
+  min-height: 0;
   padding: 20px 24px;
 }
 .document-page {
@@ -823,6 +833,7 @@ body {
   background: #fff;
   border-left: 1px solid var(--color-border-soft);
   overflow-y: auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
