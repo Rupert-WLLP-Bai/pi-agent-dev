@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-09-12
+
+### Added
+
+- Repository-wide lint/format toolchain: `@biomejs/biome` 2.5.13 with
+  `biome.json` (2-space indent, 100 columns, double quotes, trailing commas,
+  `organizeImports`), plus `bun run lint` / `lint:fix` / `format` /
+  `verify` scripts. `docs/design` mockups and `apps/web/src/styles.css`
+  (deliberate antd override layer) carry scoped exemptions.
+- `tsconfig.tests.json` extends typecheck to `tests/`, `playwright.config.ts`,
+  `apps/web/vite.config.ts`, and `apps/api/drizzle.config.ts`, which were
+  previously outside every compiler pass.
+- `.github/workflows/ci.yml`: a `quality` job (lint, typecheck, unit tests)
+  and an `acceptance` job (PostgreSQL 16 service, migrations, Playwright on
+  Chromium) with report upload.
+
+### Fixed
+
+- Real defects surfaced by the new gates, no behaviour changes:
+  non-null assertions replaced with narrowing (`repositories`,
+  `dispatcher`, `testing/fakes`, `main.tsx`, `new-audit-drawer`), a typed
+  `let snapshot: AuditSnapshot` in the upload route, unused imports,
+  variables, and function parameters removed, an implicit-any `let` typed,
+  `AuditQueue`'s dead `refreshedAt` prop dropped, and the review-workspace
+  click targets (`finding-item`, `back-link`) converted from `div`/`span` to
+  real `button` elements with matching CSS resets.
+- `demoContracts` is now a non-empty tuple, so the drawer's sample fallback
+  needs no assertion.
+
+### Verified — Quality gates on 2026-09-12
+
+- `bun run lint`: clean (103 files).
+- `bun run typecheck`: clean under TypeScript 7.0.2 (application pass and
+  tests pass).
+- `bun test packages apps`: 117 pass / 0 fail (312 assertions, 21 files).
+- `npx playwright test`: 15 pass / 0 fail, both with the local dev stack and
+  under the CI parameter set (`CI=true`, no `.env`, four workers, servers
+  auto-started, bundled Chromium).
+
 ## [Unreleased] - 2026-09-11
 
 ### Added

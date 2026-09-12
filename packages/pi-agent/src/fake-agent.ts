@@ -1,5 +1,5 @@
-import { UnknownEvidenceError } from "@contract-audit/audit/model";
 import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
+import { UnknownEvidenceError } from "@contract-audit/audit/model";
 import type { AgentRunResult, AuditAgentPort } from "@contract-audit/audit/ports";
 
 export class FakeAuditAgent implements AuditAgentPort {

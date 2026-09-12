@@ -127,10 +127,7 @@ function resolved(
   };
 }
 
-function blockText(
-  input: { document: ContractDocument },
-  blockId: string,
-): string {
+function blockText(input: { document: ContractDocument }, blockId: string): string {
   const block = input.document.blocks.find((item) => item.blockId === blockId);
   const text = block?.text ?? "";
   return text.length > 60 ? `${text.slice(0, 60)}…` : text;
@@ -185,8 +182,8 @@ export function evaluateDisputeJurisdictionRule(
   // Named place: region containment, so a district of our own city
   // ("重庆市南岸区" vs "重庆") is not treated as a remote jurisdiction.
   const aligned =
-    facts.jurisdiction.includes(preferredJurisdiction)
-    || preferredJurisdiction.includes(facts.jurisdiction);
+    facts.jurisdiction.includes(preferredJurisdiction) ||
+    preferredJurisdiction.includes(facts.jurisdiction);
 
   if (!aligned) {
     return {

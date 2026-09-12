@@ -45,33 +45,51 @@ test("asks a human to review a contract that names no parties", () => {
 });
 
 test("ignores factors reported against a subject the provider could not settle", () => {
-  const assessment = assessmentFor(verification({
-    status: "AMBIGUOUS",
-    matched: null,
-    candidates: [
-      { name: "深圳精工科技有限公司", unifiedSocialCreditCode: "91440300MA5F1PQR7X", registrationStatus: "存续" },
-      { name: "深圳精工智能科技有限公司", unifiedSocialCreditCode: "91440300MA5F1PQR7Y", registrationStatus: "存续" },
-    ],
-    dimensions: classifySubjectDimensions([{ factor: "失信信息", count: 2, detailTool: "get_dishonest_info" }]),
-  }));
+  const assessment = assessmentFor(
+    verification({
+      status: "AMBIGUOUS",
+      matched: null,
+      candidates: [
+        {
+          name: "深圳精工科技有限公司",
+          unifiedSocialCreditCode: "91440300MA5F1PQR7X",
+          registrationStatus: "存续",
+        },
+        {
+          name: "深圳精工智能科技有限公司",
+          unifiedSocialCreditCode: "91440300MA5F1PQR7Y",
+          registrationStatus: "存续",
+        },
+      ],
+      dimensions: classifySubjectDimensions([
+        { factor: "失信信息", count: 2, detailTool: "get_dishonest_info" },
+      ]),
+    }),
+  );
 
   expect(assessment.disposition).toBe("NEEDS_HUMAN_REVIEW");
 });
 
 test("asks a human to review a subject the provider could not reach", () => {
-  const assessment = assessmentFor(verification({
-    status: "UNAVAILABLE",
-    matched: null,
-    dimensions: classifySubjectDimensions([{ factor: "被执行人", count: 1, detailTool: "get_judgment_debtor_info" }]),
-    failureReason: "核验来源连接超时",
-  }));
+  const assessment = assessmentFor(
+    verification({
+      status: "UNAVAILABLE",
+      matched: null,
+      dimensions: classifySubjectDimensions([
+        { factor: "被执行人", count: 1, detailTool: "get_judgment_debtor_info" },
+      ]),
+      failureReason: "核验来源连接超时",
+    }),
+  );
 
   expect(assessment.disposition).toBe("NEEDS_HUMAN_REVIEW");
 });
 
 test("flags a policy conflict when a red-line factor has records", () => {
   const subject = verification({
-    dimensions: classifySubjectDimensions([{ factor: "被执行人", count: 1, detailTool: "get_judgment_debtor_info" }]),
+    dimensions: classifySubjectDimensions([
+      { factor: "被执行人", count: 1, detailTool: "get_judgment_debtor_info" },
+    ]),
     evidenceIds: ["party-1-被执行人"],
   });
 

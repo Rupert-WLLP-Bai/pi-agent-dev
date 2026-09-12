@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -43,11 +43,16 @@ test("accepts a .txt contract upload and audits it end-to-end", async ({ page })
   // Poll the API until the case reaches a terminal state, then load the page.
   // The E2E stack runs the fake agent (sub-second), but the upload parse adds
   // a hop, so we wait for COMPLETED rather than assuming instant readiness.
-  await expect.poll(async () => {
-    const resp = await page.request.get(`/api/audit-cases/${id}`);
-    const body = await resp.json();
-    return body.case?.status;
-  }, { timeout: 30_000, message: "uploaded case should complete" }).toBe("COMPLETED");
+  await expect
+    .poll(
+      async () => {
+        const resp = await page.request.get(`/api/audit-cases/${id}`);
+        const body = await resp.json();
+        return body.case?.status;
+      },
+      { timeout: 30_000, message: "uploaded case should complete" },
+    )
+    .toBe("COMPLETED");
 
   await page.goto(`/audit-cases/${id}`);
 

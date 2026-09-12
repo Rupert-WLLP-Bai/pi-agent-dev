@@ -27,15 +27,31 @@ packages/pi-agent Pi SDK 适配器、Skill 与受控 Tool
 
 复制 `.env.example` 为 `.env` 并填写 LLM 配置。`.env` 不纳入版本控制。现有环境变量使用 `XYG_ENDPOINT`、`XYG_API_KEY`、`XYG_MODEL`、`XYG_MAX_INPUT` 和 `XYG_MAX_OUTPUT`。`AUDIT_AGENT_MODE=fake` 可在不配置 LLM 凭证时使用 FakeAuditAgent 跑通全流程；API key 只保存在进程内存中，不落盘、不打印、不随 API 返回。
  
-## 快速开始
+## 质量闸门
+
+提交前跑一次 `bun run verify`（lint + typecheck + 单元测试），改动界面后另跑验收测试：
+
+```bash
+bun run lint                     # Biome 检查格式、导入顺序与 lint 规则
+bun run lint:fix                 # 自动修复 + 格式化 + 整理导入
+bun run typecheck                # 应用代码 + 测试与构建脚本两轮 tsc
+bun run test                     # 单元测试（bun test packages apps）
+bun run acceptance               # Playwright 验收测试（需 dev 栈或自动拉起）
+bun run verify                   # lint + typecheck + 单元测试
+```
+
+Biome 配置见 `biome.json`：2 空格缩进、100 列、双引号、尾逗号、`organizeImports`。`docs/design` 下的设计稿与 `apps/web/src/styles.css`（覆盖 antd 内联样式的层）有针对性豁免，理由写在配置注释与本节。`tsconfig.tests.json` 让 `tests/`、`playwright.config.ts`、`vite.config.ts`、`drizzle.config.ts` 也纳入类型检查——这些文件此前不在闸门内，曾漏掉真实的类型错误。
+
+CI 见 `.github/workflows/ci.yml`：`quality` job 跑 lint/typecheck/单测；`acceptance` job 起 PostgreSQL service、应用迁移并跑 Playwright。
 
 ```bash
 cp .env.example .env          # 填写 LLM 配置
 docker compose up -d postgres  # 启动 PostgreSQL
 bun install                     # 安装依赖
 cd apps/api && bunx drizzle-kit generate && bunx drizzle-kit migrate && cd ../..
-bun run typecheck               # 类型检查
-bun test                        # 单元测试
+bun run lint                    # lint + 格式检查
+bun run typecheck               # 类型检查（含 tests/）
+bun run test                    # 单元测试
 bunx playwright install         # 安装浏览器（首次）
 bunx playwright test            # 验收测试
 ```

@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from "bun:test";
 import type { AuditSnapshot, ContractParty } from "@contract-audit/audit/model";
-import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
+import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { createApp } from "./app";
 import { FakeDispatcher, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
 
@@ -27,14 +27,18 @@ beforeEach(() => {
 const json = (method: string, path: string, body?: unknown): Request =>
   new Request(`http://localhost${path}`, {
     method,
-    ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+    ...(body === undefined
+      ? {}
+      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
   });
 
 test("creates a pending case and returns 202", async () => {
-  const response = await app.handle(json("POST", "/api/audit-cases", {
-    source: "text",
-    contractText: demoContractText,
-  }));
+  const response = await app.handle(
+    json("POST", "/api/audit-cases", {
+      source: "text",
+      contractText: demoContractText,
+    }),
+  );
 
   expect(response.status).toBe(202);
   const body = await response.json();
@@ -50,24 +54,32 @@ test("rejects a create request without contract text", async () => {
 });
 
 test("rejects a review for an unknown finding", async () => {
-  const response = await app.handle(json("POST", "/api/findings/missing/reviews", {
-    decision: "ACCEPTED",
-  }));
+  const response = await app.handle(
+    json("POST", "/api/findings/missing/reviews", {
+      decision: "ACCEPTED",
+    }),
+  );
 
   expect(response.status).toBe(404);
 });
 
 test("records a review as an append-only revision", async () => {
   const { caseId } = await repository.createPendingCase("source-1", snapshotStub());
-  const findingId = await repository.appendFindingRevision(caseId, {
-    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
-    severity: "HIGH",
-    rationale: "Advance payment exceeds the policy limit",
-    evidenceIds: ["contract-payment"],
-    remediation: "Reduce the advance payment ratio",
-  }, null);
+  const findingId = await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
 
-  const response = await app.handle(json("POST", `/api/findings/${findingId}/reviews`, { decision: "ACCEPTED" }));
+  const response = await app.handle(
+    json("POST", `/api/findings/${findingId}/reviews`, { decision: "ACCEPTED" }),
+  );
 
   expect(response.status).toBe(200);
   const findings = await repository.getFindingsByCase(caseId);
@@ -82,34 +94,46 @@ test("records a review as an append-only revision", async () => {
 
 test("rejects a second review of the same finding", async () => {
   const { caseId } = await repository.createPendingCase("source-1", snapshotStub());
-  const findingId = await repository.appendFindingRevision(caseId, {
-    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
-    severity: "HIGH",
-    rationale: "Advance payment exceeds the policy limit",
-    evidenceIds: ["contract-payment"],
-    remediation: "Reduce the advance payment ratio",
-  }, null);
+  const findingId = await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
   await app.handle(json("POST", `/api/findings/${findingId}/reviews`, { decision: "ACCEPTED" }));
 
-  const response = await app.handle(json("POST", `/api/findings/${findingId}/reviews`, { decision: "REJECTED" }));
+  const response = await app.handle(
+    json("POST", `/api/findings/${findingId}/reviews`, { decision: "REJECTED" }),
+  );
 
   expect(response.status).toBe(409);
 });
 
 test("completes a rejected human review", async () => {
   const { caseId } = await repository.createPendingCase("source-rejected", snapshotStub());
-  const findingId = await repository.appendFindingRevision(caseId, {
-    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
-    severity: "HIGH",
-    rationale: "Advance payment exceeds the policy limit",
-    evidenceIds: ["contract-payment"],
-    remediation: "Reduce the advance payment ratio",
-  }, null);
+  const findingId = await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
 
-  const response = await app.handle(json("POST", `/api/findings/${findingId}/reviews`, {
-    decision: "REJECTED",
-    reason: "Evidence does not support the proposed severity",
-  }));
+  const response = await app.handle(
+    json("POST", `/api/findings/${findingId}/reviews`, {
+      decision: "REJECTED",
+      reason: "Evidence does not support the proposed severity",
+    }),
+  );
 
   expect(response.status).toBe(200);
   expect((await repository.getFindingsByCase(caseId))[0].review).toMatchObject({
@@ -128,13 +152,17 @@ test("completes a rejected human review", async () => {
 
 test("publishes completion only after the case reaches its terminal state", async () => {
   const { caseId } = await repository.createPendingCase("source-order", snapshotStub());
-  const findingId = await repository.appendFindingRevision(caseId, {
-    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
-    severity: "HIGH",
-    rationale: "Advance payment exceeds the policy limit",
-    evidenceIds: ["contract-payment"],
-    remediation: "Reduce the advance payment ratio",
-  }, null);
+  const findingId = await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
 
   const statusAtPublish: Array<Promise<string | undefined>> = [];
   broker.subscribe(caseId, () => {
@@ -148,13 +176,17 @@ test("publishes completion only after the case reaches its terminal state", asyn
 
 test("returns case detail with snapshot and findings", async () => {
   const { caseId } = await repository.createPendingCase("source-1", snapshotStub());
-  await repository.appendFindingRevision(caseId, {
-    findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
-    severity: "HIGH",
-    rationale: "Advance payment exceeds the policy limit",
-    evidenceIds: ["contract-payment"],
-    remediation: "Reduce the advance payment ratio",
-  }, null);
+  await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
 
   const response = await app.handle(json("GET", `/api/audit-cases/${caseId}`));
 
@@ -163,7 +195,9 @@ test("returns case detail with snapshot and findings", async () => {
   expect(body.case).toMatchObject({ id: caseId });
   expect(body.snapshot.facts).toEqual({ advancePaymentRatio: 0.7, policyLimitRatio: 0.3 });
   expect(body.snapshot.parties).toEqual([]);
-  expect(body.ruleAssessments.map((item: { ruleCode: string }) => item.ruleCode)).toContain("SUBJECT_RED_LINE_RISK");
+  expect(body.ruleAssessments.map((item: { ruleCode: string }) => item.ruleCode)).toContain(
+    "SUBJECT_RED_LINE_RISK",
+  );
   expect(body.findings).toHaveLength(1);
 });
 
@@ -183,7 +217,11 @@ test("returns the saved subject verification with the case detail", async () => 
   expect(body.snapshot.parties).toEqual(parties);
   expect(body.subjectVerifications).toHaveLength(1);
   expect(body.subjectVerifications[0]).toMatchObject({ partyId: "party-1", status: "RESOLVED" });
-  expect(body.evidence.some((locator: { location: { kind: string } }) => locator.location.kind === "EXTERNAL_RECORD")).toBe(true);
+  expect(
+    body.evidence.some(
+      (locator: { location: { kind: string } }) => locator.location.kind === "EXTERNAL_RECORD",
+    ),
+  ).toBe(true);
   const subjectAssessment = body.ruleAssessments.find(
     (item: { ruleCode: string }) => item.ruleCode === "SUBJECT_RED_LINE_RISK",
   );
@@ -196,7 +234,12 @@ test("returns 404 for an unknown case", async () => {
   expect(response.status).toBe(404);
 });
 
-const party = (id: string, name: string): ContractParty => ({ id, label: "乙方", name, evidenceId: `${id}-name` });
+const party = (id: string, name: string): ContractParty => ({
+  id,
+  label: "乙方",
+  name,
+  evidenceId: `${id}-name`,
+});
 
 function snapshotStub(parties: ContractParty[] = []): AuditSnapshot {
   return {

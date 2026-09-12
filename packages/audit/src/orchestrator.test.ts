@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { normalizeContractDocument } from "./plaintext-adapter";
 import { createAuditSnapshot } from "./orchestrator";
+import { normalizeContractDocument } from "./plaintext-adapter";
 
 const contractText = "乙方签订后支付合同金额的70%作为预付款。";
 
@@ -24,7 +24,9 @@ test("assesses an advance payment above the policy limit as a conflict", () => {
     policyLimitRatio: 0.3,
   });
 
-  const assessment = snapshot.ruleAssessments.find((item) => item.ruleCode === "ADVANCE_PAYMENT_LIMIT");
+  const assessment = snapshot.ruleAssessments.find(
+    (item) => item.ruleCode === "ADVANCE_PAYMENT_LIMIT",
+  );
   expect(assessment?.disposition).toBe("POLICY_CONFLICT");
   expect(assessment?.evidenceIds).toEqual(["contract-payment", "policy-limit"]);
   // Rule assessment evidence IDs must resolve to snapshot locators so the

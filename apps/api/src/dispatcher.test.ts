@@ -2,7 +2,11 @@ import { beforeEach, expect, test } from "bun:test";
 import type { AuditSnapshot, ContractParty, FindingProposal } from "@contract-audit/audit/model";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { AuditDispatcher } from "./dispatcher";
-import { ControlledAgent, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
+import {
+  ControlledAgent,
+  InMemoryAuditCaseRepository,
+  RecordingEventBroker,
+} from "./testing/fakes";
 
 const snapshotFor = (sourceRecordId: string, parties: ContractParty[] = []): AuditSnapshot => ({
   sourceRecordId,
@@ -35,7 +39,12 @@ const snapshotFor = (sourceRecordId: string, parties: ContractParty[] = []): Aud
   createdAt: new Date(0).toISOString(),
 });
 
-const party = (id: string, name: string): ContractParty => ({ id, label: "乙方", name, evidenceId: `${id}-name` });
+const party = (id: string, name: string): ContractParty => ({
+  id,
+  label: "乙方",
+  name,
+  evidenceId: `${id}-name`,
+});
 
 const proposal: FindingProposal = {
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
@@ -85,13 +94,22 @@ test("completes the audit for the enqueued case and records telemetry", async ()
   await dispatcher.enqueue(caseId);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
-  agent.resolveRun(proposal, { provider: "test", model: "test-model", version: "1.0", usage: { input: 10, output: 5 } });
+  agent.resolveRun(proposal, {
+    provider: "test",
+    model: "test-model",
+    version: "1.0",
+    usage: { input: 10, output: 5 },
+  });
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const auditCase = await repository.getCase(caseId);
   expect(auditCase).toMatchObject({ status: "COMPLETED", stage: "AWAITING_REVIEW" });
   expect(repository.recordedRuns).toHaveLength(1);
-  expect(repository.recordedRuns[0]).toMatchObject({ auditCaseId: caseId, model: "test-model", error: null });
+  expect(repository.recordedRuns[0]).toMatchObject({
+    auditCaseId: caseId,
+    model: "test-model",
+    error: null,
+  });
   expect((await repository.getFindingsByCase(caseId))[0].proposal).toEqual(proposal);
   expect(broker.events.map((event) => event.type)).toEqual([
     "audit.started",
@@ -114,8 +132,12 @@ test("hands the agent a context that includes the subject verification evidence"
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const context = agent.receivedSnapshots[0];
-  expect(context.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(true);
-  expect(context.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(true);
+  expect(context.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(
+    true,
+  );
+  expect(context.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(
+    true,
+  );
 });
 
 test("records an unavailable subject verification without failing the case", async () => {
@@ -141,7 +163,10 @@ test("records an unavailable subject verification without failing the case", asy
   agent2.resolveRun(proposal);
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  expect(await repository2.getCase(caseId)).toMatchObject({ status: "COMPLETED", stage: "AWAITING_REVIEW" });
+  expect(await repository2.getCase(caseId)).toMatchObject({
+    status: "COMPLETED",
+    stage: "AWAITING_REVIEW",
+  });
   const { verifications } = await repository2.getSubjectDimension(caseId);
   expect(verifications).toHaveLength(1);
   expect(verifications[0].status).toBe("UNAVAILABLE");
@@ -157,14 +182,23 @@ test("marks an active run cancelled after explicit cancellation", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   expect(agent.abortedRuns).toBe(1);
-  expect(await repository.getCase(caseId)).toMatchObject({ status: "CANCELLED", stage: "CANCELLED" });
+  expect(await repository.getCase(caseId)).toMatchObject({
+    status: "CANCELLED",
+    stage: "CANCELLED",
+  });
   expect(broker.events.at(-1)?.type).toBe("audit.cancelled");
   expect(repository.recordedRuns).toHaveLength(1);
 });
 
 test("cancels a queued case without running it", async () => {
-  const { caseId: running } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
-  const { caseId: queued } = await repository.createPendingCase("source-b", snapshotFor("source-b"));
+  const { caseId: running } = await repository.createPendingCase(
+    "source-a",
+    snapshotFor("source-a"),
+  );
+  const { caseId: queued } = await repository.createPendingCase(
+    "source-b",
+    snapshotFor("source-b"),
+  );
   await dispatcher.enqueue(running);
   await dispatcher.enqueue(queued);
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -173,8 +207,13 @@ test("cancels a queued case without running it", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   expect(agent.startedCaseIds).toEqual(["source-a"]);
-  expect(await repository.getCase(queued)).toMatchObject({ status: "CANCELLED", stage: "CANCELLED" });
-  expect(broker.events.some((event) => event.type === "audit.cancelled" && event.auditCaseId === queued)).toBe(true);
+  expect(await repository.getCase(queued)).toMatchObject({
+    status: "CANCELLED",
+    stage: "CANCELLED",
+  });
+  expect(
+    broker.events.some((event) => event.type === "audit.cancelled" && event.auditCaseId === queued),
+  ).toBe(true);
 
   agent.resolveRun(proposal);
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -190,7 +229,11 @@ test("marks a failed agent run as FAILED and records the error", async () => {
 
   expect(await repository.getCase(caseId)).toMatchObject({ status: "FAILED", stage: "FAILED" });
   expect(repository.recordedRuns[0].error).toBe("XYG_ENDPOINT_UNREACHABLE");
-  expect(broker.events.at(-1)).toMatchObject({ type: "audit.failed", auditCaseId: caseId, error: "XYG_ENDPOINT_UNREACHABLE" });
+  expect(broker.events.at(-1)).toMatchObject({
+    type: "audit.failed",
+    auditCaseId: caseId,
+    error: "XYG_ENDPOINT_UNREACHABLE",
+  });
 });
 
 test("ignores a stale queued entry whose case is no longer pending", async () => {
@@ -210,9 +253,12 @@ test("marks stale RUNNING cases interrupted and re-enqueues pending cases on sta
   const repository2 = new InMemoryAuditCaseRepository();
   const agent2 = new ControlledAgent();
   const broker2 = new RecordingEventBroker();
-  const { caseId: stale } = await repository2.createPendingCase("source-stale", snapshotFor("source-stale"));
+  const { caseId: stale } = await repository2.createPendingCase(
+    "source-stale",
+    snapshotFor("source-stale"),
+  );
   await repository2.updateCaseStatus(stale, "RUNNING", "AGENT_RUNNING");
-  const { caseId: pending } = await repository2.createPendingCase("source-pending", snapshotFor("source-pending"));
+  await repository2.createPendingCase("source-pending", snapshotFor("source-pending"));
 
   const dispatcher2 = new AuditDispatcher(
     repository2.asRepository(),

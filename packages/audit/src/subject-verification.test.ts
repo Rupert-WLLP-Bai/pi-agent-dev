@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import type { ContractParty, EvidenceLocator } from "./model";
 import type { SubjectVerificationPort } from "./ports";
-import { createFixtureSubjectVerificationPort } from "./subject-verification-fixture";
 import { runSubjectVerification } from "./subject-verification";
+import { createFixtureSubjectVerificationPort } from "./subject-verification-fixture";
 
 const party = (id: string, name: string): ContractParty => ({
   id,
@@ -12,7 +12,9 @@ const party = (id: string, name: string): ContractParty => ({
 });
 
 const recordTypesIn = (evidence: EvidenceLocator[]) =>
-  evidence.flatMap((item) => (item.location.kind === "EXTERNAL_RECORD" ? [item.location.recordType] : []));
+  evidence.flatMap((item) =>
+    item.location.kind === "EXTERNAL_RECORD" ? [item.location.recordType] : [],
+  );
 
 test("anchors one external record per factor the provider reported with a count", async () => {
   const run = await runSubjectVerification({
@@ -40,7 +42,8 @@ test("cites the source record that answered the verification", async () => {
 
   const [verification] = run.verifications;
   const sourceRecordId = verification.sourceRecordId;
-  if (sourceRecordId === null) throw new Error("expected a source record id for a resolved subject");
+  if (sourceRecordId === null)
+    throw new Error("expected a source record id for a resolved subject");
   const citedRecordIds = new Set(run.evidence.map((item) => item.sourceRecordId));
 
   for (const record of run.sourceRecords) {

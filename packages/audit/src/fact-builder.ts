@@ -1,8 +1,4 @@
-import {
-  type ContractDocument,
-  type EvidenceLocator,
-  type PaymentFacts,
-} from "./model";
+import type { ContractDocument, EvidenceLocator, PaymentFacts } from "./model";
 
 const PERCENTAGE_PATTERN = /([0-9]+(?:\.[0-9]+)?)%/u;
 

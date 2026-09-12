@@ -1,20 +1,20 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import {
   AuditOutlined,
   CheckCircleOutlined,
-  SyncOutlined,
-  SettingOutlined,
-  DatabaseOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  SettingOutlined,
+  SyncOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd";
+import { useQuery } from "@tanstack/react-query";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
+import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd";
+import { useEffect, useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 
@@ -33,7 +33,9 @@ function BrandMark({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <div className="brand-collapsed" title="合同智能审计智能体">
-        <span className="brand-collapsed-mark" aria-hidden="true">审</span>
+        <span className="brand-collapsed-mark" aria-hidden="true">
+          审
+        </span>
       </div>
     );
   }
@@ -190,14 +192,14 @@ export function AppShell() {
 
   // A detail page has its own collapse preference slot so switching between the
   // list and a case keeps each context's own choice.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: detailPage is an intentional trigger — the reset must run on every list/detail navigation, not on one mount.
   useEffect(() => {
     setDetailCollapsed(null);
   }, [detailPage]);
 
   const autoCollapsed = isTablet || (detailPage && !isMobile);
-  const effectiveCollapsed = detailPage && !isTablet
-    ? (detailCollapsed ?? autoCollapsed)
-    : (userCollapsed ?? autoCollapsed);
+  const effectiveCollapsed =
+    detailPage && !isTablet ? (detailCollapsed ?? autoCollapsed) : (userCollapsed ?? autoCollapsed);
 
   const toggleCollapsed = () => {
     const next = !effectiveCollapsed;
@@ -236,7 +238,9 @@ export function AppShell() {
           {navMenu}
           <div className="app-sider-foot">
             <div className="app-user-tile">
-              <Avatar size={28} style={{ background: "#1C7FC2", flexShrink: 0 }}>审</Avatar>
+              <Avatar size={28} style={{ background: "#1C7FC2", flexShrink: 0 }}>
+                审
+              </Avatar>
               {!effectiveCollapsed && (
                 <div className="app-user-meta">
                   <b>审计管理员</b>
@@ -274,12 +278,18 @@ export function AppShell() {
           </div>
           <div className="app-header-right">
             {showHealth && (
-              <span className={`health-indicator health-indicator--${health}`} role="status" aria-live="polite">
+              <span
+                className={`health-indicator health-indicator--${health}`}
+                role="status"
+                aria-live="polite"
+              >
                 <span aria-hidden="true" className="health-indicator__dot" />
                 {healthLabels[health]}
               </span>
             )}
-            <Avatar size={28} style={{ background: "#0B6BB5" }}>审</Avatar>
+            <Avatar size={28} style={{ background: "#0B6BB5" }}>
+              审
+            </Avatar>
           </div>
         </Header>
         <Content className="app-content">

@@ -32,7 +32,7 @@ const FACTORS: Array<{ factor: string; detailTool: string }> = [
 type Counts = Partial<Record<string, number>>;
 
 const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> = {
-  "重庆恒昌建筑工程有限公司": {
+  重庆恒昌建筑工程有限公司: {
     candidate: {
       name: "重庆恒昌建筑工程有限公司",
       unifiedSocialCreditCode: "91500108MA5U7X2K3D",
@@ -40,7 +40,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: { 失信信息: 2, 被执行人: 1, 裁判文书: 12, 开庭公告: 5 },
   },
-  "深圳精工科技有限公司": {
+  深圳精工科技有限公司: {
     candidate: {
       name: "深圳精工科技有限公司",
       unifiedSocialCreditCode: "91440300MA5F1PQR7X",
@@ -48,7 +48,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: { 裁判文书: 3, 股权出质: 1 },
   },
-  "重庆华盛贸易有限公司": {
+  重庆华盛贸易有限公司: {
     candidate: {
       name: "重庆华盛贸易有限公司",
       unifiedSocialCreditCode: "91500103MA5U9T8L2B",
@@ -58,7 +58,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
   },
   // Remaining demo counterparties resolve cleanly, so only the contracts meant
   // to exercise a branch actually do.
-  "成都建工集团有限公司": {
+  成都建工集团有限公司: {
     candidate: {
       name: "成都建工集团有限公司",
       unifiedSocialCreditCode: "91510100MA6C2W9H4K",
@@ -66,7 +66,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: { 裁判文书: 41, 开庭公告: 7 },
   },
-  "昆明矿业发展有限公司": {
+  昆明矿业发展有限公司: {
     candidate: {
       name: "昆明矿业发展有限公司",
       unifiedSocialCreditCode: "91530100MA6P4L8N2R",
@@ -74,7 +74,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: { 裁判文书: 6 },
   },
-  "杭州智联科技有限公司": {
+  杭州智联科技有限公司: {
     candidate: {
       name: "杭州智联科技有限公司",
       unifiedSocialCreditCode: "91330106MA2G7T5X8Y",
@@ -82,7 +82,7 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: {},
   },
-  "东莞芯创电子有限公司": {
+  东莞芯创电子有限公司: {
     candidate: {
       name: "东莞芯创电子有限公司",
       unifiedSocialCreditCode: "91441900MA4W9K3P6L",

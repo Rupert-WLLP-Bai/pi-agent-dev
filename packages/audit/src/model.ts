@@ -187,7 +187,13 @@ export interface FindingRevision {
 
 // ── Audit Case lifecycle ─────────────────────────────────────────
 
-export type AuditCaseStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED" | "INTERRUPTED";
+export type AuditCaseStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED"
+  | "INTERRUPTED";
 export type AuditStage =
   | "QUEUED"
   | "NORMALIZING"

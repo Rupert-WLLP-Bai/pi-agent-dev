@@ -1,10 +1,10 @@
-import type { AuditSnapshot, ContractDocument } from "./model";
-import { buildPaymentFacts } from "./fact-builder";
 import { buildDisputeJurisdictionFacts, evaluateDisputeJurisdictionRule } from "./dispute-rule";
-import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
-import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./termination-rule";
+import { buildPaymentFacts } from "./fact-builder";
+import type { AuditSnapshot, ContractDocument } from "./model";
 import { extractContractParties } from "./party-extractor";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
+import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
+import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./termination-rule";
 
 /**
  * Assembles the document-derived half of an Audit Snapshot from a Contract

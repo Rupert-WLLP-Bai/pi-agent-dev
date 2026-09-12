@@ -1,5 +1,5 @@
-import { Button, Drawer, Form, Input, Space, Typography } from "antd";
 import type { FindingRevision } from "@contract-audit/audit/model";
+import { Button, Drawer, Form, Input, Space, Typography } from "antd";
 
 export interface ReviewDrawerProps {
   finding: FindingRevision | null;
@@ -53,7 +53,9 @@ export function ReviewDrawer({
       footer={
         <div className="drawer-footer">
           <Space>
-            <Button onClick={onClose} disabled={submitting}>取消</Button>
+            <Button onClick={onClose} disabled={submitting}>
+              取消
+            </Button>
             <Button
               type="primary"
               danger={rejecting}
@@ -97,7 +99,11 @@ export function ReviewDrawer({
         >
           <Input.TextArea rows={4} placeholder="说明复核判断依据" disabled={submitting} />
         </Form.Item>
-        {error && <div role="alert" className="review-error">{error}</div>}
+        {error && (
+          <div role="alert" className="review-error">
+            {error}
+          </div>
+        )}
       </Form>
     </Drawer>
   );

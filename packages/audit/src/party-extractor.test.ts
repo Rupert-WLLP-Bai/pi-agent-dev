@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test";
-import { normalizeContractDocument } from "./plaintext-adapter";
 import { extractContractParties } from "./party-extractor";
+import { normalizeContractDocument } from "./plaintext-adapter";
 
 const extract = (contractText: string) =>
-  extractContractParties({ sourceRecordId: "source-1", document: normalizeContractDocument(contractText) });
+  extractContractParties({
+    sourceRecordId: "source-1",
+    document: normalizeContractDocument(contractText),
+  });
 
 test("drops a trailing qualifier but keeps the registered name", () => {
   const { parties } = extract("乙方：深圳精工科技有限公司（供货方）");
@@ -44,7 +47,8 @@ test("anchors the name locator to the exact span inside its block", () => {
     blockId: "p-1",
     quotedText: party.name,
   });
-  if (locator?.location.kind !== "DOCUMENT_SPAN") throw new Error("expected a document span locator");
+  if (locator?.location.kind !== "DOCUMENT_SPAN")
+    throw new Error("expected a document span locator");
   const { startOffset, endOffset } = locator.location;
   expect(document.blocks[0].text.slice(startOffset, endOffset)).toBe(party.name);
 });

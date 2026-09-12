@@ -23,7 +23,10 @@ const caseAt = (
 
 test("awaiting review wins over the completed machine status", () => {
   const auditCase = caseAt("review", "COMPLETED", "AWAITING_REVIEW", "2026-09-11T09:00:00.000Z");
-  expect(getAuditDisplayState(auditCase)).toMatchObject({ key: "AWAITING_REVIEW", label: "待复核" });
+  expect(getAuditDisplayState(auditCase)).toMatchObject({
+    key: "AWAITING_REVIEW",
+    label: "待复核",
+  });
   expect(getAvailableCaseActions(auditCase)).toEqual(["VIEW"]);
 });
 

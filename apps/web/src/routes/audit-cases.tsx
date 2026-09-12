@@ -1,8 +1,14 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { App as AntApp } from "antd";
-import { cancelAuditCase, createAuditCase, createAuditCaseFromFile, getAuditCases, retryAuditCase } from "../api";
+import { useState } from "react";
+import {
+  cancelAuditCase,
+  createAuditCase,
+  createAuditCaseFromFile,
+  getAuditCases,
+  retryAuditCase,
+} from "../api";
 import { AuditQueue } from "../components/audit-queue";
 import { NewAuditDrawer } from "../components/new-audit-drawer";
 
@@ -53,11 +59,12 @@ export default function AuditCasesList() {
     onError: (error: Error) => message.error(error.message),
   });
 
-  const action = cancelMutation.isPending && cancelMutation.variables
-    ? { id: cancelMutation.variables, type: "CANCEL" as const }
-    : retryMutation.isPending && retryMutation.variables
-      ? { id: retryMutation.variables, type: "RETRY" as const }
-      : null;
+  const action =
+    cancelMutation.isPending && cancelMutation.variables
+      ? { id: cancelMutation.variables, type: "CANCEL" as const }
+      : retryMutation.isPending && retryMutation.variables
+        ? { id: retryMutation.variables, type: "RETRY" as const }
+        : null;
 
   return (
     <>
@@ -67,7 +74,6 @@ export default function AuditCasesList() {
         refreshing={casesQuery.isFetching && !casesQuery.isLoading}
         error={casesQuery.error as Error | null}
         action={action}
-        refreshedAt={casesQuery.dataUpdatedAt ? new Date(casesQuery.dataUpdatedAt) : null}
         onOpen={(id) => void navigate({ to: "/audit-cases/$id", params: { id } })}
         onRefresh={() => void casesQuery.refetch()}
         onCancel={(id) => cancelMutation.mutate(id)}
@@ -78,8 +84,10 @@ export default function AuditCasesList() {
         open={createOpen}
         submitting={createMutation.isPending || uploadMutation.isPending}
         submitError={
-          createMutation.isError ? createMutation.error.message
-            : uploadMutation.isError ? uploadMutation.error.message
+          createMutation.isError
+            ? createMutation.error.message
+            : uploadMutation.isError
+              ? uploadMutation.error.message
               : null
         }
         onClose={() => setCreateOpen(false)}

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
-import { createSmokeTestSession } from "./runtime";
 import { FakeAuditAgent } from "./fake-agent";
+import { createSmokeTestSession } from "./runtime";
 
 test("creates and disposes a Pi session under Bun", async () => {
   const session = await createSmokeTestSession();

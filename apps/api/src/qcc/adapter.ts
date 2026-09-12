@@ -1,6 +1,9 @@
 import type { SubjectCandidate } from "@contract-audit/audit/model";
-import type { SubjectVerificationOutcome, SubjectVerificationPort } from "@contract-audit/audit/ports";
-import { McpStreamClient, type McpFetch } from "./mcp-client";
+import type {
+  SubjectVerificationOutcome,
+  SubjectVerificationPort,
+} from "@contract-audit/audit/ports";
+import { type McpFetch, McpStreamClient } from "./mcp-client";
 
 /**
  * Real Qichacha subject-verification adapter.
@@ -63,7 +66,11 @@ async function scanRisk(
 ): Promise<SubjectVerificationOutcome> {
   let scanResult: QccRiskScanResponse;
   try {
-    const result = await client.callTool("get_company_risk_scan", { searchKey: matched.name }, signal);
+    const result = await client.callTool(
+      "get_company_risk_scan",
+      { searchKey: matched.name },
+      signal,
+    );
     scanResult = result.content as QccRiskScanResponse;
   } catch (error) {
     return {
@@ -124,7 +131,9 @@ export interface QccAdapterConfig {
   fetchImpl?: McpFetch;
 }
 
-export function createQccSubjectVerificationPort(config: QccAdapterConfig): SubjectVerificationPort {
+export function createQccSubjectVerificationPort(
+  config: QccAdapterConfig,
+): SubjectVerificationPort {
   const companyClient = new McpStreamClient(config.companyEndpoint, config.token, config.fetchImpl);
   const riskClient = new McpStreamClient(config.riskEndpoint, config.token, config.fetchImpl);
   return {
@@ -137,7 +146,11 @@ export function createQccSubjectVerificationPort(config: QccAdapterConfig): Subj
       // Step 1: resolve the entity name.
       let queryResult: QccCompanyQueryResponse;
       try {
-        const result = await companyClient.callTool("get_company_by_query", { searchKey: subject }, signal);
+        const result = await companyClient.callTool(
+          "get_company_by_query",
+          { searchKey: subject },
+          signal,
+        );
         queryResult = result.content as QccCompanyQueryResponse;
       } catch (error) {
         return {

@@ -2,15 +2,14 @@ import type {
   AuditCase,
   AuditCaseStatus,
   AuditStage,
+  FindingType,
   RuleAssessment,
   RuleCode,
   RuleDisposition,
+  Severity,
   SubjectMatchStatus,
   SubjectRiskDimension,
-  FindingType,
-  Severity,
 } from "@contract-audit/audit/model";
-
 
 export type AuditLifecycleFilter =
   | "ALL"
@@ -47,51 +46,54 @@ const displayStates: Record<AuditDisplayKey, Omit<AuditDisplayState, "key">> = {
 };
 
 export function getAuditDisplayState(auditCase: AuditCase): AuditDisplayState {
-  const key: AuditDisplayKey = auditCase.stage === "AWAITING_REVIEW"
-    ? "AWAITING_REVIEW"
-    : auditCase.status;
+  const key: AuditDisplayKey =
+    auditCase.stage === "AWAITING_REVIEW" ? "AWAITING_REVIEW" : auditCase.status;
   return { key, ...displayStates[key] };
 }
 
-export const getAuditStageLabel = (stage: AuditStage): string => ({
-  QUEUED: "等待处理",
-  NORMALIZING: "合同规范化",
-  RULE_ASSESSMENT: "规则评估",
-  SUBJECT_VERIFICATION: "主体核验",
-  AGENT_RUNNING: "Agent 分析",
-  AWAITING_REVIEW: "人工复核",
-  COMPLETED: "已完成",
-  FAILED: "失败",
-  CANCELLED: "已取消",
-  INTERRUPTED: "已中断",
-})[stage];
+export const getAuditStageLabel = (stage: AuditStage): string =>
+  ({
+    QUEUED: "等待处理",
+    NORMALIZING: "合同规范化",
+    RULE_ASSESSMENT: "规则评估",
+    SUBJECT_VERIFICATION: "主体核验",
+    AGENT_RUNNING: "Agent 分析",
+    AWAITING_REVIEW: "人工复核",
+    COMPLETED: "已完成",
+    FAILED: "失败",
+    CANCELLED: "已取消",
+    INTERRUPTED: "已中断",
+  })[stage];
 
 export function getAuditStep(auditCase: AuditCase): number {
   if (auditCase.stage === "COMPLETED") return 4;
   if (auditCase.stage === "AWAITING_REVIEW") return 3;
   if (auditCase.stage === "AGENT_RUNNING") return 2;
   if (
-    auditCase.stage === "RULE_ASSESSMENT"
-    || auditCase.stage === "SUBJECT_VERIFICATION"
-    || auditCase.stage === "NORMALIZING"
-  ) return 1;
+    auditCase.stage === "RULE_ASSESSMENT" ||
+    auditCase.stage === "SUBJECT_VERIFICATION" ||
+    auditCase.stage === "NORMALIZING"
+  )
+    return 1;
   return 0;
 }
 
 /** Chinese label for a rule, keyed by its stable code. */
-export const getRuleCodeLabel = (code: RuleCode): string => ({
-  ADVANCE_PAYMENT_LIMIT: "预付款上限规则",
-  SUBJECT_RED_LINE_RISK: "主体红线规则",
-  TERMINATION_CLAUSE_PRESENT: "终止条款规则",
-  PENALTY_RATIO_LIMIT: "违约金上限规则",
-  DISPUTE_JURISDICTION: "争议管辖规则",
-})[code];
+export const getRuleCodeLabel = (code: RuleCode): string =>
+  ({
+    ADVANCE_PAYMENT_LIMIT: "预付款上限规则",
+    SUBJECT_RED_LINE_RISK: "主体红线规则",
+    TERMINATION_CLAUSE_PRESENT: "终止条款规则",
+    PENALTY_RATIO_LIMIT: "违约金上限规则",
+    DISPUTE_JURISDICTION: "争议管辖规则",
+  })[code];
 
-export const getRuleDispositionLabel = (disposition: RuleDisposition): string => ({
-  POLICY_CONFLICT: "违反",
-  COMPLIANT: "通过",
-  NEEDS_HUMAN_REVIEW: "需人工复核",
-})[disposition];
+export const getRuleDispositionLabel = (disposition: RuleDisposition): string =>
+  ({
+    POLICY_CONFLICT: "违反",
+    COMPLIANT: "通过",
+    NEEDS_HUMAN_REVIEW: "需人工复核",
+  })[disposition];
 
 /** Worst disposition across every assessment, for the workbench coverage summary. */
 export const summarizeRuleOutcome = (assessments: RuleAssessment[]): string => {
@@ -100,13 +102,14 @@ export const summarizeRuleOutcome = (assessments: RuleAssessment[]): string => {
   return assessments.length === 0 ? "无评估" : "通过";
 };
 
-export const getSubjectStatusLabel = (status: SubjectMatchStatus | null): string => ({
-  RESOLVED: "已匹配主体",
-  AMBIGUOUS: "多个候选",
-  UNRESOLVED: "未匹配到主体",
-  UNAVAILABLE: "核验不可用",
-  null: "未核验",
-})[status ?? "null"];
+export const getSubjectStatusLabel = (status: SubjectMatchStatus | null): string =>
+  ({
+    RESOLVED: "已匹配主体",
+    AMBIGUOUS: "多个候选",
+    UNRESOLVED: "未匹配到主体",
+    UNAVAILABLE: "核验不可用",
+    null: "未核验",
+  })[status ?? "null"];
 
 export const getSubjectDimensionSeverityLabel = (
   severity: SubjectRiskDimension["severity"],
@@ -164,35 +167,41 @@ export function getAvailableCaseActions(auditCase: AuditCase): AuditCaseAction[]
 }
 
 const sameLocalDay = (left: Date, right: Date): boolean =>
-  left.getFullYear() === right.getFullYear()
-  && left.getMonth() === right.getMonth()
-  && left.getDate() === right.getDate();
+  left.getFullYear() === right.getFullYear() &&
+  left.getMonth() === right.getMonth() &&
+  left.getDate() === right.getDate();
 
 export function deriveQueueStats(cases: AuditCase[], now = new Date()): AuditQueueStats {
-  return cases.reduce<AuditQueueStats>((stats, auditCase) => {
-    const displayKey = getAuditDisplayState(auditCase).key;
-    if (displayKey === "AWAITING_REVIEW") stats.awaitingReview += 1;
-    if (displayKey === "PENDING" || displayKey === "RUNNING") stats.processing += 1;
-    if (displayKey === "FAILED" || displayKey === "INTERRUPTED") stats.abnormal += 1;
-    if (
-      displayKey === "COMPLETED"
-      && sameLocalDay(new Date(auditCase.updatedAt), now)
-    ) {
-      stats.completedToday += 1;
-    }
-    return stats;
-  }, { awaitingReview: 0, processing: 0, abnormal: 0, completedToday: 0 });
+  return cases.reduce<AuditQueueStats>(
+    (stats, auditCase) => {
+      const displayKey = getAuditDisplayState(auditCase).key;
+      if (displayKey === "AWAITING_REVIEW") stats.awaitingReview += 1;
+      if (displayKey === "PENDING" || displayKey === "RUNNING") stats.processing += 1;
+      if (displayKey === "FAILED" || displayKey === "INTERRUPTED") stats.abnormal += 1;
+      if (displayKey === "COMPLETED" && sameLocalDay(new Date(auditCase.updatedAt), now)) {
+        stats.completedToday += 1;
+      }
+      return stats;
+    },
+    { awaitingReview: 0, processing: 0, abnormal: 0, completedToday: 0 },
+  );
 }
 
 const matchesLifecycle = (auditCase: AuditCase, filter: AuditLifecycleFilter): boolean => {
   const displayKey = getAuditDisplayState(auditCase).key;
   switch (filter) {
-    case "ALL": return true;
-    case "AWAITING_REVIEW": return displayKey === "AWAITING_REVIEW";
-    case "PROCESSING": return displayKey === "PENDING" || displayKey === "RUNNING";
-    case "COMPLETED": return displayKey === "COMPLETED";
-    case "CANCELLED": return displayKey === "CANCELLED";
-    case "ABNORMAL": return displayKey === "FAILED" || displayKey === "INTERRUPTED";
+    case "ALL":
+      return true;
+    case "AWAITING_REVIEW":
+      return displayKey === "AWAITING_REVIEW";
+    case "PROCESSING":
+      return displayKey === "PENDING" || displayKey === "RUNNING";
+    case "COMPLETED":
+      return displayKey === "COMPLETED";
+    case "CANCELLED":
+      return displayKey === "CANCELLED";
+    case "ABNORMAL":
+      return displayKey === "FAILED" || displayKey === "INTERRUPTED";
   }
 };
 
@@ -207,13 +216,14 @@ export function filterAndSortCases(
       if (!matchesLifecycle(auditCase, filter)) return false;
       if (!normalizedSearch) return true;
       const title = (auditCase.contractTitle ?? "").toLocaleLowerCase();
-      return auditCase.id.toLocaleLowerCase().includes(normalizedSearch)
-        || title.includes(normalizedSearch)
-        || auditCase.sourceRecordId.toLocaleLowerCase().includes(normalizedSearch);
+      return (
+        auditCase.id.toLocaleLowerCase().includes(normalizedSearch) ||
+        title.includes(normalizedSearch) ||
+        auditCase.sourceRecordId.toLocaleLowerCase().includes(normalizedSearch)
+      );
     })
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
 }
 
 /** Compact, stable label for an audit ID: full slug when short, 8-char prefix for UUIDs. */
-export const shortAuditId = (id: string): string =>
-  id.length <= 12 ? id : `${id.slice(0, 8)}…`;
+export const shortAuditId = (id: string): string => (id.length <= 12 ? id : `${id.slice(0, 8)}…`);

@@ -28,7 +28,8 @@ function joinPieces(pieces: Piece[]): string {
   let previous: Piece | null = null;
   for (const piece of pieces) {
     if (previous !== null) {
-      const gap = piece.x - (previous.x + previous.height * Math.max(previous.text.length, 1) * 0.5);
+      const gap =
+        piece.x - (previous.x + previous.height * Math.max(previous.text.length, 1) * 0.5);
       const wide = gap > previous.height * 0.3;
       if (wide && ASCII_EDGE.test(previous.text) && /^[A-Za-z0-9]/u.test(piece.text)) {
         text += " ";
@@ -94,7 +95,10 @@ function toBlocks(lines: Line[], page: number): RawBlock[] {
     const gap = previous === null ? 0 : previous.y - line.y;
     if (previous !== null && (gap > breakThreshold || gap > paragraphGapFloor(previous))) flush();
 
-    if (SECTION_HEADING.test(line.text) || line.text.length <= 20 && /合同书?$/u.test(line.text)) {
+    if (
+      SECTION_HEADING.test(line.text) ||
+      (line.text.length <= 20 && /合同书?$/u.test(line.text))
+    ) {
       flush();
       blocks.push({ text: line.text, kind: "heading", page });
       previous = line;

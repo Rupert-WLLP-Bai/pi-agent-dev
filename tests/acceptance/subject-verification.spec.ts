@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -28,9 +28,7 @@ async function createDemoAudit(page: Page, demoLabel: string) {
  * by the Chinese heading an operator reads, not by their CSS class.
  */
 function section(page: Page, title: string) {
-  return page
-    .getByRole("heading", { name: new RegExp(`^${title}`) })
-    .locator("..");
+  return page.getByRole("heading", { name: new RegExp(`^${title}`) }).locator("..");
 }
 
 test("flags a counterparty with a red-line record and anchors the finding", async ({ page }) => {
@@ -70,18 +68,25 @@ test("flags a counterparty with a red-line record and anchors the finding", asyn
   await expect(external).toContainText("party-2-被执行人");
 });
 
-test("routes an unresolvable counterparty to a human instead of inventing risk", async ({ page }) => {
+test("routes an unresolvable counterparty to a human instead of inventing risk", async ({
+  page,
+}) => {
   await createDemoAudit(page, "备电采购");
 
   // Wait for the case to reach a terminal state — the finding type depends on
   // which deterministic rules fire, so we poll the API rather than text-match.
-  await expect.poll(async () => {
-    const match = page.url().match(/\/audit-cases\/(.+)$/);
-    if (!match) return "NO_URL";
-    const resp = await page.request.get(`/api/audit-cases/${match[1]}`);
-    if (!resp.ok()) return "NO_CASE";
-    return (await resp.json()).case?.status;
-  }, { timeout: 30_000 }).toBe("COMPLETED");
+  await expect
+    .poll(
+      async () => {
+        const match = page.url().match(/\/audit-cases\/(.+)$/);
+        if (!match) return "NO_URL";
+        const resp = await page.request.get(`/api/audit-cases/${match[1]}`);
+        if (!resp.ok()) return "NO_CASE";
+        return (await resp.json()).case?.status;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe("COMPLETED");
 
   // The 乙方 has no organization suffix, so the provider answers ambiguously
   // and hands the decision back to the reviewer.

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -11,7 +11,9 @@ async function assertApiReachable(page: Page) {
 
 /** Numeric KPI read off the cockpit card with the given title. */
 async function readKpi(page: Page, title: string): Promise<number> {
-  const value = page.locator(".kpi-card", { hasText: title }).locator(".ant-statistic-content-value");
+  const value = page
+    .locator(".kpi-card", { hasText: title })
+    .locator(".ant-statistic-content-value");
   await expect(value).toBeVisible();
   const text = await value.innerText();
   return Number(text.replace(/[^0-9]/g, ""));
@@ -65,9 +67,13 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
   // Other workers in this suite also create cases, so the deltas are lower
   // bounds: a constant projection could never grow past its hardcoded value.
   await expect
-    .poll(async () => readKpi(page, "审计案件总量"), { message: "case total should grow by our case" })
+    .poll(async () => readKpi(page, "审计案件总量"), {
+      message: "case total should grow by our case",
+    })
     .toBeGreaterThanOrEqual(totalBefore + 1);
   await expect
-    .poll(async () => readKpi(page, "已确认风险"), { message: "confirmed risks should grow by our review" })
+    .poll(async () => readKpi(page, "已确认风险"), {
+      message: "confirmed risks should grow by our review",
+    })
     .toBeGreaterThanOrEqual(acceptedBefore + 1);
 });

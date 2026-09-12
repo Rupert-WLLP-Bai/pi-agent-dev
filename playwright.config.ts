@@ -10,7 +10,8 @@ const config: Config = {
   // The web server is Vite in dev mode, which compiles routes on first request.
   // Generous per-assertion timeouts keep parallel runs deterministic.
   expect: { timeout: 15_000 },
-  workers: process.env.CI === "true" && process.env.PLAYWRIGHT_REUSE_SERVERS !== "1" ? 4 : undefined,
+  workers:
+    process.env.CI === "true" && process.env.PLAYWRIGHT_REUSE_SERVERS !== "1" ? 4 : undefined,
   webServer: [
     {
       // Run the API directly, not via the `--watch` dev script: a file watcher

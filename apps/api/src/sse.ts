@@ -53,7 +53,11 @@ export function sseResponse(
       controller = streamController;
       try {
         const snapshot = await getCase();
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "snapshot", auditCaseId, snapshot })}\n\n`));
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: "snapshot", auditCaseId, snapshot })}\n\n`,
+          ),
+        );
         unsubscribe = broker.subscribe(auditCaseId, (event) => {
           try {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));

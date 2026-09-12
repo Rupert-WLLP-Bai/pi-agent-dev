@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "noEmit": true,
+    "paths": {
+      "@contract-audit/audit/*": ["./packages/audit/src/*"],
+      "@contract-audit/api/*": ["./apps/api/src/*"]
+    }
+  },
+  "include": [
+    "tests/**/*.ts",
+    "playwright.config.ts",
+    "apps/api/drizzle.config.ts",
+    "apps/web/vite.config.ts"
+  ]
+}

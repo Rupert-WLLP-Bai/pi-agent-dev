@@ -1,6 +1,6 @@
-import { Type } from "@sinclair/typebox";
-import { defineTool } from "@earendil-works/pi-coding-agent";
 import type { AuditSnapshot, EvidenceLocator, FindingProposal } from "@contract-audit/audit/model";
+import { defineTool } from "@earendil-works/pi-coding-agent";
+import { Type } from "@sinclair/typebox";
 
 export function createAuditTools(
   snapshot: AuditSnapshot,
@@ -62,7 +62,10 @@ export function createAuditTools(
           remediation: params.remediation,
         };
         onProposal(proposal);
-        return { content: [{ type: "text", text: '{"accepted":true}' }], details: { accepted: true } };
+        return {
+          content: [{ type: "text", text: '{"accepted":true}' }],
+          details: { accepted: true },
+        };
       },
     }),
   ];

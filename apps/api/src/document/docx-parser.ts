@@ -1,5 +1,5 @@
-import mammoth from "mammoth";
 import type { BlockKind, RawBlock } from "@contract-audit/audit/document-ir";
+import mammoth from "mammoth";
 
 /**
  * Reads a .docx into raw blocks, preserving the structure Word actually

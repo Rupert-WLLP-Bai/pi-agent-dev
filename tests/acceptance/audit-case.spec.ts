@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -61,9 +61,7 @@ test("loads every brand image without a broken or blank brand area", async ({ pa
     const image = brandImages.nth(index);
     await expect(image).toBeVisible();
     // A 200 response is not enough: the decoded image must have real pixels.
-    expect(
-      await image.evaluate((el) => (el as HTMLImageElement).naturalWidth),
-    ).toBeGreaterThan(0);
+    expect(await image.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   }
 
   // The organisation wordmark must render even if the mark is unavailable.

@@ -1,4 +1,3 @@
-import { Card, Col, Row, Statistic, Tag, Typography } from "antd";
 import {
   AuditOutlined,
   FileSearchOutlined,
@@ -6,6 +5,7 @@ import {
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import { goldenSet } from "@contract-audit/audit";
+import { Card, Col, Row, Statistic, Tag, Typography } from "antd";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -44,10 +44,26 @@ const rules = [
 ];
 
 const pipeline = [
-  { step: "1. 文档接入", desc: "docx / pdf / txt 上传 → 统一 IR（Contract Document）", icon: <FileSearchOutlined /> },
-  { step: "2. 确定性规则", desc: "4 条零-LLM 规则并行评估，毫秒级出结果", icon: <ThunderboltOutlined /> },
-  { step: "3. 主体核验", desc: "企查查 35 维风险因子扫描（真实 API / fixture 切换）", icon: <SafetyCertificateOutlined /> },
-  { step: "4. 智能体研判", desc: "Pi Agent 综合规则+主体+证据，产出审计发现", icon: <AuditOutlined /> },
+  {
+    step: "1. 文档接入",
+    desc: "docx / pdf / txt 上传 → 统一 IR（Contract Document）",
+    icon: <FileSearchOutlined />,
+  },
+  {
+    step: "2. 确定性规则",
+    desc: "4 条零-LLM 规则并行评估，毫秒级出结果",
+    icon: <ThunderboltOutlined />,
+  },
+  {
+    step: "3. 主体核验",
+    desc: "企查查 35 维风险因子扫描（真实 API / fixture 切换）",
+    icon: <SafetyCertificateOutlined />,
+  },
+  {
+    step: "4. 智能体研判",
+    desc: "Pi Agent 综合规则+主体+证据，产出审计发现",
+    icon: <AuditOutlined />,
+  },
 ];
 
 export default function DemoPage() {
@@ -104,9 +120,15 @@ export default function DemoPage() {
               style={{ height: "100%", borderColor: "#D9DEE7" }}
               styles={{ body: { padding: 24 } }}
             >
-              <div style={{ fontSize: 32, color: BRAND_PRIMARY, marginBottom: 12 }}>{item.icon}</div>
-              <Text strong style={{ fontSize: 15, color: BRAND_SIDEBAR }}>{item.step}</Text>
-              <Paragraph style={{ marginTop: 8, color: "#667085", marginBottom: 0 }}>{item.desc}</Paragraph>
+              <div style={{ fontSize: 32, color: BRAND_PRIMARY, marginBottom: 12 }}>
+                {item.icon}
+              </div>
+              <Text strong style={{ fontSize: 15, color: BRAND_SIDEBAR }}>
+                {item.step}
+              </Text>
+              <Paragraph style={{ marginTop: 8, color: "#667085", marginBottom: 0 }}>
+                {item.desc}
+              </Paragraph>
             </Card>
           </Col>
         ))}
@@ -123,12 +145,18 @@ export default function DemoPage() {
               style={{ height: "100%", borderColor: "#D9DEE7" }}
               styles={{ body: { padding: 24 } }}
             >
-              <Tag color={rule.color} style={{ marginBottom: 12 }}>{rule.code}</Tag>
+              <Tag color={rule.color} style={{ marginBottom: 12 }}>
+                {rule.code}
+              </Tag>
               <Text strong style={{ display: "block", color: BRAND_SIDEBAR, marginBottom: 8 }}>
                 {rule.name}
               </Text>
-              <Paragraph style={{ color: "#667085", fontSize: 13, marginBottom: 8 }}>{rule.trigger}</Paragraph>
-              <Text code style={{ fontSize: 12 }}>{rule.example}</Text>
+              <Paragraph style={{ color: "#667085", fontSize: 13, marginBottom: 8 }}>
+                {rule.trigger}
+              </Paragraph>
+              <Text code style={{ fontSize: 12 }}>
+                {rule.example}
+              </Text>
             </Card>
           </Col>
         ))}
@@ -156,7 +184,12 @@ export default function DemoPage() {
         </Col>
         <Col xs={12} md={6}>
           <Card styles={{ body: { padding: 24, textAlign: "center" } }}>
-            <Statistic title="混淆矩阵" value={0} suffix="误判" styles={{ value: { color: "#15803d" } }} />
+            <Statistic
+              title="混淆矩阵"
+              value={0}
+              suffix="误判"
+              styles={{ value: { color: "#15803d" } }}
+            />
           </Card>
         </Col>
       </Row>
@@ -168,16 +201,20 @@ export default function DemoPage() {
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
           <Card style={{ height: "100%" }} styles={{ body: { padding: 24 } }}>
-            <Title level={5} style={{ color: BRAND_PRIMARY }}>格式无关的合同 IR</Title>
+            <Title level={5} style={{ color: BRAND_PRIMARY }}>
+              格式无关的合同 IR
+            </Title>
             <Paragraph style={{ color: "#667085" }}>
-              同一份合同不论粘贴文本还是上传 docx/pdf，hash 相同 → 证据身份一致。基于
-              Docling/MinerU 的 middle_json 设计理念，单一 IR 构造点。
+              同一份合同不论粘贴文本还是上传 docx/pdf，hash 相同 → 证据身份一致。基于 Docling/MinerU
+              的 middle_json 设计理念，单一 IR 构造点。
             </Paragraph>
           </Card>
         </Col>
         <Col xs={24} md={8}>
           <Card style={{ height: "100%" }} styles={{ body: { padding: 24 } }}>
-            <Title level={5} style={{ color: BRAND_PRIMARY }}>确定性 + 智能体双层</Title>
+            <Title level={5} style={{ color: BRAND_PRIMARY }}>
+              确定性 + 智能体双层
+            </Title>
             <Paragraph style={{ color: "#667085" }}>
               确定性规则毫秒级出结论（可审计、可复现），智能体综合研判（处理模糊语义）。
               确定性冲突永远优先于 LLM 判断。
@@ -186,10 +223,12 @@ export default function DemoPage() {
         </Col>
         <Col xs={24} md={8}>
           <Card style={{ height: "100%" }} styles={{ body: { padding: 24 } }}>
-            <Title level={5} style={{ color: BRAND_PRIMARY }}>真实企查查集成</Title>
+            <Title level={5} style={{ color: BRAND_PRIMARY }}>
+              真实企查查集成
+            </Title>
             <Paragraph style={{ color: "#667085" }}>
-              直连企查查 MCP API，35 维风险因子实时扫描。fixture/qcc 一键切换，
-              演示时不花 API 额度，评审时连真实数据。
+              直连企查查 MCP API，35 维风险因子实时扫描。fixture/qcc 一键切换， 演示时不花 API
+              额度，评审时连真实数据。
             </Paragraph>
           </Card>
         </Col>
@@ -199,9 +238,13 @@ export default function DemoPage() {
       <div style={{ textAlign: "center", marginTop: 48, marginBottom: 24 }}>
         <Paragraph style={{ color: "#667085" }}>
           <Text strong>现场演示入口：</Text>{" "}
-          <a href="/audit-cases" style={{ color: BRAND_PRIMARY }}>审计工作台</a>
+          <a href="/audit-cases" style={{ color: BRAND_PRIMARY }}>
+            审计工作台
+          </a>
           {" · "}
-          <a href="/dashboard" style={{ color: BRAND_PRIMARY }}>数据仪表盘</a>
+          <a href="/dashboard" style={{ color: BRAND_PRIMARY }}>
+            数据仪表盘
+          </a>
         </Paragraph>
         <Paragraph style={{ color: "#667085", fontSize: 12 }}>
           中国移动 · 黄桷树AI智能体平台 · 合同智能审计智能体

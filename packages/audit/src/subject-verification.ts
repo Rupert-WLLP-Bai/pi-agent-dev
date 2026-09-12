@@ -1,11 +1,6 @@
-import { classifySubjectDimensions, evaluateSubjectRiskRule } from "./subject-rule";
-import type {
-  ContractParty,
-  EvidenceLocator,
-  RuleAssessment,
-  SubjectVerification,
-} from "./model";
+import type { ContractParty, EvidenceLocator, RuleAssessment, SubjectVerification } from "./model";
 import type { SubjectVerificationOutcome, SubjectVerificationPort } from "./ports";
+import { classifySubjectDimensions, evaluateSubjectRiskRule } from "./subject-rule";
 
 /**
  * Runs the subject dimension of one case: resolve each Contract Party against

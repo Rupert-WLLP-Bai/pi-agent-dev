@@ -7,115 +7,82 @@
         {
           "name": "get_actual_controller",
           "summary": "查询企业的实际控制人详情（已完成股权穿透分析的最终控制人结果）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_annual_reports",
           "summary": "查询企业年度报告信息，包括报告年度、统一社会信用代码、注册号、企业经营状态、从业人数、股东股权转让情况、投资信息等。数据更新频率：每年更新，通常在企业完成工商年报公示后同步（一般集中于每年6月前）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_beneficial_owners",
           "summary": "查询企业的受益所有人（UBO）信息。严格依据中国人民银行3、12号令，穿透识别至最终受益自然人。支持反洗钱（AML）合规审查及穿透式监管分析。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_branches",
           "summary": "查询企业的分支机构信息，包括分支机构名称、负责人、地区、成立日期、登记状态。适用于了解企业组织架构的场景。数据更新频率：T+0（国家企业信用信息公示系统）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_change_records",
           "summary": "用于查询企业工商变更记录的聚合入口，覆盖各类变更事项、变更前后内容、变更日期等企业发展变化信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_by_query",
           "summary": "根据用户输入的搜索关键词，对企业当前名称、企业简称、品牌名称、股票简称等维度进行模糊搜索，返回唯一精确匹配（自动锁定）或最多 5 个候选主体清单（人工选定）。适用场景：KYB / AML / IC Memo 等所有风控/…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_profile",
           "summary": "查询企业的简介信息，包括企业名称、简介、企查查行业、产业链概览，适用于企业画像构建、企业业务、产业链分析场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_registration_info",
           "summary": "查询企业的核心登记信息，当用户需要验证企业身份、了解基本概况（如法定代表人、注册资本、成立时间等）时调用。可提供企业名称、统一社会信用代码、法定代表人、注册资本、成立日期、登记状态、注册地址等关键工商登记信息，支持通过企…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_contact_info",
           "summary": "查询企业的联系方式信息，包括电话号码、用途标签、邮箱、企业网站、是否是官网、ICP备案。适用于拓客、获取企业联系方式的场景。数据更新频率：基于公开信息定期更新，部分联系方式可能存在滞后。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_external_investments",
           "summary": "查询企业对外投资信息，包括被投资企业名称、状态、成立日期、持股比例、认缴出资额/持股数。适用于分析企业投资布局的场景。数据更新频率：T+0（国家企业信用信息公示系统）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_financial_data",
           "summary": "用于检索指定企业的核心财务数据，涵盖资产负债、利润表现、营运能力、偿还能力、成长能力及关键财务比率。适用于企业尽调、偿债能力分析、经营效率评估及成长性研判，企业财务快速扫描、信贷初筛、投资快筛、供应商财务健康度核查、多期…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_key_personnel",
           "summary": "用于查询企业主要管理人员信息，包括姓名、职务等高管构成情况。适用于企业管理团队了解、核心人员识别、公司治理结构分析等场景。数据更新频率：T+0（国家企业信用信息公示系统）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_listing_info",
           "summary": "查询企业当前的上市信息（在市），包括上市日期、股票简称、股票代码、上市交易所、总市值、总股本、发行日期、发行量。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_shareholder_info",
           "summary": "用于查询企业一层直接股东构成信息，包括投资人姓名、持股比例、认缴出资额、出资时间等股权结构情况",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_tax_invoice_info",
           "summary": "查询企业的税号开票信息，包括纳税人识别号、企业名称、企业类型、地址、联系电话、开户行、开户行账号。适用于财务开票场景。数据更新频率：定期更新，以工商登记信息为准。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "verify_company_accuracy",
           "summary": "用于核实二要素匹配性：以统一社会信用代码为锚定 · 验证传入的 name 参数（企业名称）与该统一社会信用代码下的企业是否一致",
-          "required": [
-            "searchKey",
-            "name"
-          ]
+          "required": ["searchKey", "name"]
         }
       ]
     },
@@ -125,269 +92,192 @@
         {
           "name": "get_administrative_penalty",
           "summary": "用于查询企业受到的行政处罚记录，包括处罚结果、处罚日期、处罚金额、处罚机关等监管处罚信息。适用于企业合规经营情况评估、违规成本分析、行政处罚查询等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_bankruptcy_reorganization",
           "summary": "用于查询企业破产重整相关信息，包括案号、申请人、被申请人、公开日期等破产程序信息。适用于企业破产风险识别、重整程序跟踪、债权人申请情况了解等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_business_exception",
           "summary": "用于查询企业当前是否被列入经营异常名录（在册记录），包括列入日期、移出原因和决定机关。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_cancellation_record_info",
           "summary": "用于查询企业注销备案情况，包括注销原因、注销日期、公告状态等企业终止经营信息。适用于企业存续状态确认、注销程序了解、经营主体资格查询等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_case_filing_info",
           "summary": "用于查询企业当前涉及的法院立案信息（在册立案 · 未结案），包括案号、案由、立案日期、原被告双方等案件基本信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_chattel_mortgage_info",
           "summary": "查询企业当前动产抵押信息（在册抵押记录），包括登记编号、抵押人、抵押权人、债务人履行债务的期限、被担保主债权数额、状态、登记日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_related_risk_scan",
           "summary": "一次扫描企业直接关联方风险，返回全维度计数汇总+7个重点维度命中关联方定位，用于关联传导风险预警。关联方=股东(5%+)/对外投资(5%+)/分公司/法定代表人/主要人员/实控人/受益人·直接关联。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_risk_scan",
           "summary": "一次性扫描企业 35 项风险因子并返回各因子命中条目数（失信、被执行、裁判文书、行政处罚、股权冻结等），用于快速分诊整体风险面、定位需下钻维度。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_court_notice",
           "summary": "用于查询企业当前涉及的法院公告信息（在册有效公告），包括公告类型、案由、原告被告信息、刊登日期等司法公告内容。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_default_info",
           "summary": "查询企业债券违约、票据违约、非标资产违约信息，包括债券简称、债券类型、违约状态、首次违约日期、累计违约本金、累计违约利息、到期日期。适用于债券投资风险分析场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_disciplinary_list",
           "summary": "查询企业惩戒名单信息，包括类型、惩戒名单领域、列入原因、列入机关、列入日期。适用于信用评估场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_dishonest_info",
           "summary": "用于查询企业当前失信信息（在册失信被执行人记录），包括失信被执行人名称、涉案金额、执行法院、立案日期、发布日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_environmental_penalty",
           "summary": "用于查询企业当前受到的环保行政处罚（在册处罚记录），包括处罚结果、处罚日期、处罚单位、处罚金额等环境违法信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_equity_freeze",
           "summary": "用于查询企业当前股权被司法冻结的情况（在册冻结记录），包括被冻结股权数额、冻结期限、执行法院等股权受限信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_equity_pledge_info",
           "summary": "用于查询企业当前股权出质情况（在册出质记录），包括出质人、质权人、出质股权数额、登记日期、出质状态等股权融资信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_exit_restriction",
           "summary": "查询企业相关人员被法院限制出境的情况（企业维度统计）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_guarantee_info",
           "summary": "查询企业担保信息，包括担保方、被担保方、担保方式、担保金额、履行状态、公告日期。适用于评估企业担保风险场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_hearing_notice",
           "summary": "用于查询企业当前作为当事人的开庭公告信息（在册未审 / 待审），包括案号、案由、开庭时间、当事人身份等庭审排期信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_high_consumption_restriction",
           "summary": "用于查询企业是否存在被法院限制高消费的情况，包括限制法定代表人、申请人、立案日期等执行信息。适用于信用风险评估、合作伙伴风险排查、法律风险预警等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_judgment_debtor_info",
           "summary": "用于查询企业当前作为被执行人的案件信息（在册被执行记录），包括执行标的、立案时间、执行法院等执行程序信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_judicial_auction",
           "summary": "用于查询企业资产被司法拍卖的信息，包括拍卖标题、起拍价、评估价、拍卖时间、处置单位等资产处置情况。适用于企业资产被执行处置了解、司法变现情况跟踪、债权人受偿可能性评估等场景。适用于资产处置分析场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_judicial_document_detail",
           "summary": "按裁判文书列表返回的「文书ID」查询单篇文书全文（结构化分段），返回标题、案号、法院、审理程序、当事人及本院认为、本院查明、判决结果等核心段落，section可选核心裁判/诉辩主张/审理与执行经过/全部，默认核心裁判。仅…",
-          "required": [
-            "searchKey",
-            "documentId"
-          ]
+          "required": ["searchKey", "documentId"]
         },
         {
           "name": "get_judicial_documents",
           "summary": "用于查询企业涉及的法院判决文书，包括文书ID、案件案由、裁判结果、涉案金额、当事人信息等司法判决信息。适用于企业法律纠纷历史分析、诉讼风险评估、判决结果查询等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_land_mortgage_info",
           "summary": "查询企业当前土地抵押信息（在册抵押记录），包括土地坐落、抵押人、抵押权人、抵押起止日期、抵押面积、抵押金额、抵押土地用途。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_liquidation_info",
           "summary": "查询企业清算信息，包括清算组负责人、清算组成员。适用于企业破产或解散清算分析场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_pre_litigation_mediation",
           "summary": "查询企业当前诉前调解记录（在册调解中），包括案号、案由、当事人、法院、立案日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_property_asset_announcement",
           "summary": "查询企业相关的财产悬赏公告，返回案号、被执行人、执行标的金额、未履行金额、执行法院、更新日期。适用场景：资产追踪与追偿分析、风控核查中识别被执行主体尚有未履行债务、供应商/合作方信用背景评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_public_exhortation",
           "summary": "查询企业公示催告信息，包括票据号、申请人、持票人、票面金额、票据类型、发布机关、公告日期。适用于票据遗失等法律程序查询场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_serious_violation",
           "summary": "查询企业当前是否被列入严重违法失信名单（在册记录）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_service_announcement",
           "summary": "查询企业涉及的劳动仲裁开庭公告和送达公告，包括仲裁案号、申请人、被申请人及公告发布日期。适用于企业劳动纠纷监控、劳动仲裁程序跟踪及用工风险排查场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_service_notice",
           "summary": "查询企业当前相关送达公告（在册有效送达），包括案号、案由、当事人、法院、发布日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_simple_cancellation_info",
           "summary": "用于查询企业简易注销相关信息，包括公告期、注销结果、登记机关等简化注销程序情况。适用于企业注销程序了解、简易注销适用情况确认、市场主体退出机制跟踪等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_stock_pledge_info",
           "summary": "查询企业股权质押信息（上市公司角度），包括质押人、质押人参股企业、质押权人、质押股份总数、质押股份市值、状态、公告日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_tax_abnormal",
           "summary": "查询企业税务非正常户记录。适用于企业税务合规性扫描、税务黑名单核查及合作伙伴财务风险预警场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_tax_arrears_notice",
           "summary": "用于查询企业当前生效的欠税公告，包括欠税税种、欠税金额、公告发布机关、相关日期等税务欠款信息。适用于企业纳税信用评估、税务风险判断、欠税情况跟踪等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_tax_violation",
           "summary": "用于查询企业税收违法信息，包括案件性质、所属税务机关、发布日期等税务违法情况。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_terminated_cases",
           "summary": "用于查询企业当前涉及的终结本次执行程序案件信息（在册终本记录），包括终本日期、执行标的、未履行金额等执行终结情况。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_valuation_inquiry",
           "summary": "查询企业资产询价评估信息，包括案号、标的物、所有人、当事人、询价结果、法院、发布日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         }
       ]
     },
@@ -397,128 +287,92 @@
         {
           "name": "get_app_info",
           "summary": "查询企业相关APP的基本信息，返回APP名称、下载量级、iOS最新版本、安卓最新版本。适用场景：互联网企业产品矩阵分析、移动端业务规模评估、竞品分析及市场研究。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_commercial_franchise",
           "summary": "查询企业的商业特许经营备案信息，返回备案公告日期、特许人名称及备案号。适用场景：加盟连锁品牌资质核查、特许经营合规背景调查、连锁项目投资前的合规验证。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_copyright_work_info",
           "summary": "查询企业作品著作权信息。适用于文创资产价值评估、版权保护现状分析及内容产业背调场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_douyin_account",
           "summary": "查询企业相关的抖音账号信息，返回头像、抖音昵称、账号及简介。适用场景：企业抖音短视频平台运营能力评估、品牌数字化矩阵分析、竞品账号信息核查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_integrated_circuit_layout",
           "summary": "查询企业的集成电路布图设计登记信息，返回布图设计名称、登记号、申请日期、公告日期、公告号及布图设计创作人。适用场景：半导体/芯片企业知识产权能力评估、投资前技术资产核查、集成电路行业竞争格局分析。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_international_patent",
           "summary": "查询企业的国际专利信息，返回发明名称、法律状态、申请号、申请日期、公开（公告）号、公开（公告）日期及发明人。适用场景：企业全球知识产权布局分析、竞争对手技术护城河评估、跨境并购尽调中的技术资产核查、海外业务知识产权风险识…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_internet_service_info",
           "summary": "查询企业当前有效的网站ICP备案、APP备案、小程序备案、算法备案信息，包括名称、备案号、许可证号、审核日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_ipr_pledge",
           "summary": "用于查询企业知识产权出质记录，包括出质知产类型、名称、商标/专利类型、出质公告日、出质期限。适用于企业知产融资分析、无形资产负担核查、科创企业尽职调查等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_kuaishou_account",
           "summary": "查询企业相关的快手账号信息，快手昵称、账号及简介。适用场景：企业快手短视频平台运营能力评估、品牌数字化矩阵分析、竞品账号信息核查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_mini_program",
           "summary": "查询企业相关的微信小程序信息，返回小程序名称及小程序类型。适用场景：企业数字化业务布局分析、微信生态运营能力评估、竞品小程序矩阵了解。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_online_store",
           "summary": "查询企业相关的线上电商店铺信息，返回店铺名称及平台渠道。适用场景：电商渠道分析、品牌在主流电商平台的开店情况核查、零售企业数字化运营评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_patent_info",
           "summary": "查询企业当前有效专利信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_software_copyright_info",
           "summary": "查询企业的软件著作权信息，包括软件名称、软件简称、登记号、版本号、登记日期、权利取得方式。适用于知识产权保护场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_standard_info",
           "summary": "查询企业参与制定的各类标准。适用于评估企业行业影响力、技术领先地位及标准化合规核查场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_trademark_document",
           "summary": "查询企业相关的商标评审文书信息，返回商标文书号、申请人、申请人委托代理人、被申请人、被申请人委托代理人、文书类型及公布日期。适用场景：商标权属争议评估、品牌法律风险核查、知识产权诉讼背景调查、企业商标维权历史分析。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_trademark_info",
           "summary": "查询企业当前有效商标注册信息。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_wechat_official_account",
           "summary": "查询企业相关的微信公众号信息，返回公众号名称、微信号、账号类型及简介。适用场景：企业新媒体运营能力评估、品牌数字化矩阵分析、公众号认证主体核实。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_weibo_account",
           "summary": "查询企业相关的微博账号信息，返回微博昵称及简介。适用场景：企业社交媒体存在感分析、品牌微博运营情况评估、公关危机前企业社交媒体矩阵摸底。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         }
       ]
     },
@@ -528,247 +382,177 @@
         {
           "name": "get_administrative_license",
           "summary": "查询企业行政许可信息。适用于企业合法经营资质核查、业务准入资格审查及合规性分析场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_advertising_review",
           "summary": "查询企业相关产品的广告审查批准信息，返回广告批准文号、产品名称、批准文号/注册号、所属类别、广告审查机关及广告审查日期。适用场景：医药、保健品等特殊行业广告合规核查、媒体投放前广告资质验证、监管合规背景评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_asset_auction",
           "summary": "查询企业相关的资产拍卖信息，返回拍卖标题、起拍价、竞拍时间、结束时间及处置单位。适用场景：企业资产处置风险识别、法拍资产信息获取、资产交易投资机会分析。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_bidding_info",
           "summary": "用于查询企业参与的招投标项目信息，包括项目名称、中标情况、项目金额、招标单位等市场活动信息。适用于企业业务拓展情况分析、市场份额评估、竞争对手中标情况了解等场景。数据更新频率：T+0（聚合全国各级公共资源交易平台数据）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_company_announcement",
           "summary": "查询企业发布的各类公告。适用于追踪上市企业重大动态、披露信息核查及企业信息透明度评估场景。数据更新频率：T+0（沪深港等交易所公告系统）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_counterfeit_cosmetics",
           "summary": "查询企业涉及的假冒化妆品公告信息，返回产品名称、规格、生产商、授权商、运营单位及公告时间。适用场景：化妆品行业渠道合规评估、品牌方识别未授权假冒产品、化妆品经销商资质核查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_credit_commitments",
           "summary": "查询企业向监管机构或社会做出的公开信用承诺记录，返回编码、类型、承诺事由、承诺作出日期、履行状态及受理单位。适用场景：企业合规诚信度评估、审查企业是否参与告知承诺制审批、识别存在违约失信风险的承诺主体。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_credit_evaluation",
           "summary": "查询企业由政府监管机构出具的官方信用评级，包括国家税务总局的纳税信用等级及海关总署的海关信用等级（高级认证/一般认证等），含评价年度和评价单位。适用于企业税务合规性核查、海关资质评估、供应商信用背调及政府采购资格审查场景…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_entry_denied",
           "summary": "查询企业相关产品未获准入境的通报记录，返回产品名称、产品类型、生产企业信息/品牌、数量/重量、原因、进境口岸、报送时间及发布日期。适用场景：进出口企业合规风险核查、供应链质量评估、外资企业入华合规筛查、采购前供应商品质背…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_financing_lease_info",
           "summary": "查询企业融资租赁登记记录，支持承租方和出租方两个视角查询。返回字段包括承租人、出租人、登记证明编号、登记日期、租赁财产价值、登记期限、登记状态、登记到期日。适用于了解企业通过融资租赁方式进行融资的情况、了解企业开展融资租…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_financing_records",
           "summary": "查询企业融资信息，包括创投融资、上市融资、增发融资。适用于追踪企业成长轨迹、投融资历史分析及市场认可度评估场景。数据更新频率：实时监控公开披露与主流媒体报道。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_food_safety",
           "summary": "查询企业相关的食品安全抽检信息，返回食品名称、抽检次数、被抽检企业、标称生产企业、标称生产企业地址、规格型号、生产日期/批号及抽检结果。适用场景：食品行业供应商准入质量评估、食品企业合规背景核查、商超采购商对供货商资质评…",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_game_approval",
           "summary": "查询企业相关游戏产品的审批版号信息，返回名称、申报类别、审批类型、运营单位、出版单位、文号、出版物号及批准时间。适用场景：游戏行业合规核查、投资游戏企业前的版号核实、游戏渠道商确认合作产品资质。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_government_announcement",
           "summary": "查询与企业相关的政府部门公告信息，返回公告标题、发布机构、发布日期、公告类型。适用场景：政策影响分析、企业涉及政府监管公告的快速检索、招标合规项目审批信息跟踪。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_government_interview",
           "summary": "查询企业被政府部门约谈的相关信息，返回新闻标题、约谈问题、约谈机关、约谈日期及发布日期。适用场景：企业合规监管风险跟踪、供应商准入前的监管风险评估、识别曾被监管部门重点关注的企业。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_honor_info",
           "summary": "查询企业当前获得的荣誉信息（仍有效），包括名称、荣誉类型、级别、认证年份、发布日期、发布单位。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_import_export_credit",
           "summary": "查询企业进出口信用信息，包括统一社会信用代码、所在地海关、行政区划、地址、经济区划、经营类别、统计经济区划、行业种类、跨境贸易电子商务类型、信用等级、备案日期。适用于国际贸易合作评估场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_investment_institution",
           "summary": "查询企业的投资机构基本信息，返回投资机构名称、机构类型、总部地区、成立年份、管理资金规模。适用场景：创业企业了解潜在投资人背景、投融资市场分析、投资机构画像评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_land_grant_info",
           "summary": "查询企业参与国有土地使用权受让信息。返回信息包括土地位置、土地面积、成交价格、土地用途、发布/批准单位、发布/签订日期。适用于评估企业土地资产规模、核查固定资产投入、了解区域扩张布局等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_land_transfer_info",
           "summary": "查询企业作的土地转让记录。返回信息包括土地位置、土地面积、转让价格、土地用途、原土地使用权人、现土地使用权人、成交日期。适用于追踪土地资产流转历史、识别关联主体间土地交易、评估企业土地处置行为等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_news_sentiment",
           "summary": "用于查询企业相关的新闻报道和舆情信息，包括新闻标题、发布时间和情感倾向时使用。适用于企业声誉监控、品牌形象分析、危机公关预警、媒体关注度评估、企业重大事项跟踪场景。数据更新频率：T+0。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_private_fund_manager",
           "summary": "查询企业的私募基金管理人登记信息，返回私募基金管理人名称、登记编号、登记日期、机构类型、管理规模区间及管理基金数。适用场景：私募基金管理人资质核查、金融机构合作前背景尽调、投资机构规模与类型识别。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_product_recall",
           "summary": "查询企业涉及的产品召回信息，返回召回产品、召回企业及发布日期。适用场景：产品质量安全风险评估、消费品企业供应链准入核查、品牌声誉背调。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_product_spot_check",
           "summary": "查询企业的产品抽查结果信息，返回产品名称、规格型号、生产日期/批号、生产单位、经营单位、抽查/公告时间及抽查结果。适用场景：产品质量合规风险核查、供应商准入质量评估、制造企业行业监管背景调查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_property_rights_transaction",
           "summary": "查询企业参与的产权交易挂牌信息，返回标的名称、交易类型、公告类型、交易价格、标的企业、转让/处置方、日期。适用场景：并购尽调中了解目标企业资产处置历史、资产重组分析、国资企业产权转让合规核查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_qualifications",
           "summary": "用于查询企业获得的各类资质证书信息，包括证书类型、等级、有效期、证书状态等资质情况时使用。适用于企业专业能力评估、行业准入资格确认、资质有效性检查等场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_random_check",
           "summary": "用于查询企业当前已完成的双随机抽查记录，包括计划编号、计划名称、任务编号、任务名称、抽查类型、抽查机关、完成日期。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_ranking_list_info",
           "summary": "查询企业上榜的各类榜单信息，包括榜单名称、榜内排名、来源、榜单类型、榜内名称、发布日期。适用于资本运作分析场景。数据更新频率：定期更新（随各榜单发布周期）。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_recruitment_info",
           "summary": "查询企业招聘信息，包括发布日期、招聘职位、月薪、学历、经验、办公地点。适用于企业人才需求分析场景。数据更新频率：T+0。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_related_announcement",
           "summary": "查询企业相关的证券类公告信息，返回公告标题、公告类型、证券类型、证券简称/代码及日期。适用场景：上市企业信息披露跟踪、证券类重大事项监控、投资决策前的公告信息核查。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_software_violation",
           "summary": "查询企业相关软件APP等的违规通报信息，返回应用名称、版本号、所涉问题、数据来源及发布日期。适用场景：互联网企业软件合规评估、数据安全隐私合规核查、供应链中软件服务商资质评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_spot_check_info",
           "summary": "查询企业当前抽查检查记录，包括检查实施机关、类型、日期、结果。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_taxpayer_qualification",
           "summary": "查询企业的增值税纳税人资质信息，返回纳税人识别号、纳税人资格类型、主管税务机关、有效期起、有效期止及状态。适用场景：采购商确认供应商开具增值税专用发票资质、合同签订前税务资质核查、税务合规尽调。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_tech_achievement",
           "summary": "查询企业的科技成果登记信息，返回成果名称、登记号、完成单位、登记单位、登记日期。适用场景：企业技术创新能力评估、科技型企业资质核查、高新技术企业认定背景分析、科研院校产学研合作评估。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         },
         {
           "name": "get_telecom_license",
           "summary": "查询企业电信业务经营许可信息，包括许可证号、业务分类、业务种类、覆盖范围、是否有效。适用于企业合规性评估场景。",
-          "required": [
-            "searchKey"
-          ]
+          "required": ["searchKey"]
         }
       ]
     },
@@ -782,354 +566,222 @@
         {
           "name": "get_executive_admin_penalty",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前行政处罚记录，包括决定文书号、处罚结果、处罚金额、处罚单位、处罚日期，适用于法代/高管候选人入职背调中核查个人监管处罚记录、授信申请中评估关键人员的个人合规风险、识别…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_beneficial_owner",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员作为最终受益人的企业列表，基于央行受益所有人识别标准，返回受益股份比例、受益类型、任职类型。适用于反洗钱/KYC核查：识别企业背后的最终自然人受益所有人、合规尽调：符合央…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_case_filing",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的法院立案信息（在册立案 · 未结案），包括案号、立案日期、当事人、法院名称等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_controlled_companies",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前实际控制的企业列表，包括控制企业名称、登记状态、成立日期、所属地区、所属行业及投资比例。适用于实际控制人核查：识别目标人员通过资本控制的企业范围、资本版图分析：了解目…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_court_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的法院公告信息（在册有效公告），包括公告类型、案号、案由、执行法院、公布日期、原被告信息等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_dishonest",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前是否存在失信被执行人记录，包括案号、执行法院、涉案金额等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_equity_freeze",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员名下股权当前是否被司法冻结，包括股权数额、执行法院、通知文书号、冻结状态及期限等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_equity_pledge",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员名下当前股权出质情况，包括质权登记编号、出质人、质权人、出质股权数额、登记日期及状态等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_exit_restriction",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标董监高自然人是否被法院限制出境，包括案号、限制出境对象、被执行人信息、执行标的金额等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_hearing_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的开庭公告信息（在册未审 / 待审），包括案号、案由、开庭日期、当事人信息等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_high_consumption_ban",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前是否被法院限制高消费，包括案号、限制令对象、关联对象、立案日期、申请人等。适用于合作方关键人物风险排查，确认是否存在出行/消费限制、合同签约前的个人信用核验、高价值业…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_admin_penalty",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史行政处罚记录已解除/过期，包括处罚当事人、违法事实、处罚单位、处罚日期，适用于法代/高管候选人入职背调中核查个人监管处罚记录、授信申请中评估关键人员的个人合规风险、识…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_case_filing",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史立案信息，仅返回已结案或已撤案的立案记录。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_court_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史法院公告记录，返回与该人员相关的已过期历史法院公告。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_dishonest",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾被列入失信被执行人名单已移出的记录，包括案号、执行法院、涉案金额等，用于个人深度背调。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_equity_freeze",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史股权冻结记录，仅返回已解冻或已到期的冻结记录。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_equity_pledge",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史股权出质记录，仅返回已注销或已到期的出质记录。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_hearing_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史开庭公告记录，仅返回已开庭完毕的历史公告。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_high_consumption_ban",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾被限制高消费已解除的记录，包括案号、限制令对象、关联对象、立案日期等，用于关键人物历史信用修复识别。适用于关键人物历史信用修复识别、个人深度背调中的历史行动限制核…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_investments",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾持有但已退出的对外投资记录，包括被投资企业名称、注册资本、持股起止时间等。适用于关键人物历史投资布局分析、关联企业穿透核查，识别已解除的隐性关联方、评估关键人物是…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_judgment_debtor",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾作为被执行人的案件记录（已结案或已履行），包括案号、被执行人、执行标的、执行法院、立案日期。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_judicial_docs",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史裁判文书记录，包括文书ID、文书标题、案号、当事人、案件金额、裁判日期、发布日期，适用于追溯个人历史涉诉判决记录，评估历史司法纠纷严重程度、配合历史立案、历史开庭公告…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_legal_rep_roles",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾担任法定代表人的企业列表，包括企业名称、注册资本、地区、企业状态、担任起止时间等。适用于关键人物历史履职经历核查，了解担任法定代表人的企业数量与分布、多企业关联分…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_partners",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史合作伙伴记录，返回该人员历史上曾有业务往来但已终止的合作企业，适用于追溯该人员历史商业关系网络。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_positions",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史上曾在其他企业任职已离职的记录，包括曾任职企业名称、职位、任职起止时间、行业等。适用于关键人物完整职业履历核查，还原完整职业轨迹、跨企业关联关系分析、招聘背调中核查候…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_pre_litigation_mediation",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史诉前调解记录（已结案），包括案号、案由、当事人、法院、立案日期。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_related_companies",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史全部关联企业，汇聚该人员历史上曾担任法代、股东、高管或进行投资的所有企业已退出/卸任，适用于全面梳理个人历史商业版图，了解其过往控制/参与企业、识别通过历史关联企业传…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_service_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史司法送达公告记录，返回已结案的历史法律文书送达公告。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_historical_terminated_cases",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员历史终本案件记录，仅返回已移出终本名单的历史记录。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_investments",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前对外投资情况，同时返回直接投资和间接投资两个维度的完整数据。直接投资含持股比例与持股起止时间；间接投资含间接持股比例。适用于资本版图穿透：全面了解目标人员直接+间接控…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_judgment_debtor",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前是否作为被执行人，包括案号、执行标的、执行法院、立案时间等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_judicial_docs",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员涉及的司法裁判文书，包括文书ID、文书标题、案号、案件金额等。适用于个人历史司法纠纷梳理，了解关键人物法律纠纷全貌、深度尽调中的关键人物法律风险评估、评估个人历史诉讼败诉…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_legal_rep_roles",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前正在担任法定代表人的企业列表，包括企业名称、登记状态、持股比例、担任法定代表人起止时间、注册资本、地区及行业。适用于法定代表人责任核查：确认目标人员当前在哪些企业承担…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_positions",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前在外担任职务的企业列表，包括职位名称、任职起止时间、企业登记状态、注册资本、地区及行业。适用于兼职任职核查：识别目标人员在多家企业同时担任高管职务的情况、竞业违规排查…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_pre_litigation_mediation",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的诉前调解记录，包括案号、案由、当事人、法院、立案日期。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_property_reward_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员相关财产悬赏公告记录，包括发布法院、案号、更新日期，适用于核查个人是否存在法院财产悬赏公告，识别严重失信被执行人、配合失信、被执行、终本案件工具识别极高风险个人、尽调中识…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_related_companies",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前全部关联企业，涵盖其以股东、法定代表人、高管等任意角色关联的所有企业，包括企业名称、登记状态、关联角色、持股比例、注册资本、成立日期、地区及行业。适用于关联企业全景图…",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_related_risk_scan",
           "summary": "以「企业名称+人员姓名」双锚，扫描指定董监高/法代/实控人的关联企业（其任法代/董监高/投资/控制的企业·直接关联）风险，返回全维度计数汇总+7个重点维度命中关联企业，用于关键人关联传导预警。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_risk_scan",
           "summary": "以「企业名称+人员姓名」双参数强锚定，一次扫描指定董监高/法代/实控人名下 18 项个人风险维度并返回各维度命中数（失信、被执行、限高、限出境、裁判文书等），快速分诊、定位需下钻维度。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_service_notice",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的法律文书送达公告（在册有效送达），包括案号、当事人、法院、发布日期等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_stock_pledge",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标董监高自然人上市公司股东股权质押情况，包括质押人、参股企业、质押股份总数、质押市值、状态等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_tax_violation",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标董监高自然人税收违法记录，包括违法类型、违法金额、处理机关及处理结果，",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_terminated_cases",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标人员当前涉及的终结本次执行程序案件，包括案号、执行法院、终本日期、执行标的及未履行金额等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         },
         {
           "name": "get_executive_valuation_inquiry",
           "summary": "以企业名称+人员姓名双参数实体强锚定，查询目标董监高自然人涉及的资产询价评估记录，包括案号、财产名称、法院名称、发布日期、询价结果等。",
-          "required": [
-            "searchKey",
-            "personName"
-          ]
+          "required": ["searchKey", "personName"]
         }
       ]
     },
@@ -1144,23 +796,17 @@
         {
           "name": "get_legal_article_search",
           "summary": "用户能给出条文中的字面关键词、但不确定出自哪部法/第几条时使用（如凭「正当防卫」「不可抗力」等词定位条文）：按关键词在法条库中精确匹配，返回法条列表（法规名称+条号+整条正文）。",
-          "required": [
-            "keyword"
-          ]
+          "required": ["keyword"]
         },
         {
           "name": "get_legal_article_semantic_search",
           "summary": "用户以自然语言提出法律问题、描述案情或业务情形、需要查找法条依据时使用（如「员工拒绝调岗能否解除合同」「有哪些法律依据」）：按语义在法条库中召回相关法条，返回法条级结果（所属法规名+条号+整条正文），按相关度排序。问题式…",
-          "required": [
-            "query"
-          ]
+          "required": ["query"]
         },
         {
           "name": "get_legal_citation_verify",
           "summary": "用户要求核验、校验一段文本中的法条引用是否真实有效，AI 生成的法律内容需在交付前核查引用，或需为文中法条引用批量生成可点击超链时使用：对自由文本/Markdown（≤5 万字）自动识别法规与法条引用，逐条回库校验并归一…",
-          "required": [
-            "text"
-          ]
+          "required": ["text"]
         },
         {
           "name": "get_legal_regulation_detail",
@@ -1195,9 +841,7 @@
         {
           "name": "get_judicial_citation_verify",
           "summary": "用户要求核验、校验一段文本中的案号是否真实存在，AI 生成的法律内容需在交付前核查案号，或需为文中案号批量生成可点击超链时使用：对自由文本/Markdown（≤5 万字）自动识别案号引用，逐条回库校验，返回标准案号、法院…",
-          "required": [
-            "text"
-          ]
+          "required": ["text"]
         }
       ]
     },
@@ -1207,16 +851,12 @@
         {
           "name": "get_proposed_project_detail",
           "summary": "按拟建项目 ID 获取单个拟建项目完整详情，含基本信息、投资与周期、参与单位、审批记录与正文。",
-          "required": [
-            "id"
-          ]
+          "required": ["id"]
         },
         {
           "name": "get_tender_detail",
           "summary": "按标讯 ID 获取单条招投标公告的完整详情，包含基本信息、金额信息、时间节点、参与单位、联系人与正文。",
-          "required": [
-            "id"
-          ]
+          "required": ["id"]
         },
         {
           "name": "search_companies",
@@ -1226,9 +866,7 @@
         {
           "name": "search_company_tenders",
           "summary": "以某企业为主体，检索其相关的招投标标讯，可按角色视角（招采方/中标方/代理方/投标方/被提及）、关键词、信息类型、公告子状态、地区、时间过滤，返回带「企业角色」的分页标讯列表。",
-          "required": [
-            "id"
-          ]
+          "required": ["id"]
         },
         {
           "name": "search_proposed_projects",
@@ -1248,9 +886,7 @@
         {
           "name": "get_parse_result",
           "summary": "用于查询 parse_document 已提交任务的状态和解析结果。只有当已有 parse_document 返回的 task_id，或用户要求继续查询/获取某个解析任务结果时使用；不要自行构造 task_id，也不要用…",
-          "required": [
-            "task_id"
-          ]
+          "required": ["task_id"]
         },
         {
           "name": "parse_document",

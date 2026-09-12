@@ -1,4 +1,16 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
+import type {
+  AuditCase,
+  ContractDocument,
+  ContractParty,
+  EvidenceLocator,
+  FindingRevision,
+  PaymentFacts,
+  ReviewDecision,
+  RuleAssessment,
+  Severity,
+  SubjectVerification,
+} from "@contract-audit/audit/model";
 import {
   Alert,
   App as AntApp,
@@ -13,21 +25,9 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
-import type {
-  AuditCase,
-  ContractDocument,
-  ContractParty,
-  EvidenceLocator,
-  FindingRevision,
-  FindingType,
-  PaymentFacts,
-  ReviewDecision,
-  RuleAssessment,
-  Severity,
-  SubjectVerification,
-} from "@contract-audit/audit/model";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type EvidenceSourceGroup,
   evidenceSourceGroupLabels,
   evidenceSourceGroupOrder,
   findingTypeLabels,
@@ -40,7 +40,6 @@ import {
   severityLabels,
   shortAuditId,
   summarizeRuleOutcome,
-  type EvidenceSourceGroup,
 } from "../audit-presentation";
 import type { AuditConnectionState } from "../hooks/use-audit-events";
 import { AuditStateBadge } from "./audit-state-badge";
@@ -121,12 +120,18 @@ const isStale = (expiresAt: string | null): boolean =>
 /* ── Document rendering ─────────────────────── */
 
 function isHeading(text: string): boolean {
-  return /^第[一二三四五六七八九十]+[章节条]/.test(text.trim())
-    || text.trim().startsWith("甲方") && text.trim().endsWith("乙方");
+  return (
+    /^第[一二三四五六七八九十]+[章节条]/.test(text.trim()) ||
+    (text.trim().startsWith("甲方") && text.trim().endsWith("乙方"))
+  );
 }
 
-function renderDocumentBlocks(document: ContractDocument, selectedBlockId: string | null, problemBlockIds: Set<string>) {
-  return document.blocks.map((block, index) => {
+function renderDocumentBlocks(
+  document: ContractDocument,
+  selectedBlockId: string | null,
+  problemBlockIds: Set<string>,
+) {
+  return document.blocks.map((block) => {
     const isHeadingBlock = isHeading(block.text);
     const isSelected = selectedBlockId === block.blockId;
     const hasProblem = problemBlockIds.has(block.blockId);
@@ -153,20 +158,25 @@ function FindingListItem({
   const sev = finding.proposal.severity;
   const reviewed = finding.review !== null;
   return (
-    <div className={`finding-item ${active ? "active" : ""}`} onClick={onClick}>
+    <button type="button" className={`finding-item ${active ? "active" : ""}`} onClick={onClick}>
       <div className="f-top">
         <span className={`sev-badge ${sev.toLowerCase()}`}>{severityLabels[sev]}</span>
         {reviewed && finding.review ? (
-          <Tag color={finding.review.decision === "ACCEPTED" ? "red" : "green"} style={{ fontSize: 10, margin: 0 }}>
+          <Tag
+            color={finding.review.decision === "ACCEPTED" ? "red" : "green"}
+            style={{ fontSize: 10, margin: 0 }}
+          >
             {decisionLabels[finding.review.decision]}
           </Tag>
         ) : (
-          <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>待复核</Tag>
+          <Tag color="orange" style={{ fontSize: 10, margin: 0 }}>
+            待复核
+          </Tag>
         )}
       </div>
       <div className="f-title">{findingTypeLabels[finding.proposal.findingType]}</div>
       <div className="f-loc">证据 {finding.proposal.evidenceIds.length} 条</div>
-    </div>
+    </button>
   );
 }
 
@@ -193,15 +203,21 @@ function SubjectVerificationItem({
   const backgroundCount = settledDimensions.filter(
     (dimension) => dimension.severity === "BACKGROUND" && dimension.count > 0,
   ).length;
-  const statusColor = status === "RESOLVED" ? "green"
-    : status === "AMBIGUOUS" ? "orange"
-      : status === "UNRESOLVED" ? "red"
-        : "default";
+  const statusColor =
+    status === "RESOLVED"
+      ? "green"
+      : status === "AMBIGUOUS"
+        ? "orange"
+        : status === "UNRESOLVED"
+          ? "red"
+          : "default";
 
   return (
     <div className="subject-item">
       <div className="subject-head">
-        <b>{party.label} · {party.name}</b>
+        <b>
+          {party.label} · {party.name}
+        </b>
         <Tag color={statusColor} style={{ fontSize: 10, margin: 0 }}>
           {getSubjectStatusLabel(status)}
         </Tag>
@@ -209,8 +225,12 @@ function SubjectVerificationItem({
 
       {matched && (
         <div className="subject-meta">
-          <span>主体 <b>{matched.name}</b></span>
-          <span>统一社会信用代码 <span className="mono">{matched.unifiedSocialCreditCode}</span></span>
+          <span>
+            主体 <b>{matched.name}</b>
+          </span>
+          <span>
+            统一社会信用代码 <span className="mono">{matched.unifiedSocialCreditCode}</span>
+          </span>
           <span>登记状态 {matched.registrationStatus}</span>
         </div>
       )}
@@ -242,12 +262,19 @@ function SubjectVerificationItem({
                 value={candidate.unifiedSocialCreditCode}
               >
                 <span className="subject-candidate-name">{candidate.name}</span>
-                <span className="mono subject-candidate-uscc">{candidate.unifiedSocialCreditCode}</span>
+                <span className="mono subject-candidate-uscc">
+                  {candidate.unifiedSocialCreditCode}
+                </span>
                 <span className="subject-candidate-reg">{candidate.registrationStatus}</span>
               </Radio>
             ))}
           </Radio.Group>
-          <Button size="small" type="primary" disabled={selectedCandidate === null} onClick={onConfirm}>
+          <Button
+            size="small"
+            type="primary"
+            disabled={selectedCandidate === null}
+            onClick={onConfirm}
+          >
             确认主体
           </Button>
         </div>
@@ -255,7 +282,9 @@ function SubjectVerificationItem({
 
       {verification?.status === "UNAVAILABLE" && (
         <div className="subject-failure">
-          <Tag color="default" style={{ fontSize: 10, margin: 0 }}>能力降级</Tag>
+          <Tag color="default" style={{ fontSize: 10, margin: 0 }}>
+            能力降级
+          </Tag>
           <span>{verification.failureReason ?? "核验来源不可用"}</span>
         </div>
       )}
@@ -328,13 +357,18 @@ function InspectorPanel({
         <div className="inspect-section">
           <h4>违反规则 ({ruleAssessments.length})</h4>
           {ruleAssessments.length === 0 ? (
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>暂无规则评估</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              暂无规则评估
+            </Typography.Text>
           ) : (
             ruleAssessments.map((assessment) => (
               <div key={assessment.id} className="rule-card">
                 <div className="row">
                   <b>{getRuleCodeLabel(assessment.ruleCode)}</b>
-                  <Tag color={dispositionColors[assessment.disposition]} style={{ fontSize: 10, margin: 0 }}>
+                  <Tag
+                    color={dispositionColors[assessment.disposition]}
+                    style={{ fontSize: 10, margin: 0 }}
+                  >
                     {getRuleDispositionLabel(assessment.disposition)}
                   </Tag>
                 </div>
@@ -348,7 +382,9 @@ function InspectorPanel({
         <div className="inspect-section">
           <h4>主体核验 ({parties.length})</h4>
           {parties.length === 0 ? (
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>未识别到合同当事人</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              未识别到合同当事人
+            </Typography.Text>
           ) : (
             <div className="subject-panel">
               {parties.map((party) => (
@@ -366,7 +402,9 @@ function InspectorPanel({
         <div className="inspect-section">
           <h4>证据来源 ({citedEvidence.length})</h4>
           {citedEvidence.length === 0 ? (
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>暂无关联证据</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              暂无关联证据
+            </Typography.Text>
           ) : (
             evidenceSourceGroupOrder.map((group) => {
               const items = citedEvidence.filter((locator) => evidenceGroupFor(locator) === group);
@@ -383,13 +421,18 @@ function InspectorPanel({
                       <div key={locator.id} className="source-item">
                         {locator.location.kind === "EXTERNAL_RECORD" ? (
                           <>
-                            <strong>{shortAuditId(locator.id)} · {locator.location.recordType}</strong>
+                            <strong>
+                              {shortAuditId(locator.id)} · {locator.location.recordType}
+                            </strong>
                             <div className="source-meta">
                               <span>提供方 {locator.location.provider}</span>
                               <span>主体 {locator.location.subject}</span>
                               <span>采集 {formatTime(locator.location.capturedAt)}</span>
                               <span>
-                                有效期至 {locator.location.expiresAt ? formatTime(locator.location.expiresAt) : "长期"}
+                                有效期至{" "}
+                                {locator.location.expiresAt
+                                  ? formatTime(locator.location.expiresAt)
+                                  : "长期"}
                               </span>
                               {isStale(locator.location.expiresAt) && (
                                 <span className="stale-badge">已过期</span>
@@ -401,8 +444,12 @@ function InspectorPanel({
                           </>
                         ) : (
                           <>
-                            <strong>{shortAuditId(locator.id)} · 区块 {locator.location.blockId}</strong>
-                            <div className="source-quote">{locator.location.quotedText.slice(0, 60)}…</div>
+                            <strong>
+                              {shortAuditId(locator.id)} · 区块 {locator.location.blockId}
+                            </strong>
+                            <div className="source-quote">
+                              {locator.location.quotedText.slice(0, 60)}…
+                            </div>
                             <div className="source-meta">
                               <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
                             </div>
@@ -425,8 +472,12 @@ function InspectorPanel({
 
       {review === null ? (
         <div className="inspector-actions">
-          <Button danger onClick={() => onOpenReview("REJECTED")}>判定误报</Button>
-          <Button type="primary" onClick={() => onOpenReview("ACCEPTED")}>确认风险</Button>
+          <Button danger onClick={() => onOpenReview("REJECTED")}>
+            判定误报
+          </Button>
+          <Button type="primary" onClick={() => onOpenReview("ACCEPTED")}>
+            确认风险
+          </Button>
         </div>
       ) : (
         <div className="inspector-actions" style={{ justifyContent: "flex-start" }}>
@@ -457,7 +508,14 @@ export function AuditCaseWorkbench({
   onRetry,
   onBack,
 }: AuditCaseWorkbenchProps) {
-  const { case: auditCase, snapshot, evidence, ruleAssessments, subjectVerifications, findings } = detail;
+  const {
+    case: auditCase,
+    snapshot,
+    evidence,
+    ruleAssessments,
+    subjectVerifications,
+    findings,
+  } = detail;
   const stage = auditCase.stage;
   const failed = stage === "FAILED" || stage === "CANCELLED" || stage === "INTERRUPTED";
   const awaitingReview = stage === "AWAITING_REVIEW";
@@ -500,27 +558,44 @@ export function AuditCaseWorkbench({
   return (
     <article className="review-page">
       <div className="case-banner">
-        <span className="back-link" onClick={onBack}>
+        <button type="button" className="back-link" onClick={onBack}>
           <ArrowLeftOutlined /> 返回审计队列
-        </span>
+        </button>
         <div className="case-title-row">
           <h2>{contractTitle}</h2>
           <div className="case-status">
             <AuditStateBadge auditCase={auditCase} />
-            <Tag color={connection === "connected" ? "blue" : connection === "closed" ? "default" : "orange"} style={{ fontSize: 11 }}>
+            <Tag
+              color={
+                connection === "connected" ? "blue" : connection === "closed" ? "default" : "orange"
+              }
+              style={{ fontSize: 11 }}
+            >
               {connectionLabels[connection]}
             </Tag>
           </div>
         </div>
         <div className="case-meta">
-          <span>审计 ID <b className="mono">{shortAuditId(auditCase.id)}</b>
+          <span>
+            审计 ID <b className="mono">{shortAuditId(auditCase.id)}</b>
             <Tooltip title="复制审计 ID">
-              <Button type="text" size="small" icon={<CopyOutlined />} onClick={() => void navigator.clipboard.writeText(auditCase.id)} />
+              <Button
+                type="text"
+                size="small"
+                icon={<CopyOutlined />}
+                onClick={() => void navigator.clipboard.writeText(auditCase.id)}
+              />
             </Tooltip>
           </span>
-          <span>来源记录 <b className="mono">{auditCase.sourceRecordId.slice(0, 8)}…</b></span>
-          <span>创建时间 <b>{formatTime(auditCase.createdAt)}</b></span>
-          <span>更新时间 <b>{formatTime(auditCase.updatedAt)}</b></span>
+          <span>
+            来源记录 <b className="mono">{auditCase.sourceRecordId.slice(0, 8)}…</b>
+          </span>
+          <span>
+            创建时间 <b>{formatTime(auditCase.createdAt)}</b>
+          </span>
+          <span>
+            更新时间 <b>{formatTime(auditCase.updatedAt)}</b>
+          </span>
         </div>
         <div className="case-steps">
           <Steps
@@ -549,7 +624,9 @@ export function AuditCaseWorkbench({
             okButtonProps={{ danger: true }}
             onConfirm={onCancel}
           >
-            <Button danger loading={action?.type === "CANCEL"}>取消审计</Button>
+            <Button danger loading={action?.type === "CANCEL"}>
+              取消审计
+            </Button>
           </Popconfirm>
         </div>
       )}
@@ -568,7 +645,9 @@ export function AuditCaseWorkbench({
                 cancelText="返回"
                 onConfirm={onRetry}
               >
-                <Button type="primary" loading={action?.type === "RETRY"}>重试审计</Button>
+                <Button type="primary" loading={action?.type === "RETRY"}>
+                  重试审计
+                </Button>
               </Popconfirm>
             }
           />
@@ -584,7 +663,9 @@ export function AuditCaseWorkbench({
               <span style={{ fontSize: 10, color: "#667085" }}>{findings.length} 项</span>
             </div>
             <div className="count-tabs">
-              <span className="active">待处理 {findings.filter((f) => f.review === null).length}</span>
+              <span className="active">
+                待处理 {findings.filter((f) => f.review === null).length}
+              </span>
               <span>全部 {findings.length}</span>
             </div>
             <div className="finding-list">
@@ -599,7 +680,9 @@ export function AuditCaseWorkbench({
             </div>
             <div className="coverage">
               <span>审查覆盖</span>
-              <span><b>{summarizeRuleOutcome(ruleAssessments)}</b></span>
+              <span>
+                <b>{summarizeRuleOutcome(ruleAssessments)}</b>
+              </span>
             </div>
           </aside>
 
@@ -607,7 +690,9 @@ export function AuditCaseWorkbench({
           <main className="document-stage" ref={documentRef}>
             <div className="document-page">
               <h1>{contractTitle}</h1>
-              <div className="doc-no">合同版本 · 区块 {snapshot.document.blocks[0]?.blockId ?? "—"}</div>
+              <div className="doc-no">
+                合同版本 · 区块 {snapshot.document.blocks[0]?.blockId ?? "—"}
+              </div>
               {renderDocumentBlocks(snapshot.document, selectedBlockId, problemBlockIds)}
             </div>
           </main>

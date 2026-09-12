@@ -1,18 +1,18 @@
+import type { AuditSnapshot, FindingProposal, RuleAssessment } from "@contract-audit/audit/model";
+import type { AuditAgentPort } from "@contract-audit/audit/ports";
+import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
+import { FakeAuditAgent, PiAuditAgent } from "@contract-audit/pi-agent";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { FakeAuditAgent, PiAuditAgent } from "@contract-audit/pi-agent";
-import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
-import { createQccSubjectVerificationPort } from "./qcc/adapter";
-import type { AuditSnapshot, FindingProposal, RuleAssessment } from "@contract-audit/audit/model";
-import type { AuditAgentPort } from "@contract-audit/audit/ports";
-import { createRepository } from "./db/repositories";
 import { loadApiConfig } from "./config";
+import { createRepository } from "./db/repositories";
 import { AuditDispatcher } from "./dispatcher";
-import { AuditEventBroker } from "./sse";
-import { auditCasesRoutes, type AuditRouteDeps } from "./routes/audit-cases";
+import { createQccSubjectVerificationPort } from "./qcc/adapter";
+import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
 import { statsRoutes } from "./routes/stats";
+import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
 export type { AuditOverview, CaseSummary } from "./db/repositories";
@@ -181,12 +181,14 @@ export function createApp(deps: AppDeps) {
       }
       return { status: "ok" as const };
     })
-    .use(openapi({
-      path: "/openapi",
-      documentation: {
-        info: { title: "Contract Audit API", version: "1.0.0" },
-      },
-    }));
+    .use(
+      openapi({
+        path: "/openapi",
+        documentation: {
+          info: { title: "Contract Audit API", version: "1.0.0" },
+        },
+      }),
+    );
 }
 
 let app: ReturnType<typeof createApp> | undefined;
@@ -195,7 +197,13 @@ if (import.meta.main) {
   const config = loadApiConfig();
   const repository = createRepository(config.databaseUrl);
   const broker = new AuditEventBroker();
-  const dispatcher = new AuditDispatcher(repository, agentFactoryFor(config.agentMode), broker, config.maxConcurrentAudits, subjectVerificationPortFor(config));
+  const dispatcher = new AuditDispatcher(
+    repository,
+    agentFactoryFor(config.agentMode),
+    broker,
+    config.maxConcurrentAudits,
+    subjectVerificationPortFor(config),
+  );
   app = createApp({ repository, dispatcher, broker });
   await dispatcher.start();
   app.listen(config.apiPort);

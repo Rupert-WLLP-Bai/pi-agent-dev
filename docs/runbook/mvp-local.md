@@ -29,30 +29,35 @@
    cd apps/api && bunx drizzle-kit generate && bunx drizzle-kit migrate && cd ../..
    ```
 
-5. Type check:
+5. Lint and format check:
+   ```bash
+   bun run lint
+   ```
+
+6. Type check (application code, then tests and build scripts):
    ```bash
    bun run typecheck
    ```
 
-6. Run unit tests:
+7. Run unit tests:
    ```bash
    bun test
    ```
 
-7. Install Playwright browsers (first time only):
+8. Install Playwright browsers (first time only):
    ```bash
    bunx playwright install
    ```
 
-8. Run acceptance tests (uses `FakeAuditAgent`, no LLM credentials needed):
+9. Run acceptance tests (uses `FakeAuditAgent`, no LLM credentials needed):
    ```bash
    bunx playwright test
    ```
 
-9. Build API Docker image (verifies `.env` and `.pi` are excluded):
-   ```bash
-   docker build -f apps/api/Dockerfile -t contract-audit-api .
-   ```
+10. Build API Docker image (verifies `.env` and `.pi` are excluded):
+    ```bash
+    docker build -f apps/api/Dockerfile -t contract-audit-api .
+    ```
 
 ## Manual Verification
 

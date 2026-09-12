@@ -1,5 +1,5 @@
-import { treaty } from "@elysiajs/eden";
 import type { AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
+import { treaty } from "@elysiajs/eden";
 
 // Same-origin by default so the Vite dev proxy (and a single-origin deployment)
 // carry /api requests. An empty string is NOT a valid Eden base — it resolves
@@ -12,7 +12,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 const api = treaty<ReturnType<typeof createApp>>(API_BASE_URL);
 
 export class ApiRequestError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
     this.name = "ApiRequestError";
   }

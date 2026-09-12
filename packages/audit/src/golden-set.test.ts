@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { goldenSet } from "./golden-set";
-import { normalizeContractDocument } from "./plaintext-adapter";
-import { createAuditSnapshot } from "./orchestrator";
 import type { RuleAssessment } from "./model";
+import { createAuditSnapshot } from "./orchestrator";
+import { normalizeContractDocument } from "./plaintext-adapter";
 
 /**
  * Golden-set bench: runs every deterministic rule against 12 labelled contracts
@@ -30,7 +30,9 @@ for (const golden of goldenSet) {
       policyLimitRatio: golden.policyLimitRatio,
     });
 
-    const assessmentBy = new Map(snapshot.ruleAssessments.map((a: RuleAssessment) => [a.ruleCode, a]));
+    const assessmentBy = new Map(
+      snapshot.ruleAssessments.map((a: RuleAssessment) => [a.ruleCode, a]),
+    );
 
     for (const ruleCode of RULE_CODES) {
       const assessment = assessmentBy.get(ruleCode);

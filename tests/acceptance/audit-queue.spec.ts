@@ -1,5 +1,5 @@
-import { test, expect } from "@playwright/test";
 import type { AuditCase } from "@contract-audit/audit/model";
+import { expect, test } from "@playwright/test";
 
 /** Queue rows carry the contract title and finding summary resolved by the API list join. */
 interface QueueCase extends AuditCase {
@@ -29,20 +29,42 @@ const caseAt = (
 });
 
 const queueCases = (): QueueCase[] => [
-  caseAt("running", "RUNNING", "AGENT_RUNNING", "2026-09-11T11:00:00.000Z", "设备采购合同", 3, "HIGH"),
+  caseAt(
+    "running",
+    "RUNNING",
+    "AGENT_RUNNING",
+    "2026-09-11T11:00:00.000Z",
+    "设备采购合同",
+    3,
+    "HIGH",
+  ),
   caseAt("failed", "FAILED", "FAILED", "2026-09-11T10:00:00.000Z", "原材料买卖合同", 1, "MEDIUM"),
   caseAt("interrupted", "INTERRUPTED", "INTERRUPTED", "2026-09-11T09:30:00.000Z", null, 0, null),
-  caseAt("review", "COMPLETED", "AWAITING_REVIEW", "2026-09-11T09:00:00.000Z", "电子元件采购合同", 2, "LOW"),
-  caseAt("done", "COMPLETED", "COMPLETED", "2026-09-11T08:30:00.000Z", "办公场地租赁合同", 1, "HIGH"),
+  caseAt(
+    "review",
+    "COMPLETED",
+    "AWAITING_REVIEW",
+    "2026-09-11T09:00:00.000Z",
+    "电子元件采购合同",
+    2,
+    "LOW",
+  ),
+  caseAt(
+    "done",
+    "COMPLETED",
+    "COMPLETED",
+    "2026-09-11T08:30:00.000Z",
+    "办公场地租赁合同",
+    1,
+    "HIGH",
+  ),
 ];
 
 const QUEUE_SEARCH = "搜索合同名称 / 审计 ID / 来源记录 ID";
 
 test("shows contract titles and keeps the audit ID as a secondary identity", async ({ page }) => {
   await page.route("**/api/audit-cases", (route) =>
-    route.request().method() === "GET"
-      ? route.fulfill({ json: queueCases() })
-      : route.continue(),
+    route.request().method() === "GET" ? route.fulfill({ json: queueCases() }) : route.continue(),
   );
 
   await page.goto("/audit-cases");
@@ -67,9 +89,7 @@ test("shows contract titles and keeps the audit ID as a secondary identity", asy
 
 test("filters by lifecycle and searches contract name and ID", async ({ page }) => {
   await page.route("**/api/audit-cases", (route) =>
-    route.request().method() === "GET"
-      ? route.fulfill({ json: queueCases() })
-      : route.continue(),
+    route.request().method() === "GET" ? route.fulfill({ json: queueCases() }) : route.continue(),
   );
 
   await page.goto("/audit-cases");
@@ -96,9 +116,7 @@ test("filters by lifecycle and searches contract name and ID", async ({ page }) 
 test("confirms cancellation and retry and shows localized results", async ({ page }) => {
   let cases = queueCases();
   await page.route("**/api/audit-cases", (route) =>
-    route.request().method() === "GET"
-      ? route.fulfill({ json: cases })
-      : route.continue(),
+    route.request().method() === "GET" ? route.fulfill({ json: cases }) : route.continue(),
   );
   await page.route("**/api/audit-cases/running/cancel", (route) => {
     cases = cases.map((auditCase) =>
@@ -110,9 +128,7 @@ test("confirms cancellation and retry and shows localized results", async ({ pag
   });
   await page.route("**/api/audit-cases/failed/retry", (route) => {
     cases = cases.map((auditCase) =>
-      auditCase.id === "failed"
-        ? { ...auditCase, status: "PENDING", stage: "QUEUED" }
-        : auditCase,
+      auditCase.id === "failed" ? { ...auditCase, status: "PENDING", stage: "QUEUED" } : auditCase,
     );
     return route.fulfill({ json: { id: "failed", status: "PENDING" } });
   });
@@ -133,9 +149,7 @@ test("confirms cancellation and retry and shows localized results", async ({ pag
 test("scrolls the queue table internally on mobile without page overflow", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.route("**/api/audit-cases", (route) =>
-    route.request().method() === "GET"
-      ? route.fulfill({ json: queueCases() })
-      : route.continue(),
+    route.request().method() === "GET" ? route.fulfill({ json: queueCases() }) : route.continue(),
   );
 
   await page.goto("/audit-cases");

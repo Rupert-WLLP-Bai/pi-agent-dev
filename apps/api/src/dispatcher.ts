@@ -1,8 +1,13 @@
 import type { AuditSnapshot } from "@contract-audit/audit/model";
-import type { AgentRunResult, AgentRunTelemetry, AuditAgentPort, SubjectVerificationPort } from "@contract-audit/audit/ports";
+import type {
+  AgentRunResult,
+  AgentRunTelemetry,
+  AuditAgentPort,
+  SubjectVerificationPort,
+} from "@contract-audit/audit/ports";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import type { AuditCaseRepository } from "./db/repositories";
-import { AuditEventBroker } from "./sse";
+import type { AuditEventBroker } from "./sse";
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
@@ -48,7 +53,8 @@ export class AuditDispatcher {
 
   private async processQueue(): Promise<void> {
     while (this.running < this.maxConcurrent && this.queue.length > 0) {
-      const auditCaseId = this.queue.shift()!;
+      const auditCaseId = this.queue.shift();
+      if (auditCaseId === undefined) return;
       this.running += 1;
       void this.runAudit(auditCaseId);
     }
@@ -107,7 +113,12 @@ export class AuditDispatcher {
         auditCaseId,
         ...(result?.telemetry ?? PLACEHOLDER_TELEMETRY),
         durationMs: Date.now() - startedAt,
-        error: runError === undefined ? null : (runError instanceof Error ? runError.message : String(runError)),
+        error:
+          runError === undefined
+            ? null
+            : runError instanceof Error
+              ? runError.message
+              : String(runError),
       });
       if (runError !== undefined) throw runError;
       if (!result) throw new Error("AGENT_RUN_MISSING_RESULT");

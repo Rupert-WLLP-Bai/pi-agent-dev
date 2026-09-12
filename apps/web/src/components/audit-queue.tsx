@@ -1,4 +1,14 @@
-import { useMemo, useState } from "react";
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CopyOutlined,
+  ExclamationCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
+import type { AuditCase } from "@contract-audit/audit/model";
 import {
   Button,
   Card,
@@ -13,25 +23,15 @@ import {
   Tooltip,
   Typography,
 } from "antd";
+import { useMemo, useState } from "react";
 import {
-  CopyOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SafetyCertificateOutlined,
-  WarningOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  CheckCircleOutlined,
-} from "@ant-design/icons";
-import type { AuditCase } from "@contract-audit/audit/model";
-import {
+  type AuditLifecycleFilter,
   deriveQueueStats,
   filterAndSortCases,
   getAuditStageLabel,
   getAvailableCaseActions,
   shortAuditId,
   subjectRedLineLabel,
-  type AuditLifecycleFilter,
 } from "../audit-presentation";
 import { AuditStateBadge } from "./audit-state-badge";
 
@@ -49,7 +49,6 @@ export interface AuditQueueProps {
   refreshing: boolean;
   error: Error | null;
   action: { id: string; type: "CANCEL" | "RETRY" } | null;
-  refreshedAt: Date | null;
   onOpen: (id: string) => void;
   onRefresh: () => void;
   onCancel: (id: string) => void;
@@ -95,7 +94,9 @@ function RecordActions({
   const retrying = action?.id === auditCase.id && action.type === "RETRY";
   return (
     <Space size="small">
-      <Button size="small" onClick={() => onOpen(auditCase.id)}>打开</Button>
+      <Button size="small" onClick={() => onOpen(auditCase.id)}>
+        打开
+      </Button>
       {allowed.includes("CANCEL") && (
         <Popconfirm
           title="取消该审计案件？"
@@ -105,7 +106,9 @@ function RecordActions({
           okButtonProps={{ danger: true }}
           onConfirm={() => onCancel(auditCase.id)}
         >
-          <Button size="small" danger loading={cancelling}>取消</Button>
+          <Button size="small" danger loading={cancelling}>
+            取消
+          </Button>
         </Popconfirm>
       )}
       {allowed.includes("RETRY") && (
@@ -116,7 +119,9 @@ function RecordActions({
           cancelText="返回"
           onConfirm={() => onRetry(auditCase.id)}
         >
-          <Button size="small" loading={retrying}>重试</Button>
+          <Button size="small" loading={retrying}>
+            重试
+          </Button>
         </Popconfirm>
       )}
     </Space>
@@ -124,10 +129,10 @@ function RecordActions({
 }
 
 const summaryIcons: Record<string, React.ReactNode> = {
-  "待复核": <WarningOutlined />,
-  "处理中": <ClockCircleOutlined />,
-  "异常": <ExclamationCircleOutlined />,
-  "今日完成": <CheckCircleOutlined />,
+  待复核: <WarningOutlined />,
+  处理中: <ClockCircleOutlined />,
+  异常: <ExclamationCircleOutlined />,
+  今日完成: <CheckCircleOutlined />,
 };
 
 export function AuditQueue({
@@ -136,7 +141,6 @@ export function AuditQueue({
   refreshing,
   error,
   action,
-  refreshedAt,
   onOpen,
   onRefresh,
   onCancel,
@@ -166,12 +170,20 @@ export function AuditQueue({
     <section className="queue-page">
       <div className="page-head">
         <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>审计队列</Typography.Title>
-          <Typography.Text type="secondary">按最近更新排序，优先处理待复核、异常和未闭环高风险案件。</Typography.Text>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            审计队列
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            按最近更新排序，优先处理待复核、异常和未闭环高风险案件。
+          </Typography.Text>
         </div>
         <Space>
-          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>新建审计</Button>
+          <Button icon={<ReloadOutlined />} loading={refreshing} onClick={onRefresh}>
+            刷新
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+            新建审计
+          </Button>
         </Space>
       </div>
 
@@ -188,18 +200,26 @@ export function AuditQueue({
       </div>
 
       {initialLoading ? (
-        <Card><Skeleton active paragraph={{ rows: 5 }} /></Card>
+        <Card>
+          <Skeleton active paragraph={{ rows: 5 }} />
+        </Card>
       ) : initialError ? (
         <Result
           status="error"
           title="无法加载审计队列"
           subTitle={error?.message}
-          extra={<Button type="primary" onClick={onRefresh}>重新加载</Button>}
+          extra={
+            <Button type="primary" onClick={onRefresh}>
+              重新加载
+            </Button>
+          }
         />
       ) : cases.length === 0 ? (
         <Card>
           <Empty description="暂无审计记录">
-            <Button type="primary" onClick={onCreate}>新建审计</Button>
+            <Button type="primary" onClick={onCreate}>
+              新建审计
+            </Button>
           </Empty>
         </Card>
       ) : (
@@ -232,11 +252,11 @@ export function AuditQueue({
                   key: "contract",
                   render: (_, record) => (
                     <div>
-                      <div className="contract-title">
-                        {record.contractTitle ?? "未命名合同"}
-                      </div>
+                      <div className="contract-title">{record.contractTitle ?? "未命名合同"}</div>
                       <div className="contract-sub">
-                        {record.contractTitle ? `来源 · ${record.sourceRecordId.slice(0, 8)}…` : "需要设置合同名称"}
+                        {record.contractTitle
+                          ? `来源 · ${record.sourceRecordId.slice(0, 8)}…`
+                          : "需要设置合同名称"}
                       </div>
                     </div>
                   ),
@@ -247,7 +267,9 @@ export function AuditQueue({
                   width: 160,
                   render: (_, record) => (
                     <div className="id-line">
-                      <span className="mono" style={{ fontSize: 12 }}>{shortAuditId(record.id)}</span>
+                      <span className="mono" style={{ fontSize: 12 }}>
+                        {shortAuditId(record.id)}
+                      </span>
                       <Tooltip title="复制审计 ID">
                         <Button
                           type="text"
@@ -271,9 +293,12 @@ export function AuditQueue({
                     return (
                       <div className="risk-stack">
                         {severity !== null && count > 0 ? (
-                          <span className={`risk-cell risk-${severity === "HIGH" ? "high" : severity === "MEDIUM" ? "medium" : "low"}`}>
+                          <span
+                            className={`risk-cell risk-${severity === "HIGH" ? "high" : severity === "MEDIUM" ? "medium" : "low"}`}
+                          >
                             <span className="risk-dot" />
-                            {severity === "HIGH" ? "高" : severity === "MEDIUM" ? "中" : "低"} · {count}
+                            {severity === "HIGH" ? "高" : severity === "MEDIUM" ? "中" : "低"} ·{" "}
+                            {count}
                           </span>
                         ) : (
                           <span style={{ color: "#98A2B3" }}>—</span>

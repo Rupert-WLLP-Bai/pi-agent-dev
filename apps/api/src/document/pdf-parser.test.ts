@@ -47,7 +47,8 @@ test("extracts text lines as one block tagged with its page number", async () =>
 test("separates blocks when the vertical gap exceeds the line spacing", async () => {
   // Three lines with an exaggerated 80pt jump in the middle: the content
   // stream below pushes line 3 far below line 2, which must split blocks.
-  const content = "BT /F1 12 Tf 72 700 Td (LINE ONE) Tj 0 -20 Td (LINE TWO) Tj 0 -80 Td (LINE THREE) Tj ET";
+  const content =
+    "BT /F1 12 Tf 72 700 Td (LINE ONE) Tj 0 -20 Td (LINE TWO) Tj 0 -80 Td (LINE THREE) Tj ET";
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",

@@ -92,9 +92,7 @@ function evidenceFor(
   };
 }
 
-export function evaluateTerminationClauseRule(
-  facts: TerminationClauseFacts,
-): RuleAssessment {
+export function evaluateTerminationClauseRule(facts: TerminationClauseFacts): RuleAssessment {
   if (facts.hasTerminationClause) {
     return {
       id: "assessment-termination",

@@ -1,9 +1,4 @@
-import type {
-  AuditSnapshot,
-  FindingProposal,
-  SubjectCandidate,
-  SubjectMatchStatus,
-} from "./model";
+import type { AuditSnapshot, FindingProposal, SubjectCandidate, SubjectMatchStatus } from "./model";
 
 /** Telemetry recorded for one Agent Run. */
 export interface AgentRunTelemetry {

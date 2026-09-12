@@ -18,7 +18,11 @@ export interface DemoContract {
   text: string;
 }
 
-export const demoContracts: DemoContract[] = [
+/**
+ * Non-empty tuple: the drawer falls back to the first sample, so at least one
+ * entry must exist at the type level (no non-null assertions at use sites).
+ */
+export const demoContracts: [DemoContract, ...DemoContract[]] = [
   {
     id: "equipment-purchase",
     shortLabel: "设备采购",

@@ -7,7 +7,10 @@ import type {
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { AgentRunTelemetry, AuditAgentPort, AuditEvent } from "@contract-audit/audit/ports";
-import type { SubjectSourceRecord, SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
+import type {
+  SubjectSourceRecord,
+  SubjectVerificationRun,
+} from "@contract-audit/audit/subject-verification";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { AuditDispatcher } from "../dispatcher";
 import type { AuditEventBroker } from "../sse";
@@ -54,7 +57,10 @@ export class InMemoryAuditCaseRepository {
   /** Append-only verification rows, mirroring the subject_verifications table. */
   subjectVerificationRows: FakeSubjectVerificationRow[] = [];
 
-  async createPendingCase(sourceRecordId: string, snapshot: AuditSnapshot): Promise<{ caseId: string; snapshotId: string }> {
+  async createPendingCase(
+    _sourceRecordId: string,
+    snapshot: AuditSnapshot,
+  ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
     this.cases.set(caseId, { status: "PENDING", stage: "QUEUED", snapshot, findings: [] });
     return { caseId, snapshotId: `snapshot-${caseId}` };
@@ -72,13 +78,15 @@ export class InMemoryAuditCaseRepository {
 
   async claimCase(auditCaseId: string): Promise<{ caseId: string; snapshotId: string } | null> {
     const state = this.cases.get(auditCaseId);
-    if (!state || state.status !== "PENDING") return null;
+    if (state?.status !== "PENDING") return null;
     state.status = "RUNNING";
     return { caseId: auditCaseId, snapshotId: `snapshot-${auditCaseId}` };
   }
 
   async getPendingCaseIds(): Promise<string[]> {
-    return [...this.cases.entries()].filter(([, state]) => state.status === "PENDING").map(([id]) => id);
+    return [...this.cases.entries()]
+      .filter(([, state]) => state.status === "PENDING")
+      .map(([id]) => id);
   }
 
   async getCase(caseId: string) {
@@ -108,7 +116,11 @@ export class InMemoryAuditCaseRepository {
     return `run-${this.recordedRuns.length}`;
   }
 
-  async appendFindingRevision(auditCaseId: string, proposal: FindingProposal, supersedesId: string | null): Promise<string> {
+  async appendFindingRevision(
+    auditCaseId: string,
+    proposal: FindingProposal,
+    supersedesId: string | null,
+  ): Promise<string> {
     const state = this.cases.get(auditCaseId);
     if (!state) throw new Error(`unknown case ${auditCaseId}`);
     const id = `finding-${auditCaseId}-${state.findings.length + 1}`;
@@ -121,7 +133,8 @@ export class InMemoryAuditCaseRepository {
       candidate.findings.some((finding) => finding.id === findingId),
     );
     if (!state) throw new Error(`FINDING_NOT_FOUND: ${findingId}`);
-    const existing = state.findings.find((finding) => finding.id === findingId)!;
+    const existing = state.findings.find((finding) => finding.id === findingId);
+    if (existing === undefined) throw new Error(`FINDING_NOT_FOUND: ${findingId}`);
     if (existing.review !== null) throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
     if (state.findings.some((finding) => finding.supersedesId === findingId)) {
       throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
@@ -161,7 +174,9 @@ export class InMemoryAuditCaseRepository {
     const state = this.cases.get(caseId);
     if (!state) return [];
     const superseded = new Set(
-      state.findings.filter((finding) => finding.supersedesId !== null).map((finding) => finding.supersedesId!),
+      state.findings.flatMap((finding) =>
+        finding.supersedesId === null ? [] : [finding.supersedesId],
+      ),
     );
     return state.findings
       .filter((finding) => !superseded.has(finding.id))
@@ -293,18 +308,28 @@ export class ControlledAgent implements AuditAgentPort {
   /** The exact snapshots handed to the agent, in run order. */
   receivedSnapshots: AuditSnapshot[] = [];
   abortedRuns = 0;
-  private pending: { resolve: (result: { proposal: FindingProposal; telemetry: AgentRunTelemetry }) => void; reject: (reason?: unknown) => void }[] = [];
+  private pending: {
+    resolve: (result: { proposal: FindingProposal; telemetry: AgentRunTelemetry }) => void;
+    reject: (reason?: unknown) => void;
+  }[] = [];
 
-  async run(input: AuditSnapshot, signal: AbortSignal): Promise<{ proposal: FindingProposal; telemetry: AgentRunTelemetry }> {
+  async run(
+    input: AuditSnapshot,
+    signal: AbortSignal,
+  ): Promise<{ proposal: FindingProposal; telemetry: AgentRunTelemetry }> {
     this.startedCaseIds.push(input.sourceRecordId);
     this.receivedSnapshots.push(input);
     return new Promise((resolve, reject) => {
       const entry = { resolve, reject };
       this.pending.push(entry);
-      signal.addEventListener("abort", () => {
-        this.abortedRuns += 1;
-        reject(signal.reason ?? new Error("ABORTED"));
-      }, { once: true });
+      signal.addEventListener(
+        "abort",
+        () => {
+          this.abortedRuns += 1;
+          reject(signal.reason ?? new Error("ABORTED"));
+        },
+        { once: true },
+      );
     });
   }
 

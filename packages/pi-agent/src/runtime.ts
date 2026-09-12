@@ -1,15 +1,16 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  createAgentSession,
-  SessionManager,
-} from "@earendil-works/pi-coding-agent";
 import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
 import type { AgentRunResult, AuditAgentPort } from "@contract-audit/audit/ports";
-import { PI_AGENT_VERSION, buildModel, createModelRuntime, loadPiConfig } from "./config";
+import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import { buildModel, createModelRuntime, loadPiConfig, PI_AGENT_VERSION } from "./config";
 import { createAuditTools } from "./tools";
 
-const AUDIT_TOOL_NAMES = ["get_rule_assessments", "get_evidence", "submit_finding_proposal"] as const;
+const AUDIT_TOOL_NAMES = [
+  "get_rule_assessments",
+  "get_evidence",
+  "submit_finding_proposal",
+] as const;
 
 /** Loads the payment-terms-audit skill markdown next to this module. */
 function loadSkillPrompt(): string {

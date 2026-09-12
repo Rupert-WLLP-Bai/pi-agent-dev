@@ -1,8 +1,8 @@
-import { useCallback, useState } from "react";
+import type { FindingRevision } from "@contract-audit/audit/model";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { App as AntApp, Button, Result, Skeleton } from "antd";
-import type { FindingRevision } from "@contract-audit/audit/model";
+import { useCallback, useState } from "react";
 import {
   ApiRequestError,
   cancelAuditCase,
@@ -71,8 +71,11 @@ export default function AuditCaseDetail({ id }: { id: string }) {
   });
 
   const reviewMutation = useMutation({
-    mutationFn: (input: { findingId: string; decision: "ACCEPTED" | "REJECTED"; reason?: string }) =>
-      submitReview(input.findingId, input.decision, input.reason),
+    mutationFn: (input: {
+      findingId: string;
+      decision: "ACCEPTED" | "REJECTED";
+      reason?: string;
+    }) => submitReview(input.findingId, input.decision, input.reason),
     onSuccess: async () => {
       setReview(closedReview);
       await invalidateAll();
@@ -101,12 +104,17 @@ export default function AuditCaseDetail({ id }: { id: string }) {
         status="error"
         title="无法加载审计详情"
         subTitle={detailQuery.error instanceof Error ? detailQuery.error.message : undefined}
-        extra={<Button type="primary" onClick={() => void detailQuery.refetch()}>重新加载</Button>}
+        extra={
+          <Button type="primary" onClick={() => void detailQuery.refetch()}>
+            重新加载
+          </Button>
+        }
       />
     );
   }
 
-  const conflicted = reviewMutation.error instanceof ApiRequestError && reviewMutation.error.status === 409;
+  const conflicted =
+    reviewMutation.error instanceof ApiRequestError && reviewMutation.error.status === 409;
   const reviewError = reviewMutation.isError && !conflicted ? reviewMutation.error.message : null;
 
   return (

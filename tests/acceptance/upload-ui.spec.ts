@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -46,13 +46,18 @@ test("uploads a .txt contract through the drawer and lands on the case page", as
 
   // The case detail page opens and the audit completes.
   await page.waitForURL(/\/audit-cases\/.+$/, { timeout: 15_000 });
-  await expect.poll(async () => {
-    const match = page.url().match(/\/audit-cases\/(.+)$/);
-    if (!match) return "NO_URL";
-    const resp = await page.request.get(`/api/audit-cases/${match[1]}`);
-    if (!resp.ok()) return "NO_CASE";
-    return (await resp.json()).case?.status;
-  }, { timeout: 30_000, message: "uploaded case should complete" }).toBe("COMPLETED");
+  await expect
+    .poll(
+      async () => {
+        const match = page.url().match(/\/audit-cases\/(.+)$/);
+        if (!match) return "NO_URL";
+        const resp = await page.request.get(`/api/audit-cases/${match[1]}`);
+        if (!resp.ok()) return "NO_CASE";
+        return (await resp.json()).case?.status;
+      },
+      { timeout: 30_000, message: "uploaded case should complete" },
+    )
+    .toBe("COMPLETED");
 
   // The document panel shows the contract title as the first block, and both
   // parties were extracted from the uploaded file.

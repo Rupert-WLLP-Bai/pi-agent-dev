@@ -1,14 +1,14 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Navigate,
-  RouterProvider,
   createRootRoute,
   createRoute,
   createRouter,
+  Navigate,
+  RouterProvider,
 } from "@tanstack/react-router";
 import { AppShell } from "./components/app-shell";
-import AuditCasesList from "./routes/audit-cases";
 import AuditCaseDetail from "./routes/audit-case-detail";
+import AuditCasesList from "./routes/audit-cases";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
 
@@ -51,7 +51,13 @@ const detailRoute = createRoute({
   component: AuditCaseDetailRoute,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, dashboardRoute, demoRoute, listRoute, detailRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  dashboardRoute,
+  demoRoute,
+  listRoute,
+  detailRoute,
+]);
 
 const router = createRouter({ routeTree });
 

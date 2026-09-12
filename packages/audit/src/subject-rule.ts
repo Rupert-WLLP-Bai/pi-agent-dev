@@ -92,7 +92,9 @@ export function evaluateSubjectRiskRule(input: {
 
   const offending = [...byPartyId.values()]
     .filter((verification) => verification.status === "RESOLVED")
-    .flatMap((verification) => redLineHits(verification).map((dimension) => ({ verification, dimension })));
+    .flatMap((verification) =>
+      redLineHits(verification).map((dimension) => ({ verification, dimension })),
+    );
 
   if (offending.length > 0) {
     const settled = offending

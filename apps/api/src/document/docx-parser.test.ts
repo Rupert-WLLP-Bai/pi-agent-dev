@@ -9,14 +9,16 @@ import { parseDocx } from "./docx-parser";
  */
 async function sampleDocx(): Promise<Uint8Array> {
   const doc = new Document({
-    sections: [{
-      children: [
-        new Paragraph({ text: "原材料买卖合同", heading: HeadingLevel.HEADING_1 }),
-        new Paragraph({ children: [new TextRun("甲方：深圳精工科技有限公司（采购方）")] }),
-        new Paragraph({ text: "第二条 支付方式", heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ children: [new TextRun("甲方支付合同总价30%作为预付款。")] }),
-      ],
-    }],
+    sections: [
+      {
+        children: [
+          new Paragraph({ text: "原材料买卖合同", heading: HeadingLevel.HEADING_1 }),
+          new Paragraph({ children: [new TextRun("甲方：深圳精工科技有限公司（采购方）")] }),
+          new Paragraph({ text: "第二条 支付方式", heading: HeadingLevel.HEADING_2 }),
+          new Paragraph({ children: [new TextRun("甲方支付合同总价30%作为预付款。")] }),
+        ],
+      },
+    ],
   });
   return new Uint8Array(await Packer.toBuffer(doc));
 }

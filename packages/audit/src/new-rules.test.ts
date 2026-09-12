@@ -1,27 +1,26 @@
 import { expect, test } from "bun:test";
+import {
+  buildDisputeJurisdictionFacts,
+  DISPUTE_JURISDICTION_RULE_CODE,
+  evaluateDisputeJurisdictionRule,
+} from "./dispute-rule";
 import { buildContractDocument } from "./document-ir";
 import { createAuditSnapshot } from "./orchestrator";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
-import { normalizeContractDocument } from "./plaintext-adapter";
 import {
   buildPenaltyRatioFacts,
   evaluatePenaltyRatioRule,
   PENALTY_RATIO_RULE_CODE,
 } from "./penalty-rule";
+import { normalizeContractDocument } from "./plaintext-adapter";
 import {
   buildTerminationClauseFacts,
   evaluateTerminationClauseRule,
   TERMINATION_CLAUSE_RULE_CODE,
 } from "./termination-rule";
-import {
-  buildDisputeJurisdictionFacts,
-  evaluateDisputeJurisdictionRule,
-  DISPUTE_JURISDICTION_RULE_CODE,
-} from "./dispute-rule";
 
-const makeDoc = (texts: string[]) => buildContractDocument(
-  texts.map((text) => ({ text, kind: "paragraph" as const })),
-).document;
+const makeDoc = (texts: string[]) =>
+  buildContractDocument(texts.map((text) => ({ text, kind: "paragraph" as const }))).document;
 
 // ── Termination clause rule ───────────────────────────────────────
 
@@ -79,9 +78,7 @@ test("penalty rule: POLICY_CONFLICT when penalty exceeds limit", () => {
 });
 
 test("penalty rule: COMPLIANT when penalty within limit", () => {
-  const doc = makeDoc([
-    "第七条 违约责任：乙方逾期交付的，应支付合同总价20%的违约金。",
-  ]);
+  const doc = makeDoc(["第七条 违约责任：乙方逾期交付的，应支付合同总价20%的违约金。"]);
   const { facts } = buildPenaltyRatioFacts({
     sourceRecordId: "s1",
     document: doc,
@@ -124,9 +121,7 @@ test("dispute rule: COMPLIANT when jurisdiction matches preferred", () => {
 });
 
 test("dispute rule: POLICY_CONFLICT when jurisdiction differs", () => {
-  const doc = makeDoc([
-    "第九条 争议解决：协商不成的，向北京人民法院提起诉讼。",
-  ]);
+  const doc = makeDoc(["第九条 争议解决：协商不成的，向北京人民法院提起诉讼。"]);
   const { facts } = buildDisputeJurisdictionFacts({
     sourceRecordId: "s1",
     document: doc,
@@ -263,7 +258,9 @@ test("createAuditSnapshot includes all deterministic rule assessments", async ()
   expect(codes).toContain("DISPUTE_JURISDICTION");
 
   // No termination clause in this contract
-  const termination = snapshot.ruleAssessments.find((a) => a.ruleCode === "TERMINATION_CLAUSE_PRESENT");
+  const termination = snapshot.ruleAssessments.find(
+    (a) => a.ruleCode === "TERMINATION_CLAUSE_PRESENT",
+  );
   expect(termination?.disposition).toBe("NEEDS_HUMAN_REVIEW");
 
   // Dispute jurisdiction is Beijing, not Chongqing

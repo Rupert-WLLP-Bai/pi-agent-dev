@@ -28,7 +28,11 @@ export class McpStreamClient {
     private readonly fetchImpl: McpFetch = globalThis.fetch,
   ) {}
 
-  async callTool(name: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<McpToolResult> {
+  async callTool(
+    name: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ): Promise<McpToolResult> {
     const body = JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
@@ -47,7 +51,9 @@ export class McpStreamClient {
     });
 
     if (!response.ok) {
-      throw new Error(`MCP HTTP ${response.status}: ${await response.text().catch(() => "unreadable")}`);
+      throw new Error(
+        `MCP HTTP ${response.status}: ${await response.text().catch(() => "unreadable")}`,
+      );
     }
 
     const text = await response.text();

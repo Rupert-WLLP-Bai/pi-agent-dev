@@ -1,6 +1,3 @@
-import { desc, eq, sql } from "drizzle-orm";
-import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import type {
   AgentRun,
   AuditCase,
@@ -15,12 +12,23 @@ import type {
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
-import { agentRuns, auditCases, auditSnapshots, findingRevisions, schema, sourceRecords, subjectVerifications } from "./schema";
+import { desc, eq, sql } from "drizzle-orm";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import {
+  agentRuns,
+  auditCases,
+  auditSnapshots,
+  findingRevisions,
+  schema,
+  sourceRecords,
+  subjectVerifications,
+} from "./schema";
 
 export type DrizzleDB = PostgresJsDatabase<typeof schema>;
 
 type DateLike = Date | string;
-const asDate = (value: DateLike): Date => value instanceof Date ? value : new Date(value);
+const asDate = (value: DateLike): Date => (value instanceof Date ? value : new Date(value));
 
 /**
  * Derives a display title from a contract document's first block.
@@ -121,31 +129,43 @@ const toFinding = (row: typeof findingRevisions.$inferSelect): FindingRevision =
 export class AuditCaseRepository {
   constructor(private readonly db: DrizzleDB) {}
 
-  async createPendingCase(sourceRecordId: string, snapshot: AuditSnapshot): Promise<{ caseId: string; snapshotId: string }> {
+  async createPendingCase(
+    sourceRecordId: string,
+    snapshot: AuditSnapshot,
+  ): Promise<{ caseId: string; snapshotId: string }> {
     return this.db.transaction(async (tx) => {
-      await tx.insert(sourceRecords).values({
-        id: sourceRecordId,
-        sourceText: snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
-        metadata: { contractDocumentHash: snapshot.contractDocument.hash },
-      }).onConflictDoNothing({ target: sourceRecords.id });
+      await tx
+        .insert(sourceRecords)
+        .values({
+          id: sourceRecordId,
+          sourceText: snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
+          metadata: { contractDocumentHash: snapshot.contractDocument.hash },
+        })
+        .onConflictDoNothing({ target: sourceRecords.id });
 
-      const [auditCase] = await tx.insert(auditCases).values({
-        sourceRecordId,
-        status: "PENDING",
-        stage: "QUEUED",
-      }).returning({ id: auditCases.id });
+      const [auditCase] = await tx
+        .insert(auditCases)
+        .values({
+          sourceRecordId,
+          status: "PENDING",
+          stage: "QUEUED",
+        })
+        .returning({ id: auditCases.id });
 
-      const [auditSnapshot] = await tx.insert(auditSnapshots).values({
-        auditCaseId: auditCase.id,
-        sourceRecordId,
-        document: snapshot.contractDocument,
-        facts: snapshot.facts,
-        parties: snapshot.parties,
-        policy: null,
-        evidence: snapshot.evidence,
-        ruleAssessments: snapshot.ruleAssessments,
-        createdAt: asDate(snapshot.createdAt),
-      }).returning({ id: auditSnapshots.id });
+      const [auditSnapshot] = await tx
+        .insert(auditSnapshots)
+        .values({
+          auditCaseId: auditCase.id,
+          sourceRecordId,
+          document: snapshot.contractDocument,
+          facts: snapshot.facts,
+          parties: snapshot.parties,
+          policy: null,
+          evidence: snapshot.evidence,
+          ruleAssessments: snapshot.ruleAssessments,
+          createdAt: asDate(snapshot.createdAt),
+        })
+        .returning({ id: auditSnapshots.id });
 
       return { caseId: auditCase.id, snapshotId: auditSnapshot.id };
     });
@@ -165,7 +185,10 @@ export class AuditCaseRepository {
       const row = rows[0];
       if (!row) return null;
 
-      await tx.update(auditCases).set({ status: "RUNNING", updatedAt: new Date() }).where(eq(auditCases.id, row.case_id));
+      await tx
+        .update(auditCases)
+        .set({ status: "RUNNING", updatedAt: new Date() })
+        .where(eq(auditCases.id, row.case_id));
       return { caseId: row.case_id, snapshotId: row.snapshot_id };
     });
   }
@@ -183,13 +206,18 @@ export class AuditCaseRepository {
       const row = rows[0];
       if (!row) return null;
 
-      await tx.update(auditCases).set({ status: "RUNNING", updatedAt: new Date() }).where(eq(auditCases.id, row.case_id));
+      await tx
+        .update(auditCases)
+        .set({ status: "RUNNING", updatedAt: new Date() })
+        .where(eq(auditCases.id, row.case_id));
       return { caseId: row.case_id, snapshotId: row.snapshot_id };
     });
   }
 
   async getPendingCaseIds(): Promise<string[]> {
-    const rows = await this.db.select({ id: auditCases.id }).from(auditCases)
+    const rows = await this.db
+      .select({ id: auditCases.id })
+      .from(auditCases)
       .where(eq(auditCases.status, "PENDING"))
       .orderBy(auditCases.createdAt);
     return rows.map((row) => row.id);
@@ -201,25 +229,39 @@ export class AuditCaseRepository {
   }
 
   async getSnapshot(snapshotId: string): Promise<AuditSnapshot | null> {
-    const [row] = await this.db.select().from(auditSnapshots).where(eq(auditSnapshots.id, snapshotId)).limit(1);
+    const [row] = await this.db
+      .select()
+      .from(auditSnapshots)
+      .where(eq(auditSnapshots.id, snapshotId))
+      .limit(1);
     return row ? toSnapshot(row) : null;
   }
 
   async completeAgentRun(run: Omit<AgentRun, "id" | "createdAt">): Promise<string> {
-    const [row] = await this.db.insert(agentRuns).values({
-      auditCaseId: run.auditCaseId,
-      provider: run.provider,
-      model: run.model,
-      version: run.version,
-      usage: run.usage,
-      durationMs: run.durationMs,
-      error: run.error,
-    }).returning({ id: agentRuns.id });
+    const [row] = await this.db
+      .insert(agentRuns)
+      .values({
+        auditCaseId: run.auditCaseId,
+        provider: run.provider,
+        model: run.model,
+        version: run.version,
+        usage: run.usage,
+        durationMs: run.durationMs,
+        error: run.error,
+      })
+      .returning({ id: agentRuns.id });
     return row.id;
   }
 
-  async appendFindingRevision(auditCaseId: string, proposal: FindingProposal, supersedesId: string | null): Promise<string> {
-    const [row] = await this.db.insert(findingRevisions).values({ auditCaseId, proposal, supersedesId }).returning({ id: findingRevisions.id });
+  async appendFindingRevision(
+    auditCaseId: string,
+    proposal: FindingProposal,
+    supersedesId: string | null,
+  ): Promise<string> {
+    const [row] = await this.db
+      .insert(findingRevisions)
+      .values({ auditCaseId, proposal, supersedesId })
+      .returning({ id: findingRevisions.id });
     return row.id;
   }
 
@@ -229,43 +271,63 @@ export class AuditCaseRepository {
    */
   async appendReviewRevision(findingId: string, review: HumanReview): Promise<string> {
     return this.db.transaction(async (tx) => {
-      const [existing] = await tx.select().from(findingRevisions).where(eq(findingRevisions.id, findingId)).limit(1);
+      const [existing] = await tx
+        .select()
+        .from(findingRevisions)
+        .where(eq(findingRevisions.id, findingId))
+        .limit(1);
       if (!existing) throw new Error(`FINDING_NOT_FOUND: ${findingId}`);
       if (existing.review !== null) throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
-      const [superseder] = await tx.select({ id: findingRevisions.id }).from(findingRevisions)
-        .where(eq(findingRevisions.supersedesId, findingId)).limit(1);
+      const [superseder] = await tx
+        .select({ id: findingRevisions.id })
+        .from(findingRevisions)
+        .where(eq(findingRevisions.supersedesId, findingId))
+        .limit(1);
       if (superseder) throw new Error(`FINDING_ALREADY_REVIEWED: ${findingId}`);
 
-      const [row] = await tx.insert(findingRevisions).values({
-        auditCaseId: existing.auditCaseId,
-        proposal: existing.proposal,
-        supersedesId: findingId,
-        review,
-      }).returning({ id: findingRevisions.id });
+      const [row] = await tx
+        .insert(findingRevisions)
+        .values({
+          auditCaseId: existing.auditCaseId,
+          proposal: existing.proposal,
+          supersedesId: findingId,
+          review,
+        })
+        .returning({ id: findingRevisions.id });
       return row.id;
     });
   }
 
   async markStaleRunsInterrupted(): Promise<number> {
-    const rows = await this.db.update(auditCases)
+    const rows = await this.db
+      .update(auditCases)
       .set({ status: "INTERRUPTED", stage: "INTERRUPTED", updatedAt: new Date() })
       .where(eq(auditCases.status, "RUNNING"))
       .returning({ id: auditCases.id });
     return rows.length;
   }
 
-  async updateCaseStatus(caseId: string, status: AuditCaseStatus, stage: AuditStage): Promise<void> {
-    await this.db.update(auditCases).set({ status, stage, updatedAt: new Date() }).where(eq(auditCases.id, caseId));
+  async updateCaseStatus(
+    caseId: string,
+    status: AuditCaseStatus,
+    stage: AuditStage,
+  ): Promise<void> {
+    await this.db
+      .update(auditCases)
+      .set({ status, stage, updatedAt: new Date() })
+      .where(eq(auditCases.id, caseId));
   }
 
   async getFindingsByCase(caseId: string): Promise<FindingRevision[]> {
-    const rows = await this.db.select().from(findingRevisions)
+    const rows = await this.db
+      .select()
+      .from(findingRevisions)
       .where(eq(findingRevisions.auditCaseId, caseId))
       .orderBy(desc(findingRevisions.createdAt));
     // Append-only revisions: expose only chain heads (revisions that are not
     // superseded by a newer revision), each carrying its latest review state.
     const supersededIds = new Set(
-      rows.filter((row) => row.supersedesId !== null).map((row) => row.supersedesId!),
+      rows.flatMap((row) => (row.supersedesId === null ? [] : [row.supersedesId])),
     );
     return rows.filter((row) => !supersededIds.has(row.id)).map(toFinding);
   }
@@ -276,7 +338,11 @@ export class AuditCaseRepository {
   }
 
   async getSnapshotByCase(caseId: string): Promise<AuditSnapshot | null> {
-    const [row] = await this.db.select().from(auditSnapshots).where(eq(auditSnapshots.auditCaseId, caseId)).limit(1);
+    const [row] = await this.db
+      .select()
+      .from(auditSnapshots)
+      .where(eq(auditSnapshots.auditCaseId, caseId))
+      .limit(1);
     return row ? toSnapshot(row) : null;
   }
 
@@ -326,7 +392,9 @@ export class AuditCaseRepository {
     verifications: SubjectVerification[];
     evidence: EvidenceLocator[];
   }> {
-    const rows = await this.db.select().from(subjectVerifications)
+    const rows = await this.db
+      .select()
+      .from(subjectVerifications)
       .where(eq(subjectVerifications.auditCaseId, caseId))
       .orderBy(subjectVerifications.createdAt);
 
@@ -350,7 +418,11 @@ export class AuditCaseRepository {
   }
 
   async getFinding(findingId: string): Promise<FindingRevision | null> {
-    const [row] = await this.db.select().from(findingRevisions).where(eq(findingRevisions.id, findingId)).limit(1);
+    const [row] = await this.db
+      .select()
+      .from(findingRevisions)
+      .where(eq(findingRevisions.id, findingId))
+      .limit(1);
     return row ? toFinding(row) : null;
   }
 

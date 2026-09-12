@@ -1,5 +1,5 @@
-import type { ContractDocument } from "./model";
 import { buildContractDocument, type RawBlock } from "./document-ir";
+import type { ContractDocument } from "./model";
 
 /**
  * Normalizes pasted text into a Contract Document. Plain text has no styles or
@@ -9,14 +9,12 @@ import { buildContractDocument, type RawBlock } from "./document-ir";
  * interpret).
  */
 export function normalizeContractDocument(contractText: string): ContractDocument {
-  const rawBlocks: RawBlock[] = contractText
-    .split("\n\n")
-    .map((paragraph) => ({
-      text: paragraph,
-      kind: (/^第[一二三四五六七八九十百千零0-9]+[条章节]/u.test(paragraph.trim())
-        ? "heading"
-        : "paragraph") as RawBlock["kind"],
-    }));
+  const rawBlocks: RawBlock[] = contractText.split("\n\n").map((paragraph) => ({
+    text: paragraph,
+    kind: (/^第[一二三四五六七八九十百千零0-9]+[条章节]/u.test(paragraph.trim())
+      ? "heading"
+      : "paragraph") as RawBlock["kind"],
+  }));
 
   return buildContractDocument(rawBlocks).document;
 }

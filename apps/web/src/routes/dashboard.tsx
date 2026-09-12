@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { Card, Col, Empty, Row, Spin, Statistic, Tooltip, Typography } from "antd";
 import { ArrowUpOutlined } from "@ant-design/icons";
+import type { AuditOverview } from "@contract-audit/api";
+import { Card, Col, Empty, Row, Spin, Statistic, Tooltip, Typography } from "antd";
+import { useEffect, useState } from "react";
 import { getAuditOverview } from "../api";
 import { getFindingTypeLabel, severityLabels } from "../audit-presentation";
-import type { AuditOverview } from "@contract-audit/api";
 
 const CHART_WIDTH = 620;
 const CHART_HEIGHT = 160;
@@ -31,7 +31,9 @@ function buildChartPaths(dailyCounts: Array<{ count: number }>): ChartPaths {
   const totalPoints: string[] = [];
   for (let index = 0; index < dailyCounts.length; index += 1) {
     const x = (index * step).toFixed(1);
-    const dailyY = (CHART_HEIGHT - (dailyCounts[index].count / peak) * (CHART_HEIGHT - 12)).toFixed(1);
+    const dailyY = (CHART_HEIGHT - (dailyCounts[index].count / peak) * (CHART_HEIGHT - 12)).toFixed(
+      1,
+    );
     const totalY = (CHART_HEIGHT - (cumulative[index] / peak) * (CHART_HEIGHT - 12)).toFixed(1);
     dailyPoints.push(`${x},${dailyY}`);
     totalPoints.push(`${x},${totalY}`);
@@ -58,10 +60,10 @@ const percentOf = (part: number, total: number): string => {
 };
 
 const todoTagColors: Record<string, string> = {
-  "高风险": "#b91c1c",
-  "中风险": "#a16207",
-  "低风险": "#0B5C99",
-  "待复核": "#0B5C99",
+  高风险: "#b91c1c",
+  中风险: "#a16207",
+  低风险: "#0B5C99",
+  待复核: "#0B5C99",
 };
 
 export default function DashboardPage() {
@@ -93,7 +95,10 @@ export default function DashboardPage() {
   }
   if (!overview) {
     return (
-      <div className="dashboard-page" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
+      <div
+        className="dashboard-page"
+        style={{ display: "grid", placeItems: "center", minHeight: 320 }}
+      >
         <Spin />
       </div>
     );
@@ -103,9 +108,8 @@ export default function DashboardPage() {
   const paths = buildChartPaths(overview.dailyCounts);
   const riskTypes = [...overview.findingsByType].sort((left, right) => right.count - left.count);
   const riskTotal = overview.chainHeadFindings;
-  const medianSeconds = overview.medianAgentDurationMs === null
-    ? null
-    : overview.medianAgentDurationMs / 1000;
+  const medianSeconds =
+    overview.medianAgentDurationMs === null ? null : overview.medianAgentDurationMs / 1000;
   const reviewedTotal = overview.acceptedFindings + overview.rejectedFindings;
 
   const kpis = [
@@ -165,8 +169,12 @@ export default function DashboardPage() {
     <div className="dashboard-page">
       <div className="page-head">
         <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>审计驾驶舱</Typography.Title>
-          <Typography.Text type="secondary">处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。</Typography.Text>
+          <Typography.Title level={3} style={{ margin: 0 }}>
+            审计驾驶舱
+          </Typography.Title>
+          <Typography.Text type="secondary">
+            处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。
+          </Typography.Text>
         </div>
       </div>
 
@@ -191,9 +199,22 @@ export default function DashboardPage() {
 
       <Row gutter={12} style={{ marginBottom: 12 }}>
         <Col xs={24} lg={15}>
-          <Card title="审计处理趋势" size="small" extra={<Typography.Text type="secondary" style={{ fontSize: 11 }}>近 30 天</Typography.Text>}>
+          <Card
+            title="审计处理趋势"
+            size="small"
+            extra={
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                近 30 天
+              </Typography.Text>
+            }
+          >
             <div className="line-chart-placeholder">
-              <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" style={{ width: "100%", height: CHART_HEIGHT }}>
+              <svg
+                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+                preserveAspectRatio="none"
+                style={{ width: "100%", height: CHART_HEIGHT }}
+              >
+                <title>近 30 天累计案件与每日新增趋势</title>
                 <defs>
                   <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#0B6BB5" stopOpacity="0.15" />
@@ -202,17 +223,37 @@ export default function DashboardPage() {
                 </defs>
                 <polygon points={paths.area} fill="url(#grad1)" />
                 <polyline points={paths.totalLine} fill="none" stroke="#0B6BB5" strokeWidth="2.5" />
-                <polyline points={paths.dailyLine} fill="none" stroke="#C57A00" strokeWidth="2" strokeDasharray="4 3" />
+                <polyline
+                  points={paths.dailyLine}
+                  fill="none"
+                  stroke="#C57A00"
+                  strokeWidth="2"
+                  strokeDasharray="4 3"
+                />
               </svg>
             </div>
             <div className="chart-legend">
-              <span><i style={{ background: "#0B6BB5" }} />累计案件</span>
-              <span><i style={{ background: "#C57A00" }} />当日新增</span>
+              <span>
+                <i style={{ background: "#0B6BB5" }} />
+                累计案件
+              </span>
+              <span>
+                <i style={{ background: "#C57A00" }} />
+                当日新增
+              </span>
             </div>
           </Card>
         </Col>
         <Col xs={24} lg={9}>
-          <Card title="风险发现类型" size="small" extra={<Typography.Text type="secondary" style={{ fontSize: 11 }}>按数量降序</Typography.Text>}>
+          <Card
+            title="风险发现类型"
+            size="small"
+            extra={
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                按数量降序
+              </Typography.Text>
+            }
+          >
             {riskTotal === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无风险发现" />
             ) : (
@@ -223,7 +264,13 @@ export default function DashboardPage() {
                     <div key={item.findingType} className="hbar-row">
                       <span className="hbar-label">{getFindingTypeLabel(item.findingType)}</span>
                       <div className="hbar-track">
-                        <div className="hbar-fill" style={{ width: `${Math.max(pct, 4)}%`, background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5" }} />
+                        <div
+                          className="hbar-fill"
+                          style={{
+                            width: `${Math.max(pct, 4)}%`,
+                            background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
+                          }}
+                        />
                       </div>
                       <b className="hbar-value">{item.count}</b>
                     </div>
@@ -259,12 +306,18 @@ export default function DashboardPage() {
             ) : (
               <div className="todo-list">
                 {overview.pendingReview.map((item) => {
-                  const tag = item.highestSeverity === null ? "待复核" : severityLabels[item.highestSeverity];
+                  const tag =
+                    item.highestSeverity === null ? "待复核" : severityLabels[item.highestSeverity];
                   const color = todoTagColors[tag] ?? "#0B5C99";
                   return (
                     <div key={item.id} className="todo-item">
                       <b>{item.title ?? "未命名合同"}</b>
-                      <span className="todo-tag" style={{ color, background: `${color}15`, border: `1px solid ${color}40` }}>{tag}</span>
+                      <span
+                        className="todo-tag"
+                        style={{ color, background: `${color}15`, border: `1px solid ${color}40` }}
+                      >
+                        {tag}
+                      </span>
                       <time>{relativeTime(item.updatedAt)}</time>
                     </div>
                   );
