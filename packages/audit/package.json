@@ -19,6 +19,7 @@
     "./subject-verification": "./src/subject-verification.ts",
     "./subject-verification-fixture": "./src/subject-verification-fixture.ts",
     "./ports": "./src/ports.ts",
+    "./demo-contracts": "./src/demo-contracts.ts",
     "./workspace": "./src/workspace.ts"
   }
 }

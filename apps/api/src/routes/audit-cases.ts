@@ -1,4 +1,5 @@
-import type { AuditSnapshot } from "@contract-audit/audit/model";
+import { findDemoContract } from "@contract-audit/audit/demo-contracts";
+import type { AuditSnapshot, SourceProvenance } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
@@ -18,7 +19,26 @@ const createBody = t.Object({
   source: t.Literal("text"),
   contractText: t.String(),
   policyLimitRatio: t.Optional(t.Number()),
+  /** Built-in sample the textarea still holds verbatim, when one was loaded. */
+  demoId: t.Optional(t.String()),
 });
+
+/**
+ * Provenance of a pasted submission. The catalog decides what counts as a
+ * built-in sample, and the text must still match it: once an operator edits a
+ * loaded sample the submission is an ordinary paste again, and recording it as
+ * DEMO would be a lie about where the contract came from.
+ */
+export function resolvePasteProvenance(body: {
+  contractText: string;
+  demoId?: string;
+}): SourceProvenance {
+  const demo = body.demoId === undefined ? undefined : findDemoContract(body.demoId);
+  if (demo === undefined || demo.text.trim() !== body.contractText.trim()) {
+    return { type: "TEXT_PASTE", displayName: null };
+  }
+  return { type: "DEMO", displayName: demo.title };
+}
 
 export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteDeps) {
   return (
@@ -32,10 +52,11 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
             document: normalizeContractDocument(body.contractText),
             policyLimitRatio: body.policyLimitRatio ?? 0.3,
           });
-          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot, {
-            sourceType: "TEXT_PASTE",
-            sourceDisplayName: "文本粘贴",
-          });
+          const { caseId } = await repository.createPendingCase(
+            sourceRecordId,
+            snapshot,
+            resolvePasteProvenance(body),
+          );
           await dispatcher.enqueue(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };
@@ -81,8 +102,8 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
             };
           }
           const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot, {
-            sourceType: "FILE_UPLOAD",
-            sourceDisplayName: body.file.name,
+            type: "FILE_UPLOAD",
+            displayName: body.file.name,
           });
           await dispatcher.enqueue(caseId);
           set.status = 202;

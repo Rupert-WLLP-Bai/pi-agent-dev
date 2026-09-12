@@ -10,11 +10,11 @@
  * fixture format but express the advance ratio in Arabic digits inside 第三条
  * and add no earlier `%` (e.g. no percentage in the penalty clause before it).
  *
- * Risk distribution (12 contracts):
- *   2 high    — advance POLICY_CONFLICT or subject red-line
- *   3 medium  — jurisdiction conflict + missing clause, or two missing clauses
- *   4 low     — single missing-clause finding (MEDIUM severity, one dimension)
- *   3 passed  — all rules COMPLIANT, no finding
+ * Risk classes are a property of the contract text, never of a lowered rule
+ * severity: a sample is "passed" because every rule returns COMPLIANT, and
+ * riskier because it violates more dimensions. `demo-contracts.test.ts` asserts
+ * each sample's full rule profile and `demo-agent.test.ts` asserts the
+ * resulting proposal distribution, so neither can drift from this comment.
  *
  * The FIRST contract must trigger an ADVANCE_PAYMENT POLICY_CONFLICT so the
  * default "加载演示合同" path in E2E tests produces a visible finding.
@@ -32,7 +32,7 @@ export interface DemoContract {
  * entry must exist at the type level (no non-null assertions at use sites).
  */
 export const demoContracts: [DemoContract, ...DemoContract[]] = [
-  // ── HIGH RISK (2) ───────────────────────────────────────────────────────
+  // ── HIGH RISK (2) — a settled money conflict, or a red-line party ───────
   // First contract: must have >30% advance payment for E2E default audit.
   {
     id: "equipment-lease",
@@ -54,7 +54,7 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 甲方应在合同签订后五日内支付合同总价50%作为预付款，其余按月结算。
 
 第四条 交付与验收
-乙方应于2026年10月31日前在甲方工地交付设备。验收标准按照国家标准GB/T5031执行。
+乙方应于2026年10月31日前在甲方工地交付设备，并同步提交验收资料。验收标准按照国家标准GB/T5031执行；延期交付的，按第五条约定的违约责任处理。
 
 第五条 违约责任
 任何一方违反本合同约定，应向守约方支付合同总价5%的违约金。
@@ -90,7 +90,7 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 甲方应在合同签订后十日内支付合同总价30%作为预付款，工程验收合格后十日内支付剩余价款。乙方在收到每期价款后十个工作日内开具增值税专用发票。
 
 第四条 工期与验收
-乙方应于2026年12月31日前完成施工。验收标准按照国家标准GB50300执行。
+乙方应于2026年12月31日前完成施工。验收标准按照国家标准GB50300执行；质保期为验收合格之日起二十四个月，质保期内出现质量问题的，按第六条约定处理。
 
 第五条 违约责任
 任何一方违反本合同约定，应向守约方支付合同总价3%的违约金。
@@ -99,18 +99,21 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 因乙方原因造成甲方损失的，乙方赔偿金额以合同金额为限，不承担间接损失。
 
 第七条 知识产权
-乙方就本项目形成的施工方案与竣工资料，其知识产权归甲方所有。乙方已有的施工工艺知识产权仍归乙方所有。
+乙方就本项目形成的施工方案与竣工资料，其知识产权归甲方所有。乙方已有的施工工艺知识产权仍归乙方所有。本条约定在本合同终止后继续有效。
 
 第八条 合同终止
 任一方严重违约且经书面催告后二十日内未纠正的，守约方有权解除本合同。
 
-第九条 争议解决
+第九条 保密
+双方对因履行本合同获知的对方商业秘密与技术资料负有保密义务，保密期限自本合同终止之日起三年，该义务不因合同终止而免除。
+
+第十条 争议解决
 因本合同引起的争议，双方应友好协商解决；协商不成的，提交重庆仲裁委员会仲裁。
 
 签订日期：2026年9月30日`,
   },
 
-  // ── MEDIUM RISK (3) ─────────────────────────────────────────────────────
+  // ── MEDIUM RISK (3) — a conflict plus a gap, or two gaps ────────────────
   {
     id: "construction-material",
     shortLabel: "建材采购",
@@ -196,19 +199,22 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 第四条 服务标准
 乙方应保证广告曝光量不低于五百万次，点击率不低于2%。
 
-第五条 赔偿责任
+第五条 关联方
+乙方保证其关联方不利用甲方品牌从事未经许可的活动，并对关联方的行为承担连带责任。
+
+第六条 赔偿责任
 因乙方原因造成甲方品牌声誉损害的，乙方赔偿金额以合同金额为限。
 
-第六条 合同终止
+第七条 合同终止
 任一方严重违约且经书面催告后十五日内未纠正的，守约方有权解除本合同。
 
-第七条 争议解决
+第八条 争议解决
 因本合同引起的争议，双方应友好协商解决；协商不成的，向上海人民法院提起诉讼。
 
 签订日期：2026年9月25日`,
   },
 
-  // ── LOW RISK (4) — single missing-clause finding ───────────────────────
+  // ── SINGLE GAP (4) — one protective clause is missing ──────────────────
   {
     id: "logistics-service",
     shortLabel: "物流服务",
@@ -229,7 +235,7 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 甲方应在合同签订后十日内支付合同总价30%作为预付款，每季度末按实际发生量结算尾款。
 
 第四条 服务标准
-乙方应保证货物在运输过程中的安全与时效，货物损坏率不超过万分之五。
+乙方应保证货物在运输过程中的安全与时效，货物损坏率不超过万分之五；发生货损的，按第五条约定的违约责任处理。
 
 第五条 违约责任
 任何一方违反本合同约定，应向守约方支付合同总价3%的违约金。
@@ -369,7 +375,7 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 甲方应在合同签订后十日内支付合同总价30%作为预付款，设备到货验收合格后十日内支付剩余价款。乙方在收到每期价款后十个工作日内开具增值税专用发票。
 
 第四条 交付与验收
-乙方应于2026年11月30日前在甲方所在地交付设备。验收标准按照国家标准GB/T19022执行。
+乙方应于2026年11月30日前在甲方所在地交付设备。验收标准按照国家标准GB/T19022执行；质保期为验收合格之日起十二个月，质保期内出现质量问题的，按第五条约定的违约责任处理。
 
 第五条 违约责任
 任何一方违反本合同约定，应向守约方支付合同总价5%的违约金。
@@ -461,3 +467,12 @@ export const demoContracts: [DemoContract, ...DemoContract[]] = [
 签订日期：2026年9月8日`,
   },
 ];
+
+/**
+ * Resolves a sample id to the built-in contract. The API uses this to record
+ * DEMO provenance, so the catalog — not the submitting client — decides what
+ * counts as a built-in sample.
+ */
+export function findDemoContract(id: string): DemoContract | undefined {
+  return demoContracts.find((contract) => contract.id === id);
+}

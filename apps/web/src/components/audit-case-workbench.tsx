@@ -39,6 +39,7 @@ import {
   getSubjectStatusLabel,
   severityLabels,
   shortAuditId,
+  summarizeRuleCoverage,
   summarizeRuleOutcome,
 } from "../audit-presentation";
 import type { AuditConnectionState } from "../hooks/use-audit-events";
@@ -554,6 +555,7 @@ export function AuditCaseWorkbench({
 
   const showReview = (awaitingReview || completed) && findings.length > 0;
   const contractTitle = snapshot.document.blocks[0]?.text ?? "未命名合同";
+  const coverage = useMemo(() => summarizeRuleCoverage(ruleAssessments), [ruleAssessments]);
 
   return (
     <article className="review-page">
@@ -726,7 +728,28 @@ export function AuditCaseWorkbench({
 
       {!showReview && !running && !failed && completed && findings.length === 0 && (
         <div className="workbench-empty">
-          <Empty description={<span>审计通过 · 各项确定性维度均已评估，未检出制度冲突</span>} />
+          <Empty
+            description={<span>本次审计未检出制度冲突</span>}
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+          <dl className="coverage-facts">
+            <div>
+              <dt>规则覆盖</dt>
+              <dd>
+                {coverage.compliant} / {coverage.total} 项通过
+              </dd>
+            </div>
+            <div>
+              <dt>证据完整度</dt>
+              <dd>
+                {coverage.withEvidence} / {coverage.total} 项规则附证据锚点
+              </dd>
+            </div>
+            <div>
+              <dt>后续处理</dt>
+              <dd>无需人工复核</dd>
+            </div>
+          </dl>
         </div>
       )}
       {!showReview && !running && !failed && !completed && (

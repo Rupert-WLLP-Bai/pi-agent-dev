@@ -8,7 +8,7 @@ import {
   SafetyCertificateOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
-import type { AuditCase } from "@contract-audit/audit/model";
+import type { AuditCase, SourceProvenance } from "@contract-audit/audit/model";
 import {
   Button,
   Card,
@@ -27,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   type AuditLifecycleFilter,
   deriveQueueStats,
+  describeSourceProvenance,
   filterAndSortCases,
   getAuditStageLabel,
   getAvailableCaseActions,
@@ -41,8 +42,8 @@ export interface AuditQueueCase extends AuditCase {
   highestSeverity?: "LOW" | "MEDIUM" | "HIGH" | null;
   /** Optional so list rows predating the subject-risk aggregate still render. */
   subjectRedLineCount?: number;
-  sourceType?: string;
-  sourceDisplayName?: string;
+  /** Null when the API never recorded where the contract came from. */
+  sourceProvenance?: SourceProvenance | null;
 }
 
 export interface AuditQueueProps {
@@ -272,28 +273,24 @@ export function AuditQueue({
                   title: "合同",
                   key: "contract",
                   render: (_, record) => (
-                    <div>
-                      <div className="contract-title">{record.contractTitle ?? "未命名合同"}</div>
-                      <div className="contract-sub">{record.sourceDisplayName ?? "文本粘贴"}</div>
-                    </div>
+                    <div className="contract-title">{record.contractTitle ?? "未命名合同"}</div>
                   ),
                 },
                 {
                   title: "来源",
                   key: "source",
                   width: 180,
-                  render: (_, record) => (
-                    <div>
-                      <div>{record.sourceDisplayName ?? "文本粘贴"}</div>
-                      <div className="contract-sub">
-                        {record.sourceType === "FILE_UPLOAD"
-                          ? "文件上传"
-                          : record.sourceType === "DEMO"
-                            ? "内置演示"
-                            : "文本粘贴"}
+                  render: (_, record) => {
+                    const source = describeSourceProvenance(record.sourceProvenance ?? null);
+                    return (
+                      <div>
+                        <div>{source.primary}</div>
+                        {source.secondary !== null && (
+                          <div className="contract-sub">{source.secondary}</div>
+                        )}
                       </div>
-                    </div>
-                  ),
+                    );
+                  },
                 },
                 {
                   title: "审计 ID",

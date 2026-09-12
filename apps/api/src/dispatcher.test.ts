@@ -82,10 +82,10 @@ test("does not run more than one audit when concurrency is one", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
   expect(agent.startedCaseIds).toEqual(["source-a"]);
 
-  agent.resolveRun(proposal);
+  agent.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
   expect(agent.startedCaseIds).toEqual(["source-a", "source-b"]);
-  agent.resolveRun(proposal);
+  agent.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
 
@@ -94,7 +94,7 @@ test("completes the audit for the enqueued case and records telemetry", async ()
   await dispatcher.enqueue(caseId);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
-  agent.resolveRun(proposal, {
+  agent.resolveRun([proposal], {
     provider: "test",
     model: "test-model",
     version: "1.0",
@@ -128,7 +128,7 @@ test("hands the agent a context that includes the subject verification evidence"
   await dispatcher.enqueue(caseId);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
-  agent.resolveRun(proposal);
+  agent.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const context = agent.receivedSnapshots[0];
@@ -160,7 +160,7 @@ test("records an unavailable subject verification without failing the case", asy
 
   await dispatcher2.enqueue(caseId);
   await new Promise((resolve) => setTimeout(resolve, 10));
-  agent2.resolveRun(proposal);
+  agent2.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   expect(await repository2.getCase(caseId)).toMatchObject({
@@ -215,7 +215,7 @@ test("cancels a queued case without running it", async () => {
     broker.events.some((event) => event.type === "audit.cancelled" && event.auditCaseId === queued),
   ).toBe(true);
 
-  agent.resolveRun(proposal);
+  agent.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
 
@@ -272,7 +272,7 @@ test("marks stale RUNNING cases interrupted and re-enqueues pending cases on sta
 
   expect(await repository2.getCase(stale)).toMatchObject({ status: "INTERRUPTED" });
   expect(agent2.startedCaseIds).toEqual(["source-pending"]);
-  agent2.resolveRun(proposal);
+  agent2.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
 

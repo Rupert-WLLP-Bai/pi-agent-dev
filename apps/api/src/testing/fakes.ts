@@ -4,9 +4,15 @@ import type {
   FindingProposal,
   FindingRevision,
   HumanReview,
+  SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
-import type { AgentRunTelemetry, AuditAgentPort, AuditEvent } from "@contract-audit/audit/ports";
+import type {
+  AgentRunResult,
+  AgentRunTelemetry,
+  AuditAgentPort,
+  AuditEvent,
+} from "@contract-audit/audit/ports";
 import type {
   SubjectSourceRecord,
   SubjectVerificationRun,
@@ -60,7 +66,7 @@ export class InMemoryAuditCaseRepository {
   async createPendingCase(
     _sourceRecordId: string,
     snapshot: AuditSnapshot,
-    _sourceMetadata?: { sourceType: string; sourceDisplayName: string },
+    _provenance: SourceProvenance | null = null,
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
     this.cases.set(caseId, { status: "PENDING", stage: "QUEUED", snapshot, findings: [] });
@@ -310,14 +316,11 @@ export class ControlledAgent implements AuditAgentPort {
   receivedSnapshots: AuditSnapshot[] = [];
   abortedRuns = 0;
   private pending: {
-    resolve: (result: { proposal: FindingProposal; telemetry: AgentRunTelemetry }) => void;
+    resolve: (result: AgentRunResult) => void;
     reject: (reason?: unknown) => void;
   }[] = [];
 
-  async run(
-    input: AuditSnapshot,
-    signal: AbortSignal,
-  ): Promise<{ proposal: FindingProposal; telemetry: AgentRunTelemetry }> {
+  async run(input: AuditSnapshot, signal: AbortSignal): Promise<AgentRunResult> {
     this.startedCaseIds.push(input.sourceRecordId);
     this.receivedSnapshots.push(input);
     return new Promise((resolve, reject) => {
@@ -334,11 +337,11 @@ export class ControlledAgent implements AuditAgentPort {
     });
   }
 
-  /** Resolves the oldest pending run with the given proposal. */
-  resolveRun(proposal: FindingProposal, telemetry?: AgentRunTelemetry): void {
+  /** Resolves the oldest pending run with the given proposals. */
+  resolveRun(proposals: FindingProposal[], telemetry?: AgentRunTelemetry): void {
     const entry = this.pending.shift();
     entry?.resolve({
-      proposal,
+      proposals,
       telemetry: telemetry ?? { provider: "test", model: "test-model", version: "0", usage: null },
     });
   }

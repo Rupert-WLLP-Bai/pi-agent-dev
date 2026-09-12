@@ -20,6 +20,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.github/workflows/ci.yml`: a `quality` job (lint, typecheck, unit tests)
   and an `acceptance` job (PostgreSQL 16 service, migrations, Playwright on
   Chromium) with report upload.
+- `SourceProvenance` (`type` + `displayName`) in `packages/audit/src/model.ts`:
+  one domain type for how a Contract Revision entered the system, stored on the
+  Source Record's metadata and shared by the API projection, the fake
+  repository, and the web queue.
+- `packages/audit/src/demo-contracts.ts`: the built-in sample catalog moved out
+  of `apps/web` so the API can resolve a submitted `demoId` against it. The
+  catalog — not the submitting client — decides what counts as a DEMO source.
+- `apps/api/src/demo-agent.ts`: the deterministic demo agent extracted from
+  `app.ts`, now returning one Finding Proposal per violated dimension instead of
+  only the highest-precedence one.
+- Queue 来源 column labels its channel from `audit-presentation.ts`
+  (`文件上传` / `内置演示` / `文本粘贴`), shows the filename or sample title as
+  the primary line, and renders `—` when provenance was never recorded.
+- `summarizeRuleCoverage` and the completed-no-findings workbench state: a
+  passed case now shows rule coverage and evidence completeness instead of a
+  bare success message, per the no-risk-state design requirement.
+
+### Changed
+
+- `AgentRunResult.proposal` became `proposals: FindingProposal[]`. A contract
+  can breach several dimensions at once, so the dispatcher persists and
+  publishes every proposal and the case's risk is the worst of them.
+- `getFindingsByCase` orders findings worst-first (severity, then recency), so
+  the workbench opens on the finding that matters rather than on whichever
+  dimension happened to be written last.
+- The dispatcher persists a terminal case status before publishing
+  `audit.completed` / `audit.awaiting_review`, matching the review route: the
+  SSE handler refetches on those events, and publishing first could leave the
+  detail view stuck on “审计进行中” with no later event to correct it.
+- Demo sample set: cross-clause references added (质保期, 保密存续, 关联方,
+  penalty cross-references), and the file's risk classes now match what the
+  deterministic rules actually produce — 2 HIGH, 7 MEDIUM, 3 passed, with no
+  LOW tier, because every rule either settles a conflict or asks for human
+  review.
 
 ### Fixed
 
@@ -33,16 +67,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   real `button` elements with matching CSS resets.
 - `demoContracts` is now a non-empty tuple, so the drawer's sample fallback
   needs no assertion.
+- Source provenance is no longer invented: `COALESCE(... 'TEXT_PASTE')` used to
+  label every pre-provenance record — including every file uploaded before the
+  column existed — as pasted text. Unknown provenance now projects as null and
+  renders as `—`.
+- The queue's “xx 条/页” size selector was not selectable; pagination is now
+  controlled, offers 10/20/50 rows, shows the total, and returns to page 1 when
+  the page size, filter, or search changes.
+- The detail page's three-pane workspace could overflow vertically: the
+  flex/grid height chain from `.app-shell` down to `.review-workspace` now
+  carries `min-height: 0` and `grid-template-rows: minmax(0, 1fr)`, so the
+  panes scroll internally and the page never grows.
+- A clean contract used to carry a token LOW finding, conflating “no finding”
+  with “low risk”. The demo agent now returns no proposal for a fully
+  compliant contract, and the case completes without entering review.
 
 ### Verified — Quality gates on 2026-09-12
 
-- `bun run lint`: clean (103 files).
+- `bun run lint`: clean (106 files).
 - `bun run typecheck`: clean under TypeScript 7.0.2 (application pass and
   tests pass).
-- `bun test packages apps`: 117 pass / 0 fail (312 assertions, 21 files).
-- `npx playwright test`: 15 pass / 0 fail, both with the local dev stack and
+- `bun test packages apps`: 132 pass / 0 fail (329 assertions, 23 files),
+  including the DB-backed provenance round trip and the per-contract rule
+  profile / proposal-distribution assertions.
+- `npx playwright test`: 16 pass / 0 fail, both with the local dev stack and
   under the CI parameter set (`CI=true`, no `.env`, four workers, servers
-  auto-started, bundled Chromium).
+  auto-started).
+- Browser check at 1280×800: queue 来源 column shows filename/title/channel and
+  `—` for unrecorded provenance; the passed case shows 规则覆盖 5 / 5 and
+  证据完整度 5 / 5; a two-finding case lists 高风险 before 中风险 and opens on
+  the high one; `.review-workspace` resolves to a 609 px row with no page
+  overflow.
 
 ## [Unreleased] - 2026-09-11
 

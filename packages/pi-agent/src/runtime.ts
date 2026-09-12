@@ -52,7 +52,7 @@ export class PiAuditAgent implements AuditAgentPort {
 
       const stats = session.getSessionStats();
       return {
-        proposal,
+        proposals: [proposal],
         telemetry: {
           provider: "pi",
           model: config.model,

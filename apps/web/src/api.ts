@@ -24,13 +24,24 @@ export class ApiRequestError extends Error {
 export interface CreateAuditCaseInput {
   contractText: string;
   policyLimitRatio: number;
+  /**
+   * Built-in sample the textarea still holds verbatim. The API resolves it
+   * against its own catalog and records DEMO provenance; an edited sample is
+   * recorded as a plain paste.
+   */
+  demoId?: string;
 }
 
-export async function createAuditCase({ contractText, policyLimitRatio }: CreateAuditCaseInput) {
+export async function createAuditCase({
+  contractText,
+  policyLimitRatio,
+  demoId,
+}: CreateAuditCaseInput) {
   const { data, error } = await api.api["audit-cases"].post({
     source: "text",
     contractText,
     policyLimitRatio,
+    ...(demoId === undefined ? {} : { demoId }),
   });
   if (error) throw new ApiRequestError("创建审计失败", error.status);
   return data;

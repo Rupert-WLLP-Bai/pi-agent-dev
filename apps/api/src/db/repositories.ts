@@ -9,6 +9,7 @@ import type {
   FindingRevision,
   HumanReview,
   Severity,
+  SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
@@ -58,10 +59,8 @@ export interface CaseSummary extends AuditCase {
    * verification per party. 0 when the counterparty carries no red-line risk.
    */
   subjectRedLineCount: number;
-  /** How the contract entered the system: TEXT_PASTE, FILE_UPLOAD, DEMO. */
-  sourceType: string;
-  /** Human-readable source name: original filename, "文本粘贴", "内置演示", etc. */
-  sourceDisplayName: string;
+  /** How the contract entered the system; null when never recorded. */
+  sourceProvenance: SourceProvenance | null;
 }
 
 /**
@@ -102,6 +101,19 @@ const toSeverity = (value: string | null): Severity | null => {
   return severityByRank[rank] ?? null;
 };
 
+/**
+ * Rebuilds provenance from Source Record metadata. Records written before
+ * provenance was tracked carry no type, and an unrecognised value is treated
+ * the same way: the honest answer is "unknown", never a guessed channel.
+ */
+const toSourceProvenance = (
+  type: string | null,
+  displayName: string | null,
+): SourceProvenance | null => {
+  if (type !== "TEXT_PASTE" && type !== "FILE_UPLOAD" && type !== "DEMO") return null;
+  return { type, displayName: displayName && displayName.length > 0 ? displayName : null };
+};
+
 const toCase = (row: typeof auditCases.$inferSelect): AuditCase => ({
   id: row.id,
   status: row.status,
@@ -136,7 +148,7 @@ export class AuditCaseRepository {
   async createPendingCase(
     sourceRecordId: string,
     snapshot: AuditSnapshot,
-    sourceMetadata?: { sourceType: string; sourceDisplayName: string },
+    provenance: SourceProvenance | null = null,
   ): Promise<{ caseId: string; snapshotId: string }> {
     return this.db.transaction(async (tx) => {
       await tx
@@ -146,7 +158,9 @@ export class AuditCaseRepository {
           sourceText: snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
           metadata: {
             contractDocumentHash: snapshot.contractDocument.hash,
-            ...(sourceMetadata ?? { sourceType: "TEXT_PASTE", sourceDisplayName: "文本粘贴" }),
+            ...(provenance === null
+              ? {}
+              : { sourceType: provenance.type, sourceDisplayName: provenance.displayName }),
           },
         })
         .onConflictDoNothing({ target: sourceRecords.id });
@@ -331,7 +345,13 @@ export class AuditCaseRepository {
       .select()
       .from(findingRevisions)
       .where(eq(findingRevisions.auditCaseId, caseId))
-      .orderBy(desc(findingRevisions.createdAt));
+      // Worst first: a case can carry several findings from one run, and the
+      // workbench opens on the first one. Recency alone would surface whichever
+      // dimension happened to be written last instead of the one that matters.
+      .orderBy(
+        sql`CASE ${findingRevisions.proposal}->>'severity' WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END DESC`,
+        desc(findingRevisions.createdAt),
+      );
     // Append-only revisions: expose only chain heads (revisions that are not
     // superseded by a newer revision), each carrying its latest review state.
     const supersededIds = new Set(
@@ -445,8 +465,8 @@ export class AuditCaseRepository {
       status: string;
       stage: string;
       source_record_id: string;
-      source_type: string;
-      source_display_name: string;
+      source_type: string | null;
+      source_display_name: string | null;
       created_at: string | Date;
       updated_at: string | Date;
       contract_title: string | null;
@@ -456,8 +476,8 @@ export class AuditCaseRepository {
     }>(sql`
       SELECT c.id, c.status, c.stage, c.source_record_id, c.created_at, c.updated_at,
              s.document->'blocks'->0->>'text' AS contract_title,
-             COALESCE(src.metadata->>'sourceType', 'TEXT_PASTE') AS source_type,
-             COALESCE(src.metadata->>'sourceDisplayName', '文本粘贴') AS source_display_name,
+             src.metadata->>'sourceType' AS source_type,
+             src.metadata->>'sourceDisplayName' AS source_display_name,
              COALESCE(h.finding_count, 0)::int AS finding_count,
              h.highest_severity,
              COALESCE(sr.subject_red_line_count, 0)::int AS subject_red_line_count
@@ -501,14 +521,13 @@ export class AuditCaseRepository {
       status: row.status as AuditCase["status"],
       stage: row.stage as AuditCase["stage"],
       sourceRecordId: row.source_record_id,
-      sourceType: row.source_type,
-      sourceDisplayName: row.source_display_name,
       createdAt: toDate(row.created_at),
       updatedAt: toDate(row.updated_at),
       contractTitle: contractTitleFromFirstBlock(row.contract_title),
       findingCount: row.finding_count,
       highestSeverity: toSeverity(row.highest_severity),
       subjectRedLineCount: row.subject_red_line_count,
+      sourceProvenance: toSourceProvenance(row.source_type, row.source_display_name),
     }));
   }
 

@@ -139,6 +139,39 @@ maybeTest("pings the database", async () => {
   expect(await repository.ping()).toBe(true);
 });
 
+// ── Source provenance ─────────────────────────────────────────────
+
+maybeTest("records the provenance it was given and reports it back", async () => {
+  const id = uniqueSourceRecordId();
+  await repository.createPendingCase(id, seedSnapshot(id), {
+    type: "FILE_UPLOAD",
+    displayName: "设备采购合同.docx",
+  });
+
+  const [row] = (await repository.getCasesWithContractTitle()).filter(
+    (summary) => summary.sourceRecordId === id,
+  );
+
+  expect(row.sourceProvenance).toEqual({
+    type: "FILE_UPLOAD",
+    displayName: "设备采购合同.docx",
+  });
+});
+
+maybeTest("reports unknown provenance as null instead of inventing a paste", async () => {
+  // Records written before provenance was tracked carry no source type. The
+  // queue must show that gap as unknown: claiming "文本粘贴" would mislabel
+  // every file uploaded before provenance existed.
+  const id = uniqueSourceRecordId();
+  await repository.createPendingCase(id, seedSnapshot(id));
+
+  const [row] = (await repository.getCasesWithContractTitle()).filter(
+    (summary) => summary.sourceRecordId === id,
+  );
+
+  expect(row.sourceProvenance).toBeNull();
+});
+
 // ── Contract title heuristic ──────────────────────────────────────
 
 test("accepts a short heading as the contract title", () => {

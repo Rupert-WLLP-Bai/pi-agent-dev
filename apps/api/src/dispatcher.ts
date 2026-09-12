@@ -124,20 +124,22 @@ export class AuditDispatcher {
       if (runError !== undefined) throw runError;
       if (!result) throw new Error("AGENT_RUN_MISSING_RESULT");
 
-      if (result.proposal === null) {
-        // No issues found — the case passes without review.
-        this.broker.publish({ type: "audit.completed", auditCaseId });
+      if (result.proposals.length === 0) {
+        // No issues found — the case passes without review. Persist the
+        // terminal state first: the SSE handler refetches on this event, and a
+        // publish that overtakes the write leaves the detail view on
+        // "审计进行中" with no later event to correct it.
         await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "COMPLETED");
-      } else {
-        await this.repository.appendFindingRevision(auditCaseId, result.proposal, null);
-        this.broker.publish({
-          type: "finding.proposed",
-          auditCaseId,
-          proposal: result.proposal,
-        });
-        this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
-        await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+        this.broker.publish({ type: "audit.completed", auditCaseId });
+        return;
       }
+
+      for (const proposal of result.proposals) {
+        await this.repository.appendFindingRevision(auditCaseId, proposal, null);
+        this.broker.publish({ type: "finding.proposed", auditCaseId, proposal });
+      }
+      await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+      this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
     } catch (error) {
       const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);
       if (cancelled) {

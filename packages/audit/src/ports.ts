@@ -9,13 +9,17 @@ export interface AgentRunTelemetry {
 }
 
 export interface AgentRunResult {
-  /** null when the agent found no issues — the case passes without review. */
-  proposal: FindingProposal | null;
+  /**
+   * Every risk the agent claims. Empty when it found none — that case passes
+   * without review. One contract can violate several dimensions at once, so a
+   * single result is allowed to carry more than one proposal.
+   */
+  proposals: FindingProposal[];
   telemetry: AgentRunTelemetry;
 }
 
 // The agent port: implementations receive a bounded audit snapshot and
-// return a finding proposal. They must not mutate the snapshot or
+// return finding proposals. They must not mutate the snapshot or
 // override deterministic rule assessments.
 export interface AuditAgentPort {
   run(input: AuditSnapshot, signal: AbortSignal): Promise<AgentRunResult>;

@@ -7,6 +7,8 @@ import type {
   RuleCode,
   RuleDisposition,
   Severity,
+  SourceProvenance,
+  SourceType,
   SubjectMatchStatus,
   SubjectRiskDimension,
 } from "@contract-audit/audit/model";
@@ -114,6 +116,59 @@ export const getSubjectStatusLabel = (status: SubjectMatchStatus | null): string
 export const getSubjectDimensionSeverityLabel = (
   severity: SubjectRiskDimension["severity"],
 ): string => (severity === "RED_LINE" ? "红线" : "背景");
+
+/** Chinese labels for the channel a contract entered through. */
+const sourceTypeLabels: Record<SourceType, string> = {
+  TEXT_PASTE: "文本粘贴",
+  FILE_UPLOAD: "文件上传",
+  DEMO: "内置演示",
+};
+
+export const getSourceTypeLabel = (type: SourceType): string => sourceTypeLabels[type];
+
+/**
+ * The two lines of a queue row's 来源 cell. A record with no recorded
+ * provenance shows a dash: `CONTEXT.md` treats a Source Record's origin as a
+ * fact, and a missing fact is not evidence of a paste.
+ */
+export function describeSourceProvenance(provenance: SourceProvenance | null): {
+  primary: string;
+  secondary: string | null;
+} {
+  if (provenance === null) return { primary: "—", secondary: null };
+  const label = getSourceTypeLabel(provenance.type);
+  return provenance.displayName === null
+    ? { primary: label, secondary: null }
+    : { primary: provenance.displayName, secondary: label };
+}
+
+export interface RuleCoverage {
+  total: number;
+  compliant: number;
+  needsReview: number;
+  conflict: number;
+  /** Assessments carrying at least one evidence anchor. */
+  withEvidence: number;
+}
+
+/**
+ * Rule coverage for a case, used where a case needs to state what was checked
+ * rather than what was found — notably the no-risk terminal state, which must
+ * show completed coverage instead of a bare success message.
+ */
+export function summarizeRuleCoverage(assessments: RuleAssessment[]): RuleCoverage {
+  return assessments.reduce<RuleCoverage>(
+    (coverage, assessment) => {
+      coverage.total += 1;
+      if (assessment.disposition === "COMPLIANT") coverage.compliant += 1;
+      if (assessment.disposition === "NEEDS_HUMAN_REVIEW") coverage.needsReview += 1;
+      if (assessment.disposition === "POLICY_CONFLICT") coverage.conflict += 1;
+      if (assessment.evidenceIds.length > 0) coverage.withEvidence += 1;
+      return coverage;
+    },
+    { total: 0, compliant: 0, needsReview: 0, conflict: 0, withEvidence: 0 },
+  );
+}
 
 /**
  * Queue-row label for counterparty (subject) red-line risk. Distinct from the

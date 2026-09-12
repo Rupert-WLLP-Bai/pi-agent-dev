@@ -185,6 +185,24 @@ export interface FindingRevision {
   createdAt: string;
 }
 
+// ── Source Record ────────────────────────────────────────────────
+
+/** The channel a Contract Revision entered the system through. */
+export type SourceType = "TEXT_PASTE" | "FILE_UPLOAD" | "DEMO";
+
+/**
+ * Where a Source Record came from. `displayName` is the name an operator would
+ * recognise — a filename or a built-in sample title. It is null when the
+ * channel is the whole story, because a pasted text has no name of its own.
+ *
+ * A null SourceProvenance means provenance was never recorded (records written
+ * before provenance was tracked). It is not the same as a pasted text.
+ */
+export interface SourceProvenance {
+  type: SourceType;
+  displayName: string | null;
+}
+
 // ── Audit Case lifecycle ─────────────────────────────────────────
 
 export type AuditCaseStatus =

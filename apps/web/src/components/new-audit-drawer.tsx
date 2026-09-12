@@ -1,8 +1,8 @@
 import { FileTextOutlined, UploadOutlined } from "@ant-design/icons";
+import { demoContracts } from "@contract-audit/audit/demo-contracts";
 import { Button, Drawer, Form, Input, InputNumber, Segmented, Space, Upload } from "antd";
 import { useState } from "react";
 import type { CreateAuditCaseInput, UploadContractFileInput } from "../api";
-import { demoContracts } from "../demo-contracts";
 
 export interface NewAuditDrawerProps {
   open: boolean;
@@ -39,6 +39,8 @@ export function NewAuditDrawer({
   const [sampleId, setSampleId] = useState(demoContracts[0].id);
   const [mode, setMode] = useState<InputMode>("paste");
   const [file, setFile] = useState<File | null>(null);
+  /** Set while the textarea still holds an unedited built-in sample. */
+  const [loadedSampleId, setLoadedSampleId] = useState<string | null>(null);
   const sample = demoContracts.find((item) => item.id === sampleId) ?? demoContracts[0];
 
   const handleSubmit = (values: NewAuditFormValues) => {
@@ -53,6 +55,7 @@ export function NewAuditDrawer({
     onSubmit({
       contractText: values.contractText.trim(),
       policyLimitRatio: values.policyLimitPercent / 100,
+      ...(loadedSampleId === null ? {} : { demoId: loadedSampleId }),
     });
   };
 
@@ -119,6 +122,7 @@ export function NewAuditDrawer({
               showCount
               placeholder="粘贴需要审计的合同文本"
               disabled={submitting}
+              onChange={() => setLoadedSampleId(null)}
             />
           </Form.Item>
         ) : (
@@ -178,7 +182,10 @@ export function NewAuditDrawer({
                 options={demoContracts.map((item) => ({ value: item.id, label: item.shortLabel }))}
               />
               <Button
-                onClick={() => form.setFieldValue("contractText", sample.text)}
+                onClick={() => {
+                  form.setFieldValue("contractText", sample.text);
+                  setLoadedSampleId(sample.id);
+                }}
                 disabled={submitting}
               >
                 加载演示合同

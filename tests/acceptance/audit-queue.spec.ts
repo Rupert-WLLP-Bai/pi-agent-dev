@@ -1,4 +1,4 @@
-import type { AuditCase } from "@contract-audit/audit/model";
+import type { AuditCase, SourceProvenance } from "@contract-audit/audit/model";
 import { expect, test } from "@playwright/test";
 
 /** Queue rows carry the contract title and finding summary resolved by the API list join. */
@@ -6,6 +6,7 @@ interface QueueCase extends AuditCase {
   contractTitle: string | null;
   findingCount: number;
   highestSeverity: "LOW" | "MEDIUM" | "HIGH" | null;
+  sourceProvenance: SourceProvenance | null;
 }
 
 const caseAt = (
@@ -16,6 +17,7 @@ const caseAt = (
   contractTitle: string | null,
   findingCount = 0,
   highestSeverity: QueueCase["highestSeverity"] = null,
+  sourceProvenance: SourceProvenance | null = null,
 ): QueueCase => ({
   id,
   status,
@@ -26,6 +28,7 @@ const caseAt = (
   contractTitle,
   findingCount,
   highestSeverity,
+  sourceProvenance,
 });
 
 const queueCases = (): QueueCase[] => [
@@ -37,9 +40,20 @@ const queueCases = (): QueueCase[] => [
     "设备采购合同",
     3,
     "HIGH",
+    { type: "FILE_UPLOAD", displayName: "设备采购合同.docx" },
   ),
   caseAt("failed", "FAILED", "FAILED", "2026-09-11T10:00:00.000Z", "原材料买卖合同", 1, "MEDIUM"),
-  caseAt("interrupted", "INTERRUPTED", "INTERRUPTED", "2026-09-11T09:30:00.000Z", null, 0, null),
+  caseAt(
+    "interrupted",
+    "INTERRUPTED",
+    "INTERRUPTED",
+    "2026-09-11T09:30:00.000Z",
+    null,
+    0,
+    null,
+    // Provenance was never recorded for this row, so it must not be guessed.
+    null,
+  ),
   caseAt(
     "review",
     "COMPLETED",
@@ -48,6 +62,7 @@ const queueCases = (): QueueCase[] => [
     "电子元件采购合同",
     2,
     "LOW",
+    { type: "DEMO", displayName: "电子元件采购合同（预付款 50%）" },
   ),
   caseAt(
     "done",
@@ -57,10 +72,35 @@ const queueCases = (): QueueCase[] => [
     "办公场地租赁合同",
     1,
     "HIGH",
+    { type: "TEXT_PASTE", displayName: null },
   ),
 ];
 
 const QUEUE_SEARCH = "搜索合同名称 / 审计 ID / 来源记录 ID";
+
+test("labels each row with the source it actually came from", async ({ page }) => {
+  await page.route("**/api/audit-cases", (route) =>
+    route.request().method() === "GET" ? route.fulfill({ json: queueCases() }) : route.continue(),
+  );
+
+  await page.goto("/audit-cases");
+
+  const sourceOf = (contract: string) =>
+    page.getByRole("row").filter({ hasText: contract }).locator("td").nth(1);
+
+  // An uploaded file leads with its own filename and names the channel.
+  await expect(sourceOf("设备采购合同")).toContainText("设备采购合同.docx");
+  await expect(sourceOf("设备采购合同")).toContainText("文件上传");
+
+  // A built-in sample leads with its title and names the channel.
+  await expect(sourceOf("电子元件采购合同")).toContainText("内置演示");
+
+  // A plain paste has no name of its own, so the channel stands alone.
+  await expect(sourceOf("办公场地租赁合同")).toHaveText("文本粘贴");
+
+  // Provenance that was never recorded shows a dash, never a guessed channel.
+  await expect(sourceOf("未命名合同")).toHaveText("—");
+});
 
 test("shows contract titles and keeps the audit ID as a secondary identity", async ({ page }) => {
   await page.route("**/api/audit-cases", (route) =>
@@ -98,13 +138,15 @@ test("filters by lifecycle and searches contract name and ID", async ({ page }) 
   await expect(page.getByText("异常", { exact: true }).first()).toBeVisible();
 
   await page.locator(".queue-toolbar").getByText("异常", { exact: true }).click();
-  await expect(page.getByText("原材料买卖合同")).toBeVisible();
-  await expect(page.getByText("未命名合同")).toBeVisible();
+  await expect(page.getByText("原材料买卖合同", { exact: true })).toBeVisible();
+  await expect(page.getByText("未命名合同", { exact: true })).toBeVisible();
   await expect(page.getByText("设备采购合同", { exact: true })).toBeHidden();
 
   await page.locator(".queue-toolbar").getByText("全部", { exact: true }).click();
   await page.getByPlaceholder(QUEUE_SEARCH).fill("电子元件");
-  await expect(page.getByText("电子元件采购合同")).toBeVisible();
+  // Exact: a demo row's source name embeds the sample title, so a substring
+  // match would also hit the 来源 cell of the same row.
+  await expect(page.getByText("电子元件采购合同", { exact: true })).toBeVisible();
   await expect(page.getByText("设备采购合同", { exact: true })).toBeHidden();
 
   // Searching by audit ID still resolves.

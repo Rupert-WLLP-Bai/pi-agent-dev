@@ -25,7 +25,7 @@ test("rejects a proposal with an unknown evidence locator", async () => {
     ruleAssessments: [],
     createdAt: new Date(0).toISOString(),
   } satisfies AuditSnapshot;
-  const agent = new FakeAuditAgent(proposal);
+  const agent = new FakeAuditAgent([proposal]);
 
   await expect(agent.run(snapshot, new AbortController().signal)).rejects.toThrow(
     "UNKNOWN_EVIDENCE: unknown-id",
@@ -70,10 +70,10 @@ test("returns run telemetry alongside the proposal", async () => {
     ],
     createdAt: new Date(0).toISOString(),
   } satisfies AuditSnapshot;
-  const agent = new FakeAuditAgent(proposal);
+  const agent = new FakeAuditAgent([proposal]);
 
   const result = await agent.run(snapshot, new AbortController().signal);
 
-  expect(result.proposal).toEqual(proposal);
+  expect(result.proposals).toEqual([proposal]);
   expect(result.telemetry.provider).toBe("fake");
 });
