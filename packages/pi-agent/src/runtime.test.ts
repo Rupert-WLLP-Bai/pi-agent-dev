@@ -20,12 +20,9 @@ test("rejects a proposal with an unknown evidence locator", async () => {
     sourceRecordId: "source-1",
     contractDocument: { hash: "hash-1", blocks: [] },
     facts: { advancePaymentRatio: 0, policyLimitRatio: 0 },
+    parties: [],
     evidence: [],
-    ruleAssessment: {
-      disposition: "COMPLIANT",
-      ruleCode: "ADVANCE_PAYMENT_LIMIT",
-      evidenceIds: [],
-    },
+    ruleAssessments: [],
     createdAt: new Date(0).toISOString(),
   } satisfies AuditSnapshot;
   const agent = new FakeAuditAgent(proposal);
@@ -47,22 +44,30 @@ test("returns run telemetry alongside the proposal", async () => {
     sourceRecordId: "source-1",
     contractDocument: { hash: "hash-1", blocks: [] },
     facts: { advancePaymentRatio: 0.7, policyLimitRatio: 0.3 },
+    parties: [],
     evidence: [
       {
         id: "contract-payment",
         sourceRecordId: "source-1",
-        contractDocumentHash: "hash-1",
-        blockId: "p-1",
-        startOffset: 0,
-        endOffset: 3,
-        quotedText: "70%",
+        location: {
+          kind: "DOCUMENT_SPAN",
+          contractDocumentHash: "hash-1",
+          blockId: "p-1",
+          startOffset: 0,
+          endOffset: 3,
+          quotedText: "70%",
+        },
       },
     ],
-    ruleAssessment: {
-      disposition: "POLICY_CONFLICT",
-      ruleCode: "ADVANCE_PAYMENT_LIMIT",
-      evidenceIds: ["contract-payment", "policy-limit"],
-    },
+    ruleAssessments: [
+      {
+        id: "assessment-payment",
+        disposition: "POLICY_CONFLICT",
+        ruleCode: "ADVANCE_PAYMENT_LIMIT",
+        evidenceIds: ["contract-payment", "policy-limit"],
+        basis: "预付款比例 70% 高于制度上限 30%。",
+      },
+    ],
     createdAt: new Date(0).toISOString(),
   } satisfies AuditSnapshot;
   const agent = new FakeAuditAgent(proposal);

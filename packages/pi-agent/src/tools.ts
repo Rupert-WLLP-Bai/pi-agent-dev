@@ -7,21 +7,22 @@ export function createAuditTools(
   onProposal: (proposal: FindingProposal) => void,
 ) {
   const findEvidence = (id: string): EvidenceLocator => {
-    const evidence = snapshot.evidence.find((item) => item.id === id || item.blockId === id);
+    const evidence = snapshot.evidence.find((item) => item.id === id);
     if (!evidence) throw new Error(`UNKNOWN_EVIDENCE: ${id}`);
     return evidence;
   };
 
   return [
     defineTool({
-      name: "get_rule_assessment",
-      label: "Get Rule Assessment",
-      description: "Returns the deterministic rule assessment for the current audit case.",
+      name: "get_rule_assessments",
+      label: "Get Rule Assessments",
+      description:
+        "Returns every deterministic rule assessment for the current audit case. These cannot be overridden.",
       parameters: Type.Object({}),
       execute: async () => ({
-        content: [{ type: "text", text: JSON.stringify(snapshot.ruleAssessment) }],
+        content: [{ type: "text", text: JSON.stringify(snapshot.ruleAssessments) }],
         details: {
-          ...snapshot.ruleAssessment,
+          assessments: snapshot.ruleAssessments,
           availableEvidenceIds: snapshot.evidence.map((item) => item.id),
         },
       }),
@@ -43,6 +44,7 @@ export function createAuditTools(
       parameters: Type.Object({
         findingType: Type.Union([
           Type.Literal("ADVANCE_PAYMENT_POLICY_CONFLICT"),
+          Type.Literal("SUBJECT_RED_LINE_RISK"),
           Type.Literal("NEEDS_HUMAN_REVIEW"),
         ]),
         severity: Type.Union([Type.Literal("LOW"), Type.Literal("MEDIUM"), Type.Literal("HIGH")]),

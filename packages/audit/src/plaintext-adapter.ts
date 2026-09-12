@@ -1,36 +1,22 @@
-import type { ContractBlock, ContractDocument } from "./model";
-
-const hasher = (): { update(text: string): void; digest(): string } => {
-  const instance = new Bun.CryptoHasher("sha256");
-  return { update: (text) => instance.update(text), digest: () => instance.digest("hex") };
-};
+import type { ContractDocument } from "./model";
+import { buildContractDocument, type RawBlock } from "./document-ir";
 
 /**
- * Normalizes pasted text into a Contract Document. This adapter owns block
- * segmentation and hashing only — it does not create Facts or Rule
- * Assessments (ADR-0001: adapters normalize, they do not interpret).
+ * Normalizes pasted text into a Contract Document. Plain text has no styles or
+ * pages, so the only inference is section headings: a paragraph opening with
+ * 第X条/第X章 is a heading. This adapter owns segmentation only — it does not
+ * create Facts or Rule Assessments (ADR-0001: adapters normalize, they do not
+ * interpret).
  */
 export function normalizeContractDocument(contractText: string): ContractDocument {
-  const paragraphs = contractText.split("\n\n");
-  const blocks: ContractBlock[] = [];
-  let offset = 0;
-
-  for (const [index, paragraph] of paragraphs.entries()) {
-    const paragraphLength = Array.from(paragraph).length;
-    blocks.push({
-      blockId: `p-${index + 1}`,
+  const rawBlocks: RawBlock[] = contractText
+    .split("\n\n")
+    .map((paragraph) => ({
       text: paragraph,
-      startOffset: offset,
-      endOffset: offset + paragraphLength,
-    });
+      kind: (/^第[一二三四五六七八九十百千零0-9]+[条章节]/u.test(paragraph.trim())
+        ? "heading"
+        : "paragraph") as RawBlock["kind"],
+    }));
 
-    offset += paragraphLength;
-    if (index < paragraphs.length - 1) {
-      offset += 2;
-    }
-  }
-
-  const digest = hasher();
-  digest.update(contractText);
-  return { hash: digest.digest(), blocks };
+  return buildContractDocument(rawBlocks).document;
 }

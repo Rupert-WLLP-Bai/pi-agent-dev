@@ -1,30 +1,80 @@
-import type { AuditSnapshot } from "./model";
+import type { AuditSnapshot, ContractDocument } from "./model";
 import { buildPaymentFacts } from "./fact-builder";
-import { normalizeContractDocument } from "./plaintext-adapter";
+import { buildDisputeJurisdictionFacts, evaluateDisputeJurisdictionRule } from "./dispute-rule";
+import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
+import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./termination-rule";
+import { extractContractParties } from "./party-extractor";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
 
 /**
- * Assembles a bounded Audit Snapshot from a source record: normalization,
- * Fact extraction, deterministic rule assessment, then snapshot creation.
+ * Assembles the document-derived half of an Audit Snapshot from a Contract
+ * Document IR: Fact extraction, Contract Party extraction, and the
+ * deterministic rules that need nothing but the contract itself.
+ *
+ * The document arrives already normalized — whichever parser read the source
+ * owns segmentation, so this function never sees a file format. The subject
+ * dimension is deliberately absent: resolving parties against an external
+ * provider is a network call, so the dispatcher runs it as its own Audit Stage
+ * and records the result separately rather than making snapshot assembly depend
+ * on a third party.
  */
 export function createAuditSnapshot(input: {
   sourceRecordId: string;
-  contractText: string;
+  /** The Contract Document IR — built by whichever parser handled the source. */
+  document: ContractDocument;
   policyLimitRatio: number;
+  /** Policy ceiling for breach-of-contract penalty as a 0–1 ratio. Defaults to 0.3. */
+  policyPenaltyLimit?: number;
+  /** Our side's preferred dispute jurisdiction (e.g. "重庆"). Defaults to "重庆". */
+  preferredJurisdiction?: string;
 }): AuditSnapshot {
-  const document = normalizeContractDocument(input.contractText);
-  const { facts, evidence } = buildPaymentFacts({
+  const document = input.document;
+  const { facts, hasAdvanceTerm, evidence } = buildPaymentFacts({
     sourceRecordId: input.sourceRecordId,
     document,
     policyLimitRatio: input.policyLimitRatio,
+  });
+  const { parties, evidence: partyEvidence } = extractContractParties({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+
+  const penaltyLimit = input.policyPenaltyLimit ?? 0.3;
+  const preferredJurisdiction = input.preferredJurisdiction ?? "重庆";
+
+  const penaltyAnalysis = buildPenaltyRatioFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+    policyPenaltyLimit: penaltyLimit,
+  });
+  const terminationAnalysis = buildTerminationClauseFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const disputeAnalysis = buildDisputeJurisdictionFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+    preferredJurisdiction,
   });
 
   return {
     sourceRecordId: input.sourceRecordId,
     contractDocument: document,
     facts,
-    evidence,
-    ruleAssessment: evaluateAdvancePaymentRule(facts),
+    parties,
+    evidence: [
+      ...evidence,
+      ...partyEvidence,
+      ...penaltyAnalysis.evidence,
+      ...terminationAnalysis.evidence,
+      ...disputeAnalysis.evidence,
+    ],
+    ruleAssessments: [
+      evaluateAdvancePaymentRule(facts, hasAdvanceTerm),
+      evaluatePenaltyRatioRule(penaltyAnalysis.facts),
+      evaluateTerminationClauseRule(terminationAnalysis.facts),
+      evaluateDisputeJurisdictionRule(disputeAnalysis.facts, preferredJurisdiction),
+    ],
     createdAt: new Date().toISOString(),
   };
 }

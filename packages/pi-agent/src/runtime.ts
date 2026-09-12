@@ -9,7 +9,7 @@ import type { AgentRunResult, AuditAgentPort } from "@contract-audit/audit/ports
 import { PI_AGENT_VERSION, buildModel, createModelRuntime, loadPiConfig } from "./config";
 import { createAuditTools } from "./tools";
 
-const AUDIT_TOOL_NAMES = ["get_rule_assessment", "get_evidence", "submit_finding_proposal"] as const;
+const AUDIT_TOOL_NAMES = ["get_rule_assessments", "get_evidence", "submit_finding_proposal"] as const;
 
 /** Loads the payment-terms-audit skill markdown next to this module. */
 function loadSkillPrompt(): string {

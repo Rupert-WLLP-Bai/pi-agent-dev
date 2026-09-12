@@ -7,9 +7,17 @@
     ".": "./src/index.ts",
     "./model": "./src/model.ts",
     "./payment-rule": "./src/payment-rule.ts",
+    "./penalty-rule": "./src/penalty-rule.ts",
+    "./termination-rule": "./src/termination-rule.ts",
+    "./dispute-rule": "./src/dispute-rule.ts",
+    "./document-ir": "./src/document-ir.ts",
     "./plaintext-adapter": "./src/plaintext-adapter.ts",
     "./fact-builder": "./src/fact-builder.ts",
     "./orchestrator": "./src/orchestrator.ts",
+    "./party-extractor": "./src/party-extractor.ts",
+    "./subject-rule": "./src/subject-rule.ts",
+    "./subject-verification": "./src/subject-verification.ts",
+    "./subject-verification-fixture": "./src/subject-verification-fixture.ts",
     "./ports": "./src/ports.ts",
     "./workspace": "./src/workspace.ts"
   }

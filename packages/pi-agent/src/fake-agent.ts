@@ -11,9 +11,7 @@ export class FakeAuditAgent implements AuditAgentPort {
 
   async run(input: AuditSnapshot, _signal: AbortSignal): Promise<AgentRunResult> {
     for (const evidenceId of this.proposal.evidenceIds) {
-      const known = input.evidence.some(
-        (evidence) => evidence.id === evidenceId || evidence.blockId === evidenceId,
-      );
+      const known = input.evidence.some((evidence) => evidence.id === evidenceId);
       if (!known) {
         throw new UnknownEvidenceError(`UNKNOWN_EVIDENCE: ${evidenceId}`);
       }
