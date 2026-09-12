@@ -247,6 +247,78 @@ export interface AgentRun {
   createdAt: string;
 }
 
+// ── Agent Trace ──────────────────────────────────────────────────
+
+/**
+ * The kinds of step an Agent Run can leave behind. A trace is an ordered log
+ * of what the agent actually did, not a summary of what it concluded.
+ */
+export type AgentTraceStepKind =
+  /** A lifecycle boundary: run or turn start/end. */
+  | "STAGE"
+  /** A tool call, carrying the arguments the model produced. */
+  | "TOOL_CALL"
+  /** The answer to the preceding call, carrying what the tool returned. */
+  | "TOOL_RESULT"
+  /** Assistant text emitted in a turn — the model's own narration. */
+  | "MESSAGE";
+
+/**
+ * Stable stage codes. Kept as wire values (not prose) so the trace stays
+ * machine-readable; presentation maps them to Chinese on the way out.
+ */
+export type AgentTraceStage =
+  | "RUN_STARTED"
+  | "RUN_COMPLETED"
+  | "RUN_FAILED"
+  | "TURN_STARTED"
+  | "TURN_COMPLETED";
+
+export interface AgentTraceTokens {
+  input: number;
+  output: number;
+}
+
+/**
+ * One step an agent reports about itself. The collector — not the agent —
+ * assigns `runId` and `sequence`, so ordering stays correct even when an
+ * implementation reports steps from concurrent callbacks.
+ */
+export interface AgentTraceObservation {
+  kind: AgentTraceStepKind;
+  /** ISO timestamp of when the step happened. */
+  at: string;
+  /** Tool name for tool steps; an AgentTraceStage for stage steps. */
+  label: string;
+  /**
+   * Correlation key linking a step to its counterpart — a tool call id joins a
+   * TOOL_CALL to the TOOL_RESULT that answered it. Null when the step stands
+   * alone. Pairing by label would be wrong: the same tool can be called twice
+   * and two calls can be in flight at once.
+   */
+  ref: string | null;
+  /** Tool arguments, or null for steps that carry none. */
+  input: unknown;
+  /** Tool return value, or null for steps that carry none. */
+  output: unknown;
+  isError: boolean;
+  /** Wall-clock for the call this step closes; null when not measured. */
+  durationMs: number | null;
+  tokens: AgentTraceTokens | null;
+}
+
+/** A collected step: the agent's observation plus its place in the run. */
+export interface AgentTraceStep extends AgentTraceObservation {
+  runId: string;
+  sequence: number;
+}
+
+/** A Run together with the steps it produced, in execution order. */
+export interface AgentRunTrace {
+  run: AgentRun;
+  steps: AgentTraceStep[];
+}
+
 // ── Errors ───────────────────────────────────────────────────────
 
 export class ContractNormalizationError extends Error {

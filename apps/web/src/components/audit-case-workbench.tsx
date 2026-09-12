@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, CopyOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CopyOutlined, NodeIndexOutlined } from "@ant-design/icons";
 import type {
   AuditCase,
   ContractDocument,
@@ -66,6 +66,7 @@ export interface AuditCaseWorkbenchProps {
   onCancel: () => void;
   onRetry: () => void;
   onBack: () => void;
+  onOpenTrace: () => void;
 }
 
 const connectionLabels: Record<AuditConnectionState, string> = {
@@ -508,6 +509,7 @@ export function AuditCaseWorkbench({
   onCancel,
   onRetry,
   onBack,
+  onOpenTrace,
 }: AuditCaseWorkbenchProps) {
   const {
     case: auditCase,
@@ -575,6 +577,9 @@ export function AuditCaseWorkbench({
             >
               {connectionLabels[connection]}
             </Tag>
+            <Button size="small" icon={<NodeIndexOutlined />} onClick={onOpenTrace}>
+              运行轨迹
+            </Button>
           </div>
         </div>
         <div className="case-meta">

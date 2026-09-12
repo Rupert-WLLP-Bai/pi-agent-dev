@@ -1,4 +1,5 @@
 import type {
+  AgentTraceTokens,
   AuditCaseStatus,
   AuditSnapshot,
   AuditStage,
@@ -10,7 +11,16 @@ import type {
 } from "@contract-audit/audit/model";
 import type { InferSelectModel } from "drizzle-orm";
 import { relations } from "drizzle-orm";
-import { integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 const auditStatuses = [
   "PENDING",
@@ -105,6 +115,38 @@ export const agentRuns = pgTable("agent_runs", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
+/**
+ * The ordered steps an Agent Run left behind. Append-only: a trace is evidence
+ * about how a finding came to exist, so a step is never rewritten.
+ *
+ * `sequence` is assigned by the collector and unique per run, which is what
+ * makes the trace order stable no matter when the rows land.
+ */
+export const agentTraceSteps = pgTable(
+  "agent_trace_steps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runId: uuid("run_id")
+      .references(() => agentRuns.id)
+      .notNull(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id)
+      .notNull(),
+    sequence: integer("sequence").notNull(),
+    kind: text("kind").notNull(),
+    at: timestamp("at", { withTimezone: true, mode: "date" }).notNull(),
+    label: text("label").notNull(),
+    ref: text("ref"),
+    input: jsonb("input"),
+    output: jsonb("output"),
+    isError: boolean("is_error").notNull().default(false),
+    durationMs: integer("duration_ms"),
+    tokens: jsonb("tokens").$type<AgentTraceTokens | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("agent_trace_steps_run_sequence_idx").on(table.runId, table.sequence)],
+);
+
 export const findingRevisions = pgTable("finding_revisions", {
   id: uuid("id").defaultRandom().primaryKey(),
   auditCaseId: uuid("audit_case_id")
@@ -121,6 +163,7 @@ export const schema = {
   auditCases,
   auditSnapshots,
   agentRuns,
+  agentTraceSteps,
   findingRevisions,
   subjectVerifications,
 };
@@ -129,6 +172,7 @@ export type SourceRecord = InferSelectModel<typeof sourceRecords>;
 export type AuditCaseRow = InferSelectModel<typeof auditCases>;
 export type AuditSnapshotRow = InferSelectModel<typeof auditSnapshots>;
 export type AgentRunRow = InferSelectModel<typeof agentRuns>;
+export type AgentTraceStepRow = InferSelectModel<typeof agentTraceSteps>;
 export type FindingRevisionRow = InferSelectModel<typeof findingRevisions>;
 export type SubjectVerificationRow = InferSelectModel<typeof subjectVerifications>;
 
@@ -143,4 +187,7 @@ export const auditCasesRelations = relations(auditCases, ({ one, many }) => ({
   snapshots: many(auditSnapshots),
   runs: many(agentRuns),
   findings: many(findingRevisions),
+}));
+export const agentRunsRelations = relations(agentRuns, ({ many }) => ({
+  steps: many(agentTraceSteps),
 }));

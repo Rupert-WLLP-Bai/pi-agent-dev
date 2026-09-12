@@ -1,4 +1,6 @@
 import type {
+  AgentRun,
+  AgentTraceStepKind,
   AuditCase,
   AuditCaseStatus,
   AuditStage,
@@ -278,6 +280,101 @@ export function filterAndSortCases(
       );
     })
     .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+}
+
+// ── Agent Run traces ─────────────────────────────────────────────
+
+export const traceStepKindLabels: Record<AgentTraceStepKind, string> = {
+  STAGE: "阶段",
+  TOOL_CALL: "调用",
+  TOOL_RESULT: "返回",
+  MESSAGE: "输出",
+};
+
+/**
+ * Chinese label for a trace stage code. Tool labels are API identifiers and are
+ * deliberately not translated — a reviewer comparing the trace with the tool
+ * definitions needs the name as the agent saw it.
+ */
+export function getTraceStageLabel(label: string): string {
+  return (
+    {
+      RUN_STARTED: "开始运行",
+      RUN_COMPLETED: "运行完成",
+      RUN_FAILED: "运行失败",
+      TURN_STARTED: "回合开始",
+      TURN_COMPLETED: "回合结束",
+    }[label] ?? label
+  );
+}
+
+export type AgentRunState = "RUNNING" | "SUCCEEDED" | "FAILED" | "INTERRUPTED";
+
+export const agentRunStateLabels: Record<AgentRunState, string> = {
+  RUNNING: "运行中",
+  SUCCEEDED: "已完成",
+  FAILED: "失败",
+  INTERRUPTED: "已中断",
+};
+
+export const agentRunStateTones: Record<AgentRunState, AuditTone> = {
+  RUNNING: "info",
+  SUCCEEDED: "success",
+  FAILED: "danger",
+  INTERRUPTED: "warning",
+};
+
+/**
+ * A run with neither an error nor a duration never reached `finishAgentRun`.
+ * That is only "still running" while its case is; once the case has settled the
+ * run was orphaned, and calling it running would promise a trace that will never
+ * grow.
+ */
+export function getAgentRunState(run: AgentRun, caseStatus: AuditCaseStatus): AgentRunState {
+  if (run.error !== null) return "FAILED";
+  if (run.durationMs !== null) return "SUCCEEDED";
+  return caseStatus === "RUNNING" ? "RUNNING" : "INTERRUPTED";
+}
+
+/** Sub-second durations read better in milliseconds; the rest in seconds. */
+export function formatDuration(ms: number | null): string | null {
+  if (ms === null) return null;
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+}
+
+/** Token usage as a run header states it; null when the provider reported none. */
+export function describeTokenUsage(usage: Record<string, number> | null): string | null {
+  if (usage === null) return null;
+  const parts: string[] = [];
+  if (typeof usage.input === "number") parts.push(`输入 ${usage.input.toLocaleString("en-US")}`);
+  if (typeof usage.output === "number") parts.push(`输出 ${usage.output.toLocaleString("en-US")}`);
+  if (typeof usage.total === "number") parts.push(`合计 ${usage.total.toLocaleString("en-US")}`);
+  return parts.length === 0 ? null : parts.join(" · ");
+}
+
+/**
+ * A step payload as displayed. Long payloads are cut on a line boundary with an
+ * ellipsis rather than silently truncated, because a reviewer has to be able to
+ * tell that they are reading part of something larger.
+ */
+export function formatTracePayload(value: unknown, limit = 4000): string | null {
+  if (value === null || value === undefined) return null;
+  const text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  if (text === undefined) return null;
+  if (text.length <= limit) return text;
+  return `${text.slice(0, limit)}\n… 已截断（共 ${text.length.toLocaleString("en-US")} 字符）`;
+}
+
+/**
+ * A step's offset from the start of its run. A harness view is read as a
+ * sequence of durations, not as a wall-clock log, so the offset is what the
+ * timeline shows.
+ */
+export function formatTraceOffset(runStartedAt: string, at: string): string {
+  const elapsedMs = new Date(at).getTime() - new Date(runStartedAt).getTime();
+  if (!Number.isFinite(elapsedMs)) return "—";
+  return `+${(Math.max(0, elapsedMs) / 1000).toFixed(2)}s`;
 }
 
 /** Compact, stable label for an audit ID: full slug when short, 8-char prefix for UUIDs. */

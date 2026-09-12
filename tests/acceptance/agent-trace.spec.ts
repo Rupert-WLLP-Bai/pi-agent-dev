@@ -1,0 +1,130 @@
+import { expect, type Page, test } from "@playwright/test";
+
+/**
+ * End-to-end lifecycle of one audit case, exercising every layer the demo
+ * audience cares about:
+ *
+ * 1. Submit a demo contract (DEMO provenance).
+ * 2. Watch the fake agent process it (the case settles to AWAITING_REVIEW).
+ * 3. Open the agent trace page and verify every tool call is visible with its
+ *    arguments and result — this is the "deepseek harness" view.
+ * 4. Open the agent runs index and confirm the run appears there too.
+ * 5. Go back to the case, confirm the risk (human review), and see it close.
+ * 6. Return to the trace page and confirm it still shows the full trace.
+ *
+ * The fake agent is deterministic, so the assertions can be exact.
+ */
+
+async function assertApiReachable(page: Page) {
+  const response = await page.request.get("/api/health");
+  expect(
+    response.ok(),
+    `API health check failed: ${response.status()} ${await response.text()}`,
+  ).toBe(true);
+}
+
+async function createDemoAudit(page: Page): Promise<string> {
+  await assertApiReachable(page);
+  await page.goto("/audit-cases");
+  await page.getByRole("button", { name: "新建审计" }).click();
+  await expect(page.getByRole("dialog", { name: "新建审计" })).toBeVisible();
+  await page.getByRole("button", { name: "加载演示合同" }).click();
+  await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
+  await page.getByRole("button", { name: "开始审计" }).click();
+  await page.waitForURL(/\/audit-cases\/.+$/);
+  // The fake agent produces the advance-payment finding.
+  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible({ timeout: 15000 });
+
+  const url = page.url();
+  const caseId = url.split("/").pop()!;
+  return caseId;
+}
+
+test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
+  const caseId = await createDemoAudit(page);
+
+  // ── 1. The workbench shows the finding and a trace button ──
+  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "运行轨迹" })).toBeVisible();
+
+  // ── 2. Open the trace page and verify the agent's tool calls ──
+  await page.getByRole("button", { name: "运行轨迹" }).click();
+  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace$`));
+
+  // The trace card shows the agent identity.
+  await expect(page.locator(".trace-card")).toBeVisible();
+  await expect(page.getByText("fake / fake-agent@0")).toBeVisible();
+
+  // The timeline shows the run boundary and the three audit tools.
+  await expect(page.getByText("开始运行")).toBeVisible();
+  await expect(page.getByText("get_rule_assessments").first()).toBeVisible();
+  await expect(page.getByText("get_evidence").first()).toBeVisible();
+  await expect(page.getByText("submit_finding_proposal").first()).toBeVisible();
+  await expect(page.getByText("运行完成")).toBeVisible();
+
+  // A tool result is visible — the trace is not just names, it shows payloads.
+  const ruleResult = page
+    .locator(".trace-step--tool")
+    .filter({ hasText: "get_rule_assessments" })
+    .first();
+  await expect(ruleResult).toBeVisible();
+  // The tool result body contains the assessment data.
+  await expect(ruleResult.locator(".trace-payload__body").first()).toContainText("assessments");
+
+  // ── 3. The agent runs index page lists this run ──
+  await page.goto("/audit-runs");
+  await expect(page.getByRole("heading", { name: "运行轨迹" })).toBeVisible();
+  // The run we just created is in the list.
+  await expect(page.getByText("fake-agent").first()).toBeVisible();
+  await expect(page.getByText("查看轨迹").first()).toBeVisible();
+
+  // ── 4. Go back to the case and perform a human review ──
+  await page.goto(`/audit-cases/${caseId}`);
+  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible();
+  await page.getByRole("button", { name: "确认风险" }).click();
+  const dialog = page.getByRole("dialog", { name: "确认风险" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "确认风险" }).click();
+  await expect(page.getByText("复核已提交")).toBeVisible();
+
+  // Reload to confirm the review persisted.
+  await page.reload();
+  await expect(page.getByText("已确认风险").first()).toBeVisible();
+  await expect(page.getByText("已完成").first()).toBeVisible();
+
+  // ── 5. The trace is still accessible after the case closed ──
+  await page.getByRole("button", { name: "运行轨迹" }).click();
+  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace$`));
+  await expect(page.getByText("开始运行")).toBeVisible();
+  await expect(page.getByText("运行完成")).toBeVisible();
+  await expect(page.getByText("get_rule_assessments").first()).toBeVisible();
+});
+
+test("the trace page is reachable from the navigation menu", async ({ page }) => {
+  await page.goto("/dashboard");
+  await expect(page.getByRole("link", { name: "运行轨迹", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "运行轨迹", exact: true }).click();
+  await expect(page).toHaveURL(/\/audit-runs$/);
+  await expect(page.getByRole("heading", { name: "运行轨迹" })).toBeVisible();
+});
+test("the trace page shows an empty state for a case with no runs", async ({ page }) => {
+  await assertApiReachable(page);
+  // Create a case via the API. In CI mode the fake agent picks it up
+  // immediately, so cancel it before the agent can run: a CANCELLED case has
+  // no agent_runs row, which is the state we want to verify.
+  const response = await page.request.post("/api/audit-cases", {
+    data: {
+      source: "text",
+      contractText: "这是一份测试合同，甲方应在验收后支付合同金额的20%作为预付款。",
+      policyLimitRatio: 30,
+    },
+  });
+  expect(response.ok()).toBe(true);
+  const { id } = (await response.json()) as { id: string };
+
+  // Cancel before the dispatcher claims it.
+  await page.request.post(`/api/audit-cases/${id}/cancel`);
+
+  await page.goto(`/audit-cases/${id}/trace`);
+  await expect(page.getByText("该案件还没有智能体运行记录")).toBeVisible();
+});

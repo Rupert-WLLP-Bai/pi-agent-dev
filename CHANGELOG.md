@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-09-13
+
+### Added
+
+- **Agent Run traces**: every Pi Agent run now leaves a persistent, ordered
+  trace of what it did — stage boundaries, tool calls with arguments, tool
+  results, assistant messages, and token counts — stored in a new
+  `agent_trace_steps` table and streamed live via the existing SSE broker
+  (`agent.trace` event). A new `/audit-cases/:id/trace` page renders the trace
+  as a timeline (deepseek-harness style), and `/audit-runs` indexes every
+  recent run across all cases. Both pages are reachable from the navigation
+  menu and the case detail banner's 运行轨迹 button.
+- `AgentTraceStep`, `AgentTraceObservation`, `AgentTraceTokens` domain types in
+  `packages/audit/src/model.ts`; `AgentTraceSink` port and `AgentRunIdentity`
+  in `packages/audit/src/ports.ts`; `createAgentTraceCollector` in
+  `packages/audit/src/agent-trace.ts` (serial write queue, never blocks the
+  agent, swallows write failures).
+- `packages/pi-agent/src/trace.ts`: `createPiTraceReporter` maps SDK session
+  events (`tool_execution_start/end`, `turn_start/end`, `message_end`,
+  `agent_start`) to trace observations defensively — unknown events are
+  skipped, never crash the audit.
+- `apps/web/src/components/agent-trace-timeline.tsx`: timeline that pairs
+  tool calls with their results by `ref`, shows payloads with truncation,
+  error states, token counts, and per-turn durations.
+- `submit_finding_proposal` tool now accepts every `FindingType` the domain
+  defines (8 types), not just 3 — the agent can report penalty, termination,
+  and dispute-clause findings in addition to the original three.
+- Payment-terms-audit skill prompt rewritten: documents all five rule
+  dimensions, the disposition-to-finding-type table, and instructs the agent
+  to submit one proposal per violated dimension.
+- E2E test `tests/acceptance/agent-trace.spec.ts`: full lifecycle
+  (submit → process → verify trace with tool calls/args/results → human
+  review → close → trace still accessible), plus nav-reachability and
+  empty-state tests.
+
+### Changed
+
+- `AuditAgentPort.run` now takes an `AgentTraceSink` and exposes a readonly
+  `identity: AgentRunIdentity`; `AgentRunResult.telemetry` replaced by
+  `usage: Record<string, number> | null` (identity moved to the port).
+- `agent_runs` is now opened with `beginAgentRun` before the agent starts and
+  closed with `finishAgentRun` after, so trace steps can reference the run
+  while it is still in flight.
+- `PiAuditAgent` now accumulates proposals in a `Map` keyed by `findingType`
+  (re-submission supersedes rather than duplicates); returns `proposals: []`
+  for a clean contract only when at least one tool was called.
+- `FakeAuditAgent` now emits the same trace shape as the Pi agent
+  (RUN_STARTED → get_rule_assessments → get_evidence per finding →
+  submit_finding_proposal per finding → RUN_COMPLETED), making the trace view
+  testable without credentials.
+
+### Verified — Quality gates on 2026-09-13
+
+- `bun run lint`: clean (117 files).
+- `bun run typecheck`: clean under TypeScript 7.0.2 (both passes).
+- `bun test packages apps`: 154 pass / 0 fail (405 assertions, 27 files).
+- `npx playwright test`: 19 pass / 0 fail, both with the local dev stack and
+  under the CI parameter set (`CI=true`, four workers, servers auto-started).
+- Real Pi Agent run (deepseek-v4-flash, `.env` credentials): 16 trace steps,
+  4 findings (1 HIGH + 3 MEDIUM), 12392 input / 2146 output tokens, 39 s.
+- Browser check at 1280×800: trace page shows 7 timeline items (RUN_STARTED,
+  3 tool calls with args+results, RUN_COMPLETED), all tool names visible
+  (get_rule_assessments, get_evidence, submit_finding_proposal), 9 payload
+  blocks, stage labels in Chinese.
+
 ## [Unreleased] - 2026-09-12
 
 ### Added

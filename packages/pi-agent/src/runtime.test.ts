@@ -3,6 +3,9 @@ import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model
 import { FakeAuditAgent } from "./fake-agent";
 import { createSmokeTestSession } from "./runtime";
 
+/** Swallows every step: these tests are about the result, not the trace. */
+const ignoreTrace = () => undefined;
+
 test("creates and disposes a Pi session under Bun", async () => {
   const session = await createSmokeTestSession();
   session.dispose();
@@ -27,12 +30,12 @@ test("rejects a proposal with an unknown evidence locator", async () => {
   } satisfies AuditSnapshot;
   const agent = new FakeAuditAgent([proposal]);
 
-  await expect(agent.run(snapshot, new AbortController().signal)).rejects.toThrow(
+  await expect(agent.run(snapshot, new AbortController().signal, ignoreTrace)).rejects.toThrow(
     "UNKNOWN_EVIDENCE: unknown-id",
   );
 });
 
-test("returns run telemetry alongside the proposal", async () => {
+test("reports its identity and the proposals it produced", async () => {
   const proposal: FindingProposal = {
     findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
     severity: "HIGH",
@@ -72,8 +75,9 @@ test("returns run telemetry alongside the proposal", async () => {
   } satisfies AuditSnapshot;
   const agent = new FakeAuditAgent([proposal]);
 
-  const result = await agent.run(snapshot, new AbortController().signal);
+  const result = await agent.run(snapshot, new AbortController().signal, ignoreTrace);
 
   expect(result.proposals).toEqual([proposal]);
-  expect(result.telemetry.provider).toBe("fake");
+  expect(agent.identity.provider).toBe("fake");
+  expect(result.usage).toBeNull();
 });

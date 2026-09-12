@@ -10,13 +10,14 @@ import { createRepository } from "./db/repositories";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
+import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
 import { statsRoutes } from "./routes/stats";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
-export type { AuditOverview, CaseSummary } from "./db/repositories";
+export type { AgentRunSummary, AuditOverview, CaseSummary } from "./db/repositories";
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));
@@ -39,6 +40,7 @@ export function createApp(deps: AppDeps) {
   return new Elysia()
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes(deps))
+    .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(statsRoutes({ repository: deps.repository }))
     .get("/api/health", async ({ set }) => {

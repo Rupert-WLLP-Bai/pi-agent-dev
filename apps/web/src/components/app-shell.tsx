@@ -6,6 +6,7 @@ import {
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  NodeIndexOutlined,
   SettingOutlined,
   SyncOutlined,
   TeamOutlined,
@@ -101,6 +102,11 @@ const navGroups: MenuProps["items"] = [
         label: <Link to="/audit-cases">审计队列</Link>,
       },
       {
+        key: "/audit-runs",
+        icon: <NodeIndexOutlined />,
+        label: <Link to="/audit-runs">运行轨迹</Link>,
+      },
+      {
         key: "/reviews",
         icon: <CheckCircleOutlined />,
         label: "复核中心",
@@ -155,10 +161,22 @@ function readStoredCollapse(): boolean | null {
 function selectedKeys(pathname: string): string[] {
   if (pathname === "/" || pathname === "/dashboard") return ["/dashboard"];
   if (pathname === "/demo") return ["/demo"];
+  // A case's detail page and its trace page are both the queue section: the
+  // nav must keep highlighting where the operator came from.
+  if (pathname.startsWith("/audit-cases")) return ["/audit-cases"];
   return [pathname];
 }
 
 function breadcrumbFor(pathname: string) {
+  if (pathname.startsWith("/audit-cases/") && pathname.endsWith("/trace")) {
+    return (
+      <>
+        <Link to="/audit-cases">审计队列</Link>
+        <span className="app-breadcrumb-sep">/</span>
+        运行轨迹
+      </>
+    );
+  }
   if (pathname.startsWith("/audit-cases/")) {
     return (
       <>
@@ -169,6 +187,7 @@ function breadcrumbFor(pathname: string) {
     );
   }
   if (pathname === "/demo") return "演示概览";
+  if (pathname === "/audit-runs") return "运行轨迹";
   return "审计队列";
 }
 

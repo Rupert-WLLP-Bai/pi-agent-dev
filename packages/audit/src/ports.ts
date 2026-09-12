@@ -1,11 +1,17 @@
-import type { AuditSnapshot, FindingProposal, SubjectCandidate, SubjectMatchStatus } from "./model";
+import type {
+  AgentTraceObservation,
+  AgentTraceStep,
+  AuditSnapshot,
+  FindingProposal,
+  SubjectCandidate,
+  SubjectMatchStatus,
+} from "./model";
 
-/** Telemetry recorded for one Agent Run. */
-export interface AgentRunTelemetry {
+/** Static identity of an agent implementation, known before any run starts. */
+export interface AgentRunIdentity {
   provider: string;
   model: string;
   version: string;
-  usage: Record<string, number> | null;
 }
 
 export interface AgentRunResult {
@@ -15,14 +21,26 @@ export interface AgentRunResult {
    * single result is allowed to carry more than one proposal.
    */
   proposals: FindingProposal[];
-  telemetry: AgentRunTelemetry;
+  /** Provider-reported token usage; null when the provider reported none. */
+  usage: Record<string, number> | null;
 }
+
+/**
+ * Receives each step an agent reports about itself.
+ *
+ * A sink is called synchronously from wherever the agent observes a step, so
+ * it must not block. It also must not throw: tracing is observability, and a
+ * trace that fails to record must never fail the audit it describes.
+ */
+export type AgentTraceSink = (observation: AgentTraceObservation) => void;
 
 // The agent port: implementations receive a bounded audit snapshot and
 // return finding proposals. They must not mutate the snapshot or
 // override deterministic rule assessments.
 export interface AuditAgentPort {
-  run(input: AuditSnapshot, signal: AbortSignal): Promise<AgentRunResult>;
+  /** Written onto the Agent Run row before the run starts. */
+  readonly identity: AgentRunIdentity;
+  run(input: AuditSnapshot, signal: AbortSignal, trace: AgentTraceSink): Promise<AgentRunResult>;
 }
 
 /** One provider answer for one party name. */
@@ -59,6 +77,7 @@ export type AuditEvent =
   | { type: "audit.started"; auditCaseId: string }
   | { type: "rules.completed"; auditCaseId: string }
   | { type: "agent.started"; auditCaseId: string }
+  | { type: "agent.trace"; auditCaseId: string; step: AgentTraceStep }
   | { type: "finding.proposed"; auditCaseId: string; proposal: FindingProposal }
   | { type: "audit.awaiting_review"; auditCaseId: string }
   | { type: "audit.failed"; auditCaseId: string; error: string }

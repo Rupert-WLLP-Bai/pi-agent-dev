@@ -138,6 +138,7 @@ export default function AuditCaseDetail({ id }: { id: string }) {
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
         onBack={() => void navigate({ to: "/audit-cases" })}
+        onOpenTrace={() => void navigate({ to: "/audit-cases/$id/trace", params: { id } })}
       />
       <ReviewDrawer
         finding={review.finding}

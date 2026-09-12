@@ -1,4 +1,9 @@
 export {
+  type AgentTraceCollector,
+  type AgentTraceWriter,
+  createAgentTraceCollector,
+} from "./agent-trace";
+export {
   buildDisputeJurisdictionFacts,
   DISPUTE_JURISDICTION_RULE_CODE,
   evaluateDisputeJurisdictionRule,

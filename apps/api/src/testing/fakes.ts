@@ -1,4 +1,5 @@
 import type {
+  AgentTraceStep,
   AuditSnapshot,
   EvidenceLocator,
   FindingProposal,
@@ -8,8 +9,9 @@ import type {
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type {
+  AgentRunIdentity,
   AgentRunResult,
-  AgentRunTelemetry,
+  AgentTraceSink,
   AuditAgentPort,
   AuditEvent,
 } from "@contract-audit/audit/ports";
@@ -43,8 +45,10 @@ interface FakeSubjectVerificationRow {
 }
 
 export interface RecordedAgentRun {
+  id: string;
   auditCaseId: string;
-  telemetry: AgentRunTelemetry;
+  identity: AgentRunIdentity;
+  usage: Record<string, number> | null;
   durationMs: number | null;
   error: string | null;
 }
@@ -56,6 +60,7 @@ export interface RecordedAgentRun {
 export class InMemoryAuditCaseRepository {
   cases = new Map<string, FakeCaseState>();
   recordedRuns: RecordedAgentRun[] = [];
+  recordedTraceSteps: AgentTraceStep[] = [];
   interruptedStaleRuns = 0;
   databaseAvailable = true;
   /** Provider answers stored verbatim, keyed by source record id. */
@@ -118,9 +123,36 @@ export class InMemoryAuditCaseRepository {
     return this.cases.get(caseId)?.snapshot ?? null;
   }
 
-  async completeAgentRun(run: RecordedAgentRun): Promise<string> {
-    this.recordedRuns.push(run);
-    return `run-${this.recordedRuns.length}`;
+  async beginAgentRun(input: { auditCaseId: string } & AgentRunIdentity): Promise<string> {
+    const id = `run-${this.recordedRuns.length + 1}`;
+    this.recordedRuns.push({
+      id,
+      auditCaseId: input.auditCaseId,
+      identity: { provider: input.provider, model: input.model, version: input.version },
+      usage: null,
+      durationMs: null,
+      error: null,
+    });
+    return id;
+  }
+
+  async finishAgentRun(
+    runId: string,
+    input: {
+      usage: Record<string, number> | null;
+      durationMs: number | null;
+      error: string | null;
+    },
+  ): Promise<void> {
+    const run = this.recordedRuns.find((candidate) => candidate.id === runId);
+    if (!run) throw new Error(`unknown run ${runId}`);
+    run.usage = input.usage;
+    run.durationMs = input.durationMs;
+    run.error = input.error;
+  }
+
+  async appendAgentTraceStep(_auditCaseId: string, step: AgentTraceStep): Promise<void> {
+    this.recordedTraceSteps.push(step);
   }
 
   async appendFindingRevision(
@@ -311,6 +343,11 @@ export class RecordingEventBroker {
  * concurrency and cancellation can be observed deterministically.
  */
 export class ControlledAgent implements AuditAgentPort {
+  readonly identity: AgentRunIdentity = {
+    provider: "test",
+    model: "test-model",
+    version: "0",
+  };
   startedCaseIds: string[] = [];
   /** The exact snapshots handed to the agent, in run order. */
   receivedSnapshots: AuditSnapshot[] = [];
@@ -320,7 +357,11 @@ export class ControlledAgent implements AuditAgentPort {
     reject: (reason?: unknown) => void;
   }[] = [];
 
-  async run(input: AuditSnapshot, signal: AbortSignal): Promise<AgentRunResult> {
+  async run(
+    input: AuditSnapshot,
+    signal: AbortSignal,
+    _trace: AgentTraceSink,
+  ): Promise<AgentRunResult> {
     this.startedCaseIds.push(input.sourceRecordId);
     this.receivedSnapshots.push(input);
     return new Promise((resolve, reject) => {
@@ -338,12 +379,9 @@ export class ControlledAgent implements AuditAgentPort {
   }
 
   /** Resolves the oldest pending run with the given proposals. */
-  resolveRun(proposals: FindingProposal[], telemetry?: AgentRunTelemetry): void {
+  resolveRun(proposals: FindingProposal[], usage: Record<string, number> | null = null): void {
     const entry = this.pending.shift();
-    entry?.resolve({
-      proposals,
-      telemetry: telemetry ?? { provider: "test", model: "test-model", version: "0", usage: null },
-    });
+    entry?.resolve({ proposals, usage });
   }
 
   /** Rejects the oldest pending run with the given error. */

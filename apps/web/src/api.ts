@@ -1,4 +1,5 @@
-import type { AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
+import type { AgentRunSummary, AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
+import type { AgentRunTrace } from "@contract-audit/audit/model";
 import { treaty } from "@elysiajs/eden";
 
 // Same-origin by default so the Vite dev proxy (and a single-origin deployment)
@@ -78,6 +79,25 @@ export async function createAuditCaseFromFile({ file, policyLimitRatio }: Upload
 export async function getAuditCases(): Promise<CaseSummary[]> {
   const { data, error } = await api.api["audit-cases"].get();
   if (error) throw new ApiRequestError("加载审计列表失败", Number(error.status));
+  return data;
+}
+
+/**
+ * Every Agent Run for a case, newest first, each with its trace steps. A
+ * retried case has more than one run; the caller picks which to show.
+ */
+export async function getAgentRunTraces(id: string): Promise<AgentRunTrace[]> {
+  const { data, error } = await api.api["audit-cases"]({ id }).trace.get();
+  if (error) throw new ApiRequestError("加载运行轨迹失败", error.status);
+  if (!data || "error" in data) throw new ApiRequestError("无法加载运行轨迹", 404);
+  return data;
+}
+
+export async function getAgentRuns(limit?: number): Promise<AgentRunSummary[]> {
+  const { data, error } = await api.api["agent-runs"].get({
+    query: limit === undefined ? {} : { limit },
+  });
+  if (error) throw new ApiRequestError("加载运行记录失败", Number(error.status));
   return data;
 }
 

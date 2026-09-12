@@ -1,10 +1,22 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
-import type { AgentRunResult, AuditAgentPort } from "@contract-audit/audit/ports";
+import type {
+  AgentRunIdentity,
+  AgentRunResult,
+  AgentTraceSink,
+  AuditAgentPort,
+} from "@contract-audit/audit/ports";
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
-import { buildModel, createModelRuntime, loadPiConfig, PI_AGENT_VERSION } from "./config";
+import {
+  buildModel,
+  createModelRuntime,
+  loadPiConfig,
+  PI_AGENT_VERSION,
+  type PiConfig,
+} from "./config";
 import { createAuditTools } from "./tools";
+import { createPiTraceReporter } from "./trace";
 
 const AUDIT_TOOL_NAMES = [
   "get_rule_assessments",
@@ -20,54 +32,79 @@ function loadSkillPrompt(): string {
 }
 
 export class PiAuditAgent implements AuditAgentPort {
-  async run(input: AuditSnapshot, signal: AbortSignal): Promise<AgentRunResult> {
-    signal.throwIfAborted();
-    const config = loadPiConfig();
-    const modelRuntime = await createModelRuntime(config);
+  private readonly config: PiConfig;
+  readonly identity: AgentRunIdentity;
 
-    let proposal: FindingProposal | undefined;
+  constructor() {
+    this.config = loadPiConfig();
+    this.identity = {
+      provider: "pi",
+      model: this.config.model,
+      version: PI_AGENT_VERSION,
+    };
+  }
+
+  async run(
+    input: AuditSnapshot,
+    signal: AbortSignal,
+    trace: AgentTraceSink,
+  ): Promise<AgentRunResult> {
+    signal.throwIfAborted();
+    const modelRuntime = await createModelRuntime(this.config);
+
+    // Keyed by finding type: a contract can violate several dimensions at once,
+    // and a re-submission of the same dimension supersedes the earlier one
+    // rather than filing the same finding twice.
+    const proposals = new Map<FindingProposal["findingType"], FindingProposal>();
     const tools = createAuditTools(input, (value) => {
-      proposal = value;
+      proposals.set(value.findingType, value);
     });
 
     const { session } = await createAgentSession({
-      model: buildModel(config),
+      model: buildModel(this.config),
       modelRuntime,
       tools: [...AUDIT_TOOL_NAMES],
       customTools: tools,
       sessionManager: SessionManager.inMemory(),
     });
 
+    // Subscribe before prompting: the first events carry the run boundary and
+    // the opening turn.
+    const reporter = createPiTraceReporter(trace);
+    const unsubscribe = session.subscribe((event) => reporter.observe(event));
+
     const abortSession = () => {
       void session.abort().catch(() => undefined);
     };
 
+    let outcome: "completed" | "failed" = "failed";
     try {
       signal.addEventListener("abort", abortSession, { once: true });
       await session.prompt(loadSkillPrompt());
       signal.throwIfAborted();
-      if (!proposal) {
+      // Zero findings is a legitimate outcome: the contract passed. Zero
+      // findings *and* zero tool calls means the model never audited anything,
+      // which must not be reported as a pass.
+      if (proposals.size === 0 && reporter.toolCalls === 0) {
         throw new Error("AGENT_RUN_COMPLETED_WITHOUT_PROPOSAL");
       }
+      outcome = "completed";
 
       const stats = session.getSessionStats();
       return {
-        proposals: [proposal],
-        telemetry: {
-          provider: "pi",
-          model: config.model,
-          version: PI_AGENT_VERSION,
-          usage: {
-            input: stats.tokens.input,
-            output: stats.tokens.output,
-            cacheRead: stats.tokens.cacheRead,
-            cacheWrite: stats.tokens.cacheWrite,
-            total: stats.tokens.total,
-          },
+        proposals: [...proposals.values()],
+        usage: {
+          input: stats.tokens.input,
+          output: stats.tokens.output,
+          cacheRead: stats.tokens.cacheRead,
+          cacheWrite: stats.tokens.cacheWrite,
+          total: stats.tokens.total,
         },
       };
     } finally {
+      reporter.close(outcome);
       signal.removeEventListener("abort", abortSession);
+      unsubscribe();
       session.dispose();
     }
   }

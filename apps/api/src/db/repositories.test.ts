@@ -190,3 +190,140 @@ test("rejects an over-long block and absent input", () => {
   expect(contractTitleFromFirstBlock(null)).toBeNull();
   expect(contractTitleFromFirstBlock("   ")).toBeNull();
 });
+
+// ── Agent trace persistence ──────────────────────────────────────
+
+maybeTest("round-trips a trace run with ordered steps", async () => {
+  const sourceId = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(sourceId, seedSnapshot(sourceId));
+
+  const runId = await repository.beginAgentRun({
+    auditCaseId: caseId,
+    provider: "fake",
+    model: "fake-agent",
+    version: "0",
+  });
+
+  const steps: import("@contract-audit/audit/model").AgentTraceStep[] = [
+    {
+      runId,
+      sequence: 0,
+      kind: "STAGE",
+      at: new Date().toISOString(),
+      label: "RUN_STARTED",
+      ref: null,
+      input: null,
+      output: null,
+      isError: false,
+      durationMs: null,
+      tokens: null,
+    },
+    {
+      runId,
+      sequence: 1,
+      kind: "TOOL_CALL",
+      at: new Date().toISOString(),
+      label: "get_rule_assessments",
+      ref: "call-1",
+      input: { evidenceIds: ["a"] },
+      output: null,
+      isError: false,
+      durationMs: null,
+      tokens: null,
+    },
+    {
+      runId,
+      sequence: 2,
+      kind: "TOOL_RESULT",
+      at: new Date().toISOString(),
+      label: "get_rule_assessments",
+      ref: "call-1",
+      input: null,
+      output: { assessments: [] },
+      isError: false,
+      durationMs: 25,
+      tokens: null,
+    },
+    {
+      runId,
+      sequence: 3,
+      kind: "MESSAGE",
+      at: new Date().toISOString(),
+      label: "assistant",
+      ref: null,
+      input: null,
+      output: "分析完毕",
+      isError: false,
+      durationMs: null,
+      tokens: { input: 100, output: 20 },
+    },
+  ];
+
+  for (const step of steps) {
+    await repository.appendAgentTraceStep(caseId, step);
+  }
+
+  await repository.finishAgentRun(runId, {
+    usage: { input: 100, output: 20 },
+    durationMs: 500,
+    error: null,
+  });
+
+  const traces = await repository.getTracesByCase(caseId);
+  expect(traces).toHaveLength(1);
+  expect(traces[0].run.id).toBe(runId);
+  expect(traces[0].run.usage).toEqual({ input: 100, output: 20 });
+  expect(traces[0].run.durationMs).toBe(500);
+  expect(traces[0].run.error).toBeNull();
+
+  const traceSteps = traces[0].steps;
+  expect(traceSteps).toHaveLength(4);
+  expect(traceSteps.map((s) => s.sequence)).toEqual([0, 1, 2, 3]);
+  expect(traceSteps.map((s) => s.label)).toEqual([
+    "RUN_STARTED",
+    "get_rule_assessments",
+    "get_rule_assessments",
+    "assistant",
+  ]);
+  expect(traceSteps[1]?.input).toEqual({ evidenceIds: ["a"] });
+  expect(traceSteps[2]?.output).toEqual({ assessments: [] });
+  expect(traceSteps[2]?.durationMs).toBe(25);
+  expect(traceSteps[3]?.tokens).toEqual({ input: 100, output: 20 });
+});
+
+maybeTest("getRecentRuns lists runs with step counts and contract titles", async () => {
+  const sourceId = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(sourceId, seedSnapshot(sourceId));
+
+  const runId = await repository.beginAgentRun({
+    auditCaseId: caseId,
+    provider: "pi",
+    model: "deepseek-v4-flash",
+    version: "0.85.1",
+  });
+  await repository.appendAgentTraceStep(caseId, {
+    runId,
+    sequence: 0,
+    kind: "STAGE",
+    at: new Date().toISOString(),
+    label: "RUN_STARTED",
+    ref: null,
+    input: null,
+    output: null,
+    isError: false,
+    durationMs: null,
+    tokens: null,
+  });
+  await repository.finishAgentRun(runId, {
+    usage: null,
+    durationMs: 300,
+    error: null,
+  });
+
+  const recent = await repository.getRecentRuns(50);
+  const found = recent.find((r) => r.id === runId);
+  expect(found).toBeDefined();
+  expect(found?.stepCount).toBe(1);
+  expect(found?.provider).toBe("pi");
+  expect(found?.caseStatus).toBe("PENDING");
+});

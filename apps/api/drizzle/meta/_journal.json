@@ -15,6 +15,13 @@
       "when": 1789145857742,
       "tag": "0001_curvy_aaron_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789229813220,
+      "tag": "0002_condemned_doctor_doom",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,29 @@
-import type { AuditSnapshot, EvidenceLocator, FindingProposal } from "@contract-audit/audit/model";
+import type {
+  AuditSnapshot,
+  EvidenceLocator,
+  FindingProposal,
+  FindingType,
+} from "@contract-audit/audit/model";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
+
+/**
+ * Every finding type the agent is allowed to submit.
+ *
+ * This list is the tool schema's source of truth and must cover `FindingType`
+ * completely: a type missing here is a rule the agent can assess but cannot
+ * report. `tools.test.ts` fails to compile if the union grows past this list.
+ */
+export const SUBMITTABLE_FINDING_TYPES = [
+  "SUBJECT_RED_LINE_RISK",
+  "ADVANCE_PAYMENT_POLICY_CONFLICT",
+  "PENALTY_RATIO_POLICY_CONFLICT",
+  "DISPUTE_JURISDICTION_CONFLICT",
+  "PENALTY_CLAUSE_MISSING",
+  "TERMINATION_CLAUSE_MISSING",
+  "DISPUTE_CLAUSE_MISSING",
+  "NEEDS_HUMAN_REVIEW",
+] as const satisfies readonly FindingType[];
 
 export function createAuditTools(
   snapshot: AuditSnapshot,
@@ -40,13 +63,10 @@ export function createAuditTools(
     defineTool({
       name: "submit_finding_proposal",
       label: "Submit Finding Proposal",
-      description: "Submits a finding proposal supported by the provided evidence.",
+      description:
+        "Submits one finding proposal supported by the provided evidence. Call it once per violated dimension; call it not at all when every dimension is COMPLIANT.",
       parameters: Type.Object({
-        findingType: Type.Union([
-          Type.Literal("ADVANCE_PAYMENT_POLICY_CONFLICT"),
-          Type.Literal("SUBJECT_RED_LINE_RISK"),
-          Type.Literal("NEEDS_HUMAN_REVIEW"),
-        ]),
+        findingType: Type.Union(SUBMITTABLE_FINDING_TYPES.map((value) => Type.Literal(value))),
         severity: Type.Union([Type.Literal("LOW"), Type.Literal("MEDIUM"), Type.Literal("HIGH")]),
         rationale: Type.String(),
         evidenceIds: Type.Array(Type.String()),

@@ -1,7 +1,8 @@
+import { createAgentTraceCollector } from "@contract-audit/audit/agent-trace";
 import type { AuditSnapshot } from "@contract-audit/audit/model";
 import type {
   AgentRunResult,
-  AgentRunTelemetry,
+  AgentTraceSink,
   AuditAgentPort,
   SubjectVerificationPort,
 } from "@contract-audit/audit/ports";
@@ -11,13 +12,6 @@ import type { AuditEventBroker } from "./sse";
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
-
-const PLACEHOLDER_TELEMETRY: AgentRunTelemetry = {
-  provider: "pi",
-  model: "unknown",
-  version: "unknown",
-  usage: null,
-};
 
 export class AuditDispatcher {
   private activeSessions = new Map<string, { abort: () => void }>();
@@ -101,18 +95,27 @@ export class AuditDispatcher {
       this.broker.publish({ type: "agent.started", auditCaseId });
 
       const agent = this.agentFactory(context);
+      const runId = await this.repository.beginAgentRun({ auditCaseId, ...agent.identity });
+      const trace = createAgentTraceCollector(runId, async (step) => {
+        await this.repository.appendAgentTraceStep(auditCaseId, step);
+        this.broker.publish({ type: "agent.trace", auditCaseId, step });
+      });
+
       const startedAt = Date.now();
       let result: AgentRunResult | undefined;
       let runError: unknown;
       try {
-        result = await this.runAgentWithTimeout(agent, context, controller);
+        result = await this.runAgentWithTimeout(agent, context, controller, trace.sink);
       } catch (error) {
         runError = error;
       }
 
-      await this.repository.completeAgentRun({
-        auditCaseId,
-        ...(result?.telemetry ?? PLACEHOLDER_TELEMETRY),
+      // Flush before closing the run: a viewer that opens the trace the moment
+      // the case settles must not find the tail of the trace still queued.
+      await trace.flush();
+
+      await this.repository.finishAgentRun(runId, {
+        usage: result?.usage ?? null,
         durationMs: Date.now() - startedAt,
         error:
           runError === undefined
@@ -167,9 +170,10 @@ export class AuditDispatcher {
     agent: AuditAgentPort,
     context: AuditSnapshot,
     parentController: AbortController,
+    trace: AgentTraceSink,
   ): Promise<AgentRunResult> {
     if (this.agentTimeoutMs <= 0) {
-      return agent.run(context, parentController.signal);
+      return agent.run(context, parentController.signal, trace);
     }
 
     let timedOut = false;
@@ -178,7 +182,7 @@ export class AuditDispatcher {
       parentController.abort();
     }, this.agentTimeoutMs);
     try {
-      return await agent.run(context, parentController.signal);
+      return await agent.run(context, parentController.signal, trace);
     } catch (error) {
       if (timedOut) {
         throw new Error(`AGENT_TIMEOUT after ${this.agentTimeoutMs}ms`);

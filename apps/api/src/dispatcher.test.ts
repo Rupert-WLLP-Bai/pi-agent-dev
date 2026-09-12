@@ -89,17 +89,12 @@ test("does not run more than one audit when concurrency is one", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
 });
 
-test("completes the audit for the enqueued case and records telemetry", async () => {
+test("completes the audit for the enqueued case and records the run", async () => {
   const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
   await dispatcher.enqueue(caseId);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
-  agent.resolveRun([proposal], {
-    provider: "test",
-    model: "test-model",
-    version: "1.0",
-    usage: { input: 10, output: 5 },
-  });
+  agent.resolveRun([proposal], { input: 10, output: 5 });
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const auditCase = await repository.getCase(caseId);
@@ -107,7 +102,8 @@ test("completes the audit for the enqueued case and records telemetry", async ()
   expect(repository.recordedRuns).toHaveLength(1);
   expect(repository.recordedRuns[0]).toMatchObject({
     auditCaseId: caseId,
-    model: "test-model",
+    identity: { provider: "test", model: "test-model", version: "0" },
+    usage: { input: 10, output: 5 },
     error: null,
   });
   expect((await repository.getFindingsByCase(caseId))[0].proposal).toEqual(proposal);

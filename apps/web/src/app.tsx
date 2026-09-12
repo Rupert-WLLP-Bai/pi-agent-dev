@@ -9,6 +9,8 @@ import {
 import { AppShell } from "./components/app-shell";
 import AuditCaseDetail from "./routes/audit-case-detail";
 import AuditCasesList from "./routes/audit-cases";
+import AuditRunsPage from "./routes/audit-runs";
+import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
 
@@ -34,6 +36,12 @@ const demoRoute = createRoute({
   component: DemoPage,
 });
 
+const runsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/audit-runs",
+  component: AuditRunsPage,
+});
+
 const listRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audit-cases",
@@ -51,12 +59,25 @@ const detailRoute = createRoute({
   component: AuditCaseDetailRoute,
 });
 
+function AuditTraceRoute() {
+  const { id } = traceRoute.useParams();
+  return <AuditTracePage id={id} />;
+}
+
+const traceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/audit-cases/$id/trace",
+  component: AuditTraceRoute,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
   demoRoute,
+  runsRoute,
   listRoute,
   detailRoute,
+  traceRoute,
 ]);
 
 const router = createRouter({ routeTree });

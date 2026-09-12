@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./agent-trace": "./src/agent-trace.ts",
     "./model": "./src/model.ts",
     "./payment-rule": "./src/payment-rule.ts",
     "./penalty-rule": "./src/penalty-rule.ts",
