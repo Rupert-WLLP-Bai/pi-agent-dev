@@ -1,5 +1,6 @@
 import type { AuditSnapshot } from "@contract-audit/audit/model";
-import type { AgentRunResult, AgentRunTelemetry, AuditAgentPort } from "@contract-audit/audit/ports";
+import type { AgentRunResult, AgentRunTelemetry, AuditAgentPort, SubjectVerificationPort } from "@contract-audit/audit/ports";
+import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import type { AuditCaseRepository } from "./db/repositories";
 import { AuditEventBroker } from "./sse";
 
@@ -25,6 +26,7 @@ export class AuditDispatcher {
     private readonly agentFactory: (snapshot: AuditSnapshot) => AuditAgentPort,
     private readonly broker: AuditEventBroker,
     private readonly maxConcurrent: number,
+    private readonly subjectVerificationPort: SubjectVerificationPort,
   ) {}
 
   get isStarted(): boolean {
@@ -61,18 +63,42 @@ export class AuditDispatcher {
       if (!snapshot) throw new Error(`Audit snapshot not found for case ${auditCaseId}`);
 
       this.broker.publish({ type: "audit.started", auditCaseId });
+      // Rules already ran while the snapshot was assembled, so the first stage
+      // this dispatcher actually performs is the subject verification.
       this.broker.publish({ type: "rules.completed", auditCaseId });
 
+      // Registered before the first network call, so a cancel arriving during
+      // the subject stage is honoured rather than silently dropped.
       const controller = new AbortController();
       this.activeSessions.set(auditCaseId, { abort: () => controller.abort() });
+
+      // The subject dimension runs as its own stage: it is a network call to an
+      // external provider, and its answer becomes part of the bounded context
+      // the agent reasons over rather than something it has to go and fetch.
+      await this.repository.updateCaseStatus(auditCaseId, "RUNNING", "SUBJECT_VERIFICATION");
+      const verification = await runSubjectVerification({
+        parties: snapshot.parties,
+        port: this.subjectVerificationPort,
+        signal: controller.signal,
+      });
+      controller.signal.throwIfAborted();
+      await this.repository.saveSubjectVerifications(auditCaseId, verification);
+
+      const context: AuditSnapshot = {
+        ...snapshot,
+        evidence: [...snapshot.evidence, ...verification.evidence],
+        ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
+      };
+
+      await this.repository.updateCaseStatus(auditCaseId, "RUNNING", "AGENT_RUNNING");
       this.broker.publish({ type: "agent.started", auditCaseId });
 
-      const agent = this.agentFactory(snapshot);
+      const agent = this.agentFactory(context);
       const startedAt = Date.now();
       let result: AgentRunResult | undefined;
       let runError: unknown;
       try {
-        result = await agent.run(snapshot, controller.signal);
+        result = await agent.run(context, controller.signal);
       } catch (error) {
         runError = error;
       }

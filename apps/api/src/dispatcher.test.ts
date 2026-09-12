@@ -1,30 +1,41 @@
 import { beforeEach, expect, test } from "bun:test";
-import type { AuditSnapshot, FindingProposal } from "@contract-audit/audit/model";
+import type { AuditSnapshot, ContractParty, FindingProposal } from "@contract-audit/audit/model";
+import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { AuditDispatcher } from "./dispatcher";
 import { ControlledAgent, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
 
-const snapshotFor = (sourceRecordId: string): AuditSnapshot => ({
+const snapshotFor = (sourceRecordId: string, parties: ContractParty[] = []): AuditSnapshot => ({
   sourceRecordId,
   contractDocument: { hash: `hash-${sourceRecordId}`, blocks: [] },
   facts: { advancePaymentRatio: 0.7, policyLimitRatio: 0.3 },
+  parties,
   evidence: [
     {
       id: "contract-payment",
       sourceRecordId,
-      contractDocumentHash: `hash-${sourceRecordId}`,
-      blockId: "p-1",
-      startOffset: 0,
-      endOffset: 3,
-      quotedText: "70%",
+      location: {
+        kind: "DOCUMENT_SPAN",
+        contractDocumentHash: `hash-${sourceRecordId}`,
+        blockId: "p-1",
+        startOffset: 0,
+        endOffset: 3,
+        quotedText: "70%",
+      },
     },
   ],
-  ruleAssessment: {
-    disposition: "POLICY_CONFLICT",
-    ruleCode: "ADVANCE_PAYMENT_LIMIT",
-    evidenceIds: ["contract-payment", "policy-limit"],
-  },
+  ruleAssessments: [
+    {
+      id: "assessment-payment",
+      disposition: "POLICY_CONFLICT",
+      ruleCode: "ADVANCE_PAYMENT_LIMIT",
+      evidenceIds: ["contract-payment", "policy-limit"],
+      basis: "预付款比例 70% 高于制度上限 30%。",
+    },
+  ],
   createdAt: new Date(0).toISOString(),
 });
+
+const party = (id: string, name: string): ContractParty => ({ id, label: "乙方", name, evidenceId: `${id}-name` });
 
 const proposal: FindingProposal = {
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
@@ -43,7 +54,13 @@ beforeEach(async () => {
   repository = new InMemoryAuditCaseRepository();
   agent = new ControlledAgent();
   broker = new RecordingEventBroker();
-  dispatcher = new AuditDispatcher(repository.asRepository(), () => agent, broker.asBroker(), 1);
+  dispatcher = new AuditDispatcher(
+    repository.asRepository(),
+    () => agent,
+    broker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+  );
   await dispatcher.start();
 });
 
@@ -83,6 +100,52 @@ test("completes the audit for the enqueued case and records telemetry", async ()
     "finding.proposed",
     "audit.awaiting_review",
   ]);
+});
+
+test("hands the agent a context that includes the subject verification evidence", async () => {
+  const { caseId } = await repository.createPendingCase(
+    "source-a",
+    snapshotFor("source-a", [party("party-1", "深圳精工科技有限公司")]),
+  );
+  await dispatcher.enqueue(caseId);
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  agent.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const context = agent.receivedSnapshots[0];
+  expect(context.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(true);
+  expect(context.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(true);
+});
+
+test("records an unavailable subject verification without failing the case", async () => {
+  const repository2 = new InMemoryAuditCaseRepository();
+  const agent2 = new ControlledAgent();
+  const broker2 = new RecordingEventBroker();
+  const disputed = "重庆恒昌建筑工程有限公司";
+  const dispatcher2 = new AuditDispatcher(
+    repository2.asRepository(),
+    () => agent2,
+    broker2.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort({ unavailable: [disputed] }),
+  );
+  await dispatcher2.start();
+  const { caseId } = await repository2.createPendingCase(
+    "source-degraded",
+    snapshotFor("source-degraded", [party("party-1", disputed)]),
+  );
+
+  await dispatcher2.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  agent2.resolveRun(proposal);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(await repository2.getCase(caseId)).toMatchObject({ status: "COMPLETED", stage: "AWAITING_REVIEW" });
+  const { verifications } = await repository2.getSubjectDimension(caseId);
+  expect(verifications).toHaveLength(1);
+  expect(verifications[0].status).toBe("UNAVAILABLE");
+  expect(verifications[0].failureReason).not.toBeNull();
 });
 
 test("marks an active run cancelled after explicit cancellation", async () => {
@@ -151,7 +214,13 @@ test("marks stale RUNNING cases interrupted and re-enqueues pending cases on sta
   await repository2.updateCaseStatus(stale, "RUNNING", "AGENT_RUNNING");
   const { caseId: pending } = await repository2.createPendingCase("source-pending", snapshotFor("source-pending"));
 
-  const dispatcher2 = new AuditDispatcher(repository2.asRepository(), () => agent2, broker2.asBroker(), 1);
+  const dispatcher2 = new AuditDispatcher(
+    repository2.asRepository(),
+    () => agent2,
+    broker2.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+  );
   await dispatcher2.start();
   await new Promise((resolve) => setTimeout(resolve, 10));
 

@@ -3,8 +3,9 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { beforeAll, expect, test } from "bun:test";
 import postgres from "postgres";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
+import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import type { FindingProposal, HumanReview } from "@contract-audit/audit/model";
-import { AuditCaseRepository } from "./repositories";
+import { AuditCaseRepository, contractTitleFromFirstBlock } from "./repositories";
 import { auditCases, schema } from "./schema";
 
 const databaseUrl = process.env.DATABASE_URL ??
@@ -22,7 +23,7 @@ const uniqueSourceRecordId = (): string => crypto.randomUUID();
 
 const seedSnapshot = (sourceRecordId: string) => createAuditSnapshot({
   sourceRecordId,
-  contractText: "乙方签订后支付合同金额的70%作为预付款。",
+  document: normalizeContractDocument("乙方签订后支付合同金额的70%作为预付款。"),
   policyLimitRatio: 0.3,
 });
 
@@ -122,4 +123,23 @@ maybeTest("marks stale running cases interrupted", async () => {
 
 maybeTest("pings the database", async () => {
   expect(await repository.ping()).toBe(true);
+});
+
+// ── Contract title heuristic ──────────────────────────────────────
+
+test("accepts a short heading as the contract title", () => {
+  expect(contractTitleFromFirstBlock("设备采购合同")).toBe("设备采购合同");
+});
+
+test("rejects a clause that reads as a finished sentence", () => {
+  // Fixtures often start with a clause; presenting it as the contract name
+  // would mislabel every row in the queue.
+  expect(contractTitleFromFirstBlock("乙方签订后支付合同金额的70%作为预付款。")).toBeNull();
+  expect(contractTitleFromFirstBlock("甲方应在验收合格后10日内付款；")).toBeNull();
+});
+
+test("rejects an over-long block and absent input", () => {
+  expect(contractTitleFromFirstBlock("甲".repeat(41))).toBeNull();
+  expect(contractTitleFromFirstBlock(null)).toBeNull();
+  expect(contractTitleFromFirstBlock("   ")).toBeNull();
 });

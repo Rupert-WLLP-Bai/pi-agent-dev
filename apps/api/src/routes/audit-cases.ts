@@ -1,8 +1,11 @@
 import { Elysia, t } from "elysia";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
+import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
 import type { AuditCase, AuditSnapshot } from "@contract-audit/audit/model";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { AuditDispatcher } from "../dispatcher";
+import { parseContractFile } from "../document";
 import { AuditEventBroker, sseResponse } from "../sse";
 
 export interface AuditRouteDeps {
@@ -23,7 +26,7 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
       const sourceRecordId = crypto.randomUUID();
       const snapshot = createAuditSnapshot({
         sourceRecordId,
-        contractText: body.contractText,
+        document: normalizeContractDocument(body.contractText),
         policyLimitRatio: body.policyLimitRatio ?? 0.3,
       });
       const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot);
@@ -31,7 +34,49 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
       set.status = 202;
       return { id: caseId, status: "PENDING" as const };
     }, { body: createBody })
-    .get("/api/audit-cases", async () => repository.getCases())
+    // File upload: accepts multipart/form-data with a single contract file
+    // (.docx, .pdf, .txt). The file is parsed into the same Contract Document
+    // IR the text endpoint produces, so everything downstream — rules, party
+    // extraction, the agent — is format-agnostic.
+    .post("/api/audit-cases/upload", async ({ body, set }) => {
+      const sourceRecordId = crypto.randomUUID();
+      let snapshot;
+      try {
+        const parsed = await parseContractFile({
+          filename: body.file.name,
+          data: new Uint8Array(await body.file.arrayBuffer()),
+        });
+        // Form fields arrive as strings. The canonical unit is a 0–1 ratio
+        // (same as the text endpoint's number field); a value above 1 is
+        // treated as a percentage ("30" → 0.3) so both callers work.
+        const rawLimit = Number(body.policyLimitRatio);
+        const policyLimit = body.policyLimitRatio === undefined || Number.isNaN(rawLimit)
+          ? 0.3
+          : rawLimit > 1 ? rawLimit / 100 : rawLimit;
+        snapshot = createAuditSnapshot({
+          sourceRecordId,
+          document: parsed.document,
+          policyLimitRatio: policyLimit,
+        });
+      } catch (error) {
+        set.status = 422;
+        return {
+          error: error instanceof Error && error.name === "EmptyContractError"
+            ? "合同文件内容为空，无法发起审计"
+            : "不支持的合同格式（仅支持 .docx、.pdf、.txt）",
+        };
+      }
+      const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot);
+      await dispatcher.enqueue(caseId);
+      set.status = 202;
+      return { id: caseId, status: "PENDING" as const };
+    }, {
+      body: t.Object({
+        file: t.File(),
+        policyLimitRatio: t.Optional(t.String()),
+      }),
+    })
+    .get("/api/audit-cases", async () => repository.getCasesWithContractTitle())
     .get("/api/audit-cases/:id", async ({ params, set }) => {
       const auditCase = await repository.getCase(params.id);
       if (!auditCase) {
@@ -44,9 +89,19 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
         set.status = 404;
         return { error: "Audit snapshot not found" };
       }
+
+      const { verifications, evidence: subjectEvidence } = await repository.getSubjectDimension(params.id);
+      const analyses = [
+        ...snapshot.ruleAssessments,
+        evaluateSubjectRiskRule({ parties: snapshot.parties, verifications }),
+      ];
+
       return {
         case: auditCase,
-        snapshot: { facts: snapshot.facts, evidence: snapshot.evidence, ruleAssessment: snapshot.ruleAssessment },
+        snapshot: { facts: snapshot.facts, parties: snapshot.parties, document: snapshot.contractDocument },
+        evidence: [...snapshot.evidence, ...subjectEvidence],
+        ruleAssessments: analyses,
+        subjectVerifications: verifications,
         findings,
       };
     })

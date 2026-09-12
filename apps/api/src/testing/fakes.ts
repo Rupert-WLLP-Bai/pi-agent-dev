@@ -1,10 +1,13 @@
 import type {
   AuditSnapshot,
+  EvidenceLocator,
   FindingProposal,
   FindingRevision,
   HumanReview,
+  SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { AgentRunTelemetry, AuditAgentPort, AuditEvent } from "@contract-audit/audit/ports";
+import type { SubjectSourceRecord, SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { AuditDispatcher } from "../dispatcher";
 import type { AuditEventBroker } from "../sse";
@@ -24,6 +27,12 @@ interface FakeFindingState {
   review: HumanReview | null;
 }
 
+interface FakeSubjectVerificationRow {
+  caseId: string;
+  verification: SubjectVerification;
+  evidence: EvidenceLocator[];
+}
+
 export interface RecordedAgentRun {
   auditCaseId: string;
   telemetry: AgentRunTelemetry;
@@ -40,6 +49,10 @@ export class InMemoryAuditCaseRepository {
   recordedRuns: RecordedAgentRun[] = [];
   interruptedStaleRuns = 0;
   databaseAvailable = true;
+  /** Provider answers stored verbatim, keyed by source record id. */
+  savedSourceRecords = new Map<string, SubjectSourceRecord>();
+  /** Append-only verification rows, mirroring the subject_verifications table. */
+  subjectVerificationRows: FakeSubjectVerificationRow[] = [];
 
   async createPendingCase(sourceRecordId: string, snapshot: AuditSnapshot): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
@@ -194,6 +207,30 @@ export class InMemoryAuditCaseRepository {
     return this.databaseAvailable;
   }
 
+  async saveSubjectVerifications(caseId: string, run: SubjectVerificationRun): Promise<void> {
+    for (const record of run.sourceRecords) this.savedSourceRecords.set(record.id, record);
+    for (const verification of run.verifications) {
+      this.subjectVerificationRows.push({
+        caseId,
+        verification,
+        evidence: run.evidence.filter((item) => verification.evidenceIds.includes(item.id)),
+      });
+    }
+  }
+
+  async getSubjectDimension(caseId: string): Promise<{
+    verifications: SubjectVerification[];
+    evidence: EvidenceLocator[];
+  }> {
+    const rows = this.subjectVerificationRows.filter((row) => row.caseId === caseId);
+    const latestByParty = new Map<string, SubjectVerification>();
+    for (const row of rows) latestByParty.set(row.verification.partyId, row.verification);
+    const verifications = [...latestByParty.values()];
+    const cited = new Set(verifications.flatMap((verification) => verification.evidenceIds));
+    const evidence = rows.flatMap((row) => row.evidence).filter((item) => cited.has(item.id));
+    return { verifications, evidence };
+  }
+
   asRepository(): AuditCaseRepository {
     return this as unknown as AuditCaseRepository;
   }
@@ -253,11 +290,14 @@ export class RecordingEventBroker {
  */
 export class ControlledAgent implements AuditAgentPort {
   startedCaseIds: string[] = [];
+  /** The exact snapshots handed to the agent, in run order. */
+  receivedSnapshots: AuditSnapshot[] = [];
   abortedRuns = 0;
   private pending: { resolve: (result: { proposal: FindingProposal; telemetry: AgentRunTelemetry }) => void; reject: (reason?: unknown) => void }[] = [];
 
   async run(input: AuditSnapshot, signal: AbortSignal): Promise<{ proposal: FindingProposal; telemetry: AgentRunTelemetry }> {
     this.startedCaseIds.push(input.sourceRecordId);
+    this.receivedSnapshots.push(input);
     return new Promise((resolve, reject) => {
       const entry = { resolve, reject };
       this.pending.push(entry);

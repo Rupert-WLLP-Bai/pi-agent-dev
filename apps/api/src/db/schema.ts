@@ -4,13 +4,16 @@ import type {
   AuditCaseStatus,
   AuditStage,
   AuditSnapshot,
+  EvidenceLocator,
   FindingProposal,
   HumanReview,
+  SubjectMatchStatus,
+  SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { InferSelectModel } from "drizzle-orm";
 
 const auditStatuses = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "CANCELLED", "INTERRUPTED"] as const;
-const auditStages = ["QUEUED", "NORMALIZING", "RULE_ASSESSMENT", "AGENT_RUNNING", "AWAITING_REVIEW", "COMPLETED", "FAILED", "CANCELLED", "INTERRUPTED"] as const;
+const auditStages = ["QUEUED", "NORMALIZING", "RULE_ASSESSMENT", "SUBJECT_VERIFICATION", "AGENT_RUNNING", "AWAITING_REVIEW", "COMPLETED", "FAILED", "CANCELLED", "INTERRUPTED"] as const;
 
 export const sourceRecords = pgTable("source_records", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -34,9 +37,31 @@ export const auditSnapshots = pgTable("audit_snapshots", {
   sourceRecordId: uuid("source_record_id").references(() => sourceRecords.id).notNull(),
   document: jsonb("document").$type<AuditSnapshot["contractDocument"]>().notNull(),
   facts: jsonb("facts").$type<AuditSnapshot["facts"]>().notNull(),
+  parties: jsonb("parties").$type<AuditSnapshot["parties"]>().notNull(),
   policy: jsonb("policy"),
   evidence: jsonb("evidence").$type<AuditSnapshot["evidence"]>().notNull(),
-  ruleAssessment: jsonb("rule_assessment").$type<AuditSnapshot["ruleAssessment"]>().notNull(),
+  /**
+   * Holds an array of assessments. The physical column keeps its original
+   * singular name so the migration diff stays purely additive; the property is
+   * named for what it is.
+   */
+  ruleAssessments: jsonb("rule_assessment").$type<AuditSnapshot["ruleAssessments"]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
+/**
+ * One external-verification answer per Contract Party. Rows are append-only:
+ * re-verifying a case appends rather than overwrites, so a reviewer can always
+ * see which provider answers an earlier decision rested on.
+ */
+export const subjectVerifications = pgTable("subject_verifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  auditCaseId: uuid("audit_case_id").references(() => auditCases.id).notNull(),
+  partyId: text("party_id").notNull(),
+  status: text("status").$type<SubjectMatchStatus>().notNull(),
+  sourceRecordId: uuid("source_record_id"),
+  payload: jsonb("payload").$type<SubjectVerification>().notNull(),
+  evidence: jsonb("evidence").$type<EvidenceLocator[]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
@@ -61,13 +86,14 @@ export const findingRevisions = pgTable("finding_revisions", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
-export const schema = { sourceRecords, auditCases, auditSnapshots, agentRuns, findingRevisions };
+export const schema = { sourceRecords, auditCases, auditSnapshots, agentRuns, findingRevisions, subjectVerifications };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
 export type AuditCaseRow = InferSelectModel<typeof auditCases>;
 export type AuditSnapshotRow = InferSelectModel<typeof auditSnapshots>;
 export type AgentRunRow = InferSelectModel<typeof agentRuns>;
 export type FindingRevisionRow = InferSelectModel<typeof findingRevisions>;
+export type SubjectVerificationRow = InferSelectModel<typeof subjectVerifications>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({ cases: many(auditCases) }));
 export const auditCasesRelations = relations(auditCases, ({ one, many }) => ({
