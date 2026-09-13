@@ -223,6 +223,13 @@ export interface FindingRevision {
   createdAt: string;
 }
 
+/**
+ * Lifecycle of a Remediation Item. A finding that a reviewer ACCEPTS opens one
+ * item; an operator advances it one step at a time, and only a different
+ * reviewer may close it.
+ */
+export type RemediationStatus = "pending" | "in_progress" | "awaiting_review" | "closed";
+
 // ── Source Record ────────────────────────────────────────────────
 
 /** The channel a Contract Revision entered the system through. */

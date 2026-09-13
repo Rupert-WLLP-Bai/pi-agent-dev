@@ -173,7 +173,10 @@ test("publishes completion only after the case reaches its terminal state", asyn
   );
 
   const statusAtPublish: Array<Promise<string | undefined>> = [];
-  broker.subscribe(caseId, () => {
+  broker.subscribe(caseId, (event) => {
+    // The accepting review also opens a remediation; this order check is about
+    // the completion transition alone.
+    if (event.type !== "audit.completed") return;
     statusAtPublish.push(repository.getCase(caseId).then((current) => current?.status));
   });
 
@@ -365,3 +368,129 @@ function snapshotStub(parties: ContractParty[] = []): AuditSnapshot {
     createdAt: new Date(0).toISOString(),
   };
 }
+
+// ── Remediation Item routes ──────────────────────────────────────
+
+const remediationProposal: FindingProposal = {
+  findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+  severity: "HIGH",
+  rationale: "Advance payment exceeds the policy limit",
+  evidenceIds: ["contract-payment"],
+  remediation: "Reduce the advance payment ratio",
+};
+
+/** Seeds a case with one finding and confirms it as risk. */
+async function seedAcceptedCase(sourceId: string): Promise<string> {
+  const { caseId } = await repository.createPendingCase(sourceId, snapshotStub());
+  const findingId = await repository.appendFindingRevision(caseId, remediationProposal, null);
+  const response = await app.handle(
+    json("POST", `/api/findings/${findingId}/reviews`, { decision: "ACCEPTED" }),
+  );
+  expect(response.status).toBe(200);
+  return caseId;
+}
+
+/** The id of the remediation the board projects for a case. */
+async function remediationIdFor(caseId: string): Promise<string> {
+  const response = await app.handle(json("GET", "/api/remediations"));
+  const board = (await response.json()) as {
+    columns: Array<{ items: Array<{ id: string; caseId: string }> }>;
+  };
+  const card = board.columns
+    .flatMap((column) => column.items)
+    .find((item) => item.caseId === caseId);
+  if (card === undefined) throw new Error(`no remediation for case ${caseId}`);
+  return card.id;
+}
+
+test("accepting a review opens a remediation; rejecting opens none", async () => {
+  const caseId = await seedAcceptedCase("source-rem-accept");
+  await remediationIdFor(caseId);
+  expect(broker.events.some((event) => event.type === "remediation.created")).toBe(true);
+
+  const { caseId: rejectedCase } = await repository.createPendingCase(
+    "source-rem-reject",
+    snapshotStub(),
+  );
+  const rejectedFinding = await repository.appendFindingRevision(
+    rejectedCase,
+    remediationProposal,
+    null,
+  );
+  await app.handle(
+    json("POST", `/api/findings/${rejectedFinding}/reviews`, {
+      decision: "REJECTED",
+      reason: "误报",
+    }),
+  );
+
+  const response = await app.handle(json("GET", "/api/remediations"));
+  const board = (await response.json()) as { columns: Array<{ items: Array<{ caseId: string }> }> };
+  const all = board.columns.flatMap((column) => column.items);
+  expect(all.some((item) => item.caseId === rejectedCase)).toBe(false);
+});
+
+test("advances a remediation one step and refuses illegal transitions", async () => {
+  const caseId = await seedAcceptedCase("source-rem-advance");
+  const id = await remediationIdFor(caseId);
+
+  // Skipping 整改中 to land on 待复核 is refused.
+  const skip = await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { status: "awaiting_review" }),
+  );
+  expect(skip.status).toBe(409);
+
+  // Closing is not reachable through PATCH at all.
+  const closeViaPatch = await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { status: "closed" }),
+  );
+  expect(closeViaPatch.status).toBe(409);
+
+  const started = await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { owner: "张工", status: "in_progress" }),
+  );
+  expect(await started.json()).toMatchObject({ status: "in_progress", owner: "张工" });
+
+  const awaiting = await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { status: "awaiting_review" }),
+  );
+  expect(await awaiting.json()).toMatchObject({ status: "awaiting_review" });
+  expect(broker.events.some((event) => event.type === "remediation.transitioned")).toBe(true);
+});
+
+test("closing needs 待复核 and a reviewer other than the owner", async () => {
+  const caseId = await seedAcceptedCase("source-rem-close");
+  const id = await remediationIdFor(caseId);
+
+  const tooEarly = await app.handle(
+    json("POST", `/api/remediations/${id}/close`, { closedBy: "李复核" }),
+  );
+  expect(tooEarly.status).toBe(409);
+
+  await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { owner: "张工", status: "in_progress" }),
+  );
+  await app.handle(json("PATCH", `/api/remediations/${id}`, { status: "awaiting_review" }));
+
+  const self = await app.handle(
+    json("POST", `/api/remediations/${id}/close`, { closedBy: "张工" }),
+  );
+  expect(self.status).toBe(409);
+  expect((await self.json()).error).toContain("责任人不能自行关闭");
+
+  const closed = await app.handle(
+    json("POST", `/api/remediations/${id}/close`, { closedBy: "李复核" }),
+  );
+  expect(closed.status).toBe(200);
+  expect(await closed.json()).toMatchObject({ status: "closed", closedBy: "李复核" });
+  expect(broker.events.some((event) => event.type === "remediation.closed")).toBe(true);
+});
+
+test("unknown remediation ids are 404", async () => {
+  const patch = await app.handle(json("PATCH", "/api/remediations/missing", { owner: "张三" }));
+  expect(patch.status).toBe(404);
+  const close = await app.handle(
+    json("POST", "/api/remediations/missing/close", { closedBy: "张三" }),
+  );
+  expect(close.status).toBe(404);
+});

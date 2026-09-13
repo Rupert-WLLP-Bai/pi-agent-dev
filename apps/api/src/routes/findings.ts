@@ -22,19 +22,29 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
         return { error: "Finding not found" };
       }
 
+      let remediationId: string | null = null;
       try {
-        await repository.appendReviewRevision(params.id, {
+        const review = await repository.appendReviewRevision(params.id, {
           decision: body.decision,
           reason: body.reason,
           reviewerId: "anonymous",
           reviewedAt: new Date().toISOString(),
         });
+        remediationId = review.remediationId;
       } catch (error) {
         if (error instanceof Error && error.message.startsWith("FINDING_ALREADY_REVIEWED")) {
           set.status = 409;
           return { error: "Finding already reviewed" };
         }
         throw error;
+      }
+
+      if (remediationId !== null) {
+        broker.publish({
+          type: "remediation.created",
+          auditCaseId: finding.auditCaseId,
+          id: remediationId,
+        });
       }
 
       // Each finding is reviewed on its own. The case only closes once every

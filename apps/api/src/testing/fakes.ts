@@ -6,6 +6,8 @@ import type {
   FindingProposal,
   FindingRevision,
   HumanReview,
+  RemediationStatus,
+  Severity,
   SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
@@ -17,6 +19,7 @@ import type {
   AuditEvent,
   ReviewPriority,
 } from "@contract-audit/audit/ports";
+import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type {
   SubjectSourceRecord,
   SubjectVerificationRun,
@@ -25,6 +28,9 @@ import {
   type AuditCaseRepository,
   compareReviewQueueItems,
   contractTitleFromFirstBlock,
+  type Remediation,
+  type RemediationBoard,
+  type RemediationCard,
   type ReviewQueueItem,
 } from "../db/repositories";
 import {
@@ -66,6 +72,23 @@ interface FakeSubjectVerificationRow {
   evidence: EvidenceLocator[];
 }
 
+/** In-memory stand-in for the `remediations` row, shaped like the projection. */
+interface FakeRemediationState {
+  id: string;
+  auditCaseId: string;
+  findingRevisionId: string;
+  summary: string;
+  severity: Severity;
+  owner: string | null;
+  dueAt: string | null;
+  status: RemediationStatus;
+  progressNote: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RecordedAgentRun {
   id: string;
   auditCaseId: string;
@@ -89,6 +112,8 @@ export class InMemoryAuditCaseRepository {
   savedSourceRecords = new Map<string, SubjectSourceRecord>();
   /** Append-only verification rows, mirroring the subject_verifications table. */
   subjectVerificationRows: FakeSubjectVerificationRow[] = [];
+  /** Remediation Items, mirroring the remediations table. */
+  remediations = new Map<string, FakeRemediationState>();
 
   async createPendingCase(
     _sourceRecordId: string,
@@ -199,7 +224,10 @@ export class InMemoryAuditCaseRepository {
     return id;
   }
 
-  async appendReviewRevision(findingId: string, review: HumanReview): Promise<string> {
+  async appendReviewRevision(
+    findingId: string,
+    review: HumanReview,
+  ): Promise<{ findingId: string; remediationId: string | null }> {
     const state = [...this.cases.values()].find((candidate) =>
       candidate.findings.some((finding) => finding.id === findingId),
     );
@@ -218,7 +246,111 @@ export class InMemoryAuditCaseRepository {
       supersedesId: findingId,
       review,
     });
-    return id;
+
+    // Accepting opens exactly one item, keyed by revision so a retry is a no-op.
+    if (review.decision !== "ACCEPTED") return { findingId: id, remediationId: null };
+    const already = [...this.remediations.values()].find((item) => item.findingRevisionId === id);
+    if (already) return { findingId: id, remediationId: already.id };
+    const remediationId = `remediation-${this.remediations.size + 1}`;
+    const now = new Date().toISOString();
+    this.remediations.set(remediationId, {
+      id: remediationId,
+      auditCaseId: existing.auditCaseId,
+      findingRevisionId: id,
+      summary: getFindingTypeLabel(existing.proposal.findingType),
+      severity: existing.proposal.severity,
+      owner: null,
+      dueAt: null,
+      status: "pending",
+      progressNote: null,
+      closedBy: null,
+      closedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { findingId: id, remediationId };
+  }
+
+  async getRemediation(id: string): Promise<Remediation | null> {
+    const item = this.remediations.get(id);
+    return item ? { ...item } : null;
+  }
+
+  async getRemediationBoard(options: { now?: Date } = {}): Promise<RemediationBoard> {
+    const now = options.now ?? new Date();
+    const itemsByStatus: Record<RemediationStatus, RemediationCard[]> = {
+      pending: [],
+      in_progress: [],
+      awaiting_review: [],
+      closed: [],
+    };
+    for (const item of this.remediations.values()) {
+      itemsByStatus[item.status].push({
+        id: item.id,
+        caseId: item.auditCaseId,
+        contractTitle:
+          contractTitleFromFirstBlock(
+            this.cases.get(item.auditCaseId)?.snapshot?.contractDocument.blocks[0]?.text,
+          ) ?? "未命名合同",
+        summary: item.summary,
+        severity: item.severity,
+        owner: item.owner,
+        dueAt: item.dueAt,
+        overdue:
+          item.status !== "closed" && item.dueAt !== null && Date.parse(item.dueAt) < now.getTime(),
+      });
+    }
+    const columns = remediationStatusOrder.map((status) => ({
+      status,
+      count: itemsByStatus[status].length,
+      items: itemsByStatus[status],
+    }));
+    return { columns, total: this.remediations.size };
+  }
+
+  async updateRemediation(
+    id: string,
+    input: {
+      owner?: string | null;
+      dueAt?: string | null;
+      progressNote?: string | null;
+      status?: RemediationStatus;
+    },
+  ): Promise<Remediation> {
+    const item = this.remediations.get(id);
+    if (!item) throw new Error(`REMEDIATION_NOT_FOUND: ${id}`);
+    if (item.status === "closed") throw new Error(`REMEDIATION_CLOSED: ${id}`);
+    if (input.owner !== undefined) item.owner = input.owner;
+    if (input.dueAt !== undefined) item.dueAt = input.dueAt;
+    if (input.progressNote !== undefined) item.progressNote = input.progressNote;
+    if (input.status !== undefined) {
+      const expected = nextRemediationStatus(item.status);
+      if (expected === null || input.status !== expected) {
+        throw new Error(`REMEDIATION_ILLEGAL_TRANSITION: ${item.status}->${input.status}`);
+      }
+      item.status = input.status;
+    }
+    item.updatedAt = new Date().toISOString();
+    return { ...item };
+  }
+
+  async closeRemediation(id: string, closedBy: string): Promise<Remediation> {
+    const item = this.remediations.get(id);
+    const reviewer = closedBy.trim();
+    if (!item) throw new Error(`REMEDIATION_NOT_FOUND: ${id}`);
+    if (item.status === "closed") throw new Error(`REMEDIATION_ALREADY_CLOSED: ${id}`);
+    if (item.status !== "awaiting_review") {
+      throw new Error(`REMEDIATION_NOT_AWAITING_REVIEW: ${item.status}`);
+    }
+    if (item.owner !== null && item.owner === reviewer) {
+      throw new Error(`REMEDIATION_SELF_CLOSE: ${id}`);
+    }
+    const now = new Date().toISOString();
+    item.status = "closed";
+    item.closedBy = reviewer;
+    item.closedAt = now;
+    item.updatedAt = now;
+    return { ...item };
   }
 
   async markStaleRunsInterrupted(): Promise<number> {

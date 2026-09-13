@@ -16,6 +16,7 @@ import { createQccSubjectVerificationPort } from "./qcc/adapter";
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
+import { remediationsRoutes } from "./routes/remediations";
 import { rulesRoutes } from "./routes/rules";
 import { reviewsRoutes } from "./routes/reviews";
 import { statsRoutes } from "./routes/stats";
@@ -27,6 +28,10 @@ export type {
   AgentRunSummary,
   AuditOverview,
   CaseSummary,
+  Remediation,
+  RemediationBoard,
+  RemediationCard,
+  RemediationColumn,
   ReviewQueueItem,
 } from "./db/repositories";
 export type {
@@ -71,6 +76,7 @@ export function createApp(deps: AppDeps) {
     .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
+    .use(remediationsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(
       reviewsRoutes({
         repository: deps.repository,

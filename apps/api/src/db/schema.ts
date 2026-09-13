@@ -7,6 +7,8 @@ import type {
   EvidenceLocator,
   FindingProposal,
   HumanReview,
+  RemediationStatus,
+  Severity,
   SubjectMatchStatus,
   SubjectVerification,
 } from "@contract-audit/audit/model";
@@ -44,6 +46,7 @@ const auditStages = [
   "CANCELLED",
   "INTERRUPTED",
 ] as const;
+const remediationStatuses = ["pending", "in_progress", "awaiting_review", "closed"] as const;
 
 export const sourceRecords = pgTable("source_records", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -302,6 +305,43 @@ export const validationCases = pgTable(
   (table) => [uniqueIndex("validation_cases_rule_name_idx").on(table.ruleCode, table.name)],
 );
 
+
+/**
+ * One Remediation Item per accepted Finding Revision. An item is opened by the
+ * review that accepts a finding and is the unit the 整改跟踪 board moves: it
+ * remembers who owns the fix, when it is due, and — once a different reviewer
+ * confirms it — who closed it.
+ *
+ * `findingRevisionId` is unique: accepting the same revision can never open a
+ * second item, which makes the auto-create idempotent under retries.
+ */
+export const remediations = pgTable(
+  "remediations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id, { onDelete: "cascade" })
+      .notNull(),
+    findingRevisionId: uuid("finding_revision_id")
+      .references(() => findingRevisions.id, { onDelete: "cascade" })
+      .notNull(),
+    summary: text("summary").notNull(),
+    severity: text("severity").$type<Severity>().notNull(),
+    owner: text("owner"),
+    dueAt: timestamp("due_at", { withTimezone: true, mode: "date" }),
+    status: text("status", { enum: remediationStatuses })
+      .$type<RemediationStatus>()
+      .notNull()
+      .default("pending"),
+    progressNote: text("progress_note"),
+    closedBy: text("closed_by"),
+    closedAt: timestamp("closed_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("remediations_finding_revision_idx").on(table.findingRevisionId)],
+);
+
 export const schema = {
   sourceRecords,
   auditCases,
@@ -309,6 +349,7 @@ export const schema = {
   agentRuns,
   agentTraceSteps,
   findingRevisions,
+  remediations,
   subjectVerifications,
   rules,
   ruleVersions,
@@ -322,6 +363,7 @@ export type AuditSnapshotRow = InferSelectModel<typeof auditSnapshots>;
 export type AgentRunRow = InferSelectModel<typeof agentRuns>;
 export type AgentTraceStepRow = InferSelectModel<typeof agentTraceSteps>;
 export type FindingRevisionRow = InferSelectModel<typeof findingRevisions>;
+export type RemediationRow = InferSelectModel<typeof remediations>;
 export type SubjectVerificationRow = InferSelectModel<typeof subjectVerifications>;
 export type RuleRow = InferSelectModel<typeof rules>;
 export type RuleVersionRow = InferSelectModel<typeof ruleVersions>;
@@ -339,6 +381,17 @@ export const auditCasesRelations = relations(auditCases, ({ one, many }) => ({
   snapshots: many(auditSnapshots),
   runs: many(agentRuns),
   findings: many(findingRevisions),
+  remediations: many(remediations),
+}));
+export const remediationsRelations = relations(remediations, ({ one }) => ({
+  auditCase: one(auditCases, {
+    fields: [remediations.auditCaseId],
+    references: [auditCases.id],
+  }),
+  findingRevision: one(findingRevisions, {
+    fields: [remediations.findingRevisionId],
+    references: [findingRevisions.id],
+  }),
 }));
 export const agentRunsRelations = relations(agentRuns, ({ many }) => ({
   steps: many(agentTraceSteps),

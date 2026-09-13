@@ -116,8 +116,7 @@ const navGroups: MenuProps["items"] = [
       {
         key: "/remediations",
         icon: <SyncOutlined />,
-        label: "整改跟踪",
-        disabled: true,
+        label: <Link to="/remediations">整改跟踪</Link>,
       },
     ],
   },
@@ -170,7 +169,9 @@ function selectedKeys(pathname: string, origin?: unknown): string[] {
   // A case's detail page and its trace page are both the queue section: the
   // nav must keep highlighting where the operator came from.
   if (pathname.startsWith("/audit-cases")) {
-    return [origin === "reviews" ? "/reviews" : "/audit-cases"];
+    if (origin === "reviews") return ["/reviews"];
+    if (origin === "remediations") return ["/remediations"];
+    return ["/audit-cases"];
   }
   // The rule editor belongs to 规则管理, so the section stays highlighted.
   if (pathname.startsWith("/rules")) return ["/rules"];
@@ -189,17 +190,19 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
   }
   if (pathname.startsWith("/audit-cases/")) {
     const fromReviews = origin === "reviews";
+    const fromRemediations = origin === "remediations";
+    const to = fromReviews ? "/reviews" : fromRemediations ? "/remediations" : "/audit-cases";
+    const label = fromReviews ? "复核中心" : fromRemediations ? "整改跟踪" : "审计队列";
     return (
       <>
-        <Link to={fromReviews ? "/reviews" : "/audit-cases"}>
-          {fromReviews ? "复核中心" : "审计队列"}
-        </Link>
+        <Link to={to}>{label}</Link>
         <span className="app-breadcrumb-sep">/</span>
         审计案件
       </>
     );
   }
   if (pathname === "/reviews") return "复核中心";
+  if (pathname === "/remediations") return "整改跟踪";
   if (pathname === "/demo") return "演示概览";
   if (pathname === "/audit-runs") return "运行轨迹";
   if (pathname === "/rules") return "规则管理";

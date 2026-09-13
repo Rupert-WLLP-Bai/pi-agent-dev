@@ -14,6 +14,7 @@ import AuditRunsPage from "./routes/audit-runs";
 import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
+import RemediationBoardPage from "./routes/remediations";
 import ReviewCenterPage from "./routes/reviews";
 import RuleDetail from "./routes/rule-detail";
 import RulesPage from "./routes/rules";
@@ -29,6 +30,13 @@ const LIFECYCLE_FILTERS: readonly AuditLifecycleFilter[] = [
   "CANCELLED",
   "ABNORMAL",
 ];
+
+/** A page that can open a case detail, so the workbench can return there. */
+export type AuditCaseOrigin = "reviews" | "remediations";
+
+const isAuditCaseOrigin = (value: unknown): value is AuditCaseOrigin =>
+  value === "reviews" || value === "remediations";
+
 const rootRoute = createRootRoute({ component: () => <AppShell /> });
 
 const indexRoute = createRoute({
@@ -84,8 +92,8 @@ const detailRoute = createRoute({
   path: "/audit-cases/$id",
   // Keep the entry point so the workbench can return where the operator came
   // from; an unknown value is dropped rather than trusted.
-  validateSearch: (search: Record<string, unknown>): { origin?: "reviews" } => ({
-    origin: search.origin === "reviews" ? "reviews" : undefined,
+  validateSearch: (search: Record<string, unknown>): { origin?: AuditCaseOrigin } => ({
+    origin: isAuditCaseOrigin(search.origin) ? search.origin : undefined,
   }),
   component: AuditCaseDetailRoute,
 });
@@ -109,6 +117,12 @@ const reviewsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reviews",
   component: ReviewCenterPage,
+});
+
+const remediationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/remediations",
+  component: RemediationBoardPage,
 });
 
 const rulesRoute = createRoute({
@@ -143,6 +157,7 @@ const routeTree = rootRoute.addChildren([
   detailRoute,
   traceRoute,
   reviewsRoute,
+  remediationsRoute,
   rulesRoute,
   ruleDetailRoute,
   validationRoute,

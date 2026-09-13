@@ -10,6 +10,7 @@ import {
   retryAuditCase,
   submitReview,
 } from "../api";
+import type { AuditCaseOrigin } from "../app";
 import { AuditCaseWorkbench } from "../components/audit-case-workbench";
 import { ReviewDrawer } from "../components/review-drawer";
 import { useAuditEvents } from "../hooks/use-audit-events";
@@ -31,13 +32,19 @@ interface ReviewTarget {
 
 const closedReview: ReviewTarget = { finding: null, decision: null };
 
+/** Where a case detail opened from returns to, keyed by the entry point. */
+const originHome: Record<AuditCaseOrigin, { label: string; to: "/reviews" | "/remediations" }> = {
+  reviews: { label: "返回复核中心", to: "/reviews" },
+  remediations: { label: "返回整改跟踪", to: "/remediations" },
+};
+
 export default function AuditCaseDetail({
   id,
   origin = null,
 }: {
   id: string;
   /** Where the operator came from, so the workbench returns there. */
-  origin?: "reviews" | null;
+  origin?: AuditCaseOrigin | null;
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -151,8 +158,10 @@ export default function AuditCaseDetail({
         }
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
-        backLabel={origin === "reviews" ? "返回复核中心" : undefined}
-        onBack={() => void navigate({ to: origin === "reviews" ? "/reviews" : "/audit-cases" })}
+        backLabel={origin === null ? undefined : originHome[origin].label}
+        onBack={() =>
+          void navigate({ to: origin === null ? "/audit-cases" : originHome[origin].to })
+        }
         onOpenTrace={() =>
           void navigate({
             to: "/audit-cases/$id/trace",

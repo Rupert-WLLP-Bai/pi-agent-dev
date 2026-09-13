@@ -12,11 +12,13 @@ import type {
   FindingProposal,
   FindingRevision,
   HumanReview,
+  RemediationStatus,
   Severity,
   SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { AgentRunIdentity, ReviewPriority } from "@contract-audit/audit/ports";
+import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
 import { count, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -27,6 +29,7 @@ import {
   auditCases,
   auditSnapshots,
   findingRevisions,
+  remediations,
   schema,
   sourceRecords,
   subjectVerifications,
@@ -134,6 +137,51 @@ export interface ReviewQueueItem {
   updatedAt: string;
 }
 
+/** One Remediation Item as the detail view reads it. */
+export interface Remediation {
+  id: string;
+  auditCaseId: string;
+  findingRevisionId: string;
+  summary: string;
+  severity: Severity;
+  owner: string | null;
+  dueAt: string | null;
+  status: RemediationStatus;
+  progressNote: string | null;
+  closedBy: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Board card: the four fields the sketch asks a card to carry, plus the overdue
+ * flag its column renders. `overdue` is derived at read time — a closed card is
+ * never overdue, whatever its deadline says.
+ */
+export interface RemediationCard {
+  id: string;
+  caseId: string;
+  contractTitle: string;
+  summary: string;
+  severity: Severity;
+  owner: string | null;
+  dueAt: string | null;
+  overdue: boolean;
+}
+
+export interface RemediationColumn {
+  status: RemediationStatus;
+  count: number;
+  items: RemediationCard[];
+}
+
+/** The 整改跟踪 board: every column in lifecycle order, even when empty. */
+export interface RemediationBoard {
+  columns: RemediationColumn[];
+  total: number;
+}
+
 const severityByRank: Record<number, Severity> = { 3: "HIGH", 2: "MEDIUM", 1: "LOW" };
 
 const severityOrder: Record<Severity, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
@@ -158,6 +206,26 @@ const toSeverity = (value: string | null): Severity | null => {
   const rank = value === "HIGH" ? 3 : value === "MEDIUM" ? 2 : value === "LOW" ? 1 : 0;
   return severityByRank[rank] ?? null;
 };
+
+/** DB text back to the lifecycle union; an unrecognised value reads as pending. */
+const toRemediationStatus = (value: string): RemediationStatus =>
+  value === "in_progress" || value === "awaiting_review" || value === "closed" ? value : "pending";
+
+const toRemediation = (row: typeof remediations.$inferSelect): Remediation => ({
+  id: row.id,
+  auditCaseId: row.auditCaseId,
+  findingRevisionId: row.findingRevisionId,
+  summary: row.summary,
+  severity: toSeverity(row.severity) ?? "LOW",
+  owner: row.owner,
+  dueAt: row.dueAt === null ? null : row.dueAt.toISOString(),
+  status: row.status,
+  progressNote: row.progressNote,
+  closedBy: row.closedBy,
+  closedAt: row.closedAt === null ? null : row.closedAt.toISOString(),
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
+});
 
 /**
  * Rebuilds provenance from Source Record metadata. Records written before
@@ -491,8 +559,16 @@ export class AuditCaseRepository {
   /**
    * Records a human review as a new append-only revision that supersedes the
    * reviewed proposal. The original row is never overwritten.
+   *
+   * Accepting a finding also opens its Remediation Item in the same
+   * transaction: the item and the decision that created it either both land or
+   * neither does. The unique index on `finding_revision_id` makes the insert
+   * idempotent, so a retried accept cannot open a second item.
    */
-  async appendReviewRevision(findingId: string, review: HumanReview): Promise<string> {
+  async appendReviewRevision(
+    findingId: string,
+    review: HumanReview,
+  ): Promise<{ findingId: string; remediationId: string | null }> {
     return this.db.transaction(async (tx) => {
       const [existing] = await tx
         .select()
@@ -517,7 +593,21 @@ export class AuditCaseRepository {
           review,
         })
         .returning({ id: findingRevisions.id });
-      return row.id;
+
+      if (review.decision !== "ACCEPTED") {
+        return { findingId: row.id, remediationId: null };
+      }
+      const [remediation] = await tx
+        .insert(remediations)
+        .values({
+          auditCaseId: existing.auditCaseId,
+          findingRevisionId: row.id,
+          summary: getFindingTypeLabel(existing.proposal.findingType),
+          severity: existing.proposal.severity,
+        })
+        .onConflictDoNothing({ target: remediations.findingRevisionId })
+        .returning({ id: remediations.id });
+      return { findingId: row.id, remediationId: remediation?.id ?? null };
     });
   }
 
@@ -588,6 +678,144 @@ export class AuditCaseRepository {
 
     await this.updateCaseStatus(caseId, "COMPLETED", "COMPLETED");
     return true;
+  }
+
+  /** One Remediation Item by id, or null when no such item exists. */
+  async getRemediation(id: string): Promise<Remediation | null> {
+    const [row] = await this.db.select().from(remediations).where(eq(remediations.id, id)).limit(1);
+    return row ? toRemediation(row) : null;
+  }
+
+  /**
+   * The 整改跟踪 board. Every lifecycle column is present even when empty, so
+   * the board's shape never depends on which columns happen to hold work. A
+   * card is overdue only while it is still open: a closed item that slipped its
+   * deadline is history, not a live escalation.
+   */
+  async getRemediationBoard(options: { now?: Date } = {}): Promise<RemediationBoard> {
+    const now = options.now ?? new Date();
+    const rows = await this.db
+      .select({
+        id: remediations.id,
+        auditCaseId: remediations.auditCaseId,
+        summary: remediations.summary,
+        severity: remediations.severity,
+        owner: remediations.owner,
+        dueAt: remediations.dueAt,
+        status: remediations.status,
+        contractTitle: sql<string | null>`${auditSnapshots.document}->'blocks'->0->>'text'`,
+      })
+      .from(remediations)
+      .leftJoin(auditSnapshots, eq(auditSnapshots.auditCaseId, remediations.auditCaseId))
+      .orderBy(sql`${remediations.dueAt} ASC NULLS LAST`, remediations.createdAt);
+
+    const itemsByStatus: Record<RemediationStatus, RemediationCard[]> = {
+      pending: [],
+      in_progress: [],
+      awaiting_review: [],
+      closed: [],
+    };
+    for (const row of rows) {
+      const dueAt = row.dueAt === null ? null : row.dueAt.toISOString();
+      const status = toRemediationStatus(row.status);
+      itemsByStatus[status].push({
+        id: row.id,
+        caseId: row.auditCaseId,
+        contractTitle: contractTitleFromFirstBlock(row.contractTitle) ?? "未命名合同",
+        summary: row.summary,
+        severity: toSeverity(row.severity) ?? "LOW",
+        owner: row.owner,
+        dueAt,
+        overdue: status !== "closed" && dueAt !== null && Date.parse(dueAt) < now.getTime(),
+      });
+    }
+    const columns = remediationStatusOrder.map((status) => ({
+      status,
+      count: itemsByStatus[status].length,
+      items: itemsByStatus[status],
+    }));
+    return { columns, total: rows.length };
+  }
+
+  /**
+   * Applies the operator-editable fields, and — when `status` is given —
+   * advances the item exactly one step. Any other target is an illegal
+   * transition, including `closed`, which only the close action may set.
+   *
+   * The read takes a row lock, so two concurrent advances cannot both see the
+   * same `from` and skip a column.
+   */
+  async updateRemediation(
+    id: string,
+    input: {
+      owner?: string | null;
+      dueAt?: string | null;
+      progressNote?: string | null;
+      status?: RemediationStatus;
+    },
+  ): Promise<Remediation> {
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(remediations)
+        .where(eq(remediations.id, id))
+        .for("update");
+      if (!row) throw new Error(`REMEDIATION_NOT_FOUND: ${id}`);
+      if (row.status === "closed") throw new Error(`REMEDIATION_CLOSED: ${id}`);
+
+      const patch: Partial<typeof remediations.$inferInsert> = { updatedAt: new Date() };
+      if (input.owner !== undefined) patch.owner = input.owner;
+      if (input.dueAt !== undefined) {
+        patch.dueAt = input.dueAt === null ? null : new Date(input.dueAt);
+      }
+      if (input.progressNote !== undefined) patch.progressNote = input.progressNote;
+      if (input.status !== undefined) {
+        const expected = nextRemediationStatus(row.status);
+        if (expected === null || input.status !== expected) {
+          throw new Error(`REMEDIATION_ILLEGAL_TRANSITION: ${row.status}->${input.status}`);
+        }
+        patch.status = input.status;
+      }
+
+      const [updated] = await tx
+        .update(remediations)
+        .set(patch)
+        .where(eq(remediations.id, id))
+        .returning();
+      return toRemediation(updated);
+    });
+  }
+
+  /**
+   * Closes an item after a reviewer confirms the fix. Only an item awaiting
+   * review may close, and the reviewer must not be the person who owned the
+   * fix: self-confirmation is the one thing the close step exists to prevent.
+   */
+  async closeRemediation(id: string, closedBy: string): Promise<Remediation> {
+    const reviewer = closedBy.trim();
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(remediations)
+        .where(eq(remediations.id, id))
+        .for("update");
+      if (!row) throw new Error(`REMEDIATION_NOT_FOUND: ${id}`);
+      if (row.status === "closed") throw new Error(`REMEDIATION_ALREADY_CLOSED: ${id}`);
+      if (row.status !== "awaiting_review") {
+        throw new Error(`REMEDIATION_NOT_AWAITING_REVIEW: ${row.status}`);
+      }
+      if (row.owner !== null && row.owner === reviewer) {
+        throw new Error(`REMEDIATION_SELF_CLOSE: ${id}`);
+      }
+
+      const now = new Date();
+      const [updated] = await tx
+        .update(remediations)
+        .set({ status: "closed", closedBy: reviewer, closedAt: now, updatedAt: now })
+        .where(eq(remediations.id, id))
+        .returning();
+      return toRemediation(updated);
+    });
   }
 
   async getFindingsByCase(caseId: string): Promise<FindingRevision[]> {
