@@ -1,6 +1,19 @@
-import type { AgentRunSummary, AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
+import type {
+  AgentRunSummary,
+  AuditOverview,
+  CaseSummary,
+  createApp,
+  RuleDetail,
+  RuleListItem,
+  RuleVersionRecord,
+  ValidationCaseListItem,
+  ValidationRunListItem,
+  ValidationRunRecord,
+  ValidationRunView,
+} from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
 import { treaty } from "@elysiajs/eden";
+import type { RuleParams } from "./rule-presentation";
 
 // Same-origin by default so the Vite dev proxy (and a single-origin deployment)
 // carry /api requests. An empty string is NOT a valid Eden base — it resolves
@@ -161,4 +174,148 @@ export async function getApiHealth(): Promise<"ok" | "unavailable"> {
 
 export function getAuditEventsUrl(id: string): string {
   return `${API_BASE_URL}/api/audit-cases/${encodeURIComponent(id)}/events`;
+}
+
+// ── Rule governance ──────────────────────────────────────────────
+
+export interface RuleStanceInput {
+  preferred: string;
+  acceptableRetreat: string;
+  unacceptable: string;
+  exceptionApproval: string;
+}
+
+export type RuleParamValues = Record<string, string | number | boolean>;
+export interface CreateRuleInput {
+  code: string;
+  name: string;
+  contractType: string;
+  description: string;
+  params: RuleParams;
+  stances: RuleStanceInput;
+}
+
+/**
+ * The server's Chinese reason when it sent one, else a caller-supplied
+ * fallback — a 409 that gates a publish must reach the operator verbatim. */
+function serverReason(error: { value: unknown }, fallback: string): string {
+  const value = error.value;
+  if (typeof value === "object" && value !== null && "error" in value) {
+    const reason = value.error;
+    if (typeof reason === "string" && reason.length > 0) return reason;
+  }
+  return fallback;
+}
+
+export async function listRules(): Promise<RuleListItem[]> {
+  const { data, error } = await api.api.rules.get();
+  if (error) throw new ApiRequestError("加载规则列表失败", Number(error.status));
+  return data;
+}
+
+export async function getRule(id: string): Promise<RuleDetail> {
+  const { data, error } = await api.api.rules({ id }).get();
+  if (error) throw new ApiRequestError("加载规则详情失败", error.status);
+  if (!data || "error" in data) throw new ApiRequestError("无法加载规则详情", 404);
+  return data;
+}
+
+export async function createRule(input: CreateRuleInput): Promise<RuleDetail> {
+  const { data, error } = await api.api.rules.post(input);
+  if (error) throw new ApiRequestError(serverReason(error, "创建规则失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("创建规则失败", 500);
+  return data;
+}
+
+export async function updateRule(
+  id: string,
+  input: { name?: string; contractType?: string; description?: string },
+): Promise<RuleDetail["rule"]> {
+  const { data, error } = await api.api.rules({ id }).put(input);
+  if (error) throw new ApiRequestError(serverReason(error, "更新规则失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("更新规则失败", 500);
+  return data.rule;
+}
+
+export async function createRuleVersion(
+  id: string,
+  input: { params: RuleParams; stances: RuleStanceInput },
+): Promise<RuleVersionRecord> {
+  const { data, error } = await api.api.rules({ id }).versions.post(input);
+  if (error)
+    throw new ApiRequestError(serverReason(error, "创建规则版本失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("创建规则版本失败", 500);
+  return data.version;
+}
+
+/**
+ * Saves parameters and stances onto the open draft. The editor calls this when
+ * a draft already exists — a rule carries at most one draft, so a fresh POST
+ * would be a 409. */
+export async function updateRuleVersion(
+  id: string,
+  versionId: string,
+  input: { params: RuleParams; stances: RuleStanceInput },
+): Promise<RuleVersionRecord> {
+  const { data, error } = await api.api.rules({ id }).versions({ versionId }).put(input);
+  if (error)
+    throw new ApiRequestError(serverReason(error, "保存规则草稿失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("保存规则草稿失败", 500);
+  return data.version;
+}
+
+export async function validateRule(id: string, triggeredBy: string): Promise<ValidationRunRecord> {
+  const { data, error } = await api.api.rules({ id }).validate.post({ triggeredBy });
+  if (error)
+    throw new ApiRequestError(serverReason(error, "运行规则验证失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("运行规则验证失败", 500);
+  return data.run;
+}
+
+export async function publishRule(
+  id: string,
+  publishedBy: string,
+): Promise<{ rule: RuleDetail["rule"]; version: RuleVersionRecord }> {
+  const { data, error } = await api.api.rules({ id }).publish.post({ publishedBy });
+  if (error) throw new ApiRequestError(serverReason(error, "发布规则失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("发布规则失败", 500);
+  return data;
+}
+
+// ── Case validation ──────────────────────────────────────────────
+
+export async function listValidationCases(
+  query: { ruleCode?: string; caseType?: string } = {},
+): Promise<ValidationCaseListItem[]> {
+  const { data, error } = await api.api.validation.cases.get({ query });
+  if (error) throw new ApiRequestError("加载验证案例失败", Number(error.status));
+  if (!Array.isArray(data)) throw new ApiRequestError("加载验证案例失败", 500);
+  return data;
+}
+
+/**
+ * Runs the golden set for one rule (or every rule when `ruleId` is omitted)
+ * against the rule version's current parameters.
+ */
+export async function runValidation(input: { ruleId?: string; triggeredBy: string }) {
+  const { data, error } = await api.api.validation.runs.post(input);
+  if (error) throw new ApiRequestError(serverReason(error, "运行验证失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("运行验证失败", 500);
+  return data;
+}
+
+export async function listValidationRuns(ruleId?: string): Promise<ValidationRunListItem[]> {
+  const { data, error } = await api.api.validation.runs.get({
+    query: ruleId === undefined ? {} : { ruleId },
+  });
+  if (error) throw new ApiRequestError("加载验证历史失败", Number(error.status));
+  if (!Array.isArray(data)) throw new ApiRequestError("加载验证历史失败", 500);
+  return data;
+}
+
+export async function getValidationRun(id: string): Promise<ValidationRunView> {
+  const { data, error } = await api.api.validation.runs({ id }).get();
+  if (error) throw new ApiRequestError("加载验证运行失败", error.status);
+  if (!data || "error" in data) throw new ApiRequestError("加载验证运行失败", 404);
+  return data;
 }

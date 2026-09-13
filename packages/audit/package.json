@@ -14,6 +14,8 @@
     "./document-ir": "./src/document-ir.ts",
     "./plaintext-adapter": "./src/plaintext-adapter.ts",
     "./fact-builder": "./src/fact-builder.ts",
+    "./golden-eval": "./src/golden-eval.ts",
+    "./golden-set": "./src/golden-set.ts",
     "./orchestrator": "./src/orchestrator.ts",
     "./party-extractor": "./src/party-extractor.ts",
     "./subject-rule": "./src/subject-rule.ts",

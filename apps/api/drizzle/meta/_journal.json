@@ -22,6 +22,20 @@
       "when": 1789229813220,
       "tag": "0002_condemned_doctor_doom",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789281947636,
+      "tag": "0004_rule_versions",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789283818925,
+      "tag": "0005_validation",
+      "breakpoints": true
     }
   ]
 }

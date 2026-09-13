@@ -9,7 +9,7 @@ export default defineConfig({
     // (WSL2 forwards IPv4 loopback only; an IPv6-only [::1] listener is unreachable).
     host: true,
     proxy: {
-      "/api": "http://localhost:3000",
+      "/api": process.env.API_PROXY_TARGET ?? "http://localhost:3000",
     },
   },
 });

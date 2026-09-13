@@ -22,6 +22,13 @@ export interface RuleAssessment {
   evidenceIds: string[];
   /** The deterministic explanation the assessment stands on, before any model narration. */
   basis: string;
+  /**
+   * The published Rule Version whose parameters produced this assessment, or
+   * null when it ran without a versioned rule set (e.g. the golden bench).
+   * A Finding citing this assessment inherits the number, so a past decision
+   * can always be traced to the exact parameter set behind it.
+   */
+  ruleVersion?: number | null;
 }
 
 // ── Contract Party ───────────────────────────────────────────────

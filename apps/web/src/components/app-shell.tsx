@@ -129,14 +129,12 @@ const navGroups: MenuProps["items"] = [
       {
         key: "/rules",
         icon: <SettingOutlined />,
-        label: "规则管理",
-        disabled: true,
+        label: <Link to="/rules">规则管理</Link>,
       },
       {
         key: "/cases",
         icon: <DatabaseOutlined />,
-        label: "案例验证",
-        disabled: true,
+        label: <Link to="/cases">案例验证</Link>,
       },
     ],
   },
@@ -166,6 +164,8 @@ function selectedKeys(pathname: string): string[] {
   // A case's detail page and its trace page are both the queue section: the
   // nav must keep highlighting where the operator came from.
   if (pathname.startsWith("/audit-cases")) return ["/audit-cases"];
+  // The rule editor belongs to 规则管理, so the section stays highlighted.
+  if (pathname.startsWith("/rules")) return ["/rules"];
   return [pathname];
 }
 
@@ -190,6 +190,17 @@ function breadcrumbFor(pathname: string) {
   }
   if (pathname === "/demo") return "演示概览";
   if (pathname === "/audit-runs") return "运行轨迹";
+  if (pathname === "/rules") return "规则管理";
+  if (pathname.startsWith("/rules/")) {
+    return (
+      <>
+        <Link to="/rules">规则管理</Link>
+        <span className="app-breadcrumb-sep">/</span>
+        规则编辑器
+      </>
+    );
+  }
+  if (pathname === "/cases") return "案例验证";
   return "审计队列";
 }
 

@@ -1,6 +1,6 @@
 import { buildDisputeJurisdictionFacts, evaluateDisputeJurisdictionRule } from "./dispute-rule";
 import { buildPaymentFacts } from "./fact-builder";
-import type { AuditSnapshot, ContractDocument } from "./model";
+import type { AuditSnapshot, ContractDocument, RuleAssessment, RuleCode } from "./model";
 import { extractContractParties } from "./party-extractor";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
 import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
@@ -22,17 +22,25 @@ export function createAuditSnapshot(input: {
   sourceRecordId: string;
   /** The Contract Document IR — built by whichever parser handled the source. */
   document: ContractDocument;
-  policyLimitRatio: number;
+  /** Policy ceiling for the advance-payment ratio as a 0–1 ratio. Defaults to 0.3. */
+  policyLimitRatio?: number;
   /** Policy ceiling for breach-of-contract penalty as a 0–1 ratio. Defaults to 0.3. */
   policyPenaltyLimit?: number;
   /** Our side's preferred dispute jurisdiction (e.g. "重庆"). Defaults to "重庆". */
   preferredJurisdiction?: string;
+  /**
+   * The published Rule Version each rule's parameters were read from, keyed by
+   * rule code. A cited version travels into the matching assessment, so a
+   * Finding built on it can name the exact parameter set it was judged under.
+   */
+  ruleVersions?: Partial<Record<RuleCode, number>>;
 }): AuditSnapshot {
   const document = input.document;
+  const policyLimitRatio = input.policyLimitRatio ?? 0.3;
   const { facts, hasAdvanceTerm, evidence } = buildPaymentFacts({
     sourceRecordId: input.sourceRecordId,
     document,
-    policyLimitRatio: input.policyLimitRatio,
+    policyLimitRatio,
   });
   const { parties, evidence: partyEvidence } = extractContractParties({
     sourceRecordId: input.sourceRecordId,
@@ -57,6 +65,16 @@ export function createAuditSnapshot(input: {
     preferredJurisdiction,
   });
 
+  const ruleAssessments: RuleAssessment[] = [
+    evaluateAdvancePaymentRule(facts, hasAdvanceTerm),
+    evaluatePenaltyRatioRule(penaltyAnalysis.facts),
+    evaluateTerminationClauseRule(terminationAnalysis.facts),
+    evaluateDisputeJurisdictionRule(disputeAnalysis.facts, preferredJurisdiction),
+  ].map((assessment) => ({
+    ...assessment,
+    ruleVersion: input.ruleVersions?.[assessment.ruleCode] ?? null,
+  }));
+
   return {
     sourceRecordId: input.sourceRecordId,
     contractDocument: document,
@@ -69,12 +87,7 @@ export function createAuditSnapshot(input: {
       ...terminationAnalysis.evidence,
       ...disputeAnalysis.evidence,
     ],
-    ruleAssessments: [
-      evaluateAdvancePaymentRule(facts, hasAdvanceTerm),
-      evaluatePenaltyRatioRule(penaltyAnalysis.facts),
-      evaluateTerminationClauseRule(terminationAnalysis.facts),
-      evaluateDisputeJurisdictionRule(disputeAnalysis.facts, preferredJurisdiction),
-    ],
+    ruleAssessments,
     createdAt: new Date().toISOString(),
   };
 }
