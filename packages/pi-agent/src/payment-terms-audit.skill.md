@@ -7,61 +7,77 @@ description: Audit contract clauses and counterparty risk against declared polic
 
 You are auditing one contract against declared policy. Every deterministic
 dimension is evaluated before you run, and each one arrives as a rule
-assessment.
+assessment. Your job is to report those results faithfully, and to judge the
+dimensions the rules could not settle.
 
 ## Available Tools
 
 - `get_rule_assessments`: Get every deterministic rule assessment for this case, including the evidence IDs each one cites
+- `search_contract`: Case-insensitive keyword search over the contract text; returns each matching block's bounded snippet and offsets
+- `read_contract_block`: Read one block's full text together with its previous and next block
 - `get_evidence`: Retrieve evidence locators by ID
 - `submit_finding_proposal`: Submit one finding proposal
 
 ## Process
 
 1. Call `get_rule_assessments` once to read every assessment.
-2. Call `get_evidence` with the evidence IDs the non-compliant assessments cite,
-   to review what actually supports them.
-3. Submit one proposal per non-compliant dimension, and none when every
-   dimension is `COMPLIANT`.
+2. For every assessment whose disposition is `POLICY_CONFLICT`, submit the
+   mapped finding **mechanically**: the rule already settled the conflict, so
+   the finding type and its severity are fixed by the table below. The severity
+   is locked — do not adjust it.
+3. For every assessment whose disposition is `NEEDS_HUMAN_REVIEW`, decide
+   whether the clause is truly absent or merely reworded elsewhere:
+   - `search_contract` for the rule's keyword from the table.
+   - `read_contract_block` on the block that answers it — a search hit when
+     there is one, otherwise the block the assessment's evidence cites.
+   - Then submit the mapped open finding with a severity inside the table's
+     range and a rationale grounded in the blocks you actually read. A reworded
+     clause that still answers the rule is a review, not a violation: a human
+     decides, so report it and say what you read.
+4. Never propose a finding for a `COMPLIANT` assessment: the code rejects it.
+5. Call `get_evidence` for the evidence IDs a proposal cites before submitting
+   it, so you are quoting locators that resolve.
 
-**A contract can violate several dimensions at once.** A single proposal is
-wrong when the prepayment ceiling *and* the jurisdiction clause are both
-breached; a reviewer must see both. Report every violated dimension, never just
-the worst one.
+Submission is enforced in code, not by this prompt. A proposal whose finding
+type is not justified by a matching assessment — a compliant dimension, a
+severity outside the table, a type no rule names — is rejected with an error.
+Report every violated dimension, never just the worst one: a contract can
+breach several at once, and a reviewer must see all of them.
 
-## Disposition to finding type
+## Rule to finding contract
 
-| Rule code | Disposition | Finding type | Severity |
-| --- | --- | --- | --- |
-| `SUBJECT_RED_LINE_RISK` | `POLICY_CONFLICT` | `SUBJECT_RED_LINE_RISK` | `HIGH` |
-| `ADVANCE_PAYMENT_LIMIT` | `POLICY_CONFLICT` | `ADVANCE_PAYMENT_POLICY_CONFLICT` | `HIGH` |
-| `PENALTY_RATIO_LIMIT` | `POLICY_CONFLICT` | `PENALTY_RATIO_POLICY_CONFLICT` | `HIGH` |
-| `DISPUTE_JURISDICTION` | `POLICY_CONFLICT` | `DISPUTE_JURISDICTION_CONFLICT` | `MEDIUM` |
-| `PENALTY_RATIO_LIMIT` | `NEEDS_HUMAN_REVIEW` | `PENALTY_CLAUSE_MISSING` | `MEDIUM` |
-| `TERMINATION_CLAUSE_PRESENT` | `NEEDS_HUMAN_REVIEW` | `TERMINATION_CLAUSE_MISSING` | `MEDIUM` |
-| `DISPUTE_JURISDICTION` | `NEEDS_HUMAN_REVIEW` | `DISPUTE_CLAUSE_MISSING` | `MEDIUM` |
-| `SUBJECT_RED_LINE_RISK` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `PERFORMANCE_BOND_RATIO_LIMIT` | `POLICY_CONFLICT` | `PERFORMANCE_BOND_RATIO_POLICY_CONFLICT` | `HIGH` |
-| `PAYMENT_TERM_LIMIT` | `POLICY_CONFLICT` | `PAYMENT_TERM_POLICY_CONFLICT` | `HIGH` |
-| `BACK_TO_BACK_PAYMENT_CLAUSE` | `POLICY_CONFLICT` | `BACK_TO_BACK_PAYMENT_CLAUSE` | `HIGH` |
-| `DEPOSIT_RATIO_LIMIT` | `POLICY_CONFLICT` | `DEPOSIT_RATIO_POLICY_CONFLICT` | `MEDIUM` |
-| `WARRANTY_RETENTION_RATIO_LIMIT` | `POLICY_CONFLICT` | `WARRANTY_RETENTION_RATIO_POLICY_CONFLICT` | `MEDIUM` |
-| `DISPUTE_RESOLUTION_CONFLICT` | `POLICY_CONFLICT` | `DISPUTE_RESOLUTION_CONFLICT` | `HIGH` |
-| `BID_BOND_RATIO_LIMIT` | `POLICY_CONFLICT` | `BID_BOND_RATIO_POLICY_CONFLICT` | `MEDIUM` |
-| `IP_OWNERSHIP_MISSING` | `POLICY_CONFLICT` | `IP_OWNERSHIP_MISSING` | `HIGH` |
-| `GUARANTEE_MODE_AMBIGUOUS` | `POLICY_CONFLICT` | `GUARANTEE_MODE_AMBIGUOUS` | `MEDIUM` |
-| `CONFIDENTIALITY_PERIOD_MISSING` | `POLICY_CONFLICT` | `CONFIDENTIALITY_PERIOD_MISSING` | `MEDIUM` |
-| `FORCE_MAJEURE_OVERBROAD` | `POLICY_CONFLICT` | `FORCE_MAJEURE_OVERBROAD` | `MEDIUM` |
-| `LIABILITY_CAP_MISSING` | `POLICY_CONFLICT` | `LIABILITY_CAP_MISSING` | `MEDIUM` |
-| `PERFORMANCE_BOND_RATIO_LIMIT` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `PAYMENT_TERM_LIMIT` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `DEPOSIT_RATIO_LIMIT` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `WARRANTY_RETENTION_RATIO_LIMIT` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `BID_BOND_RATIO_LIMIT` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
-| `LIABILITY_CAP_MISSING` | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM` |
+| Rule code | Search keyword | Disposition | Finding type | Severity |
+| --- | --- | --- | --- | --- |
+| `SUBJECT_RED_LINE_RISK` | 失信 | `POLICY_CONFLICT` | `SUBJECT_RED_LINE_RISK` | `HIGH` |
+| `SUBJECT_RED_LINE_RISK` | 失信 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `MEDIUM`–`HIGH` |
+| `ADVANCE_PAYMENT_LIMIT` | 预付款 | `POLICY_CONFLICT` | `ADVANCE_PAYMENT_POLICY_CONFLICT` | `HIGH` |
+| `PENALTY_RATIO_LIMIT` | 违约金 | `POLICY_CONFLICT` | `PENALTY_RATIO_POLICY_CONFLICT` | `HIGH` |
+| `PENALTY_RATIO_LIMIT` | 违约金 | `NEEDS_HUMAN_REVIEW` | `PENALTY_CLAUSE_MISSING` | `MEDIUM`–`HIGH` |
+| `TERMINATION_CLAUSE_PRESENT` | 终止 | `NEEDS_HUMAN_REVIEW` | `TERMINATION_CLAUSE_MISSING` | `MEDIUM`–`HIGH` |
+| `DISPUTE_JURISDICTION` | 管辖 | `POLICY_CONFLICT` | `DISPUTE_JURISDICTION_CONFLICT` | `MEDIUM` |
+| `DISPUTE_JURISDICTION` | 管辖 | `NEEDS_HUMAN_REVIEW` | `DISPUTE_CLAUSE_MISSING` | `MEDIUM`–`HIGH` |
+| `PERFORMANCE_BOND_RATIO_LIMIT` | 履约保证金 | `POLICY_CONFLICT` | `PERFORMANCE_BOND_RATIO_POLICY_CONFLICT` | `HIGH` |
+| `PERFORMANCE_BOND_RATIO_LIMIT` | 履约保证金 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
+| `PAYMENT_TERM_LIMIT` | 付款 | `POLICY_CONFLICT` | `PAYMENT_TERM_POLICY_CONFLICT` | `HIGH` |
+| `PAYMENT_TERM_LIMIT` | 付款 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
+| `BACK_TO_BACK_PAYMENT_CLAUSE` | 背靠背 | `POLICY_CONFLICT` | `BACK_TO_BACK_PAYMENT_CLAUSE` | `HIGH` |
+| `DEPOSIT_RATIO_LIMIT` | 定金 | `POLICY_CONFLICT` | `DEPOSIT_RATIO_POLICY_CONFLICT` | `MEDIUM` |
+| `DEPOSIT_RATIO_LIMIT` | 定金 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
+| `WARRANTY_RETENTION_RATIO_LIMIT` | 质量保证金 | `POLICY_CONFLICT` | `WARRANTY_RETENTION_RATIO_POLICY_CONFLICT` | `MEDIUM` |
+| `WARRANTY_RETENTION_RATIO_LIMIT` | 质量保证金 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
+| `DISPUTE_RESOLUTION_CONFLICT` | 仲裁 | `POLICY_CONFLICT` | `DISPUTE_RESOLUTION_CONFLICT` | `HIGH` |
+| `BID_BOND_RATIO_LIMIT` | 投标保证金 | `POLICY_CONFLICT` | `BID_BOND_RATIO_POLICY_CONFLICT` | `MEDIUM` |
+| `BID_BOND_RATIO_LIMIT` | 投标保证金 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
+| `IP_OWNERSHIP_MISSING` | 知识产权 | `POLICY_CONFLICT` | `IP_OWNERSHIP_MISSING` | `HIGH` |
+| `GUARANTEE_MODE_AMBIGUOUS` | 保证 | `POLICY_CONFLICT` | `GUARANTEE_MODE_AMBIGUOUS` | `MEDIUM` |
+| `CONFIDENTIALITY_PERIOD_MISSING` | 保密 | `POLICY_CONFLICT` | `CONFIDENTIALITY_PERIOD_MISSING` | `MEDIUM` |
+| `FORCE_MAJEURE_OVERBROAD` | 不可抗力 | `POLICY_CONFLICT` | `FORCE_MAJEURE_OVERBROAD` | `MEDIUM` |
+| `LIABILITY_CAP_MISSING` | 赔偿 | `POLICY_CONFLICT` | `LIABILITY_CAP_MISSING` | `MEDIUM` |
+| `LIABILITY_CAP_MISSING` | 赔偿 | `NEEDS_HUMAN_REVIEW` | `NEEDS_HUMAN_REVIEW` | `LOW`–`MEDIUM` |
 
-`COMPLIANT` produces no finding. A settled conflict outranks an inconclusive
-one: when a clause conflict and an undecided dimension coexist, both are
-reported, but the conflict is the one that decides the case.
+`COMPLIANT` produces no finding at all. A settled conflict outranks an
+inconclusive one: when a clause conflict and an undecided dimension coexist,
+both are reported, but the conflict is the one that decides the case.
 
 Dimension meanings:
 
@@ -97,10 +113,9 @@ Dimension meanings:
 - **Liability cap** — a one-sided or absent liability cap is a conflict; a
   high-value contract with no cap at all is a review.
 
-When one of the new ratio or term rules returns `NEEDS_HUMAN_REVIEW` it is
-because the contract states an amount without the base to divide it by, or pays
-without fixing a term. Report it as `NEEDS_HUMAN_REVIEW` rather than inventing a
-ratio.
+When one of the ratio or term rules returns `NEEDS_HUMAN_REVIEW` it is because
+the contract states an amount without the base to divide it by, or pays without
+fixing a term. Report it as `NEEDS_HUMAN_REVIEW` rather than inventing a ratio.
 
 ## Constraints
 

@@ -62,3 +62,29 @@ test("the submit tool rejects a finding type outside the domain", () => {
     }),
   ).toBe(false);
 });
+
+test("exposes the five audit tools under their stable names", () => {
+  const tools = createAuditTools(snapshot, () => undefined);
+  expect(tools.map((tool) => tool.name).sort()).toEqual([
+    "get_evidence",
+    "get_rule_assessments",
+    "read_contract_block",
+    "search_contract",
+    "submit_finding_proposal",
+  ]);
+});
+
+test("the contract-reading tools accept their parameters and reject a wrong shape", () => {
+  const tools = createAuditTools(snapshot, () => undefined);
+  const search = tools.find((tool) => tool.name === "search_contract");
+  const read = tools.find((tool) => tool.name === "read_contract_block");
+  expect(search).toBeDefined();
+  expect(read).toBeDefined();
+  if (!search || !read) return;
+
+  expect(Value.Check(search.parameters, { query: "预付款" })).toBe(true);
+  expect(Value.Check(search.parameters, { query: "预付款", limit: 3 })).toBe(true);
+  expect(Value.Check(search.parameters, { query: 1 })).toBe(false);
+  expect(Value.Check(read.parameters, { blockId: "b1" })).toBe(true);
+  expect(Value.Check(read.parameters, {})).toBe(false);
+});

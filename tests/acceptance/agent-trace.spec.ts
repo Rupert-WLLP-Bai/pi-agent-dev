@@ -55,7 +55,8 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
   await expect(page.locator(".trace-card")).toBeVisible();
   await expect(page.getByText("Fake 0 · fake-agent")).toBeVisible();
 
-  // The timeline shows the run boundary and the three audit tools.
+  // This sample has no abstaining dimension, so the timeline shows the run
+  // boundary and the three tools that path uses: assess, read evidence, submit.
   await expect(page.getByText("开始运行")).toBeVisible();
   await expect(page.getByText("get_rule_assessments").first()).toBeVisible();
   await expect(page.getByText("get_evidence").first()).toBeVisible();
@@ -150,4 +151,28 @@ test("the trace page shows an empty state for a case with no runs", async ({ pag
   const traceCard = page.locator(".trace-card");
   // One of the two states must be visible: either empty or with traces.
   await expect(emptyState.or(traceCard)).toBeVisible({ timeout: 15000 });
+});
+
+test("a needs-review case shows the agent searching and reading the contract", async ({ page }) => {
+  await assertApiReachable(page);
+  await page.goto("/audit-cases");
+  await page.getByRole("button", { name: "新建审计" }).click();
+  await expect(page.getByRole("dialog", { name: "新建审计" })).toBeVisible();
+
+  // A sample whose penalty clause is missing: the penalty rule cannot settle
+  // it, so the case asks for human review and the agent must read the contract
+  // before proposing. The demo picker selects by short label.
+  await page.getByText("广告服务", { exact: true }).first().click();
+  await page.getByRole("button", { name: "加载演示合同" }).click();
+  await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
+  await page.getByRole("button", { name: "开始审计" }).click();
+  await page.waitForURL(/\/audit-cases\/.+$/);
+  await expect(page.getByText("缺少违约责任条款").first()).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "运行轨迹" }).click();
+  await expect(page).toHaveURL(/\/trace$/);
+  // The abstaining dimension leaves a real reading trail: a keyword search,
+  // then a contextual read of the block that answers it.
+  await expect(page.getByText("search_contract").first()).toBeVisible();
+  await expect(page.getByText("read_contract_block").first()).toBeVisible();
 });
