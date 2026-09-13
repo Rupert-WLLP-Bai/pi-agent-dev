@@ -89,7 +89,10 @@ test("performance bond: absent clause is not a violation", () => {
 });
 
 test("performance bond: a ratio in another clause does not leak into the bond window", () => {
-  const doc = makeDoc(["甲方支付合同总价30%作为预付款。", "乙方提交履约保证金，具体金额另行商定。"]);
+  const doc = makeDoc([
+    "甲方支付合同总价30%作为预付款。",
+    "乙方提交履约保证金，具体金额另行商定。",
+  ]);
   const { facts } = buildPerformanceBondFacts({ sourceRecordId: "s", document: doc });
   expect(facts.ratio).toBeNull();
   expect(evaluatePerformanceBondRule(facts).disposition).toBe("NEEDS_HUMAN_REVIEW");
@@ -118,7 +121,10 @@ test("payment term: an unfixed term asks for a human", () => {
 });
 
 test("payment term: a duration in another clause does not leak into the payment clause", () => {
-  const doc = makeDoc(["第三条 支付方式\n甲方验收合格后支付合同价款。", "第四条 交付\n乙方应于90日内完成交付。"]);
+  const doc = makeDoc([
+    "第三条 支付方式\n甲方验收合格后支付合同价款。",
+    "第四条 交付\n乙方应于90日内完成交付。",
+  ]);
   const { facts } = buildPaymentTermFacts({ sourceRecordId: "s", document: doc });
   expect(facts.days).toBeNull();
   expect(evaluatePaymentTermRule(facts).disposition).toBe("NEEDS_HUMAN_REVIEW");
@@ -182,7 +188,10 @@ test("deposit: a written amount is compared against the contract total", () => {
 // ── Warranty retention (3%, 24 months) ────────────────────────────
 
 test("warranty retention: 5% is over the 3% ceiling", () => {
-  const doc = makeDoc(["工程价款结算总额为人民币壹佰万元整。", "甲方预留工程价款结算总额5%作为质量保证金。"]);
+  const doc = makeDoc([
+    "工程价款结算总额为人民币壹佰万元整。",
+    "甲方预留工程价款结算总额5%作为质量保证金。",
+  ]);
   const { facts } = buildWarrantyRetentionFacts({ sourceRecordId: "s", document: doc });
   expect(evaluateWarrantyRetentionRule(facts).disposition).toBe("POLICY_CONFLICT");
 });
@@ -310,9 +319,7 @@ test("confidentiality: 8 years is over the reference ceiling", () => {
 // ── Force majeure ─────────────────────────────────────────────────
 
 test("force majeure: market and policy risk inside the clause is overbroad", () => {
-  const doc = makeDoc([
-    "不可抗力包括自然灾害、政府政策调整、市场价格波动、第三方原因等情形。",
-  ]);
+  const doc = makeDoc(["不可抗力包括自然灾害、政府政策调整、市场价格波动、第三方原因等情形。"]);
   const { facts } = buildForceMajeureFacts({ sourceRecordId: "s", document: doc });
   expect(evaluateForceMajeureRule(facts).disposition).toBe("POLICY_CONFLICT");
 });

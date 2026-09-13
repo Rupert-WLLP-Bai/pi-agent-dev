@@ -111,8 +111,7 @@ export const SEED_RULE_DEFINITIONS: readonly SeedRule[] = [
     code: "BACK_TO_BACK_PAYMENT_CLAUSE",
     name: "背靠背付款条款规则",
     contractType: "工程类",
-    description:
-      "以收到第三方（业主/发包人）付款为付款前提的背靠背条款无效（法释〔2024〕11 号）。",
+    description: "以收到第三方（业主/发包人）付款为付款前提的背靠背条款无效（法释〔2024〕11 号）。",
     params: {},
     stances: {
       preferred: "首选 无条件付款",

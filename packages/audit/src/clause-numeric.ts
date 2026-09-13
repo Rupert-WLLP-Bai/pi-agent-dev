@@ -20,48 +20,47 @@ import type { ContractDocument, EvidenceLocator, RuleParamSet } from "./model";
 export const CLAUSE_WINDOW = 120;
 
 const CN_DIGIT: Record<string, number> = {
-  "零": 0,
-  "〇": 0,
+  零: 0,
+  〇: 0,
   "○": 0,
-  "一": 1,
-  "壹": 1,
-  "二": 2,
-  "贰": 2,
-  "两": 2,
-  "三": 3,
-  "叁": 3,
-  "四": 4,
-  "肆": 4,
-  "五": 5,
-  "伍": 5,
-  "六": 6,
-  "陆": 6,
-  "七": 7,
-  "柒": 7,
-  "八": 8,
-  "捌": 8,
-  "九": 9,
-  "玖": 9,
+  一: 1,
+  壹: 1,
+  二: 2,
+  贰: 2,
+  两: 2,
+  三: 3,
+  叁: 3,
+  四: 4,
+  肆: 4,
+  五: 5,
+  伍: 5,
+  六: 6,
+  陆: 6,
+  七: 7,
+  柒: 7,
+  八: 8,
+  捌: 8,
+  九: 9,
+  玖: 9,
 };
 
 const CN_UNIT: Record<string, number> = {
-  "十": 10,
-  "拾": 10,
-  "百": 100,
-  "佰": 100,
-  "千": 1000,
-  "仟": 1000,
+  十: 10,
+  拾: 10,
+  百: 100,
+  佰: 100,
+  千: 1000,
+  仟: 1000,
 };
 
 const CN_BIG: Record<string, number> = {
-  "万": 10_000,
-  "萬": 10_000,
-  "亿": 100_000_000,
-  "億": 100_000_000,
+  万: 10_000,
+  萬: 10_000,
+  亿: 100_000_000,
+  億: 100_000_000,
 };
 
-const CJK_NUMERAL_RUN =
-  /[零〇○一二三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖两拾佰仟點点]+/gu;
+const CJK_NUMERAL_RUN = /[零〇○一二三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖两拾佰仟點点]+/gu;
 
 function parseCjkInteger(sequence: string): number | null {
   if (sequence.length === 0) return 0;
@@ -121,9 +120,7 @@ function parseCjkNumber(sequence: string): number | null {
 /** Full-width digits and punctuation to their ASCII forms; `％` becomes `%`. */
 export function toHalfwidth(text: string): string {
   return text
-    .replace(/[\uFF01-\uFF5E]/gu, (char) =>
-      String.fromCharCode(char.charCodeAt(0) - 0xfee0),
-    )
+    .replace(/[\uFF01-\uFF5E]/gu, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
     .replace(/\u3000/gu, " ");
 }
 
@@ -228,7 +225,13 @@ export function extractDuration(text: string): DurationMatch | null {
       continue;
     }
     if (unit.includes("月")) {
-      return { days: value * 30, months: Math.round(value), years: value / 12, unit, raw: match[0] };
+      return {
+        days: value * 30,
+        months: Math.round(value),
+        years: value / 12,
+        unit,
+        raw: match[0],
+      };
     }
     if (unit.includes("工作日")) {
       return { days: (value * 7) / 5, months: 0, years: 0, unit, raw: match[0] };

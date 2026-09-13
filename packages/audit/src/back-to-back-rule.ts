@@ -58,6 +58,7 @@ export function evaluateBackToBackRule(facts: BackToBackFacts): RuleAssessment {
     ruleCode: BACK_TO_BACK_RULE_CODE,
     disposition: "POLICY_CONFLICT",
     evidenceIds: [EVIDENCE_ID],
-    basis: "合同约定以收到第三方（业主/发包人）付款为付款前提，依《最高人民法院批复》（法释〔2024〕11 号）该类背靠背条款无效。",
+    basis:
+      "合同约定以收到第三方（业主/发包人）付款为付款前提，依《最高人民法院批复》（法释〔2024〕11 号）该类背靠背条款无效。",
   };
 }

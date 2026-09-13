@@ -2,8 +2,8 @@ import { numberParam } from "./clause-numeric";
 import type { ContractDocument, RuleAssessment, RuleParamSet } from "./model";
 import {
   buildRatioLimitFacts,
-  type RatioClauseAnalysis,
   evaluateRatioLimit,
+  type RatioClauseAnalysis,
 } from "./ratio-limit-rule";
 
 export const PERFORMANCE_BOND_RULE_CODE = "PERFORMANCE_BOND_RATIO_LIMIT" as const;

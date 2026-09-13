@@ -73,6 +73,7 @@ export function evaluateIpOwnershipRule(facts: IpOwnershipFacts): RuleAssessment
     ruleCode: IP_OWNERSHIP_RULE_CODE,
     disposition: "POLICY_CONFLICT",
     evidenceIds: [EVIDENCE_ID],
-    basis: "合同包含开发/定制交付物，但全文未约定知识产权归属；依《民法典》第八百五十九条，法定归属可能与采购预期相反。",
+    basis:
+      "合同包含开发/定制交付物，但全文未约定知识产权归属；依《民法典》第八百五十九条，法定归属可能与采购预期相反。",
   };
 }

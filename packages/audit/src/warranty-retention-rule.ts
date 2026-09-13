@@ -87,8 +87,7 @@ export function evaluateWarrantyRetentionRule(
     DEFAULT_DEFECT_LIABILITY_PERIOD_MAX_MONTHS,
   );
   const limitPercent = Math.round(maxRatio * 100);
-  const periodExceeded =
-    facts.defectPeriodMonths !== null && facts.defectPeriodMonths > maxMonths;
+  const periodExceeded = facts.defectPeriodMonths !== null && facts.defectPeriodMonths > maxMonths;
   const ratioExceeded = facts.ratio !== null && facts.ratio > maxRatio;
 
   if (!facts.hasRetentionClause && !periodExceeded) {

@@ -77,6 +77,7 @@ export function evaluateDisputeResolutionConflictRule(
     ruleCode: DISPUTE_RESOLUTION_CONFLICT_RULE_CODE,
     disposition: "POLICY_CONFLICT",
     evidenceIds: [EVIDENCE_ID],
-    basis: "合同约定争议可申请仲裁也可向法院起诉（或裁或诉），依《仲裁法司法解释》第七条该仲裁协议无效。",
+    basis:
+      "合同约定争议可申请仲裁也可向法院起诉（或裁或诉），依《仲裁法司法解释》第七条该仲裁协议无效。",
   };
 }

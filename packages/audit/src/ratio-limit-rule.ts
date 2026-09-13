@@ -63,7 +63,12 @@ export function buildRatioLimitFacts(input: {
   const explicit = extractRatio(hit.window);
   if (explicit !== null) {
     return {
-      facts: { hasClause: true, ratio: explicit.ratio, denominatorMissing: false, label: input.label },
+      facts: {
+        hasClause: true,
+        ratio: explicit.ratio,
+        denominatorMissing: false,
+        label: input.label,
+      },
       evidence: [evidence],
     };
   }

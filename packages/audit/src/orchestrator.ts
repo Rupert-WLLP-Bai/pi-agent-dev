@@ -26,10 +26,7 @@ import { extractContractParties } from "./party-extractor";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
 import { buildPaymentTermFacts, evaluatePaymentTermRule } from "./payment-term-rule";
 import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
-import {
-  buildPerformanceBondFacts,
-  evaluatePerformanceBondRule,
-} from "./performance-bond-rule";
+import { buildPerformanceBondFacts, evaluatePerformanceBondRule } from "./performance-bond-rule";
 import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./termination-rule";
 import {
   buildWarrantyRetentionFacts,

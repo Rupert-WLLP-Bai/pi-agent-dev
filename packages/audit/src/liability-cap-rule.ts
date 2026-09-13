@@ -52,11 +52,7 @@ export function evaluateLiabilityCapRule(
   facts: LiabilityCapFacts,
   params?: RuleParamSet,
 ): RuleAssessment {
-  const threshold = numberParam(
-    params,
-    "highValueThreshold",
-    DEFAULT_LIABILITY_CAP_THRESHOLD,
-  );
+  const threshold = numberParam(params, "highValueThreshold", DEFAULT_LIABILITY_CAP_THRESHOLD);
 
   if (facts.hasUnequalCap) {
     return {

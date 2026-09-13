@@ -76,6 +76,7 @@ export function evaluateGuaranteeModeRule(facts: GuaranteeModeFacts): RuleAssess
     ruleCode: GUARANTEE_MODE_RULE_CODE,
     disposition: "POLICY_CONFLICT",
     evidenceIds: [EVIDENCE_ID],
-    basis: "合同约定了保证担保但未明确保证方式，依《民法典》第六百八十六条推定为一般保证，担保效力弱化。",
+    basis:
+      "合同约定了保证担保但未明确保证方式，依《民法典》第六百八十六条推定为一般保证，担保效力弱化。",
   };
 }
