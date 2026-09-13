@@ -9,6 +9,8 @@ export interface ApiConfig {
   agentMode: "pi" | "fake";
   /** "fixture" uses deterministic test data; "qcc" calls the real Qichacha API. */
   subjectVerificationMode: "fixture" | "qcc";
+  /** Hours from case creation before its review queue item is overdue. */
+  reviewSlaHours: number;
   /** QCC MCP endpoint for company entity resolution. */
   qccCompanyEndpoint: string;
   /** QCC MCP endpoint for risk scanning. */
@@ -34,6 +36,7 @@ export function loadApiConfig(): ApiConfig {
     webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:5173",
     agentMode: process.env.AUDIT_AGENT_MODE === "fake" ? "fake" : "pi",
     subjectVerificationMode: process.env.SUBJECT_VERIFICATION_MODE === "qcc" ? "qcc" : "fixture",
+    reviewSlaHours: parseInteger(process.env.REVIEW_SLA_HOURS, 24),
     qccCompanyEndpoint:
       process.env.QCC_COMPANY_ENDPOINT ?? "https://agent.qcc.com/mcp/company/stream",
     qccRiskEndpoint: process.env.QCC_RISK_ENDPOINT ?? "https://agent.qcc.com/mcp/risk/stream",

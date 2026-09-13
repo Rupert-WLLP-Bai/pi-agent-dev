@@ -1,5 +1,5 @@
 import { beforeEach, expect, test } from "bun:test";
-import type { AuditSnapshot, ContractParty } from "@contract-audit/audit/model";
+import type { AuditSnapshot, ContractParty, FindingProposal } from "@contract-audit/audit/model";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { createApp } from "./app";
@@ -232,6 +232,90 @@ test("returns 404 for an unknown case", async () => {
   const response = await app.handle(json("GET", "/api/audit-cases/missing"));
 
   expect(response.status).toBe(404);
+});
+
+const proposal = (findingType: FindingProposal["findingType"]): FindingProposal => ({
+  findingType,
+  severity: "HIGH" as const,
+  rationale: "Advance payment exceeds the policy limit",
+  evidenceIds: ["contract-payment"],
+  remediation: "Reduce the advance payment ratio",
+});
+
+test("keeps a case awaiting review until every finding is reviewed", async () => {
+  const { caseId } = await repository.createPendingCase("source-multi", snapshotStub());
+  const first = await repository.appendFindingRevision(
+    caseId,
+    proposal("ADVANCE_PAYMENT_POLICY_CONFLICT"),
+    null,
+  );
+  const second = await repository.appendFindingRevision(
+    caseId,
+    proposal("DISPUTE_JURISDICTION_CONFLICT"),
+    null,
+  );
+  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+
+  expect(
+    (await app.handle(json("POST", `/api/findings/${first}/reviews`, { decision: "ACCEPTED" })))
+      .status,
+  ).toBe(200);
+  // One review on a two-finding case is not completion.
+  expect(await repository.getCase(caseId)).toMatchObject({ stage: "AWAITING_REVIEW" });
+  expect(broker.events.some((event) => event.type === "audit.completed")).toBe(false);
+
+  expect(
+    (await app.handle(json("POST", `/api/findings/${second}/reviews`, { decision: "REJECTED" })))
+      .status,
+  ).toBe(200);
+  expect(await repository.getCase(caseId)).toMatchObject({
+    status: "COMPLETED",
+    stage: "COMPLETED",
+  });
+  expect(broker.events.filter((event) => event.type === "audit.completed")).toHaveLength(1);
+});
+
+test("lists a chain-head finding per awaiting-review case and filters by assignee", async () => {
+  const { caseId } = await repository.createPendingCase("source-queue", snapshotStub());
+  await repository.appendFindingRevision(caseId, proposal("ADVANCE_PAYMENT_POLICY_CONFLICT"), null);
+  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+
+  const queued = await app.handle(json("GET", "/api/reviews/queue"));
+  expect(queued.status).toBe(200);
+  const items = (await queued.json()) as Array<{ caseId: string; assignee: string | null }>;
+  expect(items.map((item) => item.caseId)).toContain(caseId);
+
+  await app.handle(
+    json("POST", `/api/audit-cases/${caseId}/assignment`, { assignee: "张三", priority: "high" }),
+  );
+  const mine = (await (
+    await app.handle(json("GET", "/api/reviews/queue?mine=张三"))
+  ).json()) as Array<{ caseId: string; assignee: string | null }>;
+  expect(mine.find((item) => item.caseId === caseId)?.assignee).toBe("张三");
+  const other = (await (
+    await app.handle(json("GET", "/api/reviews/queue?mine=李四"))
+  ).json()) as Array<{ caseId: string }>;
+  expect(other.some((item) => item.caseId === caseId)).toBe(false);
+  expect(broker.events.at(-1)).toMatchObject({
+    type: "review.assigned",
+    auditCaseId: caseId,
+    assignee: "张三",
+    priority: "high",
+  });
+});
+
+test("rejects assignment for an unknown or not-awaiting-review case", async () => {
+  const missing = await app.handle(
+    json("POST", "/api/audit-cases/missing/assignment", { assignee: "张三" }),
+  );
+  expect(missing.status).toBe(404);
+
+  // The case exists but never entered review, so there is no queue item to transfer.
+  const { caseId } = await repository.createPendingCase("source-queued", snapshotStub());
+  const conflict = await app.handle(
+    json("POST", `/api/audit-cases/${caseId}/assignment`, { assignee: "张三" }),
+  );
+  expect(conflict.status).toBe(409);
 });
 
 const party = (id: string, name: string): ContractParty => ({

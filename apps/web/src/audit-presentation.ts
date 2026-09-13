@@ -4,7 +4,6 @@ import type {
   AuditCase,
   AuditCaseStatus,
   AuditStage,
-  FindingType,
   RuleAssessment,
   RuleCode,
   RuleDisposition,
@@ -178,16 +177,13 @@ export function summarizeRuleCoverage(assessments: RuleAssessment[]): RuleCovera
  */
 export const subjectRedLineLabel = "主体风险";
 
-export const findingTypeLabels: Record<FindingType, string> = {
-  ADVANCE_PAYMENT_POLICY_CONFLICT: "预付款比例超过制度上限",
-  SUBJECT_RED_LINE_RISK: "相对方主体风险",
-  TERMINATION_CLAUSE_MISSING: "缺少合同终止/解除条款",
-  PENALTY_RATIO_POLICY_CONFLICT: "违约金比例超过制度上限",
-  PENALTY_CLAUSE_MISSING: "缺少违约责任条款",
-  DISPUTE_JURISDICTION_CONFLICT: "争议管辖地与我方不一致",
-  DISPUTE_CLAUSE_MISSING: "缺少争议解决条款",
-  NEEDS_HUMAN_REVIEW: "需要人工复核",
-};
+// The finding-type vocabulary is shared with the API, which projects the review
+// queue; it lives in the domain package and is re-exported here so components
+// that already import it from this module keep one source.
+export {
+  findingTypeLabels,
+  getFindingTypeLabel,
+} from "@contract-audit/audit/finding-labels";
 
 /** Chinese labels for finding severities. */
 export const severityLabels: Record<Severity, string> = {
@@ -196,12 +192,6 @@ export const severityLabels: Record<Severity, string> = {
   MEDIUM: "中风险",
   HIGH: "高风险",
 };
-
-/** Chinese label for a finding type; unknown codes surface as-is. */
-export function getFindingTypeLabel(type: string): string {
-  if (type in findingTypeLabels) return findingTypeLabels[type as FindingType];
-  return type;
-}
 
 /** Fixed order and labels of the evidence groups shown in the inspector. */
 export const evidenceSourceGroupLabels = {

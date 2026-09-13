@@ -14,6 +14,7 @@ import AuditRunsPage from "./routes/audit-runs";
 import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
+import ReviewCenterPage from "./routes/reviews";
 
 const queryClient = new QueryClient();
 
@@ -71,12 +72,18 @@ function AuditCasesRoute() {
 
 function AuditCaseDetailRoute() {
   const { id } = detailRoute.useParams();
-  return <AuditCaseDetail id={id} />;
+  const { origin } = detailRoute.useSearch();
+  return <AuditCaseDetail id={id} origin={origin ?? null} />;
 }
 
 const detailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audit-cases/$id",
+  // Keep the entry point so the workbench can return where the operator came
+  // from; an unknown value is dropped rather than trusted.
+  validateSearch: (search: Record<string, unknown>): { origin?: "reviews" } => ({
+    origin: search.origin === "reviews" ? "reviews" : undefined,
+  }),
   component: AuditCaseDetailRoute,
 });
 
@@ -95,6 +102,12 @@ const traceRoute = createRoute({
   component: AuditTraceRoute,
 });
 
+const reviewsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reviews",
+  component: ReviewCenterPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -103,6 +116,7 @@ const routeTree = rootRoute.addChildren([
   listRoute,
   detailRoute,
   traceRoute,
+  reviewsRoute,
 ]);
 
 const router = createRouter({ routeTree });

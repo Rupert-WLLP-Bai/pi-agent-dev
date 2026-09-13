@@ -114,15 +114,20 @@ test("renders the three-pane review workspace with a located quote", async ({ pa
 
 test("records a confirmed risk and retains the business wording", async ({ page }) => {
   await createDemoAudit(page);
-  await page.getByRole("button", { name: "确认风险" }).click();
-  const dialog = page.getByRole("dialog", { name: "确认风险" });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "确认风险" }).click();
-  await expect(page.getByText("复核已提交")).toBeVisible();
+  // Both demo findings must be reviewed before the case completes.
+  for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
+    await page.locator(".finding-list").getByText(label, { exact: true }).click();
+    await page.getByRole("button", { name: "确认风险" }).click();
+    const dialog = page.getByRole("dialog", { name: "确认风险" });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "确认风险" }).click();
+    await expect(page.getByText("复核已提交")).toBeVisible();
+  }
 
   await page.reload();
   await expect(page.getByText("已确认风险").first()).toBeVisible();
-  await expect(page.getByText("已完成").first()).toBeVisible();
+  // The status badge is the case's state; the step list always shows 已完成.
+  await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
 });
 
 test("requires a reason for a false positive and retains the decision", async ({ page }) => {
@@ -137,8 +142,16 @@ test("requires a reason for a false positive and retains the decision", async ({
   await dialog.getByRole("button", { name: "确认误报" }).click();
   await expect(page.getByText("复核已提交")).toBeVisible();
 
+  // A rejected finding is one decision; the other finding still needs one.
+  await page.locator(".finding-list").getByText("争议管辖地与我方不一致", { exact: true }).click();
+  await page.getByRole("button", { name: "确认风险" }).click();
+  const acceptDialog = page.getByRole("dialog", { name: "确认风险" });
+  await expect(acceptDialog).toBeVisible();
+  await acceptDialog.getByRole("button", { name: "确认风险" }).click();
+  await expect(page.getByText("复核已提交")).toBeVisible();
+
   await page.reload();
   await expect(page.getByText("已判定误报").first()).toBeVisible();
   await expect(page.getByText("合同证据不足以支持该风险等级")).toBeVisible();
-  await expect(page.getByText("已完成").first()).toBeVisible();
+  await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
 });

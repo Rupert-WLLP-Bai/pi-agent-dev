@@ -1,5 +1,12 @@
-import type { AgentRunSummary, AuditOverview, CaseSummary, createApp } from "@contract-audit/api";
+import type {
+  AgentRunSummary,
+  AuditOverview,
+  CaseSummary,
+  createApp,
+  ReviewQueueItem,
+} from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
+import type { ReviewPriority } from "@contract-audit/audit/ports";
 import { treaty } from "@elysiajs/eden";
 
 // Same-origin by default so the Vite dev proxy (and a single-origin deployment)
@@ -118,6 +125,32 @@ export async function submitReview(
     ...(reason === undefined ? {} : { reason }),
   });
   if (error) throw new ApiRequestError("提交复核失败", error.status);
+  return data;
+}
+
+/**
+ * The review queue: one row per chain-head finding on a case awaiting review,
+ * already ordered by the server (evidence conflicts, then severity, then SLA).
+ */
+export async function listReviewQueue(): Promise<ReviewQueueItem[]> {
+  const { data, error } = await api.api.reviews.queue.get({ query: {} });
+  if (error) throw new ApiRequestError("加载复核队列失败", Number(error.status));
+  return data;
+}
+
+export interface AssignCaseInput {
+  /** Operator name; null returns the case to the shared queue. */
+  assignee?: string | null;
+  priority?: ReviewPriority;
+}
+
+/** Assigns a case (受理/转交) or sets its review priority. */
+export async function assignCase(id: string, input: AssignCaseInput) {
+  const { data, error } = await api.api["audit-cases"]({ id }).assignment.post({
+    ...(input.assignee === undefined ? {} : { assignee: input.assignee }),
+    ...(input.priority === undefined ? {} : { priority: input.priority }),
+  });
+  if (error) throw new ApiRequestError("指派复核失败", error.status);
   return data;
 }
 

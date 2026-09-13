@@ -22,6 +22,13 @@
       "when": 1789229813220,
       "tag": "0002_condemned_doctor_doom",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789282025109,
+      "tag": "0003_swift_william_stryker",
+      "breakpoints": true
     }
   ]
 }

@@ -82,6 +82,19 @@ export type AuditEvent =
   | { type: "audit.awaiting_review"; auditCaseId: string }
   | { type: "audit.failed"; auditCaseId: string; error: string }
   | { type: "audit.completed"; auditCaseId: string }
-  | { type: "audit.cancelled"; auditCaseId: string };
+  | { type: "audit.cancelled"; auditCaseId: string }
+  | {
+      type: "review.assigned";
+      auditCaseId: string;
+      assignee: string | null;
+      priority: ReviewPriority | null;
+    };
+
+/**
+ * Review queue priority. An operator-facing ordering aid, not a severity: a
+ * high-priority case is one someone must look at sooner, whatever its findings
+ * turned out to be.
+ */
+export type ReviewPriority = "high" | "normal" | "low";
 
 export type AuditEventHandler = (event: AuditEvent) => void;

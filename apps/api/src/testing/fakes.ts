@@ -1,3 +1,4 @@
+import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type {
   AgentTraceStep,
   AuditSnapshot,
@@ -14,12 +15,18 @@ import type {
   AgentTraceSink,
   AuditAgentPort,
   AuditEvent,
+  ReviewPriority,
 } from "@contract-audit/audit/ports";
 import type {
   SubjectSourceRecord,
   SubjectVerificationRun,
 } from "@contract-audit/audit/subject-verification";
-import type { AuditCaseRepository } from "../db/repositories";
+import {
+  type AuditCaseRepository,
+  compareReviewQueueItems,
+  contractTitleFromFirstBlock,
+  type ReviewQueueItem,
+} from "../db/repositories";
 import type { AuditDispatcher } from "../dispatcher";
 import type { AuditEventBroker } from "../sse";
 
@@ -28,6 +35,10 @@ interface FakeCaseState {
   stage: string;
   snapshot: AuditSnapshot | null;
   findings: FakeFindingState[];
+  assignee: string | null;
+  reviewPriority: ReviewPriority | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface FakeFindingState {
@@ -74,7 +85,17 @@ export class InMemoryAuditCaseRepository {
     _provenance: SourceProvenance | null = null,
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
-    this.cases.set(caseId, { status: "PENDING", stage: "QUEUED", snapshot, findings: [] });
+    const createdAt = new Date().toISOString();
+    this.cases.set(caseId, {
+      status: "PENDING",
+      stage: "QUEUED",
+      snapshot,
+      findings: [],
+      assignee: null,
+      reviewPriority: null,
+      createdAt,
+      updatedAt: createdAt,
+    });
     return { caseId, snapshotId: `snapshot-${caseId}` };
   }
 
@@ -109,8 +130,8 @@ export class InMemoryAuditCaseRepository {
       status: state.status,
       stage: state.stage,
       sourceRecordId: `source-${caseId}`,
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
+      createdAt: state.createdAt,
+      updatedAt: state.updatedAt,
     };
   }
 
@@ -207,6 +228,76 @@ export class InMemoryAuditCaseRepository {
     if (!state) throw new Error(`unknown case ${caseId}`);
     state.status = status;
     state.stage = stage;
+    state.updatedAt = new Date().toISOString();
+  }
+
+  async setCaseAssignment(
+    caseId: string,
+    input: { assignee?: string | null; priority?: ReviewPriority | null },
+  ): Promise<{ assignee: string | null; priority: ReviewPriority | null }> {
+    const state = this.cases.get(caseId);
+    if (!state) throw new Error(`unknown case ${caseId}`);
+    if (input.assignee !== undefined) state.assignee = input.assignee;
+    if (input.priority !== undefined) state.reviewPriority = input.priority;
+    state.updatedAt = new Date().toISOString();
+    return { assignee: state.assignee, priority: state.reviewPriority };
+  }
+
+  async completeCaseIfAllFindingsReviewed(caseId: string): Promise<boolean> {
+    const state = this.cases.get(caseId);
+    if (!state) throw new Error(`unknown case ${caseId}`);
+    const heads = this.chainHeads(state);
+    if (heads.length === 0 || heads.some((finding) => finding.review === null)) return false;
+    state.status = "COMPLETED";
+    state.stage = "COMPLETED";
+    state.updatedAt = new Date().toISOString();
+    return true;
+  }
+
+  async getReviewQueue(options: { slaHours: number; now?: Date }): Promise<ReviewQueueItem[]> {
+    const now = options.now ?? new Date();
+    const items: ReviewQueueItem[] = [];
+    for (const [caseId, state] of this.cases) {
+      if (state.stage !== "AWAITING_REVIEW") continue;
+      const dueMs = Date.parse(state.createdAt) + options.slaHours * 3_600_000;
+      for (const finding of this.chainHeads(state)) {
+        const needsReview = (state.snapshot?.ruleAssessments ?? []).some(
+          (assessment) =>
+            assessment.disposition === "NEEDS_HUMAN_REVIEW" &&
+            assessment.evidenceIds.some((id) => finding.proposal.evidenceIds.includes(id)),
+        );
+        items.push({
+          caseId,
+          contractTitle:
+            contractTitleFromFirstBlock(state.snapshot?.contractDocument.blocks[0]?.text) ??
+            "未命名合同",
+          findingId: finding.id,
+          findingType: finding.proposal.findingType,
+          title: getFindingTypeLabel(finding.proposal.findingType),
+          severity: finding.proposal.severity,
+          evidenceConflict:
+            finding.proposal.evidenceIds.length === 0 ||
+            finding.proposal.findingType === "NEEDS_HUMAN_REVIEW" ||
+            needsReview,
+          assignee: state.assignee,
+          priority: state.reviewPriority,
+          dueAt: new Date(dueMs).toISOString(),
+          remainingMs: dueMs - now.getTime(),
+          updatedAt: state.updatedAt,
+        });
+      }
+    }
+    return items.sort(compareReviewQueueItems);
+  }
+
+  /** Revisions that no newer revision supersedes, mirroring the SQL chain-head rule. */
+  private chainHeads(state: FakeCaseState): FakeFindingState[] {
+    const superseded = new Set(
+      state.findings.flatMap((finding) =>
+        finding.supersedesId === null ? [] : [finding.supersedesId],
+      ),
+    );
+    return state.findings.filter((finding) => !superseded.has(finding.id));
   }
 
   async getFindingsByCase(caseId: string): Promise<FindingRevision[]> {
@@ -235,8 +326,8 @@ export class InMemoryAuditCaseRepository {
       status: state.status,
       stage: state.stage,
       sourceRecordId: `source-${caseId}`,
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
+      createdAt: state.createdAt,
+      updatedAt: state.updatedAt,
     }));
   }
 

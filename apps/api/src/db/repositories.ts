@@ -1,3 +1,4 @@
+import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type {
   AgentRun,
   AgentRunTrace,
@@ -15,7 +16,7 @@ import type {
   SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
-import type { AgentRunIdentity } from "@contract-audit/audit/ports";
+import type { AgentRunIdentity, ReviewPriority } from "@contract-audit/audit/ports";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
 import { count, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
@@ -109,7 +110,49 @@ export interface AuditOverview {
   }>;
 }
 
+/**
+ * One row of the review queue: a chain-head finding on a case awaiting review,
+ * projected with the SLA clock the operator works against. `remainingMs` is
+ * derived at read time rather than stored, so the queue can never disagree
+ * with the configured SLA.
+ */
+export interface ReviewQueueItem {
+  caseId: string;
+  /** Contract display name; "未命名合同" when the first block is not a title. */
+  contractTitle: string;
+  findingId: string;
+  findingType: string;
+  /** Chinese display title for the finding type. */
+  title: string;
+  severity: Severity | null;
+  /** True when the finding needs human input rather than a settled decision. */
+  evidenceConflict: boolean;
+  assignee: string | null;
+  priority: ReviewPriority | null;
+  dueAt: string;
+  remainingMs: number;
+  updatedAt: string;
+}
+
 const severityByRank: Record<number, Severity> = { 3: "HIGH", 2: "MEDIUM", 1: "LOW" };
+
+const severityOrder: Record<Severity, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+
+/**
+ * Queue order: evidence conflicts first (a human must intervene), then the
+ * worst severity, then the soonest deadline. Shared with the web client's own
+ * sort so the server's order and a re-sort converge on the same list.
+ */
+export function compareReviewQueueItems(left: ReviewQueueItem, right: ReviewQueueItem): number {
+  if (left.evidenceConflict !== right.evidenceConflict) return left.evidenceConflict ? -1 : 1;
+  const leftRank = left.severity === null ? 0 : severityOrder[left.severity];
+  const rightRank = right.severity === null ? 0 : severityOrder[right.severity];
+  if (leftRank !== rightRank) return rightRank - leftRank;
+  return Date.parse(left.dueAt) - Date.parse(right.dueAt);
+}
+
+const toReviewPriority = (value: string | null): ReviewPriority | null =>
+  value === "high" || value === "normal" || value === "low" ? value : null;
 
 const toSeverity = (value: string | null): Severity | null => {
   const rank = value === "HIGH" ? 3 : value === "MEDIUM" ? 2 : value === "LOW" ? 1 : 0;
@@ -498,6 +541,55 @@ export class AuditCaseRepository {
       .where(eq(auditCases.id, caseId));
   }
 
+  /**
+   * Sets the review assignee and/or priority. An omitted key leaves the field
+   * untouched; an explicit null clears it, which is how a transfer back to the
+   * shared queue is expressed.
+   */
+  async setCaseAssignment(
+    caseId: string,
+    input: { assignee?: string | null; priority?: ReviewPriority | null },
+  ): Promise<{ assignee: string | null; priority: ReviewPriority | null }> {
+    const patch: Partial<typeof auditCases.$inferInsert> = { updatedAt: new Date() };
+    if (input.assignee !== undefined) patch.assignee = input.assignee;
+    if (input.priority !== undefined) patch.reviewPriority = input.priority;
+    const [row] = await this.db
+      .update(auditCases)
+      .set(patch)
+      .where(eq(auditCases.id, caseId))
+      .returning({ assignee: auditCases.assignee, reviewPriority: auditCases.reviewPriority });
+    return {
+      assignee: row?.assignee ?? null,
+      priority: toReviewPriority(row?.reviewPriority ?? null),
+    };
+  }
+
+  /**
+   * Completes the case once every chain-head finding carries a Human Review.
+   * Returns true only on the call that performed the transition, so the caller
+   * publishes `audit.completed` exactly once.
+   *
+   * A case with no chain-head finding at all is left alone: it either never
+   * entered review or completed through the no-finding path, and neither is a
+   * transition this method should make.
+   */
+  async completeCaseIfAllFindingsReviewed(caseId: string): Promise<boolean> {
+    const rows = await this.db.execute<{ total: number; unreviewed: number }>(sql`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE f.review IS NULL)::int AS unreviewed
+      FROM finding_revisions f
+      WHERE f.audit_case_id = ${caseId}
+        -- Chain heads only: a revision superseded by a newer one is history.
+        AND NOT EXISTS (SELECT 1 FROM finding_revisions s WHERE s.supersedes_id = f.id)
+    `);
+    const total = rows[0]?.total ?? 0;
+    const unreviewed = rows[0]?.unreviewed ?? 0;
+    if (total === 0 || unreviewed > 0) return false;
+
+    await this.updateCaseStatus(caseId, "COMPLETED", "COMPLETED");
+    return true;
+  }
+
   async getFindingsByCase(caseId: string): Promise<FindingRevision[]> {
     const rows = await this.db
       .select()
@@ -687,6 +779,90 @@ export class AuditCaseRepository {
       subjectRedLineCount: row.subject_red_line_count,
       sourceProvenance: toSourceProvenance(row.source_type, row.source_display_name),
     }));
+  }
+
+  /**
+   * Review queue: one row per chain-head finding on a case awaiting review.
+   *
+   * Evidence conflicts are findings whose underlying rule asked for human
+   * input (NEEDS_HUMAN_REVIEW) or that cite no evidence; they sort first
+   * because a reviewer, not the machine, has to settle them. The SLA deadline
+   * is `created_at + slaHours`, derived here so it tracks the configured
+   * window instead of a value frozen into the row.
+   */
+  async getReviewQueue(options: { slaHours: number; now?: Date }): Promise<ReviewQueueItem[]> {
+    const rows = await this.db.execute<{
+      case_id: string;
+      assignee: string | null;
+      review_priority: string | null;
+      created_at: string | Date;
+      updated_at: string | Date;
+      contract_title: string | null;
+      finding_id: string;
+      finding_type: string;
+      severity: string | null;
+      evidence_count: number;
+      needs_review_conflict: boolean;
+    }>(sql`
+      SELECT c.id AS case_id,
+             c.assignee,
+             c.review_priority,
+             c.created_at,
+             c.updated_at,
+             s.document->'blocks'->0->>'text' AS contract_title,
+             f.id AS finding_id,
+             f.proposal->>'findingType' AS finding_type,
+             f.proposal->>'severity' AS severity,
+             COALESCE(jsonb_array_length(COALESCE(f.proposal->'evidenceIds', '[]'::jsonb)), 0)::int
+               AS evidence_count,
+             EXISTS (
+               SELECT 1
+               -- Snapshots written before rule assessments became an array
+               -- store a single object under the same column; both shapes are
+               -- read so the queue never crashes on an older row.
+               FROM jsonb_array_elements(
+                 CASE jsonb_typeof(s.rule_assessment)
+                   WHEN 'array' THEN s.rule_assessment
+                   WHEN 'object' THEN jsonb_build_array(s.rule_assessment)
+                   ELSE '[]'::jsonb
+                 END
+               ) AS a
+               WHERE a->>'disposition' = 'NEEDS_HUMAN_REVIEW'
+                 AND a->'evidenceIds' ?| ARRAY(
+                   SELECT jsonb_array_elements_text(
+                     COALESCE(f.proposal->'evidenceIds', '[]'::jsonb)
+                   )
+                 )
+             ) AS needs_review_conflict
+      FROM audit_cases c
+      INNER JOIN finding_revisions f
+        ON f.audit_case_id = c.id
+       AND NOT EXISTS (SELECT 1 FROM finding_revisions newer WHERE newer.supersedes_id = f.id)
+      LEFT JOIN audit_snapshots s ON s.audit_case_id = c.id
+      WHERE c.stage = 'AWAITING_REVIEW'
+    `);
+    const now = options.now ?? new Date();
+    const items = rows.map((row): ReviewQueueItem => {
+      const dueMs = asDate(row.created_at).getTime() + options.slaHours * 3_600_000;
+      return {
+        caseId: row.case_id,
+        contractTitle: contractTitleFromFirstBlock(row.contract_title) ?? "未命名合同",
+        findingId: row.finding_id,
+        findingType: row.finding_type,
+        title: getFindingTypeLabel(row.finding_type),
+        severity: toSeverity(row.severity),
+        evidenceConflict:
+          row.evidence_count === 0 ||
+          row.finding_type === "NEEDS_HUMAN_REVIEW" ||
+          row.needs_review_conflict,
+        assignee: row.assignee,
+        priority: toReviewPriority(row.review_priority),
+        dueAt: new Date(dueMs).toISOString(),
+        remainingMs: dueMs - now.getTime(),
+        updatedAt: asDate(row.updated_at).toISOString(),
+      };
+    });
+    return items.sort(compareReviewQueueItems);
   }
 
   /**

@@ -37,8 +37,14 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
         throw error;
       }
 
-      await repository.updateCaseStatus(finding.auditCaseId, "COMPLETED", "COMPLETED");
-      broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
+      // Each finding is reviewed on its own. The case only closes once every
+      // chain-head finding carries a Human Review, so a multi-finding case
+      // stays AWAITING_REVIEW until the last one is decided. `completed` is
+      // true on exactly the review that performs the transition.
+      const completed = await repository.completeCaseIfAllFindingsReviewed(finding.auditCaseId);
+      if (completed) {
+        broker.publish({ type: "audit.completed", auditCaseId: finding.auditCaseId });
+      }
       return { id: params.id, reviewed: true as const };
     },
     { body: reviewBody },

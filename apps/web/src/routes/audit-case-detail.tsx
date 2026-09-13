@@ -31,7 +31,14 @@ interface ReviewTarget {
 
 const closedReview: ReviewTarget = { finding: null, decision: null };
 
-export default function AuditCaseDetail({ id }: { id: string }) {
+export default function AuditCaseDetail({
+  id,
+  origin = null,
+}: {
+  id: string;
+  /** Where the operator came from, so the workbench returns there. */
+  origin?: "reviews" | null;
+}) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
@@ -144,7 +151,8 @@ export default function AuditCaseDetail({ id }: { id: string }) {
         }
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
-        onBack={() => void navigate({ to: "/audit-cases" })}
+        backLabel={origin === "reviews" ? "返回复核中心" : undefined}
+        onBack={() => void navigate({ to: origin === "reviews" ? "/reviews" : "/audit-cases" })}
         onOpenTrace={() =>
           void navigate({
             to: "/audit-cases/$id/trace",
