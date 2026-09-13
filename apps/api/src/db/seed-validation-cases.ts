@@ -1,3 +1,4 @@
+import type { RuleDisposition } from "@contract-audit/audit/model";
 import { type GoldenCase, goldenSet } from "@contract-audit/audit/golden-set";
 import type { RuleRepository, SeedValidationCase } from "./rule-repository";
 import type { ValidationCaseType } from "./schema";
@@ -56,9 +57,12 @@ const BOUNDARY_CASE_IDS: Record<GoldenRuleCode, readonly string[]> = {
  * - 历史误报 (`false_positive`) is reserved for confirmed over-reports promoted
  *   from production; none are seeded yet, but the type exists and renders.
  */
-function caseTypeFor(ruleCode: GoldenRuleCode, golden: GoldenCase): ValidationCaseType {
-  if (BOUNDARY_CASE_IDS[ruleCode].includes(golden.id)) return "boundary";
-  const expected = golden.expected[ruleCode];
+function caseTypeFor(
+  ruleCode: GoldenRuleCode,
+  goldenId: string,
+  expected: RuleDisposition,
+): ValidationCaseType {
+  if (BOUNDARY_CASE_IDS[ruleCode].includes(goldenId)) return "boundary";
   switch (expected) {
     case "POLICY_CONFLICT":
       return "positive";
@@ -85,9 +89,12 @@ const expectedNoteFor = (caseType: ValidationCaseType, expected: string): string
 };
 
 export const VALIDATION_CASE_SEEDS: readonly SeedValidationCase[] = RULE_CODES.flatMap((ruleCode) =>
-  goldenSet.map((golden) => {
-    const caseType = caseTypeFor(ruleCode, golden);
+  goldenSet.flatMap((golden) => {
     const expected = golden.expected[ruleCode];
+    // Partial expectations (Wave-2 catalogue rules): a case that does not
+    // label this rule is simply not a validation case for it.
+    if (expected === undefined) return [];
+    const caseType = caseTypeFor(ruleCode, golden.id, expected);
     return {
       ruleCode,
       caseType,
