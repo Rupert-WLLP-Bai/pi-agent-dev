@@ -3,6 +3,10 @@
 > 2026-09-13 · 依据 `docs/design/ui-design-spec.md` v1.2 §4.4/4.5/5.1/5.2 + `apps/web/public/pages-sketch.html` #04–#08
 > 术语警告：仓库与规格中拼写为 **整改跟踪**（不是"整改追踪"），实现必须沿用现有字面。
 
+## 完成状态（2026-09-13）
+
+✅ 全部落地。main 分支：4 路由（/reviews /remediations /rules /rules/:id /cases）全部开放，导航启用；349 单测 + 25/25 Playwright 验收全绿；17 条规则（5 原有 + 12 调研新增）seed 已发布；验证案例 92 条物化；drizzle 快照链已修复（0007 调和迁移）；验收 spec 自清理不再污染共享开发库。四个 slice 分支保留：feat/review-center、feat/rules-management、feat/rules-expansion、feat/remediations。
+
 ## 1. 现状（侦察结论）
 
 | 维度 | 现状 |
