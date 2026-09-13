@@ -1,4 +1,21 @@
+import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import postgres from "postgres";
+
+const createdCaseIds: string[] = [];
+
+/** Accepting findings opens remediation items — remove this run's artifacts. */
+test.afterAll(async () => {
+  if (createdCaseIds.length === 0) return;
+  const match = readFileSync(".env", "utf8").match(/^DATABASE_URL=(.*)$/m);
+  if (!match) throw new Error("DATABASE_URL missing from .env");
+  const sql = postgres(match[1].trim());
+  try {
+    await sql`delete from remediations where audit_case_id in ${sql(createdCaseIds)}`;
+  } finally {
+    await sql.end();
+  }
+});
 
 /**
  * Review Centre end-to-end: the operator's path from queue to closure.
@@ -38,6 +55,7 @@ test("review centre queues findings, assigns the case, and closes it per finding
   page,
 }) => {
   const caseId = await createDemoAudit(page);
+  createdCaseIds.push(caseId);
   const shortId = `${caseId.slice(0, 8)}…`;
 
   // ── 1. The queue lists one row per chain-head finding ──

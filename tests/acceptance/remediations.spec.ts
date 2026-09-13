@@ -1,4 +1,21 @@
+import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
+import postgres from "postgres";
+
+const createdCaseIds: string[] = [];
+
+/** These specs accept findings, which opens remediation items — clean them. */
+test.afterAll(async () => {
+  if (createdCaseIds.length === 0) return;
+  const match = readFileSync(".env", "utf8").match(/^DATABASE_URL=(.*)$/m);
+  if (!match) throw new Error("DATABASE_URL missing from .env");
+  const sql = postgres(match[1].trim());
+  try {
+    await sql`delete from remediations where audit_case_id in ${sql(createdCaseIds)}`;
+  } finally {
+    await sql.end();
+  }
+});
 
 /**
  * 整改跟踪 end-to-end: the closure of the 发现 → 整改 → 复核 → 关闭 loop.
@@ -46,6 +63,7 @@ async function confirmBothFindings(page: Page) {
 
 test("remediation items auto-create, advance, and close only by a reviewer", async ({ page }) => {
   const caseId = await createDemoAudit(page);
+  createdCaseIds.push(caseId);
   await confirmBothFindings(page);
 
   // ── 1. Each accepted finding opens a card in 待整改 ──
