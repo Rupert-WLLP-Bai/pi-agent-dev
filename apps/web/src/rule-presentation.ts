@@ -194,6 +194,54 @@ const ruleCodeIo: Record<string, RuleIo> = {
     input: "subjectVerifications[].dimensions",
     output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
   },
+  PERFORMANCE_BOND_RATIO_LIMIT: {
+    input: "facts.performanceBondRatio",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
+  PAYMENT_TERM_LIMIT: {
+    input: "facts.paymentTermDays",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
+  BACK_TO_BACK_PAYMENT_CLAUSE: {
+    input: "facts.backToBackClause",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  DEPOSIT_RATIO_LIMIT: {
+    input: "facts.depositRatio",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
+  WARRANTY_RETENTION_RATIO_LIMIT: {
+    input: "facts.warrantyRetentionRatio",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
+  DISPUTE_RESOLUTION_CONFLICT: {
+    input: "facts.disputeResolutionConflict",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  BID_BOND_RATIO_LIMIT: {
+    input: "facts.bidBondRatio",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
+  IP_OWNERSHIP_MISSING: {
+    input: "facts.hasIpClause",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  GUARANTEE_MODE_AMBIGUOUS: {
+    input: "facts.hasJointGuarantee",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  CONFIDENTIALITY_PERIOD_MISSING: {
+    input: "facts.confidentialityPeriodYears",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  FORCE_MAJEURE_OVERBROAD: {
+    input: "facts.forceMajeureBroadeners",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
+  LIABILITY_CAP_MISSING: {
+    input: "facts.liabilityCap",
+    output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
+  },
 };
 
 export function describeRuleIo(code: string): RuleIo {

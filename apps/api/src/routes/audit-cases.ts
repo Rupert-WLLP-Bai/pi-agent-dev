@@ -1,5 +1,10 @@
 import { findDemoContract } from "@contract-audit/audit/demo-contracts";
-import type { AuditSnapshot, RuleCode, SourceProvenance } from "@contract-audit/audit/model";
+import type {
+  AuditSnapshot,
+  RuleCode,
+  RuleParamSet,
+  SourceProvenance,
+} from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
@@ -24,6 +29,13 @@ const SNAPSHOT_RULE_CODES = [
   "PENALTY_RATIO_LIMIT",
   "TERMINATION_CLAUSE_PRESENT",
   "DISPUTE_JURISDICTION",
+  "PERFORMANCE_BOND_RATIO_LIMIT",
+  "PAYMENT_TERM_LIMIT",
+  "DEPOSIT_RATIO_LIMIT",
+  "WARRANTY_RETENTION_RATIO_LIMIT",
+  "BID_BOND_RATIO_LIMIT",
+  "CONFIDENTIALITY_PERIOD_MISSING",
+  "LIABILITY_CAP_MISSING",
 ] as const;
 
 /**
@@ -42,12 +54,20 @@ async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?:
   const ruleVersions: Partial<Record<RuleCode, number>> = {};
   for (const [code, version] of published) ruleVersions[code as RuleCode] = version.version;
 
+  const ruleParams: Partial<Record<RuleCode, RuleParamSet>> = {};
+  for (const [code, version] of published) {
+    if (Object.keys(version.params).length > 0) {
+      ruleParams[code as RuleCode] = version.params;
+    }
+  }
+
   return {
     policyLimitRatio:
       policyLimitRatioOverride ?? (typeof advanceLimit === "number" ? advanceLimit : undefined),
     policyPenaltyLimit: typeof penaltyLimit === "number" ? penaltyLimit : undefined,
     preferredJurisdiction: typeof jurisdiction === "string" ? jurisdiction : undefined,
     ruleVersions,
+    ruleParams,
   };
 }
 

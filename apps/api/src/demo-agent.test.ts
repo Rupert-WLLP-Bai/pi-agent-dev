@@ -86,7 +86,23 @@ test("the demo set spans every risk level the queue can render", async () => {
   // conflict or asks for human review, so nothing is merely advisory. The
   // sample set reflects that rather than inventing a tier the rules cannot
   // justify — see demo-contracts.test.ts for the per-contract rule profiles.
-  expect(distribution).toEqual({ HIGH: 2, MEDIUM: 7, PASSED: 3 });
+  expect(distribution).toEqual({ HIGH: 5, MEDIUM: 7, PASSED: 3 });
+});
+
+test("the wave 2 samples report the expanded catalogue's findings", async () => {
+  expect(await findingTypesOf("subcontract-back-to-back")).toEqual([
+    "PERFORMANCE_BOND_RATIO_POLICY_CONFLICT",
+    "BACK_TO_BACK_PAYMENT_CLAUSE",
+    "DISPUTE_RESOLUTION_CONFLICT",
+  ]);
+  expect(await findingTypesOf("procurement-deposit-term")).toEqual([
+    "PAYMENT_TERM_POLICY_CONFLICT",
+    "DEPOSIT_RATIO_POLICY_CONFLICT",
+  ]);
+  expect(await findingTypesOf("custom-dev-ip")).toEqual([
+    "IP_OWNERSHIP_MISSING",
+    "CONFIDENTIALITY_PERIOD_MISSING",
+  ]);
 });
 
 test("subject verification, not a clause rule, drives the counterparty findings", async () => {

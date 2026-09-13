@@ -1,10 +1,40 @@
+import { buildBackToBackFacts, evaluateBackToBackRule } from "./back-to-back-rule";
+import { buildBidBondFacts, evaluateBidBondRule } from "./bid-bond-rule";
+import {
+  buildConfidentialityFacts,
+  evaluateConfidentialityPeriodRule,
+} from "./confidentiality-period-rule";
+import { buildDepositFacts, evaluateDepositRule } from "./deposit-rule";
+import {
+  buildDisputeResolutionFacts,
+  evaluateDisputeResolutionConflictRule,
+} from "./dispute-conflict-rule";
 import { buildDisputeJurisdictionFacts, evaluateDisputeJurisdictionRule } from "./dispute-rule";
 import { buildPaymentFacts } from "./fact-builder";
-import type { AuditSnapshot, ContractDocument, RuleAssessment, RuleCode } from "./model";
+import { buildForceMajeureFacts, evaluateForceMajeureRule } from "./force-majeure-rule";
+import { buildGuaranteeModeFacts, evaluateGuaranteeModeRule } from "./guarantee-mode-rule";
+import { buildIpOwnershipFacts, evaluateIpOwnershipRule } from "./ip-ownership-rule";
+import { buildLiabilityCapFacts, evaluateLiabilityCapRule } from "./liability-cap-rule";
+import type {
+  AuditSnapshot,
+  ContractDocument,
+  RuleAssessment,
+  RuleCode,
+  RuleParamSet,
+} from "./model";
 import { extractContractParties } from "./party-extractor";
 import { evaluateAdvancePaymentRule } from "./payment-rule";
+import { buildPaymentTermFacts, evaluatePaymentTermRule } from "./payment-term-rule";
 import { buildPenaltyRatioFacts, evaluatePenaltyRatioRule } from "./penalty-rule";
+import {
+  buildPerformanceBondFacts,
+  evaluatePerformanceBondRule,
+} from "./performance-bond-rule";
 import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./termination-rule";
+import {
+  buildWarrantyRetentionFacts,
+  evaluateWarrantyRetentionRule,
+} from "./warranty-retention-rule";
 
 /**
  * Assembles the document-derived half of an Audit Snapshot from a Contract
@@ -17,6 +47,10 @@ import { buildTerminationClauseFacts, evaluateTerminationClauseRule } from "./te
  * provider is a network call, so the dispatcher runs it as its own Audit Stage
  * and records the result separately rather than making snapshot assembly depend
  * on a third party.
+ *
+ * Assessments are appended in a stable order: the original four first, then the
+ * catalogue expansion. Adding a rule must never renumber or reorder what an
+ * earlier audit recorded, so the new dimensions follow rather than interleave.
  */
 export function createAuditSnapshot(input: {
   sourceRecordId: string;
@@ -34,8 +68,14 @@ export function createAuditSnapshot(input: {
    * Finding built on it can name the exact parameter set it was judged under.
    */
   ruleVersions?: Partial<Record<RuleCode, number>>;
+  /**
+   * Published parameter sets keyed by rule code, for the rules that read
+   * parameters. A rule absent here runs on its catalogue defaults.
+   */
+  ruleParams?: Partial<Record<RuleCode, RuleParamSet>>;
 }): AuditSnapshot {
   const document = input.document;
+  const ruleParams = input.ruleParams ?? {};
   const policyLimitRatio = input.policyLimitRatio ?? 0.3;
   const { facts, hasAdvanceTerm, evidence } = buildPaymentFacts({
     sourceRecordId: input.sourceRecordId,
@@ -65,11 +105,57 @@ export function createAuditSnapshot(input: {
     preferredJurisdiction,
   });
 
+  const performanceBond = buildPerformanceBondFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const paymentTerm = buildPaymentTermFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const backToBack = buildBackToBackFacts({ sourceRecordId: input.sourceRecordId, document });
+  const deposit = buildDepositFacts({ sourceRecordId: input.sourceRecordId, document });
+  const warrantyRetention = buildWarrantyRetentionFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const disputeConflict = buildDisputeResolutionFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const bidBond = buildBidBondFacts({ sourceRecordId: input.sourceRecordId, document });
+  const ipOwnership = buildIpOwnershipFacts({ sourceRecordId: input.sourceRecordId, document });
+  const guaranteeMode = buildGuaranteeModeFacts({ sourceRecordId: input.sourceRecordId, document });
+  const confidentiality = buildConfidentialityFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
+  const forceMajeure = buildForceMajeureFacts({ sourceRecordId: input.sourceRecordId, document });
+  const liabilityCap = buildLiabilityCapFacts({ sourceRecordId: input.sourceRecordId, document });
+
   const ruleAssessments: RuleAssessment[] = [
     evaluateAdvancePaymentRule(facts, hasAdvanceTerm),
     evaluatePenaltyRatioRule(penaltyAnalysis.facts),
     evaluateTerminationClauseRule(terminationAnalysis.facts),
     evaluateDisputeJurisdictionRule(disputeAnalysis.facts, preferredJurisdiction),
+    evaluatePerformanceBondRule(performanceBond.facts, ruleParams.PERFORMANCE_BOND_RATIO_LIMIT),
+    evaluatePaymentTermRule(paymentTerm.facts, ruleParams.PAYMENT_TERM_LIMIT),
+    evaluateBackToBackRule(backToBack.facts),
+    evaluateDepositRule(deposit.facts, ruleParams.DEPOSIT_RATIO_LIMIT),
+    evaluateWarrantyRetentionRule(
+      warrantyRetention.facts,
+      ruleParams.WARRANTY_RETENTION_RATIO_LIMIT,
+    ),
+    evaluateDisputeResolutionConflictRule(disputeConflict.facts),
+    evaluateBidBondRule(bidBond.facts, ruleParams.BID_BOND_RATIO_LIMIT),
+    evaluateIpOwnershipRule(ipOwnership.facts),
+    evaluateGuaranteeModeRule(guaranteeMode.facts),
+    evaluateConfidentialityPeriodRule(
+      confidentiality.facts,
+      ruleParams.CONFIDENTIALITY_PERIOD_MISSING,
+    ),
+    evaluateForceMajeureRule(forceMajeure.facts),
+    evaluateLiabilityCapRule(liabilityCap.facts, ruleParams.LIABILITY_CAP_MISSING),
   ].map((assessment) => ({
     ...assessment,
     ruleVersion: input.ruleVersions?.[assessment.ruleCode] ?? null,
@@ -86,6 +172,18 @@ export function createAuditSnapshot(input: {
       ...penaltyAnalysis.evidence,
       ...terminationAnalysis.evidence,
       ...disputeAnalysis.evidence,
+      ...performanceBond.evidence,
+      ...paymentTerm.evidence,
+      ...backToBack.evidence,
+      ...deposit.evidence,
+      ...warrantyRetention.evidence,
+      ...disputeConflict.evidence,
+      ...bidBond.evidence,
+      ...ipOwnership.evidence,
+      ...guaranteeMode.evidence,
+      ...confidentiality.evidence,
+      ...forceMajeure.evidence,
+      ...liabilityCap.evidence,
     ],
     ruleAssessments,
     createdAt: new Date().toISOString(),

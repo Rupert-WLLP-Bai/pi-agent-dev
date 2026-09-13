@@ -602,10 +602,6 @@ export class InMemoryRuleRepository {
     return result;
   }
 
-  async countRules(): Promise<number> {
-    return this.states.size;
-  }
-
   async bootstrapRules(seeds: readonly SeedRule[], publishedBy: string): Promise<number> {
     let created = 0;
     for (const seed of seeds) {

@@ -1,4 +1,5 @@
 import { type GoldenCase, goldenSet } from "./golden-set";
+import type { RuleCode, RuleParamSet } from "./model";
 import { createAuditSnapshot } from "./orchestrator";
 import { normalizeContractDocument } from "./plaintext-adapter";
 
@@ -78,6 +79,7 @@ function overridesFor(
   policyLimitRatio?: number;
   policyPenaltyLimit?: number;
   preferredJurisdiction?: string;
+  ruleParams?: Partial<Record<RuleCode, RuleParamSet>>;
 } {
   const limitRatio = asNumber(params.limitRatio);
   switch (ruleCode) {
@@ -92,7 +94,11 @@ function overridesFor(
       return preferredJurisdiction === undefined ? {} : { preferredJurisdiction };
     }
     default:
-      return {};
+      // Catalogue rules own their parameter keys; whatever a version carries is
+      // handed to the rule, which falls back to its defaults for absent keys.
+      return Object.keys(params).length === 0
+        ? {}
+        : { ruleParams: { [ruleCode as RuleCode]: params as RuleParamSet } };
   }
 }
 

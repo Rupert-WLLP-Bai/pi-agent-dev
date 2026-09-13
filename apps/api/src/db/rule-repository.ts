@@ -456,11 +456,6 @@ export class RuleRepository {
     );
   }
 
-  async countRules(): Promise<number> {
-    const rows = await this.db.select({ id: rules.id }).from(rules);
-    return rows.length;
-  }
-
   /**
    * Idempotent bootstrap: inserts the seed rules that do not exist yet, each
    * with a published v1. Existing rows — including ones an operator has since
