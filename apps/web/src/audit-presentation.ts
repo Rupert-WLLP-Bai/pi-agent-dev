@@ -302,8 +302,6 @@ export function getTraceStageLabel(label: string): string {
       RUN_STARTED: "开始运行",
       RUN_COMPLETED: "运行完成",
       RUN_FAILED: "运行失败",
-      TURN_STARTED: "回合开始",
-      TURN_COMPLETED: "回合结束",
     }[label] ?? label
   );
 }
@@ -324,19 +322,53 @@ export const agentRunStateTones: Record<AgentRunState, AuditTone> = {
   INTERRUPTED: "warning",
 };
 
+/** Ant Design v6 Tag status presets: processing, success, error, default, warning. */
+export const agentRunStateTagColors: Record<AgentRunState, string> = {
+  RUNNING: "processing",
+  SUCCEEDED: "success",
+  FAILED: "error",
+  INTERRUPTED: "default",
+};
 /**
  * A run with neither an error nor a duration never reached `finishAgentRun`.
  * That is only "still running" while its case is; once the case has settled the
  * run was orphaned, and calling it running would promise a trace that will never
  * grow.
  */
-export function getAgentRunState(run: AgentRun, caseStatus: AuditCaseStatus): AgentRunState {
+export function getAgentRunState(
+  run: AgentRun,
+  caseStatus: AuditCaseStatus,
+  isLatest = true,
+): AgentRunState {
   if (run.error !== null) return "FAILED";
   if (run.durationMs !== null) return "SUCCEEDED";
-  return caseStatus === "RUNNING" ? "RUNNING" : "INTERRUPTED";
+  // Only the newest unfinished run can be truly running. An older unfinished
+  // run was superseded by a retry — labeling it running would promise a trace
+  // that will never grow.
+  if (caseStatus !== "RUNNING") return "INTERRUPTED";
+  return isLatest ? "RUNNING" : "INTERRUPTED";
 }
 
 /** Sub-second durations read better in milliseconds; the rest in seconds. */
+/** Provider display: capitalize the raw wire value (e.g. "pi" → "Pi"). */
+export function formatProvider(provider: string): string {
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+}
+
+/** Model identity as a viewer reads it: "Pi 0.85.1 · deepseek-v4-flash". */
+export function formatModelIdentity(provider: string, model: string, version: string): string {
+  return `${formatProvider(provider)} ${version} · ${model}`;
+}
+
+/**
+ * The agent harness that ran — a runtime, not a model. The two version on
+ * separate cadences, so views that need both show them side by side rather
+ * than concatenated into one name.
+ */
+export function formatAgentRuntime(provider: string, version: string): string {
+  return `${formatProvider(provider)} ${version}`;
+}
+
 export function formatDuration(ms: number | null): string | null {
   if (ms === null) return null;
   if (ms < 1000) return `${ms} ms`;
@@ -344,13 +376,43 @@ export function formatDuration(ms: number | null): string | null {
 }
 
 /** Token usage as a run header states it; null when the provider reported none. */
-export function describeTokenUsage(usage: Record<string, number> | null): string | null {
+/** Token counts for one run, normalized the way the harness accounts for them. */
+export interface TokenUsageBreakdown {
+  /** Prompt tokens sent to the model, cached and uncached alike. */
+  input: number;
+  /** Tokens the model generated back. */
+  output: number;
+  /** Prompt plus output; the provider's own figure when it reported one. */
+  total: number;
+  cacheRead: number;
+  cacheWrite: number;
+  /** Share of the prompt served from cache, in percent; null with no prompt to divide by. */
+  cacheRate: number | null;
+}
+
+/**
+ * Normalizes provider usage for display. The prompt is counted as `input +
+ * cacheRead + cacheWrite` — the same accounting the harness uses for its own
+ * total — so the input and output figures always add up to the total shown.
+ */
+export function tokenUsageBreakdown(
+  usage: Record<string, number> | null,
+): TokenUsageBreakdown | null {
   if (usage === null) return null;
-  const parts: string[] = [];
-  if (typeof usage.input === "number") parts.push(`输入 ${usage.input.toLocaleString("en-US")}`);
-  if (typeof usage.output === "number") parts.push(`输出 ${usage.output.toLocaleString("en-US")}`);
-  if (typeof usage.total === "number") parts.push(`合计 ${usage.total.toLocaleString("en-US")}`);
-  return parts.length === 0 ? null : parts.join(" · ");
+  const count = (value: number | undefined): number =>
+    typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const cacheRead = count(usage.cacheRead);
+  const cacheWrite = count(usage.cacheWrite);
+  const input = count(usage.input) + cacheRead + cacheWrite;
+  const output = count(usage.output);
+  return {
+    input,
+    output,
+    total: typeof usage.total === "number" ? usage.total : input + output,
+    cacheRead,
+    cacheWrite,
+    cacheRate: input === 0 ? null : (cacheRead / input) * 100,
+  };
 }
 
 /**

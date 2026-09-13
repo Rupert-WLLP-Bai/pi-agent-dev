@@ -5,7 +5,7 @@ import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapt
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { AuditCaseRepository, contractTitleFromFirstBlock } from "./repositories";
+import { AuditCaseRepository, contractTitleFromFirstBlock, type DrizzleDB } from "./repositories";
 import { auditCases, schema } from "./schema";
 
 const databaseUrl =
@@ -18,7 +18,45 @@ const canConnect = await postgres(databaseUrl, { connect_timeout: 3 })`SELECT 1`
 
 const maybeTest = canConnect ? test : test.skip;
 
-let repository: AuditCaseRepository;
+/** Thrown to force the transaction to roll back a body that succeeded. */
+class Rollback extends Error {}
+
+/**
+ * Runs one case in a transaction that always rolls back.
+ *
+ * These cases exercise a repository against whatever `DATABASE_URL` points at —
+ * locally, the same database the app is serving from. Handing it a real
+ * connection would leave seeded cases, runs and findings behind on every run;
+ * confining the work to a transaction that never commits keeps the suite
+ * hermetic. `tx` implements the same surface as the pooled database, including
+ * nested transactions (as savepoints), so the repository is unaware.
+ */
+const withRollback = async (
+  body: (repository: AuditCaseRepository) => Promise<void>,
+): Promise<void> => {
+  const client = postgres(databaseUrl, { max: 1 });
+  try {
+    await drizzle({ client, schema }).transaction(async (tx) => {
+      // Claiming picks the oldest PENDING case, so a case left pending by the
+      // running app would decide what this case under test claims. Neutralize
+      // them here: the update rolls back with everything else.
+      await tx
+        .update(auditCases)
+        .set({ status: "INTERRUPTED" })
+        .where(eq(auditCases.status, "PENDING"));
+
+      await body(new AuditCaseRepository(tx as unknown as DrizzleDB));
+      throw new Rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof Rollback)) throw error;
+  } finally {
+    await client.end();
+  }
+};
+
+const dbTest = (name: string, body: (repository: AuditCaseRepository) => Promise<void>) =>
+  maybeTest(name, () => withRollback(body));
 
 const uniqueSourceRecordId = (): string => crypto.randomUUID();
 
@@ -26,6 +64,20 @@ const seedSnapshot = (sourceRecordId: string) =>
   createAuditSnapshot({
     sourceRecordId,
     document: normalizeContractDocument("乙方签订后支付合同金额的70%作为预付款。"),
+    policyLimitRatio: 0.3,
+  });
+
+/** A contract that names its parties, which the clause-only seed does not. */
+const PARTY_CONTRACT = [
+  "甲方：重庆华盛贸易有限公司",
+  "乙方：成都建工集团有限公司",
+  "乙方签订后支付合同金额的70%作为预付款。",
+].join("\n");
+
+const seedPartySnapshot = (sourceRecordId: string) =>
+  createAuditSnapshot({
+    sourceRecordId,
+    document: normalizeContractDocument(PARTY_CONTRACT),
     policyLimitRatio: 0.3,
   });
 
@@ -43,23 +95,15 @@ const seedReview: HumanReview = {
   reviewedAt: new Date().toISOString(),
 };
 
-beforeAll(async () => {
-  if (!canConnect) return;
-  const client = postgres(databaseUrl);
-  const db = drizzle({ client, schema });
-  // Keep claim ordering deterministic: neutralize leftover PENDING cases.
-  await db
-    .update(auditCases)
-    .set({ status: "INTERRUPTED" })
-    .where(eq(auditCases.status, "PENDING"));
-  repository = new AuditCaseRepository(db);
+beforeAll(() => {
+  if (!canConnect) {
+    console.warn("repositories.test: DATABASE_URL unreachable, database cases skipped");
+  }
 });
 
-maybeTest("claims only one pending audit case", async () => {
-  const { caseId } = await repository.createPendingCase(
-    uniqueSourceRecordId(),
-    seedSnapshot(uniqueSourceRecordId()),
-  );
+dbTest("claims only one pending audit case", async (repository) => {
+  const sourceId = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(sourceId, seedSnapshot(sourceId));
 
   const claimed = await repository.claimNextPendingCase();
   expect(claimed?.caseId).toBe(caseId);
@@ -69,7 +113,7 @@ maybeTest("claims only one pending audit case", async () => {
   expect(await repository.claimNextPendingCase()).toBeNull();
 });
 
-maybeTest("claims the requested case only while it is pending", async () => {
+dbTest("claims the requested case only while it is pending", async (repository) => {
   const id = uniqueSourceRecordId();
   const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
 
@@ -80,7 +124,7 @@ maybeTest("claims the requested case only while it is pending", async () => {
   expect(reclaimed).toBeNull();
 });
 
-maybeTest("lists pending case ids", async () => {
+dbTest("lists pending case ids", async (repository) => {
   const id = uniqueSourceRecordId();
   const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
 
@@ -88,9 +132,9 @@ maybeTest("lists pending case ids", async () => {
   expect(pending).toContain(caseId);
 });
 
-maybeTest(
+dbTest(
   "appends a human review as a superseding revision without overwriting the proposal",
-  async () => {
+  async (repository) => {
     const id = uniqueSourceRecordId();
     const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
     const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
@@ -110,7 +154,7 @@ maybeTest(
   },
 );
 
-maybeTest("rejects a second review of the same finding", async () => {
+dbTest("rejects a second review of the same finding", async (repository) => {
   const id = uniqueSourceRecordId();
   const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
   const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
@@ -121,7 +165,7 @@ maybeTest("rejects a second review of the same finding", async () => {
   ).rejects.toThrow(/FINDING_ALREADY_REVIEWED/);
 });
 
-maybeTest("marks stale running cases interrupted", async () => {
+dbTest("marks stale running cases interrupted", async (repository) => {
   const id = uniqueSourceRecordId();
   const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
   await repository.claimCase(caseId);
@@ -135,13 +179,13 @@ maybeTest("marks stale running cases interrupted", async () => {
   });
 });
 
-maybeTest("pings the database", async () => {
+dbTest("pings the database", async (repository) => {
   expect(await repository.ping()).toBe(true);
 });
 
 // ── Source provenance ─────────────────────────────────────────────
 
-maybeTest("records the provenance it was given and reports it back", async () => {
+dbTest("records the provenance it was given and reports it back", async (repository) => {
   const id = uniqueSourceRecordId();
   await repository.createPendingCase(id, seedSnapshot(id), {
     type: "FILE_UPLOAD",
@@ -158,7 +202,7 @@ maybeTest("records the provenance it was given and reports it back", async () =>
   });
 });
 
-maybeTest("reports unknown provenance as null instead of inventing a paste", async () => {
+dbTest("reports unknown provenance as null instead of inventing a paste", async (repository) => {
   // Records written before provenance was tracked carry no source type. The
   // queue must show that gap as unknown: claiming "文本粘贴" would mislabel
   // every file uploaded before provenance existed.
@@ -193,7 +237,7 @@ test("rejects an over-long block and absent input", () => {
 
 // ── Agent trace persistence ──────────────────────────────────────
 
-maybeTest("round-trips a trace run with ordered steps", async () => {
+dbTest("round-trips a trace run with ordered steps", async (repository) => {
   const sourceId = uniqueSourceRecordId();
   const { caseId } = await repository.createPendingCase(sourceId, seedSnapshot(sourceId));
 
@@ -291,9 +335,9 @@ maybeTest("round-trips a trace run with ordered steps", async () => {
   expect(traceSteps[3]?.tokens).toEqual({ input: 100, output: 20 });
 });
 
-maybeTest("getRecentRuns lists runs with step counts and contract titles", async () => {
+dbTest("getRecentRuns lists runs with step counts and contract titles", async (repository) => {
   const sourceId = uniqueSourceRecordId();
-  const { caseId } = await repository.createPendingCase(sourceId, seedSnapshot(sourceId));
+  const { caseId } = await repository.createPendingCase(sourceId, seedPartySnapshot(sourceId));
 
   const runId = await repository.beginAgentRun({
     auditCaseId: caseId,
@@ -326,4 +370,10 @@ maybeTest("getRecentRuns lists runs with step counts and contract titles", async
   expect(found?.stepCount).toBe(1);
   expect(found?.provider).toBe("pi");
   expect(found?.caseStatus).toBe("PENDING");
+
+  // The row has to say who the contract is between, not just what it is called.
+  expect(found?.parties).toEqual([
+    { id: "party-1", label: "甲方", name: "重庆华盛贸易有限公司", evidenceId: "party-1-name" },
+    { id: "party-2", label: "乙方", name: "成都建工集团有限公司", evidenceId: "party-2-name" },
+  ]);
 });

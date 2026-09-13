@@ -6,6 +6,7 @@ import type {
   AuditCaseStatus,
   AuditSnapshot,
   AuditStage,
+  ContractParty,
   EvidenceLocator,
   FindingProposal,
   FindingRevision,
@@ -70,6 +71,8 @@ export interface CaseSummary extends AuditCase {
 /** Run-list projection: the run, the case it belongs to, and how much it traced. */
 export interface AgentRunSummary extends AgentRun {
   contractTitle: string | null;
+  /** Parties named in the contract, so a row says who it is between. */
+  parties: ContractParty[];
   /** Status of the case the run belongs to. */
   caseStatus: AuditCaseStatus;
   stepCount: number;
@@ -399,6 +402,7 @@ export class AuditCaseRepository {
         id: auditCases.id,
         status: auditCases.status,
         firstBlock: sql<string | null>`${auditSnapshots.document}->'blocks'->0->>'text'`,
+        parties: auditSnapshots.parties,
       })
       .from(auditCases)
       .leftJoin(auditSnapshots, eq(auditSnapshots.auditCaseId, auditCases.id))
@@ -422,6 +426,7 @@ export class AuditCaseRepository {
       return {
         ...toAgentRun(row),
         contractTitle: contractTitleFromFirstBlock(auditCase?.firstBlock),
+        parties: (auditCase?.parties ?? []) as ContractParty[],
         caseStatus: (auditCase?.status ?? "PENDING") as AuditCaseStatus,
         stepCount: countByRun.get(row.id) ?? 0,
       };
@@ -736,7 +741,10 @@ export class AuditCaseRepository {
       SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY r.duration_ms) AS median_ms,
              COUNT(*)::int AS successful_runs
       FROM agent_runs r
-      WHERE r.error IS NULL AND r.duration_ms IS NOT NULL
+      -- A run that reported no token usage never reached a provider, so its
+      -- wall time measures a scheduling attempt, not an audit. Counting those
+      -- drags the median down to whatever the harness overhead happens to be.
+      WHERE r.error IS NULL AND r.duration_ms IS NOT NULL AND r.usage IS NOT NULL
     `);
 
     const pendingRows = await this.db.execute<{

@@ -68,7 +68,7 @@ const pipeline = [
 
 export default function DemoPage() {
   return (
-    <div style={{ padding: "32px 48px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="page">
       {/* Hero */}
       <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div

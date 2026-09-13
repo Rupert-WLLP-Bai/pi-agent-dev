@@ -267,12 +267,7 @@ export type AgentTraceStepKind =
  * Stable stage codes. Kept as wire values (not prose) so the trace stays
  * machine-readable; presentation maps them to Chinese on the way out.
  */
-export type AgentTraceStage =
-  | "RUN_STARTED"
-  | "RUN_COMPLETED"
-  | "RUN_FAILED"
-  | "TURN_STARTED"
-  | "TURN_COMPLETED";
+export type AgentTraceStage = "RUN_STARTED" | "RUN_COMPLETED" | "RUN_FAILED";
 
 export interface AgentTraceTokens {
   input: number;

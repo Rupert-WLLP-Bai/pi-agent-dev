@@ -47,6 +47,8 @@ export interface AuditQueueCase extends AuditCase {
 }
 
 export interface AuditQueueProps {
+  /** Lifecycle to open on; a cockpit drill-down supplies this from the URL. */
+  initialFilter?: AuditLifecycleFilter;
   cases: AuditQueueCase[];
   loading: boolean;
   refreshing: boolean;
@@ -139,6 +141,7 @@ const summaryIcons: Record<string, React.ReactNode> = {
 };
 
 export function AuditQueue({
+  initialFilter = "ALL",
   cases,
   loading,
   refreshing,
@@ -151,8 +154,14 @@ export function AuditQueue({
   onCreate,
 }: AuditQueueProps) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<AuditLifecycleFilter>("ALL");
+  const [filter, setFilter] = useState<AuditLifecycleFilter>(initialFilter);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10 });
+
+  // A drill-down from the cockpit arrives as a new search param on an already
+  // mounted queue, so the seed is re-applied rather than read just once.
+  useEffect(() => {
+    setFilter(initialFilter);
+  }, [initialFilter]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: setPagination is stable
   useEffect(() => {
@@ -176,7 +185,7 @@ export function AuditQueue({
   ];
 
   return (
-    <section className="queue-page">
+    <section className="page">
       <div className="page-head">
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>

@@ -2,13 +2,13 @@ import { expect, test } from "bun:test";
 import type { AgentRun } from "@contract-audit/audit/model";
 import {
   agentRunStateLabels,
-  agentRunStateTones,
-  describeTokenUsage,
+  agentRunStateTagColors,
   formatDuration,
   formatTraceOffset,
   formatTracePayload,
   getAgentRunState,
   getTraceStageLabel,
+  tokenUsageBreakdown,
   traceStepKindLabels,
 } from "./audit-presentation";
 
@@ -33,12 +33,35 @@ test("formatDuration reports sub-second in milliseconds and the rest in seconds"
   expect(formatDuration(29120)).toBe("29.1 s");
 });
 
-test("describeTokenUsage formats input/output/total, or null when the provider reported none", () => {
-  expect(describeTokenUsage(null)).toBeNull();
-  expect(describeTokenUsage({ input: 8687, output: 1170 })).toBe("输入 8,687 · 输出 1,170");
-  expect(describeTokenUsage({ input: 8687, output: 1170, total: 9857 })).toBe(
-    "输入 8,687 · 输出 1,170 · 合计 9,857",
-  );
+test("tokenUsageBreakdown counts the prompt as input plus cache so in and out sum to the total", () => {
+  expect(tokenUsageBreakdown(null)).toBeNull();
+  expect(tokenUsageBreakdown({ input: 8687, output: 1170 })).toEqual({
+    input: 8687,
+    output: 1170,
+    total: 9857,
+    cacheRead: 0,
+    cacheWrite: 0,
+    cacheRate: 0,
+  });
+  // Cached tokens belong to the prompt, so the cache share divides by their sum.
+  expect(
+    tokenUsageBreakdown({
+      input: 1000,
+      output: 500,
+      cacheRead: 3000,
+      cacheWrite: 1000,
+      total: 5500,
+    }),
+  ).toEqual({
+    input: 5000,
+    output: 500,
+    total: 5500,
+    cacheRead: 3000,
+    cacheWrite: 1000,
+    cacheRate: 60,
+  });
+  // No prompt means no ratio to report.
+  expect(tokenUsageBreakdown({ output: 10, total: 10 })?.cacheRate).toBeNull();
 });
 
 test("formatTracePayload returns null for empty values and truncates long ones", () => {
@@ -70,14 +93,13 @@ test("getAgentRunState distinguishes failed, succeeded, running, and orphaned ru
 test("agent run state labels and tones cover every state", () => {
   for (const state of ["RUNNING", "SUCCEEDED", "FAILED", "INTERRUPTED"] as const) {
     expect(agentRunStateLabels[state]).toBeTruthy();
-    expect(agentRunStateTones[state]).toBeTruthy();
+    expect(agentRunStateTagColors[state]).toBeTruthy();
   }
 });
 
 test("getTraceStageLabel maps known stages to Chinese and passes through unknown ones", () => {
   expect(getTraceStageLabel("RUN_STARTED")).toBe("开始运行");
   expect(getTraceStageLabel("RUN_COMPLETED")).toBe("运行完成");
-  expect(getTraceStageLabel("TURN_STARTED")).toBe("回合开始");
   expect(getTraceStageLabel("get_rule_assessments")).toBe("get_rule_assessments");
 });
 

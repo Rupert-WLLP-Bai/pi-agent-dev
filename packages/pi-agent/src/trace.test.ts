@@ -75,26 +75,6 @@ test("marks a failed tool result as an error", () => {
   expect(observations[1]?.output).toBe("UNKNOWN_EVIDENCE: nope");
 });
 
-test("times a turn from its start event", () => {
-  const { observations, reporter, advance } = recorder();
-
-  reporter.observe({ type: "turn_start", turnIndex: 0 });
-  advance(1400);
-  reporter.observe({ type: "turn_end", turnIndex: 0 });
-
-  expect(observations[0]).toMatchObject({
-    kind: "STAGE",
-    label: "TURN_STARTED",
-    input: { turnIndex: 0 },
-  });
-  expect(observations[1]).toMatchObject({
-    kind: "STAGE",
-    label: "TURN_COMPLETED",
-    input: { turnIndex: 0 },
-    durationMs: 1400,
-  });
-});
-
 test("captures assistant text with its token counts, and skips other messages", () => {
   const { observations, reporter } = recorder();
 

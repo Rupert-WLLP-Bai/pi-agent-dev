@@ -1,49 +1,37 @@
-import { ArrowUpOutlined } from "@ant-design/icons";
+import { ArrowUpOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { AuditOverview } from "@contract-audit/api";
-import { Card, Col, Empty, Row, Spin, Statistic, Tooltip, Typography } from "antd";
-import { useEffect, useState } from "react";
+import type { Severity } from "@contract-audit/audit/model";
+import { Link } from "@tanstack/react-router";
+import {
+  Button,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Segmented,
+  Spin,
+  Statistic,
+  Tooltip,
+  Typography,
+} from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getAuditOverview } from "../api";
+import type { AuditLifecycleFilter } from "../audit-presentation";
 import { getFindingTypeLabel, severityLabels } from "../audit-presentation";
+import { TrendChart } from "../components/trend-chart";
 
-const CHART_WIDTH = 620;
-const CHART_HEIGHT = 160;
+const RANGE_OPTIONS = [
+  { value: 7, label: "7 天" },
+  { value: 14, label: "14 天" },
+  { value: 30, label: "30 天" },
+];
 
-interface ChartPaths {
-  dailyLine: string;
-  totalLine: string;
-  area: string;
-}
-
-/** Maps the 30-day series into SVG polyline points inside the chart box. */
-function buildChartPaths(dailyCounts: Array<{ count: number }>): ChartPaths {
-  if (dailyCounts.length === 0) {
-    return { dailyLine: "", totalLine: "", area: "" };
-  }
-  const step = CHART_WIDTH / Math.max(dailyCounts.length - 1, 1);
-  const cumulative: number[] = [];
-  let running = 0;
-  for (const day of dailyCounts) {
-    running += day.count;
-    cumulative.push(running);
-  }
-  const peak = Math.max(1, ...cumulative);
-  const dailyPoints: string[] = [];
-  const totalPoints: string[] = [];
-  for (let index = 0; index < dailyCounts.length; index += 1) {
-    const x = (index * step).toFixed(1);
-    const dailyY = (CHART_HEIGHT - (dailyCounts[index].count / peak) * (CHART_HEIGHT - 12)).toFixed(
-      1,
-    );
-    const totalY = (CHART_HEIGHT - (cumulative[index] / peak) * (CHART_HEIGHT - 12)).toFixed(1);
-    dailyPoints.push(`${x},${dailyY}`);
-    totalPoints.push(`${x},${totalY}`);
-  }
-  return {
-    dailyLine: dailyPoints.join(" "),
-    totalLine: totalPoints.join(" "),
-    area: `0,${CHART_HEIGHT} ${totalPoints.join(" ")} ${CHART_WIDTH},${CHART_HEIGHT}`,
-  };
-}
+const PENDING_FILTERS: Array<{ value: Severity | "ALL"; label: string }> = [
+  { value: "ALL", label: "全部" },
+  { value: "HIGH", label: "高" },
+  { value: "MEDIUM", label: "中" },
+  { value: "LOW", label: "低" },
+];
 
 const relativeTime = (value: string): string => {
   const diff = Date.now() - new Date(value).getTime();
@@ -59,6 +47,12 @@ const percentOf = (part: number, total: number): string => {
   return `${((part / total) * 100).toFixed(1)}%`;
 };
 
+/** Day label for a `YYYY-MM-DD` bucket key; an unrecognised key shows as-is. */
+const formatDay = (value: string): string => {
+  const match = /^\d{4}-(\d{2})-(\d{2})/.exec(value);
+  return match === null ? value : `${Number(match[1])}月${Number(match[2])}日`;
+};
+
 const todoTagColors: Record<string, string> = {
   高风险: "#b91c1c",
   中风险: "#a16207",
@@ -66,27 +60,54 @@ const todoTagColors: Record<string, string> = {
   待复核: "#0B5C99",
 };
 
+interface Kpi {
+  title: string;
+  value: number | string;
+  suffix: string;
+  delta: string;
+  up: boolean;
+  color: string;
+  /** Where a click lands, so every number has its records one click away. */
+  to: "/audit-cases" | "/audit-runs";
+  lifecycle?: AuditLifecycleFilter;
+}
+
 export default function DashboardPage() {
   const [overview, setOverview] = useState<AuditOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [rangeDays, setRangeDays] = useState(30);
+  const [pendingSeverity, setPendingSeverity] = useState<Severity | "ALL">("ALL");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
+    setLoading(true);
     getAuditOverview()
       .then((data) => {
-        if (!cancelled) setOverview(data);
+        setOverview(data);
+        setUpdatedAt(new Date());
+        setError(null);
       })
-      .catch(() => {
-        if (!cancelled) setError("统计加载失败，请刷新重试");
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch(() => setError("统计加载失败，请刷新重试"))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const pendingCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: overview?.pendingReview.length ?? 0 };
+    for (const item of overview?.pendingReview ?? []) {
+      const key = item.highestSeverity ?? "NONE";
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return counts;
+  }, [overview]);
 
   if (error) {
     return (
-      <div className="dashboard-page">
+      <div className="page">
         <Card>
           <Empty description={error} />
         </Card>
@@ -95,24 +116,27 @@ export default function DashboardPage() {
   }
   if (!overview) {
     return (
-      <div
-        className="dashboard-page"
-        style={{ display: "grid", placeItems: "center", minHeight: 320 }}
-      >
+      <div className="page" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
         <Spin />
       </div>
     );
   }
 
   const weeklyNew = overview.dailyCounts.slice(-7).reduce((sum, day) => sum + day.count, 0);
-  const paths = buildChartPaths(overview.dailyCounts);
+  // The running total is the window's own: switching to 7 days must show what
+  // those 7 days accumulated, not the tail of a 30-day climb.
+  let running = 0;
+  const series = overview.dailyCounts.slice(-rangeDays).map((day) => {
+    running += day.count;
+    return { date: day.date, count: day.count, cumulative: running };
+  });
   const riskTypes = [...overview.findingsByType].sort((left, right) => right.count - left.count);
   const riskTotal = overview.chainHeadFindings;
   const medianSeconds =
     overview.medianAgentDurationMs === null ? null : overview.medianAgentDurationMs / 1000;
   const reviewedTotal = overview.acceptedFindings + overview.rejectedFindings;
 
-  const kpis = [
+  const kpis: Kpi[] = [
     {
       title: "审计案件总量",
       value: overview.totalCases,
@@ -120,14 +144,17 @@ export default function DashboardPage() {
       delta: `近 7 天新增 ${weeklyNew} 件`,
       up: weeklyNew > 0,
       color: "#0B6BB5",
+      to: "/audit-cases",
     },
     {
       title: "待复核案件",
       value: overview.awaitingReview,
       suffix: "",
-      delta: "等待人工闭环",
+      delta: "点击打开待复核队列",
       up: false,
       color: "#a16207",
+      to: "/audit-cases",
+      lifecycle: "AWAITING_REVIEW",
     },
     {
       title: "自动审查中位耗时",
@@ -136,6 +163,7 @@ export default function DashboardPage() {
       delta: `成功运行 ${overview.successfulAgentRuns} 次`,
       up: false,
       color: "#15803d",
+      to: "/audit-runs",
     },
     {
       title: "已确认风险",
@@ -144,6 +172,8 @@ export default function DashboardPage() {
       delta: `误报判定 ${overview.rejectedFindings} 条`,
       up: false,
       color: "#b91c1c",
+      to: "/audit-cases",
+      lifecycle: "COMPLETED",
     },
   ];
 
@@ -165,80 +195,87 @@ export default function DashboardPage() {
     },
   ];
 
+  const visiblePending = overview.pendingReview.filter((item) =>
+    pendingSeverity === "ALL" ? true : item.highestSeverity === pendingSeverity,
+  );
+
+  const kpiCard = (kpi: Kpi) => (
+    <Card className="kpi-card" style={{ borderLeft: `3px solid ${kpi.color}` }}>
+      <Statistic
+        title={kpi.title}
+        value={kpi.value}
+        suffix={kpi.suffix}
+        styles={{ content: { fontSize: 25, fontWeight: 680 } }}
+      />
+      <div className="kpi-hint">
+        {kpi.up && <ArrowUpOutlined style={{ color: "#15803d", marginRight: 4 }} />}
+        <span style={{ color: "#667085", fontSize: 12 }}>{kpi.delta}</span>
+      </div>
+    </Card>
+  );
+
   return (
-    <div className="dashboard-page">
+    <div className="page">
       <div className="page-head">
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
             审计驾驶舱
           </Typography.Title>
           <Typography.Text type="secondary">
-            处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。
+            处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。点击任一指标可下钻到对应记录。
           </Typography.Text>
+        </div>
+        <div className="page-head-actions">
+          {updatedAt !== null && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              更新于 {updatedAt.toLocaleTimeString("zh-CN", { hour12: false })}
+            </Typography.Text>
+          )}
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>
+            刷新
+          </Button>
         </div>
       </div>
 
       <Row gutter={[12, 12]} className="dash-kpis">
         {kpis.map((kpi) => (
           <Col key={kpi.title} xs={24} sm={12} xl={6}>
-            <Card className="kpi-card" style={{ borderLeft: `3px solid ${kpi.color}` }}>
-              <Statistic
-                title={kpi.title}
-                value={kpi.value}
-                suffix={kpi.suffix}
-                valueStyle={{ fontSize: 25, fontWeight: 680 }}
-              />
-              <div className="kpi-hint">
-                {kpi.up && <ArrowUpOutlined style={{ color: "#15803d", marginRight: 4 }} />}
-                <span style={{ color: "#667085", fontSize: 12 }}>{kpi.delta}</span>
-              </div>
-            </Card>
+            {kpi.to === "/audit-runs" ? (
+              <Link className="kpi-link" to="/audit-runs">
+                {kpiCard(kpi)}
+              </Link>
+            ) : (
+              <Link className="kpi-link" to="/audit-cases" search={{ lifecycle: kpi.lifecycle }}>
+                {kpiCard(kpi)}
+              </Link>
+            )}
           </Col>
         ))}
       </Row>
 
-      <Row gutter={12} style={{ marginBottom: 12 }}>
+      <Row gutter={[12, 12]} className="dash-row">
         <Col xs={24} lg={15}>
           <Card
+            className="dash-fill-card"
             title="审计处理趋势"
             size="small"
             extra={
-              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                近 30 天
-              </Typography.Text>
+              <Segmented
+                size="small"
+                value={rangeDays}
+                options={RANGE_OPTIONS}
+                onChange={(value) => setRangeDays(value as number)}
+              />
             }
           >
-            <div className="line-chart-placeholder">
-              <svg
-                viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-                preserveAspectRatio="none"
-                style={{ width: "100%", height: CHART_HEIGHT }}
-              >
-                <title>近 30 天累计案件与每日新增趋势</title>
-                <defs>
-                  <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0B6BB5" stopOpacity="0.15" />
-                    <stop offset="100%" stopColor="#0B6BB5" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <polygon points={paths.area} fill="url(#grad1)" />
-                <polyline points={paths.totalLine} fill="none" stroke="#0B6BB5" strokeWidth="2.5" />
-                <polyline
-                  points={paths.dailyLine}
-                  fill="none"
-                  stroke="#C57A00"
-                  strokeWidth="2"
-                  strokeDasharray="4 3"
-                />
-              </svg>
-            </div>
+            <TrendChart series={series} rangeLabel={`${rangeDays} 天`} formatDay={formatDay} />
             <div className="chart-legend">
               <span>
-                <i style={{ background: "#0B6BB5" }} />
+                <i className="chart-legend__line" />
                 累计案件
               </span>
               <span>
-                <i style={{ background: "#C57A00" }} />
+                <i className="chart-legend__daily" />
                 当日新增
               </span>
             </div>
@@ -246,11 +283,12 @@ export default function DashboardPage() {
         </Col>
         <Col xs={24} lg={9}>
           <Card
+            className="dash-fill-card"
             title="风险发现类型"
             size="small"
             extra={
               <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                按数量降序
+                共 {riskTotal} 条
               </Typography.Text>
             }
           >
@@ -261,19 +299,24 @@ export default function DashboardPage() {
                 {riskTypes.map((item) => {
                   const pct = (item.count / riskTotal) * 100;
                   return (
-                    <div key={item.findingType} className="hbar-row">
-                      <span className="hbar-label">{getFindingTypeLabel(item.findingType)}</span>
-                      <div className="hbar-track">
-                        <div
-                          className="hbar-fill"
-                          style={{
-                            width: `${Math.max(pct, 4)}%`,
-                            background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
-                          }}
-                        />
+                    <Tooltip
+                      key={item.findingType}
+                      title={`${getFindingTypeLabel(item.findingType)} · ${item.count} 条 · 占全部发现的 ${pct.toFixed(1)}%`}
+                    >
+                      <div className="hbar-row">
+                        <span className="hbar-label">{getFindingTypeLabel(item.findingType)}</span>
+                        <div className="hbar-track">
+                          <div
+                            className="hbar-fill"
+                            style={{
+                              width: `${Math.max(pct, 4)}%`,
+                              background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
+                            }}
+                          />
+                        </div>
+                        <b className="hbar-value">{item.count}</b>
                       </div>
-                      <b className="hbar-value">{item.count}</b>
-                    </div>
+                    </Tooltip>
                   );
                 })}
               </div>
@@ -282,9 +325,9 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
-      <Row gutter={12}>
+      <Row gutter={[12, 12]} className="dash-row">
         <Col xs={24} lg={15}>
-          <Card title="质量指标" size="small">
+          <Card className="dash-fill-card" title="质量指标" size="small">
             <Row gutter={10}>
               {qualityMetrics.map((metric) => (
                 <Col key={metric.label} flex={1}>
@@ -300,17 +343,44 @@ export default function DashboardPage() {
           </Card>
         </Col>
         <Col xs={24} lg={9}>
-          <Card title="待我处理" size="small">
-            {overview.pendingReview.length === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无待复核案件" />
+          <Card
+            className="dash-fill-card"
+            title="待我处理"
+            size="small"
+            extra={
+              <Segmented
+                size="small"
+                value={pendingSeverity}
+                options={PENDING_FILTERS.map((option) => ({
+                  value: option.value,
+                  label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
+                }))}
+                onChange={(value) => setPendingSeverity(value as Severity | "ALL")}
+              />
+            }
+          >
+            {visiblePending.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  overview.pendingReview.length === 0
+                    ? "暂无待复核案件"
+                    : "该严重级别下暂无待复核案件"
+                }
+              />
             ) : (
               <div className="todo-list">
-                {overview.pendingReview.map((item) => {
+                {visiblePending.map((item) => {
                   const tag =
                     item.highestSeverity === null ? "待复核" : severityLabels[item.highestSeverity];
                   const color = todoTagColors[tag] ?? "#0B5C99";
                   return (
-                    <div key={item.id} className="todo-item">
+                    <Link
+                      key={item.id}
+                      to="/audit-cases/$id"
+                      params={{ id: item.id }}
+                      className="todo-item"
+                    >
                       <b>{item.title ?? "未命名合同"}</b>
                       <span
                         className="todo-tag"
@@ -319,7 +389,7 @@ export default function DashboardPage() {
                         {tag}
                       </span>
                       <time>{relativeTime(item.updatedAt)}</time>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

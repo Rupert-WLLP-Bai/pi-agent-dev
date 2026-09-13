@@ -9,10 +9,15 @@ import {
   getAuditCases,
   retryAuditCase,
 } from "../api";
+import type { AuditLifecycleFilter } from "../audit-presentation";
 import { AuditQueue } from "../components/audit-queue";
 import { NewAuditDrawer } from "../components/new-audit-drawer";
 
-export default function AuditCasesList() {
+export default function AuditCasesList({
+  initialFilter,
+}: {
+  initialFilter?: AuditLifecycleFilter;
+}) {
   const [createOpen, setCreateOpen] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -69,6 +74,7 @@ export default function AuditCasesList() {
   return (
     <>
       <AuditQueue
+        initialFilter={initialFilter}
         cases={(casesQuery.data ?? []) as never}
         loading={casesQuery.isLoading}
         refreshing={casesQuery.isFetching && !casesQuery.isLoading}

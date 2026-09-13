@@ -15,7 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
 import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 
@@ -29,7 +29,7 @@ const healthLabels = {
   unavailable: "服务不可用",
 } as const;
 
-/** Square, icon-only China Mobile mark plus an explicit wordmark next to it. */
+/** Org mark, product name, and contest badge stacked as one lockup. */
 function BrandMark({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
@@ -42,7 +42,7 @@ function BrandMark({ collapsed }: { collapsed: boolean }) {
   }
   return (
     <div className="brand-lockup">
-      <div className="brand-org">
+      <div className="brand-main">
         <span className="brand-org-plate">
           <img
             src="/brands/chinamobileltd-com-logo.png"
@@ -56,9 +56,11 @@ function BrandMark({ collapsed }: { collapsed: boolean }) {
             }}
           />
         </span>
-        <span className="brand-org-name">中国移动</span>
+        <span className="brand-title">
+          <span className="brand-product-name">合同智能审计智能体</span>
+          <span className="brand-org-name">中国移动</span>
+        </span>
       </div>
-      <div className="brand-product-name">合同智能审计智能体</div>
       <div className="brand-contest">
         <img
           src="/brands/hjs.png"
@@ -194,7 +196,6 @@ function breadcrumbFor(pathname: string) {
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(readStoredCollapse);
-  const [detailCollapsed, setDetailCollapsed] = useState<boolean | null>(null);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const isTablet = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
@@ -207,25 +208,13 @@ export function AppShell() {
   const health = healthQuery.data ?? "checking";
   const showHealth = health !== "ok";
 
-  const detailPage = location.pathname.startsWith("/audit-cases/");
-
-  // A detail page has its own collapse preference slot so switching between the
-  // list and a case keeps each context's own choice.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: detailPage is an intentional trigger — the reset must run on every list/detail navigation, not on one mount.
-  useEffect(() => {
-    setDetailCollapsed(null);
-  }, [detailPage]);
-
-  const autoCollapsed = isTablet || (detailPage && !isMobile);
-  const effectiveCollapsed =
-    detailPage && !isTablet ? (detailCollapsed ?? autoCollapsed) : (userCollapsed ?? autoCollapsed);
+  // Collapse follows the operator's own choice; only a viewport that cannot
+  // afford a 232px rail collapses on its own. Navigating to a detail page is
+  // not a reason to take the navigation away.
+  const effectiveCollapsed = userCollapsed ?? isTablet;
 
   const toggleCollapsed = () => {
     const next = !effectiveCollapsed;
-    if (detailPage && !isTablet) {
-      setDetailCollapsed(next);
-      return;
-    }
     setUserCollapsed(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(COLLAPSE_PREF_KEY, String(next));
@@ -250,6 +239,7 @@ export function AppShell() {
           width={232}
           collapsedWidth={64}
           collapsed={effectiveCollapsed}
+          theme="light"
           trigger={null}
           className="app-sider"
         >
@@ -257,7 +247,7 @@ export function AppShell() {
           {navMenu}
           <div className="app-sider-foot">
             <div className="app-user-tile">
-              <Avatar size={28} style={{ background: "#1C7FC2", flexShrink: 0 }}>
+              <Avatar size={28} style={{ background: "#0B6BB5", flexShrink: 0 }}>
                 审
               </Avatar>
               {!effectiveCollapsed && (
@@ -323,7 +313,7 @@ export function AppShell() {
           onClose={() => setMenuOpen(false)}
           width={260}
           className="app-menu-drawer"
-          styles={{ body: { padding: 0, background: "#0C2D48" } }}
+          styles={{ body: { padding: 0, background: "#ffffff" } }}
         >
           <BrandMark collapsed={false} />
           <Menu

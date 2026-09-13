@@ -124,8 +124,22 @@ export async function submitReview(
 export async function getAuditOverview(): Promise<AuditOverview> {
   const { data, error } = await api.api.stats.overview.get();
   if (error) throw new ApiRequestError("加载统计失败", Number(error.status));
-  return data;
+  // Eden revives anything shaped like a date into a real Date, so the wire types
+  // understate what arrives. Restore the shape this function promises rather than
+  // letting every caller discover the difference at runtime.
+  return {
+    ...data,
+    dailyCounts: data.dailyCounts.map((day) => ({ ...day, date: toDayKey(day.date) })),
+    pendingReview: data.pendingReview.map((item) => ({
+      ...item,
+      updatedAt: new Date(item.updatedAt).toISOString(),
+    })),
+  };
 }
+
+/** `YYYY-MM-DD` for a day bucket that arrived as a Date; anything else passes through. */
+const toDayKey = (value: string | Date): string =>
+  value instanceof Date ? value.toISOString().slice(0, 10) : value;
 
 export async function cancelAuditCase(id: string) {
   const { data, error } = await api.api["audit-cases"]({ id }).cancel.post();

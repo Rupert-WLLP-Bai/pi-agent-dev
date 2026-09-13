@@ -49,7 +49,7 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
 
   // ── 2. Open the trace page and verify the agent's tool calls ──
   await page.getByRole("button", { name: "运行轨迹" }).click();
-  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace$`));
+  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace`));
 
   // The trace card shows the agent identity.
   await expect(page.locator(".trace-card")).toBeVisible();
@@ -96,7 +96,7 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
 
   // ── 5. The trace is still accessible after the case closed ──
   await page.getByRole("button", { name: "运行轨迹" }).click();
-  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace$`));
+  await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}/trace`));
   await expect(page.getByText("开始运行")).toBeVisible();
   await expect(page.getByText("运行完成")).toBeVisible();
   await expect(page.getByText("get_rule_assessments").first()).toBeVisible();
@@ -138,6 +138,8 @@ test("the trace page shows an empty state for a case with no runs", async ({ pag
   // The case exists but has no agent runs — either because it was cancelled
   // before the agent ran, or because the agent ran but the page still shows
   // the empty state when no traces are returned.
+  // Wait for the trace query to settle — the page now shows a skeleton
+  // while loading, then either the empty state or a trace card.
   const emptyState = page.getByText("该案件还没有智能体运行记录");
   const traceCard = page.locator(".trace-card");
   // One of the two states must be visible: either empty or with traces.

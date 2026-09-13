@@ -39,9 +39,16 @@ export default function AuditCaseDetail({ id }: { id: string }) {
 
   const detailQuery = useQuery({ queryKey: ["audit-case", id], queryFn: () => getAuditCase(id) });
 
-  const handleAuditEvent = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ["audit-case", id] });
-  }, [queryClient, id]);
+  const handleAuditEvent = useCallback(
+    (event: { type: string }) => {
+      // agent.trace carries tool payloads that don't change the case detail;
+      // refetching here for every trace frame wastes a request and makes the
+      // detail view flicker during a live run.
+      if (event.type === "agent.trace") return;
+      void queryClient.invalidateQueries({ queryKey: ["audit-case", id] });
+    },
+    [queryClient, id],
+  );
 
   const detail = detailQuery.data;
   const streamEnabled = detail !== undefined && streamStages.has(detail.case.stage);
@@ -92,7 +99,7 @@ export default function AuditCaseDetail({ id }: { id: string }) {
 
   if (detailQuery.isLoading) {
     return (
-      <div className="workbench-loading" aria-busy="true">
+      <div className="page workbench-loading" aria-busy="true">
         <Skeleton active paragraph={{ rows: 8 }} />
       </div>
     );
@@ -138,7 +145,13 @@ export default function AuditCaseDetail({ id }: { id: string }) {
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
         onBack={() => void navigate({ to: "/audit-cases" })}
-        onOpenTrace={() => void navigate({ to: "/audit-cases/$id/trace", params: { id } })}
+        onOpenTrace={() =>
+          void navigate({
+            to: "/audit-cases/$id/trace",
+            params: { id },
+            search: { runId: undefined },
+          })
+        }
       />
       <ReviewDrawer
         finding={review.finding}

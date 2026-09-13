@@ -73,7 +73,6 @@ export function createPiTraceReporter(
   now: () => number = Date.now,
 ): PiTraceReporter {
   const toolStartedAt = new Map<string, number>();
-  const turnStartedAt = new Map<number, number>();
   let toolCalls = 0;
   let started = false;
   let closed = false;
@@ -98,21 +97,6 @@ export function createPiTraceReporter(
             sink(stage(at, "RUN_STARTED"));
           }
           return;
-        case "turn_start": {
-          const turnIndex = raw.turnIndex;
-          if (typeof turnIndex !== "number") return;
-          turnStartedAt.set(turnIndex, now());
-          sink(stage(at, "TURN_STARTED", turnIndex));
-          return;
-        }
-        case "turn_end": {
-          const turnIndex = raw.turnIndex;
-          if (typeof turnIndex !== "number") return;
-          const durationMs = elapsed(turnStartedAt.get(turnIndex));
-          turnStartedAt.delete(turnIndex);
-          sink({ ...stage(at, "TURN_COMPLETED", turnIndex), durationMs });
-          return;
-        }
         case "tool_execution_start": {
           const { toolCallId, toolName } = raw;
           if (typeof toolCallId !== "string" || typeof toolName !== "string") return;

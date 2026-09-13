@@ -1,20 +1,27 @@
 import type { AgentRunSummary } from "@contract-audit/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Alert, Button, Empty, Table, Tag, Typography } from "antd";
+import { Alert, Button, Empty, Table, Tag, Tooltip, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { getAgentRuns } from "../api";
 import {
   agentRunStateLabels,
-  agentRunStateTones,
-  describeTokenUsage,
+  agentRunStateTagColors,
+  formatAgentRuntime,
   formatDuration,
   getAgentRunState,
   shortAuditId,
 } from "../audit-presentation";
+import { TokenUsage } from "../components/token-usage";
 
 const formatTime = (iso: string): string =>
   new Date(iso).toLocaleString("zh-CN", { hour12: false });
+
+/** Who the contract is between, as the contract names them. */
+const describeParties = (parties: ReadonlyArray<{ label: string; name: string }>): string =>
+  parties.length === 0
+    ? "未识别到合同主体"
+    : parties.map((party) => `${party.label} ${party.name}`).join(" · ");
 
 /**
  * Index of recent Agent Runs. A run is only meaningful with the case it
@@ -25,12 +32,28 @@ export default function AuditRunsPage() {
   const runsQuery = useQuery({
     queryKey: ["agent-runs"],
     queryFn: () => getAgentRuns(),
-    // A run in flight produces new steps while the page is open.
-    refetchInterval: (query) =>
-      (query.state.data ?? []).some((run) => getAgentRunState(run, run.caseStatus) === "RUNNING")
+    // A run in flight produces new steps while the page is open. Only the
+    // newest run of each case can be truly running — older unfinished runs
+    // were superseded by a retry and are interrupted.
+    refetchInterval: (query) => {
+      const runs = query.state.data ?? [];
+      const latestPerCase = new Set<string>();
+      for (const run of runs) {
+        if (!latestPerCase.has(run.auditCaseId)) latestPerCase.add(run.auditCaseId);
+      }
+      return runs.some(
+        (run) => getAgentRunState(run, run.caseStatus, latestPerCase.has(run.id)) === "RUNNING",
+      )
         ? 2000
-        : false,
+        : false;
+    },
   });
+
+  // The newest run of each case (first occurrence in the desc-by-createdAt list).
+  const latestRunPerCase = new Set<string>();
+  for (const run of runsQuery.data ?? []) {
+    if (!latestRunPerCase.has(run.auditCaseId)) latestRunPerCase.add(run.auditCaseId);
+  }
 
   const columns: ColumnsType<AgentRunSummary> = [
     {
@@ -38,9 +61,19 @@ export default function AuditRunsPage() {
       dataIndex: "contractTitle",
       render: (_value, record) => (
         <div className="table-primary">
-          {record.contractTitle ?? "未命名合同"}
-          <span className="table-sub">审计 ID {shortAuditId(record.auditCaseId)}</span>
+          <span className="table-title">{record.contractTitle ?? "未命名合同"}</span>
+          <span className="table-sub">{describeParties(record.parties)}</span>
         </div>
+      ),
+    },
+    {
+      title: "审计 ID",
+      key: "auditId",
+      width: 118,
+      render: (_value, record) => (
+        <Tooltip title={record.auditCaseId}>
+          <span className="mono">{shortAuditId(record.auditCaseId)}</span>
+        </Tooltip>
       ),
     },
     {
@@ -48,19 +81,23 @@ export default function AuditRunsPage() {
       key: "state",
       width: 110,
       render: (_value, record) => {
-        const state = getAgentRunState(record, record.caseStatus);
-        return <Tag color={agentRunStateTones[state]}>{agentRunStateLabels[state]}</Tag>;
+        const state = getAgentRunState(record, record.caseStatus, latestRunPerCase.has(record.id));
+        return <Tag color={agentRunStateTagColors[state]}>{agentRunStateLabels[state]}</Tag>;
       },
+    },
+    {
+      title: "Agent 运行时",
+      key: "runtime",
+      width: 120,
+      render: (_value, record) => (
+        <span className="mono">{formatAgentRuntime(record.provider, record.version)}</span>
+      ),
     },
     {
       title: "模型",
       key: "model",
-      width: 220,
-      render: (_value, record) => (
-        <span className="mono">
-          {record.provider} / {record.model}@{record.version}
-        </span>
-      ),
+      width: 150,
+      render: (_value, record) => <span className="mono">{record.model}</span>,
     },
     {
       title: "轨迹步骤",
@@ -79,8 +116,8 @@ export default function AuditRunsPage() {
     {
       title: "Token",
       key: "usage",
-      width: 260,
-      render: (_value, record) => describeTokenUsage(record.usage) ?? "—",
+      width: 230,
+      render: (_value, record) => <TokenUsage usage={record.usage} />,
     },
     {
       title: "开始时间",
@@ -100,6 +137,7 @@ export default function AuditRunsPage() {
             void navigate({
               to: "/audit-cases/$id/trace",
               params: { id: record.auditCaseId },
+              search: { runId: record.id },
             })
           }
         >
@@ -110,7 +148,7 @@ export default function AuditRunsPage() {
   ];
 
   return (
-    <>
+    <div className="page">
       <div className="page-head">
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -139,6 +177,7 @@ export default function AuditRunsPage() {
           columns={columns}
           dataSource={runsQuery.data ?? []}
           loading={runsQuery.isLoading}
+          scroll={{ x: "max-content" }}
           pagination={false}
           locale={{
             emptyText: (
@@ -153,6 +192,6 @@ export default function AuditRunsPage() {
           }}
         />
       )}
-    </>
+    </div>
   );
 }

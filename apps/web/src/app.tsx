@@ -6,6 +6,7 @@ import {
   Navigate,
   RouterProvider,
 } from "@tanstack/react-router";
+import type { AuditLifecycleFilter } from "./audit-presentation";
 import { AppShell } from "./components/app-shell";
 import AuditCaseDetail from "./routes/audit-case-detail";
 import AuditCasesList from "./routes/audit-cases";
@@ -16,6 +17,14 @@ import DemoPage from "./routes/demo";
 
 const queryClient = new QueryClient();
 
+const LIFECYCLE_FILTERS: readonly AuditLifecycleFilter[] = [
+  "ALL",
+  "AWAITING_REVIEW",
+  "PROCESSING",
+  "COMPLETED",
+  "CANCELLED",
+  "ABNORMAL",
+];
 const rootRoute = createRootRoute({ component: () => <AppShell /> });
 
 const indexRoute = createRoute({
@@ -45,8 +54,20 @@ const runsRoute = createRoute({
 const listRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audit-cases",
-  component: AuditCasesList,
+  // The cockpit drills into a filtered queue, so the filter has to survive the
+  // navigation. An unknown value is dropped rather than trusted.
+  validateSearch: (search: Record<string, unknown>): { lifecycle?: AuditLifecycleFilter } => ({
+    lifecycle: LIFECYCLE_FILTERS.includes(search.lifecycle as AuditLifecycleFilter)
+      ? (search.lifecycle as AuditLifecycleFilter)
+      : undefined,
+  }),
+  component: AuditCasesRoute,
 });
+
+function AuditCasesRoute() {
+  const { lifecycle } = listRoute.useSearch();
+  return <AuditCasesList initialFilter={lifecycle} />;
+}
 
 function AuditCaseDetailRoute() {
   const { id } = detailRoute.useParams();
@@ -61,12 +82,16 @@ const detailRoute = createRoute({
 
 function AuditTraceRoute() {
   const { id } = traceRoute.useParams();
-  return <AuditTracePage id={id} />;
+  const { runId } = traceRoute.useSearch();
+  return <AuditTracePage id={id} initialRunId={runId ?? null} />;
 }
 
 const traceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/audit-cases/$id/trace",
+  validateSearch: (search: Record<string, unknown>) => ({
+    runId: typeof search.runId === "string" ? search.runId : undefined,
+  }),
   component: AuditTraceRoute,
 });
 
