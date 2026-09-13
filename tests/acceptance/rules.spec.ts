@@ -1,4 +1,24 @@
+import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import postgres from "postgres";
+
+/**
+ * These specs create real rules (and an ADVANCE draft) through the live API,
+ * so they must not leave test rows in the shared dev database.
+ */
+test.afterAll(async () => {
+  const envFile = readFileSync(".env", "utf8");
+  const match = envFile.match(/^DATABASE_URL=(.*)$/m);
+  if (!match) throw new Error("DATABASE_URL missing from .env — cannot clean up test rules");
+  const sql = postgres(match[1].trim());
+  try {
+    await sql`delete from rules where code like 'PLAYWRIGHT_RULE_%'`;
+    await sql`delete from rule_versions where status = 'draft'
+      and rule_id in (select id from rules where code = 'ADVANCE_PAYMENT_LIMIT')`;
+  } finally {
+    await sql.end();
+  }
+});
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
