@@ -52,9 +52,10 @@ export class AuditDispatcher {
    * RUNNING work would run the same case twice.
    */
   async enqueue(auditCaseId: string): Promise<void> {
-    const auditCase = await this.repository.getCase(auditCaseId);
-    if (auditCase === null || auditCase.status === "RUNNING") return;
-    await this.repository.updateCaseStatus(auditCaseId, "PENDING", "QUEUED");
+    // Atomically promote to PENDING only if the case is not already RUNNING.
+    // This prevents a race where two dispatchers interleave getCase + update
+    // and one reverts an already-claimed RUNNING case back to PENDING.
+    await this.repository.requeueIfNotRunning(auditCaseId);
     await this.processQueue();
   }
 

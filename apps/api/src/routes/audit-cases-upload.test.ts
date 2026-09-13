@@ -1,4 +1,7 @@
-import { expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { type AuditApp, createApp } from "../app";
 import {
   FakeDispatcher,
@@ -15,6 +18,13 @@ import {
 
 const MAX_UPLOAD_BYTES = 10_485_760;
 const UPLOAD_URL = "http://localhost/api/audit-cases/upload";
+
+// A throwaway directory keeps the test from writing into var/uploads.
+const UPLOAD_DIR = mkdtempSync(join(tmpdir(), "contract-upload-test-"));
+process.env.UPLOAD_DIR = UPLOAD_DIR;
+
+// Ensure cleanup after all tests in this file.
+afterAll(() => rmSync(UPLOAD_DIR, { recursive: true, force: true }));
 
 /**
  * Builds a minimal single-page PDF by hand (two text lines via the Tj

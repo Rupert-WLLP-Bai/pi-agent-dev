@@ -423,6 +423,16 @@ export class InMemoryAuditCaseRepository {
     state.updatedAt = new Date().toISOString();
   }
 
+  async requeueIfNotRunning(caseId: string): Promise<boolean> {
+    const state = this.cases.get(caseId);
+    if (!state) return false;
+    if (state.status === "RUNNING") return false;
+    state.status = "PENDING";
+    state.stage = "QUEUED";
+    state.updatedAt = new Date().toISOString();
+    return true;
+  }
+
   async setCaseAssignment(
     caseId: string,
     input: { assignee?: string | null; priority?: ReviewPriority | null },

@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository, Remediation } from "../db/repositories";
+import { operatorFrom } from "../operator-header";
 import type { AuditEventBroker } from "../sse";
 
 export interface RemediationsRouteDeps {
@@ -85,10 +86,11 @@ export function remediationsRoutes({ repository, broker }: RemediationsRouteDeps
     )
     .post(
       "/api/remediations/:id/close",
-      async ({ params, body, set }) => {
+      async ({ params, body, headers, set }) => {
         let closed: Remediation;
         try {
-          closed = await repository.closeRemediation(params.id, body.closedBy);
+          const closedBy = operatorFrom(headers) ?? body.closedBy;
+          closed = await repository.closeRemediation(params.id, closedBy);
         } catch (error) {
           const message = errorMessage(error);
           if (message.startsWith("REMEDIATION_NOT_FOUND")) {

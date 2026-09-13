@@ -22,7 +22,7 @@ import type {
 import type { AgentRunIdentity, ReviewPriority } from "@contract-audit/audit/ports";
 import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
 import {
@@ -709,6 +709,20 @@ export class AuditCaseRepository {
       .update(auditCases)
       .set({ status, stage, updatedAt: new Date() })
       .where(eq(auditCases.id, caseId));
+  }
+
+  /**
+   * Atomically promotes a case back to PENDING only if it is not RUNNING.
+   * This prevents a race where two dispatchers interleave getCase + update
+   * and one reverts an already-claimed RUNNING case.
+   */
+  async requeueIfNotRunning(caseId: string): Promise<boolean> {
+    const result = await this.db
+      .update(auditCases)
+      .set({ status: "PENDING", stage: "QUEUED", updatedAt: new Date() })
+      .where(and(eq(auditCases.id, caseId), ne(auditCases.status, "RUNNING")))
+      .returning({ id: auditCases.id });
+    return result.length > 0;
   }
 
   /**
