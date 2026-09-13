@@ -3,6 +3,7 @@ import type {
   AgentTraceStep,
   AuditSnapshot,
   FindingProposal,
+  RemediationStatus,
   SubjectCandidate,
   SubjectMatchStatus,
 } from "./model";
@@ -88,7 +89,16 @@ export type AuditEvent =
       auditCaseId: string;
       assignee: string | null;
       priority: ReviewPriority | null;
-    };
+    }
+  | { type: "remediation.created"; auditCaseId: string; id: string }
+  | {
+      type: "remediation.transitioned";
+      auditCaseId: string;
+      id: string;
+      from: RemediationStatus;
+      to: RemediationStatus;
+    }
+  | { type: "remediation.closed"; auditCaseId: string; id: string };
 
 /**
  * Review queue priority. An operator-facing ordering aid, not a severity: a

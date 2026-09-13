@@ -13,6 +13,7 @@ import { createQccSubjectVerificationPort } from "./qcc/adapter";
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
+import { remediationsRoutes } from "./routes/remediations";
 import { reviewsRoutes } from "./routes/reviews";
 import { statsRoutes } from "./routes/stats";
 import { AuditEventBroker } from "./sse";
@@ -23,6 +24,10 @@ export type {
   AuditOverview,
   CaseSummary,
   ReviewQueueItem,
+  Remediation,
+  RemediationBoard,
+  RemediationCard,
+  RemediationColumn,
 } from "./db/repositories";
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
@@ -48,6 +53,7 @@ export function createApp(deps: AppDeps) {
     .use(auditCasesRoutes(deps))
     .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
+    .use(remediationsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(
       reviewsRoutes({
         repository: deps.repository,

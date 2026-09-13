@@ -22,6 +22,7 @@
     "./ports": "./src/ports.ts",
     "./demo-contracts": "./src/demo-contracts.ts",
     "./workspace": "./src/workspace.ts",
-    "./finding-labels": "./src/finding-labels.ts"
+    "./finding-labels": "./src/finding-labels.ts",
+    "./remediation": "./src/remediation.ts"
   }
 }

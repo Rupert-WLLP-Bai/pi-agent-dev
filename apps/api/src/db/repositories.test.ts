@@ -139,7 +139,7 @@ dbTest(
     const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
     const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
 
-    const reviewId = await repository.appendReviewRevision(proposalId, seedReview);
+    const { findingId: reviewId } = await repository.appendReviewRevision(proposalId, seedReview);
 
     const original = await repository.getFinding(proposalId);
     const reviewRevision = await repository.getFinding(reviewId);
@@ -163,6 +163,119 @@ dbTest("rejects a second review of the same finding", async (repository) => {
   await expect(
     repository.appendReviewRevision(proposalId, { ...seedReview, decision: "REJECTED" }),
   ).rejects.toThrow(/FINDING_ALREADY_REVIEWED/);
+});
+
+dbTest("accepting a finding opens one pending remediation", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
+
+  const { remediationId } = await repository.appendReviewRevision(proposalId, seedReview);
+  expect(remediationId).not.toBeNull();
+
+  const board = await repository.getRemediationBoard();
+  const card = board.columns.flatMap((column) => column.items).find(
+    (item) => item.id === remediationId,
+  );
+  expect(card).toMatchObject({
+    caseId,
+    summary: "预付款比例超过制度上限",
+    severity: "HIGH",
+    owner: null,
+    dueAt: null,
+    overdue: false,
+});
+});
+
+dbTest("rejecting a finding opens no remediation", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
+
+  const result = await repository.appendReviewRevision(proposalId, {
+    ...seedReview,
+    decision: "REJECTED",
+    reason: "误报",
+});
+  expect(result.remediationId).toBeNull();
+
+  const board = await repository.getRemediationBoard();
+  const cards = board.columns.flatMap((column) => column.items);
+  expect(cards.some((item) => item.caseId === caseId)).toBe(false);
+});
+
+dbTest("advances a remediation one step at a time", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
+  const { remediationId } = await repository.appendReviewRevision(proposalId, seedReview);
+  if (remediationId === null) throw new Error("expected a remediation");
+
+  // Skipping 整改中 land on 待复核 is not a legal move.
+  await expect(
+    repository.updateRemediation(remediationId, { status: "awaiting_review" }),
+  ).rejects.toThrow(/REMEDIATION_ILLEGAL_TRANSITION/);
+
+  const inProgress = await repository.updateRemediation(remediationId, {
+    owner: "张工",
+    status: "in_progress",
+});
+  expect(inProgress).toMatchObject({ status: "in_progress", owner: "张工" });
+
+  const awaiting = await repository.updateRemediation(remediationId, { status: "awaiting_review" });
+  expect(awaiting.status).toBe("awaiting_review");
+
+  // Closing is the reviewer's separate action, never a transition target.
+  await expect(
+    repository.updateRemediation(remediationId, { status: "closed" }),
+  ).rejects.toThrow(/REMEDIATION_ILLEGAL_TRANSITION/);
+});
+
+dbTest("closing needs awaiting review and a reviewer other than the owner", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
+  const { remediationId } = await repository.appendReviewRevision(proposalId, seedReview);
+  if (remediationId === null) throw new Error("expected a remediation");
+
+  await expect(repository.closeRemediation(remediationId, "李复核")).rejects.toThrow(
+    /REMEDIATION_NOT_AWAITING_REVIEW/,
+  );
+
+  await repository.updateRemediation(remediationId, { owner: "张工", status: "in_progress" });
+  await repository.updateRemediation(remediationId, { status: "awaiting_review" });
+
+  // The person who owned the fix may not confirm it themselves.
+  await expect(repository.closeRemediation(remediationId, "张工")).rejects.toThrow(
+    /REMEDIATION_SELF_CLOSE/,
+  );
+
+  const closed = await repository.closeRemediation(remediationId, "李复核");
+  expect(closed).toMatchObject({ status: "closed", closedBy: "李复核", owner: "张工" });
+  expect(closed.closedAt).not.toBeNull();
+
+  // Closed is terminal: no further edits.
+  await expect(repository.updateRemediation(remediationId, { owner: "王" })).rejects.toThrow(
+    /REMEDIATION_CLOSED/,
+  );
+});
+
+dbTest("marks an open remediation overdue once its deadline has passed", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const proposalId = await repository.appendFindingRevision(caseId, seedProposal, null);
+  const { remediationId } = await repository.appendReviewRevision(proposalId, seedReview);
+  if (remediationId === null) throw new Error("expected a remediation");
+
+  await repository.updateRemediation(remediationId, {
+    dueAt: new Date(Date.now() - 60_000).toISOString(),
+});
+
+  const board = await repository.getRemediationBoard();
+  const card = board.columns.flatMap((column) => column.items).find(
+    (item) => item.id === remediationId,
+  );
+  expect(card?.overdue).toBe(true);
 });
 
 dbTest("marks stale running cases interrupted", async (repository) => {

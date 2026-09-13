@@ -3,6 +3,8 @@ import type {
   AuditOverview,
   CaseSummary,
   createApp,
+  Remediation,
+  RemediationBoard,
   ReviewQueueItem,
 } from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
@@ -151,6 +153,60 @@ export async function assignCase(id: string, input: AssignCaseInput) {
     ...(input.priority === undefined ? {} : { priority: input.priority }),
   });
   if (error) throw new ApiRequestError("指派复核失败", error.status);
+  return data;
+}
+
+/**
+ * Picks the API's Chinese reason out of an Eden error body. A write refused for
+ * a business reason (an illegal advance, a self-confirm) carries the reason the
+ * operator needs, so the client surfaces it instead of a generic failure.
+ */
+function apiErrorDetail(error: { value: unknown }): string | null {
+  const { value } = error;
+  if (value === null || typeof value !== "object" || !("error" in value)) return null;
+  const message = value.error;
+  return typeof message === "string" && message.length > 0 ? message : null;
+}
+
+/** The 整改跟踪 board: four lifecycle columns, each with its cards and count. */
+export async function listRemediations(): Promise<RemediationBoard> {
+  const { data, error } = await api.api.remediations.get();
+  if (error) throw new ApiRequestError("加载整改看板失败", Number(error.status));
+  return data;
+}
+
+export interface UpdateRemediationInput {
+  owner?: string | null;
+  dueAt?: string | null;
+  progressNote?: string | null;
+  /** Advance exactly one step; `closed` is only reachable through closeRemediation. */
+  status?: "in_progress" | "awaiting_review";
+}
+
+export async function updateRemediation(
+  id: string,
+  input: UpdateRemediationInput,
+): Promise<Remediation> {
+  const { data, error } = await api.api.remediations({ id }).patch({
+    ...(input.owner === undefined ? {} : { owner: input.owner }),
+    ...(input.dueAt === undefined ? {} : { dueAt: input.dueAt }),
+    ...(input.progressNote === undefined ? {} : { progressNote: input.progressNote }),
+    ...(input.status === undefined ? {} : { status: input.status }),
+  });
+  if (error) {
+    throw new ApiRequestError(apiErrorDetail(error) ?? "更新整改项失败", Number(error.status));
+}
+  if ("error" in data) throw new ApiRequestError("更新整改项失败", 500);
+  return data;
+}
+
+/** Closes a 待复核 item. The reviewer must differ from the owner. */
+export async function closeRemediation(id: string, closedBy: string): Promise<Remediation> {
+  const { data, error } = await api.api.remediations({ id }).close.post({ closedBy });
+  if (error) {
+    throw new ApiRequestError(apiErrorDetail(error) ?? "关闭整改项失败", Number(error.status));
+}
+  if ("error" in data) throw new ApiRequestError("关闭整改项失败", 500);
   return data;
 }
 

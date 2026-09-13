@@ -1775,3 +1775,153 @@ a.todo-item:focus-visible {
 .trace-step__body {
   margin-top: 6px;
 }
+
+/* ── Remediation Board ──────────────────────── */
+
+.remediation-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+.remediation-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 160px;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+}
+.remediation-column__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.remediation-column__title {
+  font-size: 13px;
+  font-weight: 650;
+}
+.remediation-column__count {
+  min-width: 20px;
+  padding: 0 6px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  border-radius: 999px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.remediation-column__note {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+/* Column flag: a shape plus the header's words, never colour alone. */
+.remediation-flag {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: var(--color-neutral);
+}
+.remediation-flag--warning {
+  background: var(--color-warning);
+}
+.remediation-flag--info {
+  background: var(--color-info);
+}
+.remediation-flag--success {
+  background: var(--color-success);
+}
+.remediation-flag--danger {
+  background: var(--color-danger);
+}
+.remediation-column__cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.remediation-column__empty {
+  padding: 10px 6px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.remediation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+}
+.remediation-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(11, 107, 181, 0.12);
+}
+.remediation-card__title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.remediation-card__summary {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.remediation-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.remediation-card__owner {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+/* Overdue states the fact with icon + text + colour, never colour alone. */
+.remediation-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.remediation-due--overdue {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.remediation-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-4);
+}
+.remediation-editor label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.remediation-editor .ant-btn {
+  align-self: flex-start;
+}
+.remediation-actions {
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .remediation-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+}
+@media (max-width: 767px) {
+  .remediation-board {
+    grid-template-columns: 1fr;
+}
+}
