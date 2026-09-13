@@ -45,12 +45,7 @@ const auditStages = [
   "CANCELLED",
   "INTERRUPTED",
 ] as const;
-const remediationStatuses = [
-  "pending",
-  "in_progress",
-  "awaiting_review",
-  "closed",
-] as const;
+const remediationStatuses = ["pending", "in_progress", "awaiting_review", "closed"] as const;
 
 export const sourceRecords = pgTable("source_records", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -201,7 +196,7 @@ export const remediations = pgTable(
     progressNote: text("progress_note"),
     closedBy: text("closed_by"),
     closedAt: timestamp("closed_at", { withTimezone: true, mode: "date" }),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   },
   (table) => [uniqueIndex("remediations_finding_revision_idx").on(table.findingRevisionId)],

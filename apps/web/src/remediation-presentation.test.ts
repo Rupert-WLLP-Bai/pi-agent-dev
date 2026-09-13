@@ -36,13 +36,21 @@ test("accepts only the single legal next step", () => {
 });
 
 test("the four columns follow the lifecycle order", () => {
-  expect([...remediationStatusOrder]).toEqual(["pending", "in_progress", "awaiting_review", "closed"]);
+  expect([...remediationStatusOrder]).toEqual([
+    "pending",
+    "in_progress",
+    "awaiting_review",
+    "closed",
+  ]);
   for (const status of remediationStatusOrder) expect(remediationStatusLabels[status]).toBeTruthy();
 });
 
 test("describeAdvance maps each stage to its button state", () => {
   expect(describeAdvance("pending")).toEqual({ next: "in_progress", label: "推进至整改中" });
-  expect(describeAdvance("in_progress")).toEqual({ next: "awaiting_review", label: "推进至待复核" });
+  expect(describeAdvance("in_progress")).toEqual({
+    next: "awaiting_review",
+    label: "推进至待复核",
+  });
   expect(describeAdvance("awaiting_review")).toEqual({ next: null, label: "等待复核关闭" });
   expect(describeAdvance("closed")).toEqual({ next: null, label: "已关闭" });
 });

@@ -195,7 +195,7 @@ export async function updateRemediation(
   });
   if (error) {
     throw new ApiRequestError(apiErrorDetail(error) ?? "更新整改项失败", Number(error.status));
-}
+  }
   if ("error" in data) throw new ApiRequestError("更新整改项失败", 500);
   return data;
 }
@@ -205,7 +205,7 @@ export async function closeRemediation(id: string, closedBy: string): Promise<Re
   const { data, error } = await api.api.remediations({ id }).close.post({ closedBy });
   if (error) {
     throw new ApiRequestError(apiErrorDetail(error) ?? "关闭整改项失败", Number(error.status));
-}
+  }
   if ("error" in data) throw new ApiRequestError("关闭整改项失败", 500);
   return data;
 }

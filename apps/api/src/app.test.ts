@@ -369,7 +369,7 @@ const remediationProposal: FindingProposal = {
   rationale: "Advance payment exceeds the policy limit",
   evidenceIds: ["contract-payment"],
   remediation: "Reduce the advance payment ratio",
-  };
+};
 
 /** Seeds a case with one finding and confirms it as risk. */
 async function seedAcceptedCase(sourceId: string): Promise<string> {
@@ -404,7 +404,11 @@ test("accepting a review opens a remediation; rejecting opens none", async () =>
     "source-rem-reject",
     snapshotStub(),
   );
-  const rejectedFinding = await repository.appendFindingRevision(rejectedCase, remediationProposal, null);
+  const rejectedFinding = await repository.appendFindingRevision(
+    rejectedCase,
+    remediationProposal,
+    null,
+  );
   await app.handle(
     json("POST", `/api/findings/${rejectedFinding}/reviews`, {
       decision: "REJECTED",
@@ -455,7 +459,9 @@ test("closing needs 待复核 and a reviewer other than the owner", async () => 
   );
   expect(tooEarly.status).toBe(409);
 
-  await app.handle(json("PATCH", `/api/remediations/${id}`, { owner: "张工", status: "in_progress" }));
+  await app.handle(
+    json("PATCH", `/api/remediations/${id}`, { owner: "张工", status: "in_progress" }),
+  );
   await app.handle(json("PATCH", `/api/remediations/${id}`, { status: "awaiting_review" }));
 
   const self = await app.handle(

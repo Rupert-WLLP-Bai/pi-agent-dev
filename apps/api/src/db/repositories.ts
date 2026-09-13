@@ -596,7 +596,7 @@ export class AuditCaseRepository {
 
       if (review.decision !== "ACCEPTED") {
         return { findingId: row.id, remediationId: null };
-  }
+      }
       const [remediation] = await tx
         .insert(remediations)
         .values({
@@ -728,7 +728,7 @@ export class AuditCaseRepository {
         dueAt,
         overdue: status !== "closed" && dueAt !== null && Date.parse(dueAt) < now.getTime(),
       });
-  }
+    }
     const columns = remediationStatusOrder.map((status) => ({
       status,
       count: itemsByStatus[status].length,
@@ -767,15 +767,15 @@ export class AuditCaseRepository {
       if (input.owner !== undefined) patch.owner = input.owner;
       if (input.dueAt !== undefined) {
         patch.dueAt = input.dueAt === null ? null : new Date(input.dueAt);
-  }
+      }
       if (input.progressNote !== undefined) patch.progressNote = input.progressNote;
       if (input.status !== undefined) {
         const expected = nextRemediationStatus(row.status);
         if (expected === null || input.status !== expected) {
           throw new Error(`REMEDIATION_ILLEGAL_TRANSITION: ${row.status}->${input.status}`);
-  }
+        }
         patch.status = input.status;
-  }
+      }
 
       const [updated] = await tx
         .update(remediations)
@@ -803,10 +803,10 @@ export class AuditCaseRepository {
       if (row.status === "closed") throw new Error(`REMEDIATION_ALREADY_CLOSED: ${id}`);
       if (row.status !== "awaiting_review") {
         throw new Error(`REMEDIATION_NOT_AWAITING_REVIEW: ${row.status}`);
-  }
+      }
       if (row.owner !== null && row.owner === reviewer) {
         throw new Error(`REMEDIATION_SELF_CLOSE: ${id}`);
-  }
+      }
 
       const now = new Date();
       const [updated] = await tx

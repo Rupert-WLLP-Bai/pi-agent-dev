@@ -159,7 +159,9 @@ export default function AuditCaseDetail({
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
         backLabel={origin === null ? undefined : originHome[origin].label}
-        onBack={() => void navigate({ to: origin === null ? "/audit-cases" : originHome[origin].to })}
+        onBack={() =>
+          void navigate({ to: origin === null ? "/audit-cases" : originHome[origin].to })
+        }
         onOpenTrace={() =>
           void navigate({
             to: "/audit-cases/$id/trace",

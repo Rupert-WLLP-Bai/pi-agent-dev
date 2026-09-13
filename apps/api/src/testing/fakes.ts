@@ -19,11 +19,11 @@ import type {
   AuditEvent,
   ReviewPriority,
 } from "@contract-audit/audit/ports";
+import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type {
   SubjectSourceRecord,
   SubjectVerificationRun,
 } from "@contract-audit/audit/subject-verification";
-import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import {
   type AuditCaseRepository,
   compareReviewQueueItems,
@@ -286,10 +286,8 @@ export class InMemoryAuditCaseRepository {
         owner: item.owner,
         dueAt: item.dueAt,
         overdue:
-          item.status !== "closed" &&
-          item.dueAt !== null &&
-          Date.parse(item.dueAt) < now.getTime(),
-    });
+          item.status !== "closed" && item.dueAt !== null && Date.parse(item.dueAt) < now.getTime(),
+      });
     }
     const columns = remediationStatusOrder.map((status) => ({
       status,

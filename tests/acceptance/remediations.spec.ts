@@ -92,14 +92,12 @@ test("remediation items auto-create, advance, and close only by a reviewer", asy
   await closeDialog.getByLabel("复核人").fill("李复核");
   await closeDialog.getByRole("button", { name: "确认关闭" }).click();
   await expect(page.getByText("整改项已关闭").first()).toBeVisible();
-  await expect(columns.nth(3).locator(`.remediation-card[data-case-id="${caseId}"]`)).toHaveCount(1);
+  await expect(columns.nth(3).locator(`.remediation-card[data-case-id="${caseId}"]`)).toHaveCount(
+    1,
+  );
 
   // ── 7. The card links back to the case, carrying the remediation origin ──
-  await columns
-    .nth(3)
-    .locator(`.remediation-card[data-case-id="${caseId}"]`)
-    .first()
-    .click();
+  await columns.nth(3).locator(`.remediation-card[data-case-id="${caseId}"]`).first().click();
   await page.locator(".remediation-drawer").getByRole("button", { name: "打开审计案件" }).click();
   await expect(page).toHaveURL(new RegExp(`/audit-cases/${caseId}\\?origin=remediations`));
   await expect(page.getByRole("button", { name: /返回整改跟踪/ })).toBeVisible();

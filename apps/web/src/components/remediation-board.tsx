@@ -155,7 +155,8 @@ export function RemediationKanban({
   };
 
   const advanceState = selectedStatus === null ? null : describeAdvance(selectedStatus);
-  const selfClose = selected !== null && selected.owner !== null && reviewer.trim() === selected.owner;
+  const selfClose =
+    selected !== null && selected.owner !== null && reviewer.trim() === selected.owner;
 
   return (
     <section className="page">

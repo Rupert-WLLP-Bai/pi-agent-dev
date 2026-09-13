@@ -1918,10 +1918,10 @@ a.todo-item:focus-visible {
 @media (max-width: 1023px) {
   .remediation-board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-}
+  }
 }
 @media (max-width: 767px) {
   .remediation-board {
     grid-template-columns: 1fr;
-}
+  }
 }

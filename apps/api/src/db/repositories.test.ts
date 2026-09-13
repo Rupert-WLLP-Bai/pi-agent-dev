@@ -174,9 +174,9 @@ dbTest("accepting a finding opens one pending remediation", async (repository) =
   expect(remediationId).not.toBeNull();
 
   const board = await repository.getRemediationBoard();
-  const card = board.columns.flatMap((column) => column.items).find(
-    (item) => item.id === remediationId,
-  );
+  const card = board.columns
+    .flatMap((column) => column.items)
+    .find((item) => item.id === remediationId);
   expect(card).toMatchObject({
     caseId,
     summary: "预付款比例超过制度上限",
@@ -184,7 +184,7 @@ dbTest("accepting a finding opens one pending remediation", async (repository) =
     owner: null,
     dueAt: null,
     overdue: false,
-});
+  });
 });
 
 dbTest("rejecting a finding opens no remediation", async (repository) => {
@@ -196,7 +196,7 @@ dbTest("rejecting a finding opens no remediation", async (repository) => {
     ...seedReview,
     decision: "REJECTED",
     reason: "误报",
-});
+  });
   expect(result.remediationId).toBeNull();
 
   const board = await repository.getRemediationBoard();
@@ -219,16 +219,16 @@ dbTest("advances a remediation one step at a time", async (repository) => {
   const inProgress = await repository.updateRemediation(remediationId, {
     owner: "张工",
     status: "in_progress",
-});
+  });
   expect(inProgress).toMatchObject({ status: "in_progress", owner: "张工" });
 
   const awaiting = await repository.updateRemediation(remediationId, { status: "awaiting_review" });
   expect(awaiting.status).toBe("awaiting_review");
 
   // Closing is the reviewer's separate action, never a transition target.
-  await expect(
-    repository.updateRemediation(remediationId, { status: "closed" }),
-  ).rejects.toThrow(/REMEDIATION_ILLEGAL_TRANSITION/);
+  await expect(repository.updateRemediation(remediationId, { status: "closed" })).rejects.toThrow(
+    /REMEDIATION_ILLEGAL_TRANSITION/,
+  );
 });
 
 dbTest("closing needs awaiting review and a reviewer other than the owner", async (repository) => {
@@ -269,12 +269,12 @@ dbTest("marks an open remediation overdue once its deadline has passed", async (
 
   await repository.updateRemediation(remediationId, {
     dueAt: new Date(Date.now() - 60_000).toISOString(),
-});
+  });
 
   const board = await repository.getRemediationBoard();
-  const card = board.columns.flatMap((column) => column.items).find(
-    (item) => item.id === remediationId,
-  );
+  const card = board.columns
+    .flatMap((column) => column.items)
+    .find((item) => item.id === remediationId);
   expect(card?.overdue).toBe(true);
 });
 
