@@ -1,4 +1,4 @@
-import { DeleteOutlined, PlusOutlined, PlayCircleOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlayCircleOutlined, PlusOutlined } from "@ant-design/icons";
 import type { RuleDetail, ValidationRunRecord } from "@contract-audit/api";
 import {
   Alert,
@@ -15,7 +15,7 @@ import {
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
-import type { RuleParamValue, RuleParams } from "../rule-presentation";
+import type { RuleParams } from "../rule-presentation";
 import {
   describePublishGate,
   describeRuleIo,
@@ -120,7 +120,9 @@ export function RuleEditor({
 
   const gate = describePublishGate(detail);
   const io = describeRuleIo(detail.rule.code);
-  const chips = summarizeValidation(validationRun?.summary ?? detail.draftValidationRun?.summary ?? null);
+  const chips = summarizeValidation(
+    validationRun?.summary ?? detail.draftValidationRun?.summary ?? null,
+  );
   const failures = failedValidationCases(validationRun ?? detail.draftValidationRun);
   const latestRun = validationRun ?? detail.draftValidationRun;
 
@@ -189,15 +191,21 @@ export function RuleEditor({
         bordered
         items={[
           { key: "input", label: "确定性输入", children: <span className="mono">{io.input}</span> },
-          { key: "output", label: "确定性输出", children: <span className="mono">{io.output}</span> },
+          {
+            key: "output",
+            label: "确定性输出",
+            children: <span className="mono">{io.output}</span>,
+          },
         ]}
       />
       <Typography.Text type="secondary">
         规则逻辑保持确定性 TypeScript；这里维护的是它读取的参数集。
       </Typography.Text>
-      {paramRows.length === 0 && <Typography.Text type="secondary">该规则没有参数。</Typography.Text>}
+      {paramRows.length === 0 && (
+        <Typography.Text type="secondary">该规则没有参数。</Typography.Text>
+      )}
       {paramRows.map((row, index) => (
-        <div className="rule-param-row" key={`${row.key}-${index}`}>
+        <div className="rule-param-row" key={row.key}>
           <Input
             className="mono"
             aria-label={`参数名 ${index + 1}`}
@@ -229,7 +237,9 @@ export function RuleEditor({
             danger
             icon={<DeleteOutlined />}
             aria-label={`删除参数 ${index + 1}`}
-            onClick={() => setParamRows((rows) => rows.filter((_, itemIndex) => itemIndex !== index))}
+            onClick={() =>
+              setParamRows((rows) => rows.filter((_, itemIndex) => itemIndex !== index))
+            }
           />
         </div>
       ))}
@@ -306,9 +316,7 @@ export function RuleEditor({
           ))}
         </div>
       ) : (
-        <Typography.Text type="secondary">
-          尚未运行验证。发布前必须通过案例验证。
-        </Typography.Text>
+        <Typography.Text type="secondary">尚未运行验证。发布前必须通过案例验证。</Typography.Text>
       )}
 
       {failures.length > 0 && (
@@ -329,7 +337,12 @@ export function RuleEditor({
       <div className="rule-publish">
         <Tooltip title={gate.reason ?? undefined}>
           <span>
-            <Button type="primary" disabled={!gate.enabled} loading={publishing} onClick={onPublish}>
+            <Button
+              type="primary"
+              disabled={!gate.enabled}
+              loading={publishing}
+              onClick={onPublish}
+            >
               发布
             </Button>
           </span>

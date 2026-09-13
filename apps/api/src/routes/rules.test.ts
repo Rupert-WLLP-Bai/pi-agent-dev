@@ -94,8 +94,12 @@ test("lists rules with the latest version and its status", async () => {
 
 test("returns 404 for an unknown rule", async () => {
   expect((await app.handle(json("GET", "/api/rules/missing"))).status).toBe(404);
-  expect((await app.handle(json("POST", "/api/rules/missing/validate", { triggeredBy: "x" }))).status).toBe(404);
-  expect((await app.handle(json("POST", "/api/rules/missing/publish", { publishedBy: "x" }))).status).toBe(404);
+  expect(
+    (await app.handle(json("POST", "/api/rules/missing/validate", { triggeredBy: "x" }))).status,
+  ).toBe(404);
+  expect(
+    (await app.handle(json("POST", "/api/rules/missing/publish", { publishedBy: "x" }))).status,
+  ).toBe(404);
 });
 
 test("updates basic rule info without touching versions", async () => {
@@ -196,10 +200,8 @@ test("reports the failing case count when a red run gates publish", async () => 
 });
 
 test("publishes a corrected draft after it turns green, retiring the previous version", async () => {
-  const { rule, activeDraft } = await createRule();
-  await app.handle(
-    json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "规则管理员" }),
-  );
+  const { rule } = await createRule();
+  await app.handle(json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "规则管理员" }));
   await app.handle(json("POST", `/api/rules/${rule.id}/publish`, { publishedBy: "规则管理员" }));
 
   const created = await app.handle(

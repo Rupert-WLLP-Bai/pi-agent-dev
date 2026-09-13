@@ -1,4 +1,9 @@
-import type { RuleDetail, RuleListItem, RuleVersionRecord, ValidationRunRecord } from "@contract-audit/api";
+import type {
+  RuleDetail,
+  RuleListItem,
+  RuleVersionRecord,
+  ValidationRunRecord,
+} from "@contract-audit/api";
 
 /**
  * Presentation helpers for rule governance: the Chinese vocabulary the UI
@@ -119,7 +124,10 @@ export function describeLastValidation(item: RuleListItem): {
   if (!validation) return { text: "—", tone: "none" };
   const time = formatRuleTime(validation.finishedAt);
   const outcome = validation.status === "passed" ? "通过" : "有回归";
-  return { text: time ? `${time} ${outcome}` : outcome, tone: validation.status === "passed" ? "success" : "error" };
+  return {
+    text: time ? `${time} ${outcome}` : outcome,
+    tone: validation.status === "passed" ? "success" : "error",
+  };
 }
 
 export function formatRuleTime(value: string | Date | null | undefined): string | null {

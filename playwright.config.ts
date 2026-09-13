@@ -24,8 +24,7 @@ const config: Config = {
       // Run the API directly, not via the `--watch` dev script: a file watcher
       // restarts the server whenever test artifacts are written, which makes
       // the browser intermittently see an unavailable API.
-      command:
-        `set -a; [ -f .env ] && . ./.env; set +a; API_PORT=${apiPort} AUDIT_AGENT_MODE=fake bun apps/api/src/app.ts`,
+      command: `set -a; [ -f .env ] && . ./.env; set +a; API_PORT=${apiPort} AUDIT_AGENT_MODE=fake bun apps/api/src/app.ts`,
       port: apiPort,
       timeout: 60_000,
       reuseExistingServer,

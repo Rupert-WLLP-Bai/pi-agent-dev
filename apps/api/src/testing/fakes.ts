@@ -403,7 +403,10 @@ export class ControlledAgent implements AuditAgentPort {
 }
 
 let fakeRuleSeq = 0;
-const nextFakeId = (prefix: string): string => `${prefix}-${(fakeRuleSeq += 1)}`;
+const nextFakeId = (prefix: string): string => {
+  fakeRuleSeq += 1;
+  return `${prefix}-${fakeRuleSeq}`;
+};
 
 interface FakeRuleState {
   rule: RuleRecord;
@@ -526,7 +529,9 @@ export class InMemoryRuleRepository {
     versionId: string,
     input: Parameters<RuleRepository["updateDraft"]>[2],
   ): Promise<RuleVersionRecord> {
-    const version = this.states.get(ruleId)?.versions.find((candidate) => candidate.id === versionId);
+    const version = this.states
+      .get(ruleId)
+      ?.versions.find((candidate) => candidate.id === versionId);
     if (!version) throw new RuleRepositoryError(404, "规则版本不存在");
     if (version.status !== "draft") throw new RuleRepositoryError(409, "只有草稿版本可以修改");
     version.params = input.params;

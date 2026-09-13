@@ -110,7 +110,11 @@ export default function RuleDetail({ id }: { id: string }) {
     <div className="page">
       <div className="page-head">
         <Space direction="vertical" size={2}>
-          <Button type="link" style={{ padding: 0 }} onClick={() => void navigate({ to: "/rules" })}>
+          <Button
+            type="link"
+            style={{ padding: 0 }}
+            onClick={() => void navigate({ to: "/rules" })}
+          >
             ← 返回规则管理
           </Button>
           <Space align="center" wrap>

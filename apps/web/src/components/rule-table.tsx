@@ -75,7 +75,11 @@ export function RuleTable({
       key: "currentVersion",
       width: 100,
       render: (_value, record) =>
-        record.currentVersion === null ? "—" : <span className="mono">v{record.currentVersion}</span>,
+        record.currentVersion === null ? (
+          "—"
+        ) : (
+          <span className="mono">v{record.currentVersion}</span>
+        ),
     },
     {
       title: "状态",

@@ -31,7 +31,11 @@ const runAt = (
     passed,
     failed,
     byCaseType: {
-      POSITIVE: { total: 2, passed: status === "passed" ? 2 : 1, failed: status === "passed" ? 0 : 1 },
+      POSITIVE: {
+        total: 2,
+        passed: status === "passed" ? 2 : 1,
+        failed: status === "passed" ? 0 : 1,
+      },
       NEGATIVE: { total: 2, passed: 2, failed: 0 },
       BOUNDARY: { total: 0, passed: 0, failed: 0 },
     },
@@ -130,13 +134,21 @@ test("renders the last validation cell with time and outcome", () => {
   expect(
     describeLastValidation({
       ...base,
-      lastValidation: { status: "passed", finishedAt: "2026-09-13T08:00:00.000Z", summary: runAt("passed", 0).summary },
+      lastValidation: {
+        status: "passed",
+        finishedAt: "2026-09-13T08:00:00.000Z",
+        summary: runAt("passed", 0).summary,
+      },
     }),
   ).toMatchObject({ tone: "success" });
   expect(
     describeLastValidation({
       ...base,
-      lastValidation: { status: "failed", finishedAt: "2026-09-13T08:00:00.000Z", summary: runAt("failed", 1).summary },
+      lastValidation: {
+        status: "failed",
+        finishedAt: "2026-09-13T08:00:00.000Z",
+        summary: runAt("failed", 1).summary,
+      },
     }),
   ).toMatchObject({ tone: "error" });
 });

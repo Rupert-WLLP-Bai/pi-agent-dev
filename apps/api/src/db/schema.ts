@@ -215,7 +215,10 @@ export const ruleVersions = pgTable(
       .notNull(),
     version: integer("version").notNull(),
     params: jsonb("params").$type<RuleParams>().notNull().default({}),
-    stances: jsonb("stances").$type<RuleStances>().notNull().default({} as RuleStances),
+    stances: jsonb("stances")
+      .$type<RuleStances>()
+      .notNull()
+      .default({} as RuleStances),
     status: text("status", { enum: ruleVersionStatuses })
       .$type<RuleVersionStatus>()
       .notNull()
@@ -224,9 +227,7 @@ export const ruleVersions = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
     /** The run that gated this version's publish. A plain id, not an FK: the run references the version back. */
     lastValidationRunId: uuid("last_validation_run_id"),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   },
   (table) => [uniqueIndex("rule_versions_rule_version_idx").on(table.ruleId, table.version)],
 );

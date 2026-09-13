@@ -263,7 +263,8 @@ export async function updateRuleVersion(
 
 export async function validateRule(id: string, triggeredBy: string): Promise<ValidationRunRecord> {
   const { data, error } = await api.api.rules({ id }).validate.post({ triggeredBy });
-  if (error) throw new ApiRequestError(serverReason(error, "运行规则验证失败"), Number(error.status));
+  if (error)
+    throw new ApiRequestError(serverReason(error, "运行规则验证失败"), Number(error.status));
   if (!data || "error" in data) throw new ApiRequestError("运行规则验证失败", 500);
   return data.run;
 }

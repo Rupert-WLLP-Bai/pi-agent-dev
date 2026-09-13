@@ -3,12 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import type { DrizzleDB } from "./repositories";
-import type {
-  RuleParams,
-  RuleStances,
-  RuleVersionStatus,
-  ValidationRunStatus,
-} from "./schema";
+import type { RuleParams, RuleStances, RuleVersionStatus, ValidationRunStatus } from "./schema";
 import { rules, ruleVersions, schema, validationRuns } from "./schema";
 
 /**
@@ -151,9 +146,7 @@ export class RuleRepository {
       .orderBy(ruleVersions.ruleId, desc(ruleVersions.version));
     const runIds = [
       ...new Set(
-        versionRows
-          .map((row) => row.lastValidationRunId)
-          .filter((id): id is string => id !== null),
+        versionRows.map((row) => row.lastValidationRunId).filter((id): id is string => id !== null),
       ),
     ];
     const runRows =
@@ -169,7 +162,9 @@ export class RuleRepository {
 
       let lastValidation: RuleListItem["lastValidation"] = null;
       for (const version of versions) {
-        const run = version.lastValidationRunId ? runById.get(version.lastValidationRunId) : undefined;
+        const run = version.lastValidationRunId
+          ? runById.get(version.lastValidationRunId)
+          : undefined;
         if (run) {
           lastValidation = {
             status: run.status,
@@ -280,9 +275,16 @@ export class RuleRepository {
    * Opens the next draft version. A rule carries at most one draft: a second
    * request while one is open is a conflict, not a silent overwrite.
    */
-  async createVersion(ruleId: string, input: { params: RuleParams; stances: RuleStances }): Promise<RuleVersionRecord> {
+  async createVersion(
+    ruleId: string,
+    input: { params: RuleParams; stances: RuleStances },
+  ): Promise<RuleVersionRecord> {
     return this.db.transaction(async (tx) => {
-      const [ruleRow] = await tx.select({ id: rules.id }).from(rules).where(eq(rules.id, ruleId)).limit(1);
+      const [ruleRow] = await tx
+        .select({ id: rules.id })
+        .from(rules)
+        .where(eq(rules.id, ruleId))
+        .limit(1);
       if (!ruleRow) throw new RuleRepositoryError(404, "规则不存在");
 
       const [draft] = await tx
@@ -419,7 +421,11 @@ export class RuleRepository {
         .returning();
       await tx.update(rules).set({ updatedAt: new Date() }).where(eq(rules.id, ruleId));
 
-      return { rule: toRule(ruleRow), version: toVersion(published), retiredVersionId: retired[0]?.id ?? null };
+      return {
+        rule: toRule(ruleRow),
+        version: toVersion(published),
+        retiredVersionId: retired[0]?.id ?? null,
+      };
     });
   }
 
