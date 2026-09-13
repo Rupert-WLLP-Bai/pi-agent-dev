@@ -175,7 +175,9 @@ test("gates publish on validation and lands a v2 on a seeded rule", async ({ pag
   const row = page.getByRole("row", { name: new RegExp(PUBLISH_SPEC_RULE) });
   await expect(row).toContainText("v2");
   await expect(row).toContainText("已发布");
-  await expect(row).toContainText("规则管理员");
+  // The publish actor is readOperator(), which defaults to "我" for a
+  // fresh browser session (no localStorage seeded).
+  await expect(row).toContainText("我");
 });
 
 test("blocks publish with the failing case count when a draft regresses", async ({ page }) => {

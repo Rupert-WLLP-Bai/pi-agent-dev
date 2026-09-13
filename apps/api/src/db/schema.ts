@@ -24,6 +24,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 const auditStatuses = [
@@ -282,6 +283,22 @@ export const validationRuns = pgTable("validation_runs", {
 });
 
 /**
+ * The governance trail behind a rule: one append-only row per disable, enable
+ * or publish. It is what the rule editor's 操作记录 tab reads, so a reviewer can
+ * see who changed a rule's availability or promoted a version, when, and why.
+ */
+export const auditActionLogs = pgTable("audit_action_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ruleId: uuid("rule_id").notNull(),
+  action: varchar("action", { length: 32 }).notNull(),
+  actor: varchar("actor", { length: 64 }).notNull(),
+  reason: text("reason"),
+  /** The version a publish promoted; null for disable/enable. */
+  versionId: uuid("version_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+/**
  * A materialised golden case: the contract text plus the ground truth a rule
  * version is judged against. The canonical source is `golden-set.ts`; the seed
  * copies it here so a case can carry an operator-facing type (正例/反例/边界例/
@@ -358,6 +375,7 @@ export const schema = {
   ruleVersions,
   validationRuns,
   validationCases,
+  auditActionLogs,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -372,6 +390,7 @@ export type RuleRow = InferSelectModel<typeof rules>;
 export type RuleVersionRow = InferSelectModel<typeof ruleVersions>;
 export type ValidationRunRow = InferSelectModel<typeof validationRuns>;
 export type ValidationCaseRow = InferSelectModel<typeof validationCases>;
+export type AuditActionLogRow = InferSelectModel<typeof auditActionLogs>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),

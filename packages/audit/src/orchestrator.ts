@@ -66,6 +66,12 @@ export function createAuditSnapshot(input: {
    */
   ruleVersions?: Partial<Record<RuleCode, number>>;
   /**
+   * The published Rule Version identity per rule code, parallel to
+   * `ruleVersions`. Cited on each assessment so a Finding can pin the exact
+   * version row behind a past decision.
+   */
+  ruleVersionIds?: Partial<Record<RuleCode, string>>;
+  /**
    * Published parameter sets keyed by rule code, for the rules that read
    * parameters. A rule absent here runs on its catalogue defaults.
    */
@@ -162,6 +168,7 @@ export function createAuditSnapshot(input: {
   ].map((assessment) => ({
     ...assessment,
     ruleVersion: input.ruleVersions?.[assessment.ruleCode] ?? null,
+    ruleVersionId: input.ruleVersionIds?.[assessment.ruleCode] ?? null,
   }));
 
   const enabledRuleCodes = input.enabledRuleCodes;
@@ -196,6 +203,13 @@ export function createAuditSnapshot(input: {
       ...liabilityCap.evidence,
     ],
     ruleAssessments: filteredAssessments,
+    policy: enabledRuleCodes
+      ? {
+          enabledRuleCodes: [...enabledRuleCodes],
+          ruleVersionIds: input.ruleVersionIds ?? {},
+          policyLimitRatio,
+        }
+      : undefined,
     createdAt: new Date().toISOString(),
   };
 }

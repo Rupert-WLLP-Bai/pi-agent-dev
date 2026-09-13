@@ -1,5 +1,5 @@
 import { DeleteOutlined, PlayCircleOutlined, PlusOutlined } from "@ant-design/icons";
-import type { RuleDetail, ValidationRunRecord } from "@contract-audit/api";
+import type { AuditActionLog, RuleDetail, ValidationRunRecord } from "@contract-audit/api";
 import {
   Alert,
   Button,
@@ -23,6 +23,7 @@ import {
   formatRuleTime,
   goldenCaseTypeLabels,
   parseParamValue,
+  ruleActionLabels,
   ruleRuntimeLabels,
   ruleVersionStatusLabels,
   ruleVersionStatusTagColors,
@@ -40,6 +41,8 @@ export interface RuleEditorProps {
   detail: RuleDetail;
   /** The most recent run this editor has observed, if any. */
   validationRun: ValidationRunRecord | null;
+  /** The rule's governance trail, rendered read-only in 操作记录. */
+  actions: AuditActionLog[];
   savingInfo: boolean;
   savingDraft: boolean;
   validating: boolean;
@@ -89,6 +92,7 @@ const STANCE_FIELDS: Array<{ key: keyof RuleStances; label: string; hint: string
 export function RuleEditor({
   detail,
   validationRun,
+  actions,
   savingInfo,
   savingDraft,
   validating,
@@ -181,6 +185,29 @@ export function RuleEditor({
         ) : (
           "—"
         ),
+    },
+  ];
+
+  // The governance trail is read-only: it records what already happened, so
+  // there is nothing to edit here.
+  const actionColumns: ColumnsType<AuditActionLog> = [
+    {
+      title: "时间",
+      dataIndex: "createdAt",
+      width: 190,
+      render: (value: string) => formatRuleTime(value) ?? "—",
+    },
+    {
+      title: "操作",
+      dataIndex: "action",
+      width: 100,
+      render: (value: string) => ruleActionLabels[value] ?? value,
+    },
+    { title: "操作人", dataIndex: "actor", width: 140 },
+    {
+      title: "原因",
+      dataIndex: "reason",
+      render: (value: string | null) => value ?? "—",
     },
   ];
 
@@ -363,6 +390,23 @@ export function RuleEditor({
     </div>
   );
 
+  const actionsTab = (
+    <div className="rule-form">
+      {actions.length === 0 ? (
+        <Typography.Text type="secondary">尚无操作记录。</Typography.Text>
+      ) : (
+        <Table<AuditActionLog>
+          rowKey="id"
+          size="small"
+          columns={actionColumns}
+          dataSource={actions}
+          pagination={false}
+          scroll={{ x: "max-content" }}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="rule-form">
       <Tabs
@@ -430,6 +474,7 @@ export function RuleEditor({
           { key: "stances", label: "条款立场", children: stanceTab },
           { key: "validation", label: "验证案例", children: validationTab },
           { key: "history", label: "发布记录", children: historyTab },
+          { key: "actions", label: "操作记录", children: actionsTab },
         ]}
       />
 

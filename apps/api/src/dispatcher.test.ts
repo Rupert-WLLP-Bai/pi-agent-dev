@@ -1,5 +1,6 @@
 import { beforeEach, expect, test } from "bun:test";
 import type { AuditSnapshot, ContractParty, FindingProposal } from "@contract-audit/audit/model";
+import type { AuditEvent } from "@contract-audit/audit/ports";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { AuditDispatcher } from "./dispatcher";
 import {
@@ -114,6 +115,21 @@ test("completes the audit for the enqueued case and records the run", async () =
     "finding.proposed",
     "audit.awaiting_review",
   ]);
+});
+
+test("publishes rule coverage with the rules.completed event", async () => {
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  await dispatcher.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const event = broker.events.find(
+    (item): item is Extract<AuditEvent, { type: "rules.completed" }> =>
+      item.type === "rules.completed",
+  );
+  expect(event?.summary).toEqual({ total: 1, conflict: 1, needsReview: 0, compliant: 0 });
+
+  agent.resolveRun([proposal]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
 });
 
 test("hands the agent a context that includes the subject verification evidence", async () => {

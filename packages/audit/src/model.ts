@@ -48,6 +48,11 @@ export interface RuleAssessment {
    * can always be traced to the exact parameter set behind it.
    */
   ruleVersion?: number | null;
+  /**
+   * Identity of that Rule Version, for callers that key versions by id rather
+   * than by number. Null when the assessment ran without a versioned set.
+   */
+  ruleVersionId?: string | null;
 }
 
 // ── Contract Party ───────────────────────────────────────────────
@@ -169,7 +174,19 @@ export interface AuditSnapshot {
   parties: ContractParty[];
   evidence: EvidenceLocator[];
   ruleAssessments: RuleAssessment[];
+  /**
+   * The policy the snapshot was assembled under: which rules ran and which
+   * published parameter sets fed them. Absent on snapshots that ran the full,
+   * unversioned rule set (e.g. the golden bench).
+   */
+  policy?: AuditSnapshotPolicy;
   createdAt: string;
+}
+
+export interface AuditSnapshotPolicy {
+  enabledRuleCodes: RuleCode[];
+  ruleVersionIds: Partial<Record<RuleCode, string>>;
+  policyLimitRatio?: number;
 }
 
 // ── Finding ──────────────────────────────────────────────────────

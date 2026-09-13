@@ -72,7 +72,22 @@ export class AuditDispatcher {
       this.broker.publish({ type: "audit.started", auditCaseId });
       // Rules already ran while the snapshot was assembled, so the first stage
       // this dispatcher actually performs is the subject verification.
-      this.broker.publish({ type: "rules.completed", auditCaseId });
+      // The disposition counts ride along so a viewer can show coverage while
+      // the agent is still running.
+      this.broker.publish({
+        type: "rules.completed",
+        auditCaseId,
+        summary: snapshot.ruleAssessments.reduce(
+          (summary, assessment) => {
+            summary.total += 1;
+            if (assessment.disposition === "COMPLIANT") summary.compliant += 1;
+            if (assessment.disposition === "NEEDS_HUMAN_REVIEW") summary.needsReview += 1;
+            if (assessment.disposition === "POLICY_CONFLICT") summary.conflict += 1;
+            return summary;
+          },
+          { total: 0, conflict: 0, needsReview: 0, compliant: 0 },
+        ),
+      });
 
       const enabledCodes = this.ruleRepository
         ? new Set(await this.ruleRepository.listEnabledCodes())

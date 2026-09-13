@@ -34,6 +34,7 @@ import {
   type ReviewQueueItem,
 } from "../db/repositories";
 import {
+  type AuditActionLog,
   type RuleDetail,
   type RuleListItem,
   type RuleRecord,
@@ -50,13 +51,23 @@ import type { AuditEventBroker } from "../sse";
 interface FakeCaseState {
   status: string;
   stage: string;
-  snapshot: AuditSnapshot | null;
+  snapshots: AuditSnapshot[];
   findings: FakeFindingState[];
   assignee: string | null;
   reviewPriority: ReviewPriority | null;
   createdAt: string;
   updatedAt: string;
 }
+
+/** The newest snapshot generation for a case, or null before one exists. */
+const latestSnapshot = (state: FakeCaseState): AuditSnapshot | null =>
+  state.snapshots[state.snapshots.length - 1] ?? null;
+
+/** The display title a queue card or board card shows for a case. */
+const titleForState = (state: FakeCaseState | undefined): string =>
+  contractTitleFromFirstBlock(
+    (state ? latestSnapshot(state) : null)?.contractDocument.blocks[0]?.text,
+  ) ?? "未命名合同";
 
 interface FakeFindingState {
   id: string;
@@ -104,6 +115,8 @@ export interface RecordedAgentRun {
  */
 export class InMemoryAuditCaseRepository {
   cases = new Map<string, FakeCaseState>();
+  /** Snapshot rows by id, mirroring the audit_snapshots table's identity. */
+  snapshotsById = new Map<string, { caseId: string; snapshot: AuditSnapshot }>();
   recordedRuns: RecordedAgentRun[] = [];
   recordedTraceSteps: AgentTraceStep[] = [];
   interruptedStaleRuns = 0;
@@ -125,21 +138,23 @@ export class InMemoryAuditCaseRepository {
     this.cases.set(caseId, {
       status: "PENDING",
       stage: "QUEUED",
-      snapshot,
+      snapshots: [snapshot],
       findings: [],
       assignee: null,
       reviewPriority: null,
       createdAt,
       updatedAt: createdAt,
     });
-    return { caseId, snapshotId: `snapshot-${caseId}` };
+    const snapshotId = `snapshot-${caseId}-1`;
+    this.snapshotsById.set(snapshotId, { caseId, snapshot });
+    return { caseId, snapshotId };
   }
 
   async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string } | null> {
     for (const [caseId, state] of this.cases) {
       if (state.status === "PENDING") {
         state.status = "RUNNING";
-        return { caseId, snapshotId: `snapshot-${caseId}` };
+        return { caseId, snapshotId: `snapshot-${caseId}-${state.snapshots.length}` };
       }
     }
     return null;
@@ -149,7 +164,7 @@ export class InMemoryAuditCaseRepository {
     const state = this.cases.get(auditCaseId);
     if (state?.status !== "PENDING") return null;
     state.status = "RUNNING";
-    return { caseId: auditCaseId, snapshotId: `snapshot-${auditCaseId}` };
+    return { caseId: auditCaseId, snapshotId: `snapshot-${auditCaseId}-${state.snapshots.length}` };
   }
 
   async getPendingCaseIds(): Promise<string[]> {
@@ -172,12 +187,20 @@ export class InMemoryAuditCaseRepository {
   }
 
   async getSnapshot(snapshotId: string): Promise<AuditSnapshot | null> {
-    const caseId = snapshotId.replace(/^snapshot-/, "");
-    return this.cases.get(caseId)?.snapshot ?? null;
+    return this.snapshotsById.get(snapshotId)?.snapshot ?? null;
   }
 
   async getSnapshotByCase(caseId: string): Promise<AuditSnapshot | null> {
-    return this.cases.get(caseId)?.snapshot ?? null;
+    const state = this.cases.get(caseId);
+    return state ? latestSnapshot(state) : null;
+  }
+
+  /** Appends a snapshot generation, mirroring the append-only table. */
+  async appendSnapshot(caseId: string, snapshot: AuditSnapshot): Promise<void> {
+    const state = this.cases.get(caseId);
+    if (!state) throw new Error(`unknown case ${caseId}`);
+    state.snapshots.push(snapshot);
+    this.snapshotsById.set(`snapshot-${caseId}-${state.snapshots.length}`, { caseId, snapshot });
   }
 
   async beginAgentRun(input: { auditCaseId: string } & AgentRunIdentity): Promise<string> {
@@ -288,10 +311,7 @@ export class InMemoryAuditCaseRepository {
       itemsByStatus[item.status].push({
         id: item.id,
         caseId: item.auditCaseId,
-        contractTitle:
-          contractTitleFromFirstBlock(
-            this.cases.get(item.auditCaseId)?.snapshot?.contractDocument.blocks[0]?.text,
-          ) ?? "未命名合同",
+        contractTitle: titleForState(this.cases.get(item.auditCaseId)),
         summary: item.summary,
         severity: item.severity,
         owner: item.owner,
@@ -404,16 +424,14 @@ export class InMemoryAuditCaseRepository {
       if (state.stage !== "AWAITING_REVIEW") continue;
       const dueMs = Date.parse(state.createdAt) + options.slaHours * 3_600_000;
       for (const finding of this.chainHeads(state)) {
-        const needsReview = (state.snapshot?.ruleAssessments ?? []).some(
+        const needsReview = (latestSnapshot(state)?.ruleAssessments ?? []).some(
           (assessment) =>
             assessment.disposition === "NEEDS_HUMAN_REVIEW" &&
             assessment.evidenceIds.some((id) => finding.proposal.evidenceIds.includes(id)),
         );
         items.push({
           caseId,
-          contractTitle:
-            contractTitleFromFirstBlock(state.snapshot?.contractDocument.blocks[0]?.text) ??
-            "未命名合同",
+          contractTitle: titleForState(state),
           findingId: finding.id,
           findingType: finding.proposal.findingType,
           title: getFindingTypeLabel(finding.proposal.findingType),
@@ -644,15 +662,22 @@ interface FakeRuleState {
  */
 export class InMemoryRuleRepository {
   private states = new Map<string, FakeRuleState>();
+  /** The governance trail, keyed by rule id, newest first — its own table stand-in. */
+  private actionLogs = new Map<string, AuditActionLog[]>();
 
   async listRules(): Promise<RuleListItem[]> {
     return [...this.states.values()].map(({ rule, versions, runs }) => {
       const sorted = [...versions].sort((a, b) => b.version - a.version);
       const latest = sorted[0] ?? null;
       const published = sorted.find((version) => version.status === "published") ?? null;
-      const validated = sorted.find((version) => version.lastValidationRunId !== null);
-      const run = validated
-        ? (runs.find((candidate) => candidate.id === validated.lastValidationRunId) ?? null)
+      const draft = sorted.find((version) => version.status === "draft") ?? null;
+      const preferred = draft?.lastValidationRunId
+        ? draft
+        : published?.lastValidationRunId
+          ? published
+          : sorted.find((version) => version.lastValidationRunId !== null);
+      const run = preferred?.lastValidationRunId
+        ? (runs.find((candidate) => candidate.id === preferred.lastValidationRunId) ?? null)
         : null;
       return {
         ...rule,
@@ -740,10 +765,11 @@ export class InMemoryRuleRepository {
       disabledAt: now,
       updatedAt: now,
     };
+    await this.logAction(id, "disable", input.actor, reason);
     return state.rule;
   }
 
-  async enableRule(id: string, _input: { actor: string }): Promise<RuleRecord> {
+  async enableRule(id: string, input: { actor: string }): Promise<RuleRecord> {
     const state = this.states.get(id);
     if (!state) throw new RuleRepositoryError(404, "规则不存在");
     state.rule = {
@@ -754,7 +780,33 @@ export class InMemoryRuleRepository {
       disabledAt: null,
       updatedAt: new Date().toISOString(),
     };
+    await this.logAction(id, "enable", input.actor);
     return state.rule;
+  }
+
+  async logAction(
+    ruleId: string,
+    action: string,
+    actor: string,
+    reason?: string,
+    versionId?: string,
+  ): Promise<void> {
+    const log: AuditActionLog = {
+      id: nextFakeId("act"),
+      ruleId,
+      action,
+      actor,
+      reason: reason ?? null,
+      versionId: versionId ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    const existing = this.actionLogs.get(ruleId);
+    if (existing) existing.unshift(log);
+    else this.actionLogs.set(ruleId, [log]);
+  }
+
+  async listActions(ruleId: string): Promise<AuditActionLog[]> {
+    return [...(this.actionLogs.get(ruleId) ?? [])];
   }
 
   async listEnabledCodes(): Promise<string[]> {
@@ -852,6 +904,7 @@ export class InMemoryRuleRepository {
     draft.status = "published";
     draft.publishedBy = publishedBy;
     draft.publishedAt = new Date().toISOString();
+    await this.logAction(ruleId, "publish", publishedBy, undefined, draft.id);
     return { rule: state.rule, version: draft, retiredVersionId: previous?.id ?? null };
   }
 

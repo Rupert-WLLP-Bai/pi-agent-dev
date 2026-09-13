@@ -1,4 +1,4 @@
-import { ENGINE_RULE_CODES } from "@contract-audit/audit";
+import { ENGINE_RULE_CODES, ruleContractFor } from "@contract-audit/audit";
 import type {
   AgentRun,
   AgentTraceStepKind,
@@ -213,7 +213,7 @@ export function factCellsForFinding(
   findingType: string,
   facts: { advancePaymentRatio: number; policyLimitRatio: number },
 ): FactCell[] | null {
-  if (!findingType.includes("ADVANCE_PAYMENT") && !findingType.includes("PAYMENT")) return null;
+  if (!findingType.includes("ADVANCE_PAYMENT")) return null;
   const ratio = Math.round(facts.advancePaymentRatio * 100);
   const limit = Math.round(facts.policyLimitRatio * 100);
   const diff = ratio - limit;
@@ -247,6 +247,34 @@ export function groupAssessmentsByDisposition(
     needsReview: assessments.filter((a) => a.disposition === "NEEDS_HUMAN_REVIEW"),
     notApplicable: ENGINE_RULE_CODES.filter((code) => !assessed.has(code)),
   };
+}
+
+/**
+ * Filters assessments to those relevant to a specific finding type.
+ * Maps the finding type back to the rule code that produced it, then returns
+ * only that rule's assessment. Falls back to POLICY_CONFLICT assessments
+ * when no direct match exists (e.g. NEEDS_HUMAN_REVIEW findings).
+ */
+export function assessmentsForFinding(
+  findingType: string,
+  assessments: RuleAssessment[],
+): RuleAssessment[] {
+  // Build findingType → ruleCode map from the rule-finding contracts.
+  const ruleForFinding = ENGINE_RULE_CODES.find((code) => {
+    const contract = ruleContractFor(code);
+    if (!contract) return false;
+    if (contract.policyConflict?.findingType === findingType) return true;
+    return contract.needsHumanReview.some((r) => r.findingType === findingType);
+  });
+
+  if (ruleForFinding) {
+    const direct = assessments.filter((a) => a.ruleCode === ruleForFinding);
+    if (direct.length > 0) return direct;
+  }
+
+  // Fallback: show only POLICY_CONFLICT assessments (the ones that
+  // produced findings) when no direct rule match exists.
+  return assessments.filter((a) => a.disposition === "POLICY_CONFLICT");
 }
 
 /**

@@ -35,6 +35,7 @@ export type {
   ReviewQueueItem,
 } from "./db/repositories";
 export type {
+  AuditActionLog,
   RuleDetail,
   RuleListItem,
   RuleVersionRecord,

@@ -65,3 +65,16 @@ test("runs every deterministic rule when enabledRuleCodes is omitted", () => {
   expect(snapshot.ruleAssessments.some((a) => a.ruleCode === "ADVANCE_PAYMENT_LIMIT")).toBe(true);
   expect(snapshot.ruleAssessments.length).toBeGreaterThan(10);
 });
+
+test("attaches ruleVersionId when provided", () => {
+  const snapshot = createAuditSnapshot({
+    sourceRecordId: "source-1",
+    document: normalizeContractDocument("乙方签订后支付合同金额的70%作为预付款。"),
+    policyLimitRatio: 0.3,
+    enabledRuleCodes: ["ADVANCE_PAYMENT_LIMIT"],
+    ruleVersionIds: { ADVANCE_PAYMENT_LIMIT: "uuid-123" },
+  });
+  const assessment = snapshot.ruleAssessments.find((a) => a.ruleCode === "ADVANCE_PAYMENT_LIMIT");
+  expect(assessment?.ruleVersionId).toBe("uuid-123");
+  expect(snapshot.policy?.enabledRuleCodes).toEqual(["ADVANCE_PAYMENT_LIMIT"]);
+});

@@ -7,6 +7,7 @@ import {
   ApiRequestError,
   cancelAuditCase,
   getAuditCase,
+  reassessAuditCase,
   retryAuditCase,
   submitReview,
 } from "../api";
@@ -91,6 +92,15 @@ export default function AuditCaseDetail({
     onError: (error: Error) => message.error(error.message),
   });
 
+  const reassessMutation = useMutation({
+    mutationFn: () => reassessAuditCase(id),
+    onSuccess: async () => {
+      await invalidateAll();
+      message.success("已按当前规则重评并重新排队");
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
   const reviewMutation = useMutation({
     mutationFn: (input: {
       findingId: string;
@@ -146,9 +156,11 @@ export default function AuditCaseDetail({
         action={
           cancelMutation.isPending
             ? { type: "CANCEL" }
-            : retryMutation.isPending
-              ? { type: "RETRY" }
-              : null
+            : reassessMutation.isPending
+              ? { type: "REASSESS" }
+              : retryMutation.isPending
+                ? { type: "RETRY" }
+                : null
         }
         onOpenReview={(decision, finding) =>
           setReview({
@@ -158,6 +170,7 @@ export default function AuditCaseDetail({
         }
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
+        onReassess={() => reassessMutation.mutate()}
         backLabel={origin === null ? undefined : originHome[origin].label}
         onBack={() =>
           void navigate({ to: origin === null ? "/audit-cases" : originHome[origin].to })

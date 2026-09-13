@@ -1,5 +1,6 @@
 import type {
   AgentRunSummary,
+  AuditActionLog,
   AuditOverview,
   CaseSummary,
   createApp,
@@ -17,6 +18,7 @@ import type {
 import type { AgentRunTrace } from "@contract-audit/audit/model";
 import type { ReviewPriority } from "@contract-audit/audit/ports";
 import { treaty } from "@elysiajs/eden";
+import { readOperator } from "./operator";
 import type { RuleParams } from "./rule-presentation";
 
 // Same-origin by default so the Vite dev proxy (and a single-origin deployment)
@@ -250,6 +252,17 @@ export async function retryAuditCase(id: string) {
   return data;
 }
 
+/**
+ * Reassesses a case under the rules in force now: the server rebuilds the
+ * snapshot from the current published Rule Versions and requeues it. Distinct
+ * from a retry, which reruns the agent against the snapshot it already has.
+ */
+export async function reassessAuditCase(id: string) {
+  const { data, error } = await api.api["audit-cases"]({ id }).reassess.post();
+  if (error) throw new ApiRequestError("重评失败", error.status);
+  return data;
+}
+
 export async function getApiHealth(): Promise<"ok" | "unavailable"> {
   const { data, error } = await api.api.health.get();
   if (error || !data) return "unavailable";
@@ -295,6 +308,13 @@ export async function listRules(): Promise<RuleListItem[]> {
   const { data, error } = await api.api.rules.get();
   if (error) throw new ApiRequestError("加载规则列表失败", Number(error.status));
   return data;
+}
+
+/** A rule's governance trail (操作记录): disable, enable and publish, newest first. */
+export async function listRuleActions(id: string): Promise<AuditActionLog[]> {
+  const { data, error } = await api.api.rules({ id }).actions.get();
+  if (error) throw new ApiRequestError("加载规则操作记录失败", Number(error.status));
+  return data.actions;
 }
 
 export async function getRule(id: string): Promise<RuleDetail> {
@@ -372,7 +392,9 @@ export async function publishRule(
  * governance trail explains the disablement.
  */
 export async function disableRule(id: string, reason: string): Promise<RuleListItem> {
-  const { data, error } = await api.api.rules({ id }).disable.post({ reason });
+  const { data, error } = await api.api
+    .rules({ id })
+    .disable.post({ reason, actor: readOperator() });
   if (error) throw new ApiRequestError(serverReason(error, "停用规则失败"), Number(error.status));
   if (!data || "error" in data) throw new ApiRequestError("停用规则失败", 500);
   return data.rule as RuleListItem;
@@ -380,7 +402,7 @@ export async function disableRule(id: string, reason: string): Promise<RuleListI
 
 /** Puts a disabled rule back in rotation (启用), clearing the disable overlay. */
 export async function enableRule(id: string): Promise<RuleListItem> {
-  const { data, error } = await api.api.rules({ id }).enable.post({});
+  const { data, error } = await api.api.rules({ id }).enable.post({ actor: readOperator() });
   if (error) throw new ApiRequestError(serverReason(error, "启用规则失败"), Number(error.status));
   if (!data || "error" in data) throw new ApiRequestError("启用规则失败", 500);
   return data.rule as RuleListItem;

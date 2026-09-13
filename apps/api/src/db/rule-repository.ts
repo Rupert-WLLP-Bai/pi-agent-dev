@@ -11,7 +11,14 @@ import type {
   ValidationCaseType,
   ValidationRunStatus,
 } from "./schema";
-import { rules, ruleVersions, schema, validationCases, validationRuns } from "./schema";
+import {
+  auditActionLogs,
+  rules,
+  ruleVersions,
+  schema,
+  validationCases,
+  validationRuns,
+} from "./schema";
 
 /**
  * Rule governance persistence, kept apart from AuditCaseRepository so the rule
@@ -43,6 +50,21 @@ export interface RuleVersionRecord {
   publishedBy: string | null;
   publishedAt: string | null;
   lastValidationRunId: string | null;
+  createdAt: string;
+}
+
+/**
+ * One row of the rule governance trail: who disabled, enabled or published a
+ * rule, when, and why. Append-only — the 操作记录 tab reads it as history.
+ */
+export interface AuditActionLog {
+  id: string;
+  ruleId: string;
+  action: string;
+  actor: string;
+  reason: string | null;
+  /** The version a publish promoted; null for disable/enable. */
+  versionId: string | null;
   createdAt: string;
 }
 
@@ -113,7 +135,10 @@ export interface RuleListItem extends RuleRecord {
   currentVersion: number | null;
   /** Status of that highest version. */
   status: RuleVersionStatus | null;
-  /** The newest validation run recorded against any of the rule's versions. */
+  /**
+   * The run the 最近验证 cell shows: the open draft's run when it has one, else
+   * the published version's, else the newest run on any version.
+   */
   lastValidation: {
     status: ValidationRunStatus;
     finishedAt: string;
@@ -181,6 +206,16 @@ const toVersion = (row: typeof ruleVersions.$inferSelect): RuleVersionRecord => 
   publishedBy: row.publishedBy,
   publishedAt: row.publishedAt?.toISOString() ?? null,
   lastValidationRunId: row.lastValidationRunId,
+  createdAt: row.createdAt.toISOString(),
+});
+
+const toActionLog = (row: typeof auditActionLogs.$inferSelect): AuditActionLog => ({
+  id: row.id,
+  ruleId: row.ruleId,
+  action: row.action,
+  actor: row.actor,
+  reason: row.reason,
+  versionId: row.versionId,
   createdAt: row.createdAt.toISOString(),
 });
 
@@ -255,17 +290,20 @@ export class RuleRepository {
       const published = versions.find((row) => row.status === "published") ?? null;
 
       let lastValidation: RuleListItem["lastValidation"] = null;
-      for (const version of versions) {
-        const run = version.lastValidationRunId
-          ? runById.get(version.lastValidationRunId)
-          : undefined;
+      const draft = versions.find((version) => version.status === "draft");
+      const preferredVersion = draft?.lastValidationRunId
+        ? draft
+        : published?.lastValidationRunId
+          ? published
+          : versions.find((version) => version.lastValidationRunId);
+      if (preferredVersion?.lastValidationRunId) {
+        const run = runById.get(preferredVersion.lastValidationRunId);
         if (run) {
           lastValidation = {
             status: run.status,
             finishedAt: run.finishedAt.toISOString(),
             summary: run.summary,
           };
-          break;
         }
       }
 
@@ -381,11 +419,12 @@ export class RuleRepository {
       .where(eq(rules.id, id))
       .returning();
     if (!row) throw new RuleRepositoryError(404, "规则不存在");
+    await this.logAction(id, "disable", input.actor, reason);
     return toRule(row);
   }
 
   /** Re-enables a rule for new audits. Clears the overlay fields. */
-  async enableRule(id: string, _input: { actor: string }): Promise<RuleRecord> {
+  async enableRule(id: string, input: { actor: string }): Promise<RuleRecord> {
     const [row] = await this.db
       .update(rules)
       .set({
@@ -398,7 +437,37 @@ export class RuleRepository {
       .where(eq(rules.id, id))
       .returning();
     if (!row) throw new RuleRepositoryError(404, "规则不存在");
+    await this.logAction(id, "enable", input.actor);
     return toRule(row);
+  }
+
+  // ── Governance action log ──────────────────────────────────────
+
+  /** Appends one governance action. Append-only: nothing updates or deletes. */
+  async logAction(
+    ruleId: string,
+    action: string,
+    actor: string,
+    reason?: string,
+    versionId?: string,
+  ): Promise<void> {
+    await this.db.insert(auditActionLogs).values({
+      ruleId,
+      action,
+      actor,
+      reason: reason ?? null,
+      versionId: versionId ?? null,
+    });
+  }
+
+  /** A rule's governance trail, newest first. */
+  async listActions(ruleId: string): Promise<AuditActionLog[]> {
+    const rows = await this.db
+      .select()
+      .from(auditActionLogs)
+      .where(eq(auditActionLogs.ruleId, ruleId))
+      .orderBy(desc(auditActionLogs.createdAt));
+    return rows.map(toActionLog);
   }
 
   /** The rule codes currently enabled for new audits. */
@@ -524,7 +593,7 @@ export class RuleRepository {
     ruleId: string,
     publishedBy: string,
   ): Promise<{ rule: RuleRecord; version: RuleVersionRecord; retiredVersionId: string | null }> {
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const [ruleRow] = await tx.select().from(rules).where(eq(rules.id, ruleId)).limit(1);
       if (!ruleRow) throw new RuleRepositoryError(404, "规则不存在");
 
@@ -574,6 +643,8 @@ export class RuleRepository {
         retiredVersionId: retired[0]?.id ?? null,
       };
     });
+    await this.logAction(ruleId, "publish", publishedBy, undefined, result.version.id);
+    return result;
   }
 
   /**

@@ -116,3 +116,98 @@ test("omits a disabled rule's assessment from the created snapshot", async () =>
 
   expect(await ruleCodesForNewCase(app, ADVANCE_CONTRACT)).not.toContain("ADVANCE_PAYMENT_LIMIT");
 });
+
+/**
+ * Reassessment and retry are different actions. A retry reruns the agent
+ * against the snapshot the case already holds; a reassessment first rebuilds
+ * that snapshot from the rules in force now, then requeues the case.
+ */
+
+interface CreatedCase {
+  id: string;
+}
+
+const createCase = async (app: AuditApp, contractText = ADVANCE_CONTRACT): Promise<string> => {
+  const created = await app.handle(
+    new Request("http://localhost/api/audit-cases", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ source: "text", contractText }),
+    }),
+  );
+  expect(created.status).toBe(202);
+  const body: CreatedCase = await created.json();
+  return body.id;
+};
+
+const reassess = (app: AuditApp, id: string): Promise<Response> =>
+  app.handle(
+    new Request(`http://localhost/api/audit-cases/${encodeURIComponent(id)}/reassess`, {
+      method: "POST",
+    }),
+  );
+
+const setup = () => {
+  const repository = new InMemoryAuditCaseRepository();
+  const dispatcher = new FakeDispatcher();
+  const app = createApp({
+    repository: repository.asRepository(),
+    dispatcher: dispatcher.asDispatcher(),
+    broker: new RecordingEventBroker().asBroker(),
+    rules: new InMemoryRuleRepository().asRepository(),
+  });
+  return { repository, dispatcher, app };
+};
+
+test("reassessing a failed case appends a snapshot and requeues it", async () => {
+  const { repository, dispatcher, app } = setup();
+  const id = await createCase(app);
+  await repository.updateCaseStatus(id, "FAILED", "FAILED");
+  const original = await repository.getSnapshotByCase(id);
+  const enqueuedBefore = dispatcher.enqueued.length;
+
+  const response = await reassess(app, id);
+
+  expect(response.status).toBe(202);
+  const body: { case: { id: string; status: string; stage: string } } = await response.json();
+  expect(body.case).toMatchObject({ id, status: "PENDING", stage: "QUEUED" });
+  expect(await repository.getCase(id)).toMatchObject({ status: "PENDING", stage: "QUEUED" });
+  expect(dispatcher.enqueued).toHaveLength(enqueuedBefore + 1);
+  expect(dispatcher.enqueued.at(-1)).toBe(id);
+
+  // A new generation was appended rather than overwriting the original, and
+  // the read now resolves to that newest one.
+  const latest = await repository.getSnapshotByCase(id);
+  expect(repository.cases.get(id)?.snapshots.length).toBe(2);
+  expect(latest).not.toBe(original);
+  const stored = repository.cases.get(id)?.snapshots.at(-1) ?? null;
+  expect(latest).toEqual(stored);
+});
+
+for (const status of ["COMPLETED", "RUNNING", "PENDING"] as const) {
+  test(`reassessing a ${status} case is refused with 409`, async () => {
+    const { repository, dispatcher, app } = setup();
+    const id = await createCase(app);
+    await repository.updateCaseStatus(id, status, status);
+    const enqueuedBefore = dispatcher.enqueued.length;
+
+    const response = await reassess(app, id);
+
+    expect(response.status).toBe(409);
+    const body: { error: string } = await response.json();
+    expect(body).toEqual({ error: "case_not_reassessable" });
+    expect(dispatcher.enqueued).toHaveLength(enqueuedBefore);
+    // The refused reassessment left no second snapshot behind.
+    expect(repository.cases.get(id)?.snapshots.length).toBe(1);
+  });
+}
+
+test("reassessing a case that does not exist is a 404", async () => {
+  const { app } = setup();
+
+  const response = await reassess(app, "no-such-case");
+
+  expect(response.status).toBe(404);
+  const body: { error: string } = await response.json();
+  expect(body).toEqual({ error: "audit_case_not_found" });
+});

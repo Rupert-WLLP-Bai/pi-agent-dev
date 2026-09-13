@@ -9,9 +9,7 @@ import {
   runValidation,
 } from "../api";
 import { ValidationCenter } from "../components/validation-center";
-
-/** The operator recorded as the actor until user accounts exist (P2). */
-const OPERATOR = "规则管理员";
+import { readOperator } from "../operator";
 
 /**
  * 案例验证. Owns data access and the run mutation; `ValidationCenter` renders it.
@@ -60,7 +58,8 @@ export default function ValidationPage() {
   });
 
   const runMutation = useMutation({
-    mutationFn: () => runValidation({ ruleId: selectedRuleId ?? undefined, triggeredBy: OPERATOR }),
+    mutationFn: () =>
+      runValidation({ ruleId: selectedRuleId ?? undefined, triggeredBy: readOperator() }),
     onSuccess: async (batch) => {
       const first = batch.runs[0];
       if (first) setPickedRunId(first.id);

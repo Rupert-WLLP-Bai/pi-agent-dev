@@ -296,6 +296,31 @@ dbTest("pings the database", async (repository) => {
   expect(await repository.ping()).toBe(true);
 });
 
+dbTest("appends a snapshot generation and reads the newest back", async (repository) => {
+  const id = uniqueSourceRecordId();
+  const { caseId } = await repository.createPendingCase(id, seedSnapshot(id));
+  const original = await repository.getSnapshotByCase(caseId);
+
+  // A reassessment rebuilds under different parameters; the appended
+  // generation must become the one every reader sees.
+  const rebuilt = createAuditSnapshot({
+    sourceRecordId: id,
+    document: normalizeContractDocument("乙方签订后支付合同金额的50%作为预付款。"),
+    policyLimitRatio: 0.5,
+  });
+  await repository.appendSnapshot(caseId, rebuilt);
+
+  const latest = await repository.getSnapshotByCase(caseId);
+  expect(latest?.facts).toEqual(rebuilt.facts);
+  expect(latest?.facts).not.toEqual(original?.facts);
+
+  // Claiming hands the runner the newest snapshot's row, not the original.
+  const claimed = await repository.claimCase(caseId);
+  if (claimed === null) throw new Error("expected the pending case to be claimable");
+  const claimedSnapshot = await repository.getSnapshot(claimed.snapshotId);
+  expect(claimedSnapshot?.facts).toEqual(rebuilt.facts);
+});
+
 // ── Source provenance ─────────────────────────────────────────────
 
 dbTest("records the provenance it was given and reports it back", async (repository) => {

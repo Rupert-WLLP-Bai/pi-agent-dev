@@ -76,7 +76,11 @@ export interface SubjectVerificationPort {
 // business notifications — never raw Pi runtime events.
 export type AuditEvent =
   | { type: "audit.started"; auditCaseId: string }
-  | { type: "rules.completed"; auditCaseId: string }
+  | {
+      type: "rules.completed";
+      auditCaseId: string;
+      summary?: { total: number; conflict: number; needsReview: number; compliant: number };
+    }
   | { type: "agent.started"; auditCaseId: string }
   | { type: "agent.trace"; auditCaseId: string; step: AgentTraceStep }
   | { type: "finding.proposed"; auditCaseId: string; proposal: FindingProposal }

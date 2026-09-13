@@ -1,5 +1,6 @@
 import { findDemoContract } from "@contract-audit/audit/demo-contracts";
 import type {
+  AuditCaseStatus,
   AuditSnapshot,
   RuleCode,
   RuleParamSet,
@@ -57,6 +58,9 @@ async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?:
   const ruleVersions: Partial<Record<RuleCode, number>> = {};
   for (const [code, version] of published) ruleVersions[code as RuleCode] = version.version;
 
+  const ruleVersionIds: Partial<Record<RuleCode, string>> = {};
+  for (const [code, version] of published) ruleVersionIds[code as RuleCode] = version.versionId;
+
   const ruleParams: Partial<Record<RuleCode, RuleParamSet>> = {};
   for (const [code, version] of published) {
     if (Object.keys(version.params).length > 0) {
@@ -71,6 +75,9 @@ async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?:
     preferredJurisdiction: typeof jurisdiction === "string" ? jurisdiction : undefined,
     ruleVersions,
     ruleParams,
+    // The version row each parameter set came from, so the snapshot's policy
+    // can name the exact rows it was judged under.
+    ruleVersionIds,
     // The operator's enabled/disabled overlay, read fresh per submission: a
     // disabled rule is omitted from this snapshot's assessments entirely.
     enabledRuleCodes: enabledCodes as RuleCode[],
@@ -84,6 +91,20 @@ const createBody = t.Object({
   /** Built-in sample the textarea still holds verbatim, when one was loaded. */
   demoId: t.Optional(t.String()),
 });
+
+/**
+ * A case can only be reassessed once it has stopped: a running or completed
+ * case has no new work to schedule, and reassessing a case awaiting review
+ * would discard the human decisions already recorded against it.
+ */
+const REASSESSABLE_STATUSES: Record<AuditCaseStatus, boolean> = {
+  PENDING: false,
+  RUNNING: false,
+  COMPLETED: false,
+  FAILED: true,
+  CANCELLED: true,
+  INTERRUPTED: true,
+};
 
 /**
  * Provenance of a pasted submission. The catalog decides what counts as a
@@ -240,6 +261,38 @@ export function auditCasesRoutes({ repository, dispatcher, broker, rules }: Audi
         await dispatcher.retry(params.id);
         set.status = 202;
         return { id: params.id, status: "PENDING" as const };
+      })
+      // Reassessment rebuilds the snapshot from the current published Rule
+      // Versions and the current enabled/disabled overlay, then requeues the
+      // case. The original snapshot is left in place, so the assessments a
+      // past decision rested on remain readable.
+      .post("/api/audit-cases/:id/reassess", async ({ params, set }) => {
+        const existing = await repository.getCase(params.id);
+        if (!existing) {
+          set.status = 404;
+          return { error: "audit_case_not_found" };
+        }
+        if (!REASSESSABLE_STATUSES[existing.status]) {
+          set.status = 409;
+          return { error: "case_not_reassessable" };
+        }
+        const previous = await repository.getSnapshotByCase(params.id);
+        if (!previous) {
+          set.status = 404;
+          return { error: "audit_snapshot_not_found" };
+        }
+        const snapshot = createAuditSnapshot({
+          sourceRecordId: previous.sourceRecordId,
+          document: previous.contractDocument,
+          ...(await buildRuleInputs(rules)),
+        });
+        await repository.appendSnapshot(params.id, snapshot);
+        // Requeue through the same transition a retry uses, so the case carries
+        // the newest snapshot into the next run.
+        await repository.updateCaseStatus(params.id, "PENDING", "QUEUED");
+        await dispatcher.enqueue(params.id);
+        set.status = 202;
+        return { case: { ...existing, status: "PENDING" as const, stage: "QUEUED" as const } };
       })
   );
 }

@@ -21,8 +21,9 @@ export interface AgentTraceCollector {
  * assigns `sequence` immediately and queues the write behind the previous one.
  * That keeps the stored order stable without making the agent wait on I/O.
  *
- * A failed write is swallowed on purpose. A trace is evidence about an audit;
- * losing a trace step must not turn a successful audit into a failed one.
+ * A failed write is caught on purpose. A trace is evidence about an audit;
+ * losing a trace step must not turn a successful audit into a failed one, so
+ * the collector warns and carries on rather than rejecting `flush()`.
  */
 export function createAgentTraceCollector(
   runId: string,
@@ -34,7 +35,11 @@ export function createAgentTraceCollector(
   const sink: AgentTraceSink = (observation: AgentTraceObservation) => {
     const step: AgentTraceStep = { ...observation, runId, sequence: steps.length };
     steps.push(step);
-    tail = tail.then(() => write(step)).catch(() => undefined);
+    tail = tail
+      .then(() => write(step))
+      .catch((error: unknown) => {
+        console.warn("agent_trace_write_failed", { runId, sequence: step.sequence, error });
+      });
   };
 
   return {

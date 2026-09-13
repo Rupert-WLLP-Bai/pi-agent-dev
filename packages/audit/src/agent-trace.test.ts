@@ -52,3 +52,27 @@ test("keeps collecting after a write fails", async () => {
 
   expect(collector.steps.map((step) => step.label)).toEqual(["first", "second"]);
 });
+
+test("warns when a trace write rejects instead of swallowing it", async () => {
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => {
+    warnings.push(args);
+  };
+
+  try {
+    const collector = createAgentTraceCollector("run-1", async () => {
+      throw new Error("DB down");
+    });
+
+    collector.sink(observation("first"));
+    // The collector must still resolve: a lost trace step never fails the audit.
+    await collector.flush();
+  } finally {
+    console.warn = originalWarn;
+  }
+
+  expect(warnings.length).toBeGreaterThan(0);
+  expect(warnings[0][0]).toBe("agent_trace_write_failed");
+  expect(warnings[0][1]).toMatchObject({ runId: "run-1", sequence: 0 });
+});

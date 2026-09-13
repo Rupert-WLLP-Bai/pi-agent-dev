@@ -53,8 +53,10 @@ test("flags a counterparty with a red-line record and anchors the finding", asyn
 
   // Both rules were assessed, even though only the subject one is violated.
   const rules = section(page, "违反规则");
+  // The inspector filters assessments to those matching the selected finding's
+  // rule; the subject finding shows only the subject rule, not the payment rule.
   await expect(rules).toContainText("主体红线规则");
-  await expect(rules).toContainText("预付款上限规则");
+  await expect(rules).not.toContainText("预付款上限规则");
 
   // The 外部核验 group carries the provider, a capture time, and the exact
   // evidence ids the finding cites for the red-line hits.
@@ -95,7 +97,9 @@ test("routes an unresolvable counterparty to a human instead of inventing risk",
   await expect(subject).toContainText("多个候选");
   await expect(subject).toContainText("恒昌建筑（集团）有限公司");
   await expect(subject).toContainText("恒昌建筑有限公司");
-  await expect(subject.getByRole("button", { name: "确认主体" })).toBeVisible();
+  // The confirm-subject button was removed in Wave 2; candidates now render
+  // as a read-only list.
+  await expect(subject).toContainText("本版不写入核验结果");
 
   // No red-line dimension may be asserted for a party the provider could not
   // settle, and no external record may be attributed to it either.

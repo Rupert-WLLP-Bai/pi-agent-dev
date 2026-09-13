@@ -315,6 +315,58 @@ test("publishes a corrected draft after it turns green, retiring the previous ve
   expect(list[0].lastValidation).toMatchObject({ status: "passed" });
 });
 
+test("shows the open draft's validation run ahead of the published version's", async () => {
+  const { rule } = await createRule();
+  await app.handle(json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "规则管理员" }));
+  expect(
+    (await app.handle(json("POST", `/api/rules/${rule.id}/publish`, { publishedBy: "规则管理员" })))
+      .status,
+  ).toBe(200);
+
+  const created = await app.handle(
+    json("POST", `/api/rules/${rule.id}/versions`, {
+      params: { limitRatio: 0.5 },
+      stances: ruleBody().stances,
+    }),
+  );
+  expect(created.status).toBe(201);
+
+  const draftRun = await app.handle(
+    json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "复核员" }),
+  );
+  expect((await draftRun.json()).run.status).toBe("failed");
+
+  const list = (await (await app.handle(json("GET", "/api/rules"))).json()) as Array<
+    Record<string, unknown>
+  >;
+  expect(list[0]).toMatchObject({ currentVersion: 2, status: "draft", publishedBy: "规则管理员" });
+  // The draft's red run is the latest word on the rule; v1's green run must not mask it.
+  expect(list[0].lastValidation).toMatchObject({ status: "failed", summary: { failed: 2 } });
+});
+
+test("falls back to the published version's run while the draft is unvalidated", async () => {
+  const { rule } = await createRule();
+  await app.handle(json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "规则管理员" }));
+  await app.handle(json("POST", `/api/rules/${rule.id}/publish`, { publishedBy: "规则管理员" }));
+
+  const created = await app.handle(
+    json("POST", `/api/rules/${rule.id}/versions`, {
+      params: { limitRatio: 0.2 },
+      stances: ruleBody().stances,
+    }),
+  );
+  expect(created.status).toBe(201);
+
+  const list = (await (await app.handle(json("GET", "/api/rules"))).json()) as Array<
+    Record<string, unknown>
+  >;
+  expect(list[0]).toMatchObject({
+    currentVersion: 2,
+    status: "draft",
+    lastValidation: { status: "passed" },
+  });
+});
+
 test("creates a rule enabled by default", async () => {
   const detail = await createRule();
   expect(detail.rule.enabled).toBe(true);
@@ -357,6 +409,59 @@ test("re-enables a disabled rule and clears the overlay", async () => {
   expect(body.rule.disabledReason).toBe(null);
   expect(body.rule.disabledBy).toBe(null);
   expect(body.rule.disabledAt).toBe(null);
+});
+
+test("logs a disable action with its actor and reason", async () => {
+  const detail = await createRule();
+  await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "演示关闭", actor: "张三" }),
+  );
+
+  const res = await app.handle(new Request(`http://localhost/api/rules/${detail.rule.id}/actions`));
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { actions: Array<Record<string, unknown>> };
+  expect(body.actions).toHaveLength(1);
+  expect(body.actions[0]).toMatchObject({
+    action: "disable",
+    actor: "张三",
+    reason: "演示关闭",
+    versionId: null,
+  });
+});
+
+test("logs a publish action with the promoted version id", async () => {
+  const detail = await createRule();
+  await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/validate`, { triggeredBy: "规则管理员" }),
+  );
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/publish`, { publishedBy: "李四" }));
+
+  const res = await app.handle(new Request(`http://localhost/api/rules/${detail.rule.id}/actions`));
+  const body = (await res.json()) as { actions: Array<Record<string, unknown>> };
+  expect(body.actions).toHaveLength(1);
+  expect(body.actions[0]).toMatchObject({ action: "publish", actor: "李四", reason: null });
+  expect(body.actions[0].versionId).toBe(detail.activeDraft.id);
+});
+
+test("logs enable and returns the trail newest first", async () => {
+  const detail = await createRule();
+  await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, {
+      reason: "临时停用",
+      actor: "规则管理员",
+    }),
+  );
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/enable`, { actor: "王五" }));
+
+  const res = await app.handle(new Request(`http://localhost/api/rules/${detail.rule.id}/actions`));
+  const body = (await res.json()) as { actions: Array<Record<string, unknown>> };
+  expect(body.actions.map((action) => action.action)).toEqual(["enable", "disable"]);
+  expect(body.actions[0]).toMatchObject({ action: "enable", actor: "王五", reason: null });
+  expect(body.actions[1]).toMatchObject({
+    action: "disable",
+    actor: "规则管理员",
+    reason: "临时停用",
+  });
 });
 
 test("returns 404 when disabling or enabling an unknown rule", async () => {

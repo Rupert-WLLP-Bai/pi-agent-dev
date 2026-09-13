@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   createRuleVersion,
   getRule,
+  listRuleActions,
   publishRule,
   updateRule,
   updateRuleVersion,
@@ -31,6 +32,11 @@ export default function RuleDetail({ id }: { id: string }) {
 
   const detailQuery = useQuery({ queryKey: ["rule", id], queryFn: () => getRule(id) });
   const detail = detailQuery.data;
+
+  const actionsQuery = useQuery({
+    queryKey: ["rule-actions", id],
+    queryFn: () => listRuleActions(id),
+  });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["rule", id] });
 
@@ -72,6 +78,7 @@ export default function RuleDetail({ id }: { id: string }) {
     mutationFn: () => publishRule(id, readOperator()),
     onSuccess: () => {
       void invalidate();
+      void queryClient.invalidateQueries({ queryKey: ["rule-actions", id] });
       message.success("规则已发布");
     },
     onError: (error: Error) => message.error(error.message),
@@ -136,6 +143,7 @@ export default function RuleDetail({ id }: { id: string }) {
         key={workingVersionId}
         detail={detail}
         validationRun={validationRun}
+        actions={actionsQuery.data ?? []}
         savingInfo={saveInfoMutation.isPending}
         savingDraft={saveDraftMutation.isPending}
         validating={validateMutation.isPending}

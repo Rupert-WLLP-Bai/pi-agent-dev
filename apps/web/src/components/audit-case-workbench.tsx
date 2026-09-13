@@ -20,6 +20,7 @@ import {
   Empty,
   Popconfirm,
   Result,
+  Space,
   Steps,
   Tag,
   Tooltip,
@@ -27,6 +28,7 @@ import {
 } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  assessmentsForFinding,
   type EvidenceSourceGroup,
   evidenceSourceGroupLabels,
   evidenceSourceGroupOrder,
@@ -64,10 +66,13 @@ export interface AuditCaseDetailData {
 export interface AuditCaseWorkbenchProps {
   detail: AuditCaseDetailData;
   connection: AuditConnectionState;
-  action: { type: "CANCEL" | "RETRY" } | null;
+  action: { type: "CANCEL" | "RETRY" | "REASSESS" } | null;
   onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
   onCancel: () => void;
+  /** Reruns the agent against the snapshot the case already holds. */
   onRetry: () => void;
+  /** Rebuilds the snapshot from the current published rules, then reruns. */
+  onReassess: () => void;
   onBack: () => void;
   /** Text on the back control; follows the entry point (review centre vs queue). */
   backLabel?: string;
@@ -499,6 +504,7 @@ export function AuditCaseWorkbench({
   onOpenReview,
   onCancel,
   onRetry,
+  onReassess,
   onBack,
   backLabel = "返回审计队列",
   onOpenTrace,
@@ -576,6 +582,17 @@ export function AuditCaseWorkbench({
     const firstUnreviewed = findings.findIndex((finding) => finding.review === null);
     if (firstUnreviewed >= 0) setSelectedFindingIndex(firstUnreviewed);
   };
+
+  // Reconcile selection when findings change or the tab switches: on the
+  // pending tab, never leave the inspector on a reviewed finding. When all
+  // findings are reviewed, clear the selection.
+  useEffect(() => {
+    if (findingTab !== "pending") return;
+    const current = findings[selectedFindingIndex];
+    if (current && current.review === null) return;
+    const firstUnreviewed = findings.findIndex((finding) => finding.review === null);
+    setSelectedFindingIndex(firstUnreviewed >= 0 ? firstUnreviewed : -1);
+  }, [findings, findingTab, selectedFindingIndex]);
 
   const coverageSections: { key: string; label: string; tone: string; items: string[] }[] = [
     {
@@ -687,24 +704,43 @@ export function AuditCaseWorkbench({
         </div>
       )}
 
+      {running && ruleAssessments.length > 0 && (
+        <div style={{ padding: "0 16px 8px" }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            规则覆盖 · {coverage.compliant}/{coverage.total} 项通过
+          </Typography.Text>
+        </div>
+      )}
+
       {failed && (
         <div className="workbench-panel">
           <Result
             status={stage === "CANCELLED" ? "warning" : "error"}
             title={stage === "CANCELLED" ? "审计已取消" : "审计未完成"}
-            subTitle={`当前状态：${getAuditStageLabel(stage)}。可重试重新执行。`}
+            subTitle={`当前状态：${getAuditStageLabel(stage)}。可按当前规则重评，或仅重试智能体。`}
             extra={
-              <Popconfirm
-                title="重试该审计案件？"
-                description="将重新排队并从头执行审计。"
-                okText="确认重试"
-                cancelText="返回"
-                onConfirm={onRetry}
-              >
-                <Button type="primary" loading={action?.type === "RETRY"}>
-                  重试审计
-                </Button>
-              </Popconfirm>
+              <Space>
+                <Popconfirm
+                  title="按当前规则重评？"
+                  description="将按当前生效的规则版本重建审查快照并重新排队；原快照保留。"
+                  okText="确认重评"
+                  cancelText="返回"
+                  onConfirm={onReassess}
+                >
+                  <Button type="primary" loading={action?.type === "REASSESS"}>
+                    按当前规则重评
+                  </Button>
+                </Popconfirm>
+                <Popconfirm
+                  title="仅重试智能体？"
+                  description="将沿用现有审查快照重新排队，不重新执行规则评估。"
+                  okText="确认重试"
+                  cancelText="返回"
+                  onConfirm={onRetry}
+                >
+                  <Button loading={action?.type === "RETRY"}>仅重试智能体</Button>
+                </Popconfirm>
+              </Space>
             }
           />
         </div>
@@ -777,7 +813,10 @@ export function AuditCaseWorkbench({
               <InspectorPanel
                 finding={selectedFinding}
                 facts={snapshot.facts}
-                ruleAssessments={ruleAssessments}
+                ruleAssessments={assessmentsForFinding(
+                  selectedFinding.proposal.findingType,
+                  ruleAssessments,
+                )}
                 parties={snapshot.parties}
                 subjectVerifications={subjectVerifications}
                 evidence={evidence}

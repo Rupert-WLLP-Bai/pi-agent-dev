@@ -67,6 +67,12 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
         }
         return detail;
       })
+      // The governance trail: every disable, enable and publish on this rule,
+      // newest first. Read-only — the record is append-only.
+      .get("/api/rules/:id/actions", async ({ params }) => {
+        const actions = await rules.listActions(params.id);
+        return { actions };
+      })
       .post(
         "/api/rules",
         async ({ body, set }) => {

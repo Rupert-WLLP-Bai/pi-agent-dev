@@ -64,6 +64,13 @@
       "when": 1789370000000,
       "tag": "0008_rule_runtime_enabled",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789320811853,
+      "tag": "0009_audit_action_logs",
+      "breakpoints": true
     }
   ]
 }

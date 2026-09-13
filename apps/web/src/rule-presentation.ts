@@ -40,6 +40,13 @@ export const ruleRuntimeLabels: { enabled: string; disabled: string } = {
   disabled: "已停用",
 };
 
+/** The verbs a governance action reads as in the 操作记录 table. */
+export const ruleActionLabels: Record<string, string> = {
+  disable: "停用",
+  enable: "启用",
+  publish: "发布",
+};
+
 export const validationRunStatusLabels: Record<ValidationRunStatus, string> = {
   passed: "通过",
   failed: "未通过",

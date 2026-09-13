@@ -6,6 +6,7 @@ import type {
   AuditCase,
   AuditCaseStatus,
   AuditSnapshot,
+  AuditSnapshotPolicy,
   AuditStage,
   ContractParty,
   EvidenceLocator,
@@ -254,6 +255,7 @@ const toSnapshot = (row: typeof auditSnapshots.$inferSelect): AuditSnapshot => (
   contractDocument: row.document as AuditSnapshot["contractDocument"],
   facts: row.facts as AuditSnapshot["facts"],
   parties: row.parties as AuditSnapshot["parties"],
+  policy: (row.policy as AuditSnapshotPolicy | null) ?? undefined,
   evidence: row.evidence as AuditSnapshot["evidence"],
   ruleAssessments: row.ruleAssessments as AuditSnapshot["ruleAssessments"],
   createdAt: row.createdAt.toISOString(),
@@ -334,7 +336,7 @@ export class AuditCaseRepository {
           document: snapshot.contractDocument,
           facts: snapshot.facts,
           parties: snapshot.parties,
-          policy: null,
+          policy: snapshot.policy ?? null,
           evidence: snapshot.evidence,
           ruleAssessments: snapshot.ruleAssessments,
           createdAt: asDate(snapshot.createdAt),
@@ -352,7 +354,9 @@ export class AuditCaseRepository {
         FROM audit_cases c
         INNER JOIN audit_snapshots s ON s.audit_case_id = c.id
         WHERE c.status = 'PENDING'
-        ORDER BY c.created_at ASC
+        -- Claiming hands the runner one snapshot; when a case has been
+        -- reassessed, the newest generation is the one to run.
+        ORDER BY c.created_at ASC, s.created_at DESC
         LIMIT 1
         FOR UPDATE OF c SKIP LOCKED
       `);
@@ -374,6 +378,7 @@ export class AuditCaseRepository {
         FROM audit_cases c
         INNER JOIN audit_snapshots s ON s.audit_case_id = c.id
         WHERE c.id = ${auditCaseId} AND c.status = 'PENDING'
+        ORDER BY s.created_at DESC
         LIMIT 1
         FOR UPDATE OF c SKIP LOCKED
       `);
@@ -848,8 +853,29 @@ export class AuditCaseRepository {
       .select()
       .from(auditSnapshots)
       .where(eq(auditSnapshots.auditCaseId, caseId))
+      .orderBy(desc(auditSnapshots.createdAt))
       .limit(1);
     return row ? toSnapshot(row) : null;
+  }
+
+  /**
+   * Appends a snapshot generation for a case. Reassessment rebuilds the
+   * snapshot under the rules in force now and appends rather than overwrites:
+   * the earlier generation stays readable as the record of what a past
+   * decision was judged under, while readers pick the newest one.
+   */
+  async appendSnapshot(caseId: string, snapshot: AuditSnapshot): Promise<void> {
+    await this.db.insert(auditSnapshots).values({
+      auditCaseId: caseId,
+      sourceRecordId: snapshot.sourceRecordId,
+      document: snapshot.contractDocument,
+      facts: snapshot.facts,
+      parties: snapshot.parties,
+      policy: snapshot.policy ?? null,
+      evidence: snapshot.evidence,
+      ruleAssessments: snapshot.ruleAssessments,
+      createdAt: asDate(snapshot.createdAt),
+    });
   }
 
   /**
