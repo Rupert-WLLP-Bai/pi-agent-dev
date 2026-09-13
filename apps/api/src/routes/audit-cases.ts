@@ -195,16 +195,26 @@ export function auditCasesRoutes({ repository, dispatcher, broker, rules }: Audi
         const { verifications, evidence: subjectEvidence } = await repository.getSubjectDimension(
           params.id,
         );
-        const analyses = [
-          ...snapshot.ruleAssessments,
-          {
-            ...evaluateSubjectRiskRule({ parties: snapshot.parties, verifications }),
-            ruleVersion:
-              (await rules.getPublishedVersions(["SUBJECT_RED_LINE_RISK"])).get(
-                "SUBJECT_RED_LINE_RISK",
-              )?.version ?? null,
-          },
-        ];
+        // SUBJECT_RED_LINE_RISK is a special rule: its assessment depends on
+        // external verification, not published parameters, so the version may
+        // be null even when the rule is active. Gate on the runtime enabled
+        // state, not on published-versions presence.
+        // state. When no rule row exists (unseeded/test), default to enabled.
+        const allRules = await rules.listRules();
+        const subjectRule = allRules.find((r) => r.code === "SUBJECT_RED_LINE_RISK");
+        const subjectEnabled = subjectRule ? subjectRule.enabled !== false : true;
+        const subjectVersion =
+          (await rules.getPublishedVersions(["SUBJECT_RED_LINE_RISK"])).get("SUBJECT_RED_LINE_RISK")
+            ?.version ?? null;
+        const analyses = subjectEnabled
+          ? [
+              ...snapshot.ruleAssessments,
+              {
+                ...evaluateSubjectRiskRule({ parties: snapshot.parties, verifications }),
+                ruleVersion: subjectVersion,
+              },
+            ]
+          : snapshot.ruleAssessments;
 
         return {
           case: auditCase,

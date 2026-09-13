@@ -193,49 +193,54 @@ test("blocks publish with the failing case count when a draft regresses", async 
   await expect(activePanel(page).getByText("验证未通过：2 例失败")).toBeVisible();
 });
 
-test("disables a rule and omits it from new audits", async ({ page }) => {
-  await assertApiReachable(page);
-  // A previous aborted run may have left the seeded rule off; start from on.
-  await reEnableAdvanceRule(page);
-  await page.goto("/rules");
+// This test mutates a shared seeded rule (ADVANCE_PAYMENT_LIMIT), so it must
+// not run in parallel with specs that depend on that rule's findings.
+test.describe
+  .serial("rule disable flow", () => {
+    test("disables a rule and omits it from new audits", async ({ page }) => {
+      await assertApiReachable(page);
+      // A previous aborted run may have left the seeded rule off; start from on.
+      await reEnableAdvanceRule(page);
+      await page.goto("/rules");
 
-  const advanceRow = page.getByRole("row", { name: /ADVANCE_PAYMENT_LIMIT/ });
-  await expect(advanceRow).toBeVisible();
-  await expect(advanceRow.getByText("运行中")).toBeVisible();
+      const advanceRow = page.getByRole("row", { name: /ADVANCE_PAYMENT_LIMIT/ });
+      await expect(advanceRow).toBeVisible();
+      await expect(advanceRow.getByText("运行中")).toBeVisible();
 
-  try {
-    // Stopping a rule is a confirmed action: the toggle opens a modal whose
-    // reason is required before the disable is actually submitted.
-    await advanceRow.getByRole("switch").click();
-    const confirm = page.getByRole("dialog", { name: /停用规则/ });
-    await expect(confirm).toBeVisible();
-    await confirm.getByLabel("停用原因").fill("演示关闭预付款规则");
-    await button(confirm, "停用").click();
+      try {
+        // Stopping a rule is a confirmed action: the toggle opens a modal whose
+        // reason is required before the disable is actually submitted.
+        await advanceRow.getByRole("switch").click();
+        const confirm = page.getByRole("dialog", { name: /停用规则/ });
+        await expect(confirm).toBeVisible();
+        await confirm.getByLabel("停用原因").fill("演示关闭预付款规则");
+        await button(confirm, "停用").click();
 
-    await expect(advanceRow.getByText("已停用")).toBeVisible({ timeout: 5000 });
+        await expect(advanceRow.getByText("已停用")).toBeVisible({ timeout: 5000 });
 
-    // A case assembled while the rule is off must not carry its finding.
-    await page.goto("/audit-cases");
-    await page.getByRole("button", { name: "新建审计" }).click();
-    await expect(page.getByRole("dialog", { name: "新建审计" })).toBeVisible();
-    await page.getByRole("button", { name: "加载演示合同" }).click();
-    await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
-    await page.getByRole("button", { name: "开始审计" }).click();
-    await page.waitForURL(/\/audit-cases\/.+$/);
+        // A case assembled while the rule is off must not carry its finding.
+        await page.goto("/audit-cases");
+        await page.getByRole("button", { name: "新建审计" }).click();
+        await expect(page.getByRole("dialog", { name: "新建审计" })).toBeVisible();
+        await page.getByRole("button", { name: "加载演示合同" }).click();
+        await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
+        await page.getByRole("button", { name: "开始审计" }).click();
+        await page.waitForURL(/\/audit-cases\/.+$/);
 
-    // The other demo conflict still settles, which proves the run finished —
-    // the absence below is the overlay taking effect, not a slow load.
-    await expect(page.locator(".review-workspace")).toBeVisible({ timeout: 15000 });
-    await expect(
-      page.locator(".finding-list").getByText("争议管辖地与我方不一致", { exact: true }),
-    ).toBeVisible({ timeout: 15000 });
-    await expect(
-      page.locator(".finding-list").getByText("预付款比例超过制度上限", { exact: true }),
-    ).toHaveCount(0);
-    await expect(page.getByText("预付款比例高于制度上限")).toHaveCount(0);
-  } finally {
-    // The dev database is shared across specs, so the disabled rule cannot
-    // outlive this test.
-    await reEnableAdvanceRule(page);
-  }
-});
+        // The other demo conflict still settles, which proves the run finished —
+        // the absence below is the overlay taking effect, not a slow load.
+        await expect(page.locator(".review-workspace")).toBeVisible({ timeout: 15000 });
+        await expect(
+          page.locator(".finding-list").getByText("争议管辖地与我方不一致", { exact: true }),
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+          page.locator(".finding-list").getByText("预付款比例超过制度上限", { exact: true }),
+        ).toHaveCount(0);
+        await expect(page.getByText("预付款比例高于制度上限")).toHaveCount(0);
+      } finally {
+        // The dev database is shared across specs, so the disabled rule cannot
+        // outlive this test.
+        await reEnableAdvanceRule(page);
+      }
+    });
+  });
