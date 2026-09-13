@@ -23,6 +23,7 @@
     "./subject-verification-fixture": "./src/subject-verification-fixture.ts",
     "./ports": "./src/ports.ts",
     "./demo-contracts": "./src/demo-contracts.ts",
-    "./workspace": "./src/workspace.ts"
+    "./workspace": "./src/workspace.ts",
+    "./finding-labels": "./src/finding-labels.ts"
   }
 }

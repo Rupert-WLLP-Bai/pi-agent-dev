@@ -66,6 +66,8 @@ export interface AuditCaseWorkbenchProps {
   onCancel: () => void;
   onRetry: () => void;
   onBack: () => void;
+  /** Text on the back control; follows the entry point (review centre vs queue). */
+  backLabel?: string;
   onOpenTrace: () => void;
 }
 
@@ -509,6 +511,7 @@ export function AuditCaseWorkbench({
   onCancel,
   onRetry,
   onBack,
+  backLabel = "返回审计队列",
   onOpenTrace,
 }: AuditCaseWorkbenchProps) {
   const {
@@ -563,7 +566,7 @@ export function AuditCaseWorkbench({
     <article className="review-page">
       <div className="case-banner">
         <button type="button" className="back-link" onClick={onBack}>
-          <ArrowLeftOutlined /> 返回审计队列
+          <ArrowLeftOutlined /> {backLabel}
         </button>
         <div className="case-title-row">
           <h2>{contractTitle}</h2>

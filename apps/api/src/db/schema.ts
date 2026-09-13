@@ -10,6 +10,7 @@ import type {
   SubjectMatchStatus,
   SubjectVerification,
 } from "@contract-audit/audit/model";
+import type { ReviewPriority } from "@contract-audit/audit/ports";
 import type { InferSelectModel } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import {
@@ -60,6 +61,10 @@ export const auditCases = pgTable("audit_cases", {
     .notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  /** Operator the case is assigned to for review; null when unassigned. */
+  assignee: text("assignee"),
+  /** Review queue priority; null when the operator has not set one. */
+  reviewPriority: text("review_priority").$type<ReviewPriority>(),
 });
 
 export const auditSnapshots = pgTable("audit_snapshots", {

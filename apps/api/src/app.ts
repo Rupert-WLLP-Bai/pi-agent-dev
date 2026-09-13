@@ -17,12 +17,18 @@ import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
 import { rulesRoutes } from "./routes/rules";
+import { reviewsRoutes } from "./routes/reviews";
 import { statsRoutes } from "./routes/stats";
 import { validationRoutes } from "./routes/validation";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
-export type { AgentRunSummary, AuditOverview, CaseSummary } from "./db/repositories";
+export type {
+  AgentRunSummary,
+  AuditOverview,
+  CaseSummary,
+  ReviewQueueItem,
+} from "./db/repositories";
 export type {
   RuleDetail,
   RuleListItem,
@@ -65,6 +71,13 @@ export function createApp(deps: AppDeps) {
     .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
+    .use(
+      reviewsRoutes({
+        repository: deps.repository,
+        broker: deps.broker,
+        slaHours: config.reviewSlaHours,
+      }),
+    )
     .use(statsRoutes({ repository: deps.repository }))
     .get("/api/health", async ({ set }) => {
       const databaseOk = await deps.repository.ping();

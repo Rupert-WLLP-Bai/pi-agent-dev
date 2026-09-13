@@ -4,7 +4,6 @@ import type {
   AuditCase,
   AuditCaseStatus,
   AuditStage,
-  FindingType,
   RuleAssessment,
   RuleCode,
   RuleDisposition,
@@ -190,28 +189,13 @@ export function summarizeRuleCoverage(assessments: RuleAssessment[]): RuleCovera
  */
 export const subjectRedLineLabel = "主体风险";
 
-export const findingTypeLabels: Record<FindingType, string> = {
-  ADVANCE_PAYMENT_POLICY_CONFLICT: "预付款比例超过制度上限",
-  SUBJECT_RED_LINE_RISK: "相对方主体风险",
-  TERMINATION_CLAUSE_MISSING: "缺少合同终止/解除条款",
-  PENALTY_RATIO_POLICY_CONFLICT: "违约金比例超过制度上限",
-  PENALTY_CLAUSE_MISSING: "缺少违约金条款",
-  DISPUTE_JURISDICTION_CONFLICT: "争议管辖地不在我方所在地",
-  DISPUTE_CLAUSE_MISSING: "缺少争议解决条款",
-  PERFORMANCE_BOND_RATIO_POLICY_CONFLICT: "履约保证金比例超过法定上限",
-  PAYMENT_TERM_POLICY_CONFLICT: "付款期限超过法定上限",
-  BACK_TO_BACK_PAYMENT_CLAUSE: "背靠背付款条款无效风险",
-  DEPOSIT_RATIO_POLICY_CONFLICT: "定金比例超过法定上限",
-  WARRANTY_RETENTION_RATIO_POLICY_CONFLICT: "质量保证金比例或缺陷责任期超限",
-  DISPUTE_RESOLUTION_CONFLICT: "或裁或诉导致仲裁协议无效",
-  BID_BOND_RATIO_POLICY_CONFLICT: "投标保证金比例超过法定上限",
-  IP_OWNERSHIP_MISSING: "缺少知识产权归属约定",
-  GUARANTEE_MODE_AMBIGUOUS: "保证方式约定不明",
-  CONFIDENTIALITY_PERIOD_MISSING: "缺少保密期限约定",
-  FORCE_MAJEURE_OVERBROAD: "不可抗力范围过宽",
-  LIABILITY_CAP_MISSING: "赔偿责任上限缺失或不对等",
-  NEEDS_HUMAN_REVIEW: "需要人工复核",
-};
+// The finding-type vocabulary is shared with the API, which projects the review
+// queue; it lives in the domain package and is re-exported here so components
+// that already import it from this module keep one source.
+export {
+  findingTypeLabels,
+  getFindingTypeLabel,
+} from "@contract-audit/audit/finding-labels";
 
 /** Chinese labels for finding severities. */
 export const severityLabels: Record<Severity, string> = {
@@ -220,12 +204,6 @@ export const severityLabels: Record<Severity, string> = {
   MEDIUM: "中风险",
   HIGH: "高风险",
 };
-
-/** Chinese label for a finding type; unknown codes surface as-is. */
-export function getFindingTypeLabel(type: string): string {
-  if (type in findingTypeLabels) return findingTypeLabels[type as FindingType];
-  return type;
-}
 
 /** Fixed order and labels of the evidence groups shown in the inspector. */
 export const evidenceSourceGroupLabels = {
