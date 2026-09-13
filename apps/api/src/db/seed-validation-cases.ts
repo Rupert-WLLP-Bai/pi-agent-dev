@@ -30,9 +30,9 @@ type GoldenRuleCode = (typeof RULE_CODES)[number];
  *
  * - `bench-08` sits exactly on the ratio ceiling (30% vs a 30% limit) for both
  *   ratio rules; `bench-09` is one point either side (31% over, 29% under).
- * - `bench-13` names a jurisdiction inside our own city (重庆市南岸区), the
+ * - `bench-49` names a jurisdiction inside our own city (重庆市南岸区), the
  *   region-containment boundary of the dispute rule.
- * - `bench-14` states termination only in a heading, not an affirmative act on
+ * - `bench-50` states termination only in a heading, not an affirmative act on
  *   the contract — the wording variant the termination rule must still accept.
  *
  * Every rule the golden set labels has at least one boundary case; the ones
@@ -41,8 +41,8 @@ type GoldenRuleCode = (typeof RULE_CODES)[number];
 const BOUNDARY_CASE_IDS: Record<GoldenRuleCode, readonly string[]> = {
   ADVANCE_PAYMENT_LIMIT: ["bench-08", "bench-09"],
   PENALTY_RATIO_LIMIT: ["bench-08", "bench-09"],
-  TERMINATION_CLAUSE_PRESENT: ["bench-14"],
-  DISPUTE_JURISDICTION: ["bench-13"],
+  TERMINATION_CLAUSE_PRESENT: ["bench-50"],
+  DISPUTE_JURISDICTION: ["bench-49"],
 };
 
 /**

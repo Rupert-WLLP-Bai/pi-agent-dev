@@ -542,11 +542,6 @@ export class RuleRepository {
     );
   }
 
-  async countRules(): Promise<number> {
-    const rows = await this.db.select({ id: rules.id }).from(rules);
-    return rows.length;
-  }
-
   // ── Validation case catalog ────────────────────────────────────
 
   /**

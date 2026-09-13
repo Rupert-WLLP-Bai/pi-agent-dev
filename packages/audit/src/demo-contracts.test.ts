@@ -70,6 +70,12 @@ const expectedProfiles: Record<string, Partial<RuleProfile>> = {
     DISPUTE_JURISDICTION: "POLICY_CONFLICT",
   },
   "engineering-service": {},
+
+  // Wave 2 samples: the four legacy dimensions stay clean; their new-rule
+  // findings are asserted in demo-agent.test.ts and wave2-rules.test.ts.
+  "subcontract-back-to-back": {},
+  "procurement-deposit-term": {},
+  "custom-dev-ip": {},
 };
 
 test("every demo contract exposes the rule profile its risk class claims", () => {
