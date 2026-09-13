@@ -117,7 +117,7 @@ test("records a confirmed risk and retains the business wording", async ({ page 
   // Both demo findings must be reviewed before the case completes.
   for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
     await page.locator(".finding-list").getByText(label, { exact: true }).click();
-    await page.getByRole("button", { name: "确认风险" }).click();
+    await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
     const dialog = page.getByRole("dialog", { name: "确认风险" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "确认风险" }).click();
@@ -132,7 +132,7 @@ test("records a confirmed risk and retains the business wording", async ({ page 
 
 test("requires a reason for a false positive and retains the decision", async ({ page }) => {
   await createDemoAudit(page);
-  await page.getByRole("button", { name: "判定误报" }).click();
+  await page.locator(".inspector-actions").getByRole("button", { name: "判定误报" }).click();
   const dialog = page.getByRole("dialog", { name: "判定误报" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "确认误报" }).click();
@@ -144,7 +144,7 @@ test("requires a reason for a false positive and retains the decision", async ({
 
   // A rejected finding is one decision; the other finding still needs one.
   await page.locator(".finding-list").getByText("争议管辖地与我方不一致", { exact: true }).click();
-  await page.getByRole("button", { name: "确认风险" }).click();
+  await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
   const acceptDialog = page.getByRole("dialog", { name: "确认风险" });
   await expect(acceptDialog).toBeVisible();
   await acceptDialog.getByRole("button", { name: "确认风险" }).click();

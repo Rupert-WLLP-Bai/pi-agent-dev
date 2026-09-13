@@ -49,10 +49,13 @@ test("review centre queues findings, assigns the case, and closes it per finding
   await expect(rows.first()).toContainText("未指派");
 
   // ── 2. 受理 assigns the case to the current operator ──
-  await rows.first().getByRole("button", { name: "受理" }).click();
+  await rows
+    .first()
+    .getByRole("button", { name: /受\s*理/ })
+    .click();
   await expect(page.getByText("已更新复核指派")).toBeVisible();
   // The row is now assigned to this operator, so 受理 no longer applies.
-  await expect(rows.first().getByRole("button", { name: "受理" })).toHaveCount(0);
+  await expect(rows.first().getByRole("button", { name: /受\s*理/ })).toHaveCount(0);
 
   // 待我处理 keeps it; 证据不足 drops it (both findings cite evidence).
   await page.locator(".queue-toolbar").getByText("待我处理", { exact: true }).click();
@@ -75,7 +78,7 @@ test("review centre queues findings, assigns the case, and closes it per finding
   // ── 4. Every finding must be decided before the case completes ──
   for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
     await page.locator(".finding-list").getByText(label, { exact: true }).click();
-    await page.getByRole("button", { name: "确认风险" }).click();
+    await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
     const dialog = page.getByRole("dialog", { name: "确认风险" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "确认风险" }).click();

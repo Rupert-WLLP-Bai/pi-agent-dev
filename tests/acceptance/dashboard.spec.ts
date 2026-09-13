@@ -48,7 +48,10 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
   expect(totalBefore).toBeGreaterThan(0);
 
   // The trend chart and risk-type bars are driven by the same database.
-  await expect(page.locator(".line-chart-placeholder svg polyline").first()).toBeVisible();
+  // The trend is drawn as a line series (an area fill plus the cumulative and
+  // daily lines), so a real path must render and no bar rects should exist.
+  await expect(page.locator(".trend-chart svg .trend-chart__series path").first()).toBeVisible();
+  await expect(page.locator(".trend-chart svg rect")).toHaveCount(0);
   await expect(page.locator(".hbar-row").first()).toBeVisible();
   const riskLabels = await page.locator(".hbar-label").allInnerTexts();
   expect(
@@ -63,7 +66,7 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
 
   // Confirm the risk on the case page, then verify the dashboard updates.
   await page.goto(caseUrl);
-  await page.getByRole("button", { name: "确认风险" }).click();
+  await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
   const dialog = page.getByRole("dialog", { name: "确认风险" });
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "确认风险" }).click();

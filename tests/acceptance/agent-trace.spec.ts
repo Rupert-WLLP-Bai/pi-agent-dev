@@ -53,7 +53,7 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
 
   // The trace card shows the agent identity.
   await expect(page.locator(".trace-card")).toBeVisible();
-  await expect(page.getByText("fake / fake-agent@0")).toBeVisible();
+  await expect(page.getByText("Fake 0 · fake-agent")).toBeVisible();
 
   // The timeline shows the run boundary and the three audit tools.
   await expect(page.getByText("开始运行")).toBeVisible();
@@ -87,7 +87,7 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
   // jurisdiction), so the case only closes once both findings are decided.
   for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
     await page.locator(".finding-list").getByText(label, { exact: true }).click();
-    await page.getByRole("button", { name: "确认风险" }).click();
+    await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
     const dialog = page.getByRole("dialog", { name: "确认风险" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "确认风险" }).click();

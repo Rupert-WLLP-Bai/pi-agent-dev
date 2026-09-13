@@ -15,7 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
 import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 
@@ -208,6 +208,7 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(readStoredCollapse);
+  const [detailCollapsed, setDetailCollapsed] = useState<boolean | null>(null);
   const isMobile = useMediaQuery("(max-width: 767px)");
   const isTablet = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
@@ -221,13 +222,27 @@ export function AppShell() {
   const health = healthQuery.data ?? "checking";
   const showHealth = health !== "ok";
 
-  // Collapse follows the operator's own choice; only a viewport that cannot
-  // afford a 232px rail collapses on its own. Navigating to a detail page is
-  // not a reason to take the navigation away.
-  const effectiveCollapsed = userCollapsed ?? isTablet;
+  const detailPage = location.pathname.startsWith("/audit-cases/");
+
+  // A case page gives its width to the contract text (§3.2), so entering one
+  // auto-collapses the sider. The choice has its own slot per context: a user
+  // who expands it on a case keeps the rail, and switching back to the queue
+  // restores the list's own preference.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: detailPage is an intentional trigger — the reset must run on every list/detail navigation, not on one mount.
+  useEffect(() => {
+    setDetailCollapsed(null);
+  }, [detailPage]);
+
+  const autoCollapsed = isTablet || (detailPage && !isMobile);
+  const effectiveCollapsed =
+    detailPage && !isTablet ? (detailCollapsed ?? autoCollapsed) : (userCollapsed ?? autoCollapsed);
 
   const toggleCollapsed = () => {
     const next = !effectiveCollapsed;
+    if (detailPage && !isTablet) {
+      setDetailCollapsed(next);
+      return;
+    }
     setUserCollapsed(next);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(COLLAPSE_PREF_KEY, String(next));
