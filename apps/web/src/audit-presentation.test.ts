@@ -1,10 +1,14 @@
 import { expect, test } from "bun:test";
-import type { AuditCase } from "@contract-audit/audit/model";
+import { ENGINE_RULE_CODES } from "@contract-audit/audit";
+import type { AuditCase, RuleAssessment } from "@contract-audit/audit/model";
 import {
   deriveQueueStats,
+  factCellsForFinding,
   filterAndSortCases,
   getAuditDisplayState,
   getAvailableCaseActions,
+  groupAssessmentsByDisposition,
+  visibleFindings,
 } from "./audit-presentation";
 
 const caseAt = (
@@ -58,4 +62,57 @@ test("filters by product lifecycle and sorts by latest update", () => {
     "older-failure",
   ]);
   expect(filterAndSortCases(cases, "ALL", "RUN").map(({ id }) => id)).toEqual(["running"]);
+});
+
+const findingWith = (id: string, decision: string | null) => ({
+  id,
+  review: decision === null ? null : { decision },
+});
+
+test("待处理 tab hides findings a reviewer has already decided", () => {
+  const findings = [findingWith("a", "ACCEPTED"), findingWith("b", null), findingWith("c", null)];
+  expect(visibleFindings(findings, "pending").map(({ id }) => id)).toEqual(["b", "c"]);
+});
+
+test("全部 tab keeps every finding in order", () => {
+  const findings = [findingWith("a", "REJECTED"), findingWith("b", null)];
+  expect(visibleFindings(findings, "all")).toBe(findings);
+});
+
+test("fact grid only applies to payment findings", () => {
+  const facts = { advancePaymentRatio: 0.42, policyLimitRatio: 0.3 };
+  expect(factCellsForFinding("SUBJECT_RED_LINE_RISK", facts)).toBeNull();
+  expect(factCellsForFinding("TERMINATION_CLAUSE_PRESENT", facts)).toBeNull();
+});
+
+test("payment finding fact grid compares contract ratio with the policy limit", () => {
+  const cells = factCellsForFinding("ADVANCE_PAYMENT_LIMIT", {
+    advancePaymentRatio: 0.42,
+    policyLimitRatio: 0.3,
+  });
+  expect(cells).toEqual([
+    { label: "合同实际值", value: "42%", tone: "bad" },
+    { label: "制度上限", value: "30%", tone: "ref" },
+    { label: "超出", value: "+12pp", tone: "neutral" },
+  ]);
+});
+
+const assessment = (
+  ruleCode: RuleAssessment["ruleCode"],
+  disposition: RuleAssessment["disposition"],
+): RuleAssessment => ({ id: `a-${ruleCode}`, ruleCode, disposition, evidenceIds: [], basis: "" });
+
+test("coverage groups assessments and reports unassessed engine rules", () => {
+  const groups = groupAssessmentsByDisposition([
+    assessment("ADVANCE_PAYMENT_LIMIT", "POLICY_CONFLICT"),
+    assessment("PENALTY_RATIO_LIMIT", "COMPLIANT"),
+    assessment("TERMINATION_CLAUSE_PRESENT", "NEEDS_HUMAN_REVIEW"),
+  ]);
+  expect(groups.conflict.map(({ ruleCode }) => ruleCode)).toEqual(["ADVANCE_PAYMENT_LIMIT"]);
+  expect(groups.compliant.map(({ ruleCode }) => ruleCode)).toEqual(["PENALTY_RATIO_LIMIT"]);
+  expect(groups.needsReview.map(({ ruleCode }) => ruleCode)).toEqual([
+    "TERMINATION_CLAUSE_PRESENT",
+  ]);
+  expect(groups.notApplicable).toHaveLength(ENGINE_RULE_CODES.length - 3);
+  expect(groups.notApplicable).not.toContain("ADVANCE_PAYMENT_LIMIT");
 });

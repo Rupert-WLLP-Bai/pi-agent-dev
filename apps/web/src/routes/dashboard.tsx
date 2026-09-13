@@ -7,8 +7,10 @@ import {
   Card,
   Col,
   Empty,
+  Result,
   Row,
   Segmented,
+  Space,
   Spin,
   Statistic,
   Tooltip,
@@ -109,7 +111,15 @@ export default function DashboardPage() {
     return (
       <div className="page">
         <Card>
-          <Empty description={error} />
+          <Result
+            status="error"
+            title={error}
+            extra={
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>
+                重试
+              </Button>
+            }
+          />
         </Card>
       </div>
     );
@@ -348,15 +358,18 @@ export default function DashboardPage() {
             title="待我处理"
             size="small"
             extra={
-              <Segmented
-                size="small"
-                value={pendingSeverity}
-                options={PENDING_FILTERS.map((option) => ({
-                  value: option.value,
-                  label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
-                }))}
-                onChange={(value) => setPendingSeverity(value as Severity | "ALL")}
-              />
+              <Space size={8}>
+                <Segmented
+                  size="small"
+                  value={pendingSeverity}
+                  options={PENDING_FILTERS.map((option) => ({
+                    value: option.value,
+                    label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
+                  }))}
+                  onChange={(value) => setPendingSeverity(value as Severity | "ALL")}
+                />
+                <Link to="/reviews">去复核中心</Link>
+              </Space>
             }
           >
             {visiblePending.length === 0 ? (
@@ -379,6 +392,7 @@ export default function DashboardPage() {
                       key={item.id}
                       to="/audit-cases/$id"
                       params={{ id: item.id }}
+                      search={{ origin: "reviews" }}
                       className="todo-item"
                     >
                       <b>{item.title ?? "未命名合同"}</b>

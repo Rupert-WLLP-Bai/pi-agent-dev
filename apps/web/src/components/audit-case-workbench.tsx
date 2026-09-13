@@ -8,17 +8,17 @@ import type {
   PaymentFacts,
   ReviewDecision,
   RuleAssessment,
+  RuleCode,
   Severity,
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import {
   Alert,
-  App as AntApp,
   Button,
   Descriptions,
+  Drawer,
   Empty,
   Popconfirm,
-  Radio,
   Result,
   Steps,
   Tag,
@@ -30,6 +30,7 @@ import {
   type EvidenceSourceGroup,
   evidenceSourceGroupLabels,
   evidenceSourceGroupOrder,
+  factCellsForFinding,
   findingTypeLabels,
   getAuditStageLabel,
   getAuditStep,
@@ -37,10 +38,12 @@ import {
   getRuleDispositionLabel,
   getSubjectDimensionSeverityLabel,
   getSubjectStatusLabel,
+  groupAssessmentsByDisposition,
   severityLabels,
   shortAuditId,
   summarizeRuleCoverage,
   summarizeRuleOutcome,
+  visibleFindings,
 } from "../audit-presentation";
 import type { AuditConnectionState } from "../hooks/use-audit-events";
 import { AuditStateBadge } from "./audit-state-badge";
@@ -189,13 +192,10 @@ function FindingListItem({
 function SubjectVerificationItem({
   party,
   verification,
-  onConfirm,
 }: {
   party: ContractParty;
   verification: SubjectVerification | undefined;
-  onConfirm: () => void;
 }) {
-  const [selectedCandidate, setSelectedCandidate] = useState<string | null>(null);
   const status = verification?.status ?? null;
   const matched = verification?.status === "RESOLVED" ? verification.matched : null;
   // Only a settled subject may show risk counts: a factor reported against a
@@ -256,31 +256,18 @@ function SubjectVerificationItem({
 
       {verification?.status === "AMBIGUOUS" && verification.candidates.length > 0 && (
         <div className="subject-candidates">
-          <Radio.Group
-            value={selectedCandidate}
-            onChange={(event) => setSelectedCandidate(event.target.value as string)}
-          >
+          <ul className="subject-candidate-list">
             {verification.candidates.map((candidate) => (
-              <Radio
-                key={`${candidate.name}-${candidate.unifiedSocialCreditCode}`}
-                value={candidate.unifiedSocialCreditCode}
-              >
+              <li key={`${candidate.name}-${candidate.unifiedSocialCreditCode}`}>
                 <span className="subject-candidate-name">{candidate.name}</span>
                 <span className="mono subject-candidate-uscc">
                   {candidate.unifiedSocialCreditCode}
                 </span>
                 <span className="subject-candidate-reg">{candidate.registrationStatus}</span>
-              </Radio>
+              </li>
             ))}
-          </Radio.Group>
-          <Button
-            size="small"
-            type="primary"
-            disabled={selectedCandidate === null}
-            onClick={onConfirm}
-          >
-            确认主体
-          </Button>
+          </ul>
+          <div className="subject-note">本版不写入核验结果</div>
         </div>
       )}
 
@@ -306,6 +293,7 @@ function InspectorPanel({
   subjectVerifications,
   evidence,
   onOpenReview,
+  onFocusBlock,
 }: {
   finding: FindingRevision;
   facts: PaymentFacts;
@@ -314,19 +302,12 @@ function InspectorPanel({
   subjectVerifications: SubjectVerification[];
   evidence: EvidenceLocator[];
   onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
+  onFocusBlock: (blockId: string) => void;
 }) {
-  const { message } = AntApp.useApp();
   const { proposal, review } = finding;
   const citedEvidence = evidence.filter((e) => proposal.evidenceIds.includes(e.id));
-  const ratioPct = Math.round(facts.advancePaymentRatio * 100);
-  const limitPct = Math.round(facts.policyLimitRatio * 100);
-  const diffPct = ratioPct - limitPct;
-
-  // Subject confirmation requires a human decision, so the action only explains
-  // what is missing instead of calling an API that does not exist yet.
-  const confirmSubject = () => {
-    message.info("候选主体需人工确认，请审核人员选定主体后重新发起核验。");
-  };
+  // Only ratio findings have a fact pair to show; every other finding skips the grid.
+  const factCells = factCellsForFinding(proposal.findingType, facts);
 
   return (
     <>
@@ -336,20 +317,19 @@ function InspectorPanel({
           <Tag color={severityColors[proposal.severity]}>{severityLabels[proposal.severity]}</Tag>
         </div>
 
-        <div className="facts-grid">
-          <div className="fact-cell bad">
-            <span>合同实际值</span>
-            <b className="tnum">{ratioPct}%</b>
+        {factCells && (
+          <div className="facts-grid">
+            {factCells.map((cell) => (
+              <div
+                key={cell.label}
+                className={cell.tone === "neutral" ? "fact-cell" : `fact-cell ${cell.tone}`}
+              >
+                <span>{cell.label}</span>
+                <b className="tnum">{cell.value}</b>
+              </div>
+            ))}
           </div>
-          <div className="fact-cell ref">
-            <span>制度上限</span>
-            <b className="tnum">{limitPct}%</b>
-          </div>
-          <div className="fact-cell">
-            <span>超出</span>
-            <b className="tnum">{diffPct > 0 ? `+${diffPct}` : diffPct}pp</b>
-          </div>
-        </div>
+        )}
 
         <div className="inspect-section">
           <h4>判断依据</h4>
@@ -396,7 +376,6 @@ function InspectorPanel({
                   key={party.id}
                   party={party}
                   verification={subjectVerifications.find((item) => item.partyId === party.id)}
-                  onConfirm={confirmSubject}
                 />
               ))}
             </div>
@@ -421,46 +400,56 @@ function InspectorPanel({
                   {items.length === 0 ? (
                     <div className="source-empty">—</div>
                   ) : (
-                    items.map((locator) => (
-                      <div key={locator.id} className="source-item">
-                        {locator.location.kind === "EXTERNAL_RECORD" ? (
-                          <>
-                            <strong>
-                              {shortAuditId(locator.id)} · {locator.location.recordType}
-                            </strong>
-                            <div className="source-meta">
-                              <span>提供方 {locator.location.provider}</span>
-                              <span>主体 {locator.location.subject}</span>
-                              <span>采集 {formatTime(locator.location.capturedAt)}</span>
-                              <span>
-                                有效期至{" "}
-                                {locator.location.expiresAt
-                                  ? formatTime(locator.location.expiresAt)
-                                  : "长期"}
-                              </span>
-                              {isStale(locator.location.expiresAt) && (
-                                <span className="stale-badge">已过期</span>
-                              )}
-                            </div>
-                            <div className="source-meta">
-                              <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <strong>
-                              {shortAuditId(locator.id)} · 区块 {locator.location.blockId}
-                            </strong>
-                            <div className="source-quote">
-                              {locator.location.quotedText.slice(0, 60)}…
-                            </div>
-                            <div className="source-meta">
-                              <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ))
+                    items.map((locator) =>
+                      locator.location.kind === "EXTERNAL_RECORD" ? (
+                        <div key={locator.id} className="source-item">
+                          <strong>
+                            {shortAuditId(locator.id)} · {locator.location.recordType}
+                          </strong>
+                          <div className="source-meta">
+                            <span>提供方 {locator.location.provider}</span>
+                            <span>主体 {locator.location.subject}</span>
+                            <span>采集 {formatTime(locator.location.capturedAt)}</span>
+                            <span>
+                              有效期至{" "}
+                              {locator.location.expiresAt
+                                ? formatTime(locator.location.expiresAt)
+                                : "长期"}
+                            </span>
+                            {isStale(locator.location.expiresAt) && (
+                              <span className="stale-badge">已过期</span>
+                            )}
+                          </div>
+                          <div className="source-meta">
+                            <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          key={locator.id}
+                          type="button"
+                          className="source-item source-item--button"
+                          onClick={() => {
+                            if (locator.location.kind === "DOCUMENT_SPAN")
+                              onFocusBlock(locator.location.blockId);
+                          }}
+                        >
+                          <strong>
+                            {shortAuditId(locator.id)} · 区块
+                            {"blockId" in locator.location ? locator.location.blockId : ""}
+                          </strong>
+                          <div className="source-quote">
+                            {"quotedText" in locator.location
+                              ? locator.location.quotedText.slice(0, 60)
+                              : ""}
+                            …
+                          </div>
+                          <div className="source-meta">
+                            <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
+                          </div>
+                        </button>
+                      ),
+                    )
                   )}
                 </div>
               );
@@ -529,6 +518,9 @@ export function AuditCaseWorkbench({
   const running = !failed && !awaitingReview && !completed;
 
   const [selectedFindingIndex, setSelectedFindingIndex] = useState(0);
+  const [findingTab, setFindingTab] = useState<"pending" | "all">("pending");
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [coverageOpen, setCoverageOpen] = useState(false);
   const documentRef = useRef<HTMLDivElement>(null);
 
   const problemBlockIds = useMemo(() => {
@@ -557,6 +549,60 @@ export function AuditCaseWorkbench({
     const el = documentRef.current.querySelector(`[data-block-id="${selectedBlockId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [selectedBlockId]);
+
+  useEffect(() => {
+    if (!focusedBlockId || !documentRef.current) return;
+    const el = documentRef.current.querySelector(`[data-block-id="${focusedBlockId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focusedBlockId]);
+
+  // The tab filters the list but never the selection: indices always address
+  // the full findings array, so the inspector header stays stable.
+  const visible = useMemo(() => visibleFindings(findings, findingTab), [findings, findingTab]);
+  const pendingCount = useMemo(
+    () => findings.filter((finding) => finding.review === null).length,
+    [findings],
+  );
+  const coverageGroups = useMemo(
+    () => groupAssessmentsByDisposition(ruleAssessments),
+    [ruleAssessments],
+  );
+
+  const selectFindingTab = (next: "pending" | "all") => {
+    setFindingTab(next);
+    if (next !== "pending") return;
+    const current = findings[selectedFindingIndex];
+    if (current && current.review === null) return;
+    const firstUnreviewed = findings.findIndex((finding) => finding.review === null);
+    if (firstUnreviewed >= 0) setSelectedFindingIndex(firstUnreviewed);
+  };
+
+  const coverageSections: { key: string; label: string; tone: string; items: string[] }[] = [
+    {
+      key: "compliant",
+      label: "通过",
+      tone: "green",
+      items: coverageGroups.compliant.map((assessment) => getRuleCodeLabel(assessment.ruleCode)),
+    },
+    {
+      key: "conflict",
+      label: "违反",
+      tone: "red",
+      items: coverageGroups.conflict.map((assessment) => getRuleCodeLabel(assessment.ruleCode)),
+    },
+    {
+      key: "needsReview",
+      label: "证据不足",
+      tone: "orange",
+      items: coverageGroups.needsReview.map((assessment) => getRuleCodeLabel(assessment.ruleCode)),
+    },
+    {
+      key: "notApplicable",
+      label: "不适用",
+      tone: "default",
+      items: coverageGroups.notApplicable.map((code) => getRuleCodeLabel(code as RuleCode)),
+    },
+  ];
 
   const showReview = (awaitingReview || completed) && findings.length > 0;
   const contractTitle = snapshot.document.blocks[0]?.text ?? "未命名合同";
@@ -673,27 +719,39 @@ export function AuditCaseWorkbench({
               <span style={{ fontSize: 10, color: "#667085" }}>{findings.length} 项</span>
             </div>
             <div className="count-tabs">
-              <span className="active">
-                待处理 {findings.filter((f) => f.review === null).length}
-              </span>
-              <span>全部 {findings.length}</span>
+              <button
+                type="button"
+                className={findingTab === "pending" ? "active" : ""}
+                onClick={() => selectFindingTab("pending")}
+              >
+                待处理 {pendingCount}
+              </button>
+              <button
+                type="button"
+                className={findingTab === "all" ? "active" : ""}
+                onClick={() => selectFindingTab("all")}
+              >
+                全部 {findings.length}
+              </button>
             </div>
             <div className="finding-list">
-              {findings.map((finding, index) => (
+              {visible.map((finding) => (
                 <FindingListItem
                   key={finding.id}
                   finding={finding}
-                  active={index === selectedFindingIndex}
-                  onClick={() => setSelectedFindingIndex(index)}
+                  active={findings[selectedFindingIndex]?.id === finding.id}
+                  onClick={() =>
+                    setSelectedFindingIndex(findings.findIndex((item) => item.id === finding.id))
+                  }
                 />
               ))}
             </div>
-            <div className="coverage">
+            <button type="button" className="coverage" onClick={() => setCoverageOpen(true)}>
               <span>审查覆盖</span>
               <span>
                 <b>{summarizeRuleOutcome(ruleAssessments)}</b>
               </span>
-            </div>
+            </button>
           </aside>
 
           {/* Center: contract document */}
@@ -724,6 +782,7 @@ export function AuditCaseWorkbench({
                 subjectVerifications={subjectVerifications}
                 evidence={evidence}
                 onOpenReview={onOpenReview}
+                onFocusBlock={setFocusedBlockId}
               />
             ) : (
               <div className="inspector-body">
@@ -732,6 +791,36 @@ export function AuditCaseWorkbench({
             )}
           </aside>
         </div>
+      )}
+
+      {showReview && (
+        <Drawer
+          title="审查覆盖"
+          open={coverageOpen}
+          onClose={() => setCoverageOpen(false)}
+          size="min(420px, 100vw)"
+          destroyOnHidden
+        >
+          {coverageSections.map((section) => (
+            <div key={section.key} className="coverage-group">
+              <div className="coverage-group__head">
+                <Tag color={section.tone} style={{ margin: 0 }}>
+                  {section.label}
+                </Tag>
+                <span className="coverage-group__count">{section.items.length} 项</span>
+              </div>
+              {section.items.length === 0 ? (
+                <div className="coverage-group__empty">—</div>
+              ) : (
+                <ul className="coverage-group__list">
+                  {section.items.map((label) => (
+                    <li key={label}>{label}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </Drawer>
       )}
 
       {!showReview && !running && !failed && completed && findings.length === 0 && (

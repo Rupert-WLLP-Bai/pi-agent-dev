@@ -22,11 +22,11 @@ Pi 的官方 SDK 允许嵌入应用、注册自定义 Tool、订阅 Session 事�
 ## Runtime Flow
 
 ```text
-Demo text / pasted text
-  -> PlainTextContractAdapter
-  -> ContractDocument + SourceRecord
+Text paste / `.docx` / `.pdf` upload
+  -> Document parser (plain text / docx / pdf)
+  -> Contract Document IR + SourceRecord
   -> Fact Builder
-  -> Rule Assessment
+  -> Rule Assessments (enabled rules × published versions)
   -> bounded Audit Snapshot
   -> Pi Agent Run
        get_rule_assessment
@@ -54,19 +54,25 @@ Owns Elysia routes, Drizzle schema/migrations, PostgreSQL repositories, the in-p
 
 ### `apps/web`
 
-Owns the two routes `/audit-cases` and `/audit-cases/:id`. It uses Eden Treaty for API calls and EventSource for progress. A reconnect first fetches an audit-case snapshot; it does not replay historical streaming events.
+Owns the dashboard, the audit queue and workbench (`/audit-cases`, `/audit-cases/:id`, `/audit-cases/:id/trace`), the review center (`/reviews`), remediation tracking (`/remediations`), rule governance (`/rules`, `/rules/:id`) and case validation (`/cases`). It uses Eden Treaty for API calls and EventSource for progress. A reconnect first fetches an audit-case snapshot; it does not replay historical streaming events. The acting operator's name is a browser-local preference (`src/operator.ts`) shared by the review center, the rule editor and the app shell.
 
 ## Persistence Boundary
 
-The MVP stores five collections:
+The MVP stores the following collections:
 
 | Collection | Purpose |
 | --- | --- |
 | `source_records` | Immutable source text and metadata |
 | `audit_cases` | Audit status, current stage and immutable contract identity |
 | `audit_snapshots` | Contract Document, Facts, policy inputs and time bounds used for a run |
+| `subject_verifications` | External subject lookups attached to a case |
 | `agent_runs` | Pi/provider/model/version, usage, duration and failure metadata |
+| `agent_trace_steps` | Ordered trace steps for a run, backing the 运行轨迹 view |
 | `finding_revisions` | Machine proposal and append-only human acceptance/rejection revision |
+| `rules` | Rule identity plus the runtime enabled/disabled overlay |
+| `rule_versions` | Parameter sets with draft/published/retired lifecycle |
+| `validation_runs` / `validation_cases` | Golden-case runs recorded against a rule version |
+| `remediations` | Remediation items opened from a confirmed finding |
 
 JSONB is used inside snapshots for bounded document, Fact and policy payloads. This preserves the domain distinctions without forcing a table for every concept before the MVP has a second consumer.
 
@@ -83,16 +89,74 @@ JSONB is used inside snapshots for bounded document, Fact and policy payloads. T
 ## API Surface
 
 ```text
+# Audit cases
 POST /api/audit-cases
+POST /api/audit-cases/upload
 GET  /api/audit-cases
 GET  /api/audit-cases/:id
 GET  /api/audit-cases/:id/events
+GET  /api/audit-cases/:id/trace
 POST /api/audit-cases/:id/cancel
 POST /api/audit-cases/:id/retry
+POST /api/audit-cases/:id/assignment
+
+# Review
 POST /api/findings/:id/reviews
+GET  /api/reviews/queue
+
+# Rule governance
+GET  /api/rules
+GET  /api/rules/:id
+POST /api/rules
+PUT  /api/rules/:id
+POST /api/rules/:id/versions
+PUT  /api/rules/:id/versions/:versionId
+POST /api/rules/:id/validate
+POST /api/rules/:id/publish
+POST /api/rules/:id/disable
+POST /api/rules/:id/enable
+
+# Case validation
+GET  /api/validation/cases
+GET  /api/validation/runs
+GET  /api/validation/runs/:id
+POST /api/validation/runs
+
+# Remediation
+GET   /api/remediations
+PATCH /api/remediations/:id
+POST  /api/remediations/:id/close
+
+# Ops
+GET  /api/agent-runs
+GET  /api/stats/overview
 GET  /api/health
 GET  /openapi
 ```
+
+## Rule Governance
+
+Rules are seeded from the engine catalogue — the `RuleCode` union in `packages/audit/src/model.ts`. A rule's parameters are versioned; a version moves `draft → published → retired`:
+
+- Publishing a new version retires the previously published one. `retired` (`已退役`) is therefore a *lifecycle* status: that version was superseded, and findings that cite it keep their historical trace.
+- The engine catalogues 17 rule codes. `SUBJECT_RED_LINE_RISK` is the one exception: its determination comes from external subject verification rather than published parameters, so it may be active with no published version. Every other code must exist in the catalogue to be persisted.
+- A rule also carries a *runtime* toggle (`enabled`, `disabled_reason`, `disabled_by`, `disabled_at`), orthogonal to version status. Disabling records an operator and a required reason; the dispatcher reads the enabled set fresh on every run, so a rule disabled after a case is enqueued is skipped and re-enabling restores it. `POST /api/rules/:id/disable` and `POST /api/rules/:id/enable` are the mutation points, and `GET /api/rules` surfaces both `status` and `enabled` so the UI never conflates them.
+
+Publishing is gated: the open draft must have a green validation run (`POST /api/rules/:id/validate`) before `POST /api/rules/:id/publish` accepts it.
+
+## Review Flow
+
+Once an audit reaches review, its findings enter the queue:
+
+- `GET /api/reviews/queue` returns SLA-annotated items; a case's remaining time is recomputed from its deadline on render, not frozen at fetch time.
+- `POST /api/audit-cases/:id/assignment` sets assignee and priority; a null assignee returns the item to the shared queue.
+- `POST /api/findings/:id/reviews` records the per-finding human decision (confirm or false positive). Batch actions deliberately stop at routing work — they never confirm or dismiss findings in bulk.
+
+A finding has no `ruleCode` of its own; the inspector aligns a finding to its rule through `findingType`. “不适用” (not applicable) is a derived view — the engine catalogue minus this case's `ruleAssessments` — not a persisted disposition, so no new disposition is introduced.
+
+## Remediation
+
+A confirmed risk opens a remediation item. `GET /api/remediations` returns the board (`pending` 待整改 / `in_progress` 整改中 / `awaiting_review` 待复核 / `closed` 已关闭); `PATCH /api/remediations/:id` updates owner, due date and progress note; `POST /api/remediations/:id/close` closes it and publishes `remediation.closed` on the SSE stream. The board is a state machine rather than a second review surface — opening an item returns to the audit workbench.
 
 ## Configuration and Compatibility Gate
 

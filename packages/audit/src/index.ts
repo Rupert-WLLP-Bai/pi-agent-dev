@@ -119,6 +119,7 @@ export {
   type RatioClauseAnalysis,
   type RatioLimitFacts,
 } from "./ratio-limit-rule";
+export { ENGINE_RULE_CODES, isEngineRuleCode, RULE_CATALOG_IS_COMPLETE } from "./rule-catalog";
 export {
   classifySubjectDimensions,
   evaluateSubjectRiskRule,

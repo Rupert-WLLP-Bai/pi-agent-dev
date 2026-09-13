@@ -121,6 +121,24 @@ test("blocks publish with the reason until a green run exists", () => {
   ).toEqual({ enabled: true, reason: null });
 });
 
+test("blocks publish when the golden set has no cases", () => {
+  const gate = describePublishGate({
+    rule: { code: "ADVANCE_PAYMENT_LIMIT" },
+    activeDraft: draftAt("run-1"),
+    draftValidationRun: runAt("passed", 0, 0),
+  });
+  expect(gate).toEqual({ enabled: false, reason: "没有可验证的案例，不能发布" });
+});
+
+test("allows an empty golden set for the subject red-line rule", () => {
+  const gate = describePublishGate({
+    rule: { code: "SUBJECT_RED_LINE_RISK" },
+    activeDraft: draftAt("run-1"),
+    draftValidationRun: runAt("passed", 0, 0),
+  });
+  expect(gate).toEqual({ enabled: true, reason: null });
+});
+
 test("renders the last validation cell with time and outcome", () => {
   const base = {
     id: "rule-1",

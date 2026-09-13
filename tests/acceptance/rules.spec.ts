@@ -3,8 +3,16 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 
 /**
- * These specs create real rules (and an ADVANCE draft) through the live API,
- * so they must not leave test rows in the shared dev database.
+ * The seeded rule the publish spec drives. Every engine code is already seeded,
+ * so a create-rule flow has no free code to use; the spec opens this rule and
+ * lands a v2 on it instead, and afterAll rolls that back to the seeded v1.
+ */
+const PUBLISH_SPEC_RULE = "PENALTY_RATIO_LIMIT";
+
+/**
+ * These specs mutate real rules through the live API (an ADVANCE draft, a v2 on
+ * the publish spec's rule), so they must not leave those changes in the shared
+ * dev database.
  */
 test.afterAll(async () => {
   const envFile = readFileSync(".env", "utf8");
@@ -12,9 +20,16 @@ test.afterAll(async () => {
   if (!match) throw new Error("DATABASE_URL missing from .env — cannot clean up test rules");
   const sql = postgres(match[1].trim());
   try {
-    await sql`delete from rules where code like 'PLAYWRIGHT_RULE_%'`;
     await sql`delete from rule_versions where status = 'draft'
       and rule_id in (select id from rules where code = 'ADVANCE_PAYMENT_LIMIT')`;
+    // The publish spec lands a v2 on a seeded rule; drop whatever it created
+    // (validation runs cascade) and put the seeded v1 back in force.
+    await sql`delete from rule_versions
+      where version > 1
+      and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
+    await sql`update rule_versions set status = 'published'
+      where version = 1
+      and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
     // The runtime toggle spec stops a seeded rule; the shared dev database must
     // not keep it off for the next run even if that spec died mid-flight.
     await sql`update rules
@@ -67,9 +82,9 @@ async function openTab(page: Page, name: string) {
 const button = (scope: Page | Locator, label: string) =>
   scope.getByRole("button", { name: new RegExp(label.split("").join("\\s*")) });
 
-async function openAdvanceRule(page: Page) {
+async function openRule(page: Page, code: string) {
   await page.goto("/rules");
-  const row = page.getByRole("row", { name: /ADVANCE_PAYMENT_LIMIT/ });
+  const row = page.getByRole("row", { name: new RegExp(code) });
   await row.getByRole("button", { name: /打\s*开/ }).click();
   await page.waitForURL(/\/rules\/[0-9a-f-]{36}$/);
 }
@@ -131,28 +146,19 @@ test("lists the seeded rules with their codes and contract types", async ({ page
   await expect(page.getByText("系统初始化").first()).toBeVisible();
 });
 
-test("creates a rule, gates its publish on validation, and lands a v2", async ({ page }) => {
+// Every engine code is already seeded, so the rule catalog leaves no free code
+// to create. The publish flow is therefore driven on a seeded rule: a fresh
+// draft is gated on validation, and publishing it lands a v2.
+test("gates publish on validation and lands a v2 on a seeded rule", async ({ page }) => {
   await assertApiReachable(page);
-  const uniqueCode = `PLAYWRIGHT_RULE_${Date.now()}`;
-  const uniqueName = `验收规则 ${uniqueCode}`;
+  await openRule(page, PUBLISH_SPEC_RULE);
 
-  await page.goto("/rules");
-  await page.getByRole("button", { name: "新建规则" }).click();
-  const modal = page.getByRole("dialog", { name: "新建规则" });
-  await modal.getByLabel("规则名").fill(uniqueName);
-  await modal.getByLabel("规则代码").fill(uniqueCode);
-  await modal.getByLabel("适用合同类型").fill("全部");
-  await Promise.all([
-    page.waitForResponse(
-      (response) => response.url().endsWith("/api/rules") && response.request().method() === "POST",
-    ),
-    button(modal, "创建").click(),
-  ]);
-  await page.waitForURL(/\/rules\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("heading", { name: uniqueName })).toBeVisible();
-  await expect(page.getByText(/草稿 v1/)).toBeVisible();
+  // The seeded rule starts on a published v1 with no open draft.
+  await expect(page.getByText(/已发布 v1/)).toBeVisible();
 
   // A draft without a run cannot be published, and the button says why.
+  await saveLimitRatio(page, "0.3");
+  await expect(page.getByText(/草稿 v2/)).toBeVisible();
   await openTab(page, "发布记录");
   await expect(button(activePanel(page), "发布")).toBeDisabled();
   await expect(page.getByText("尚未运行验证")).toBeVisible();
@@ -163,17 +169,10 @@ test("creates a rule, gates its publish on validation, and lands a v2", async ({
   await openTab(page, "发布记录");
   await expect(button(activePanel(page), "发布")).toBeEnabled();
   await publish(page);
-  await expect(page.getByText(/已发布 v1/)).toBeVisible();
-
-  // A second draft publishes as v2.
-  await saveLimitRatio(page, "0.4");
-  await runValidation(page);
-  await expect(activePanel(page).getByText(/通过/).first()).toBeVisible();
-  await publish(page);
   await expect(page.getByText(/已发布 v2/)).toBeVisible();
 
   await page.goto("/rules");
-  const row = page.getByRole("row", { name: new RegExp(uniqueCode) });
+  const row = page.getByRole("row", { name: new RegExp(PUBLISH_SPEC_RULE) });
   await expect(row).toContainText("v2");
   await expect(row).toContainText("已发布");
   await expect(row).toContainText("规则管理员");
@@ -181,7 +180,7 @@ test("creates a rule, gates its publish on validation, and lands a v2", async ({
 
 test("blocks publish with the failing case count when a draft regresses", async ({ page }) => {
   await assertApiReachable(page);
-  await openAdvanceRule(page);
+  await openRule(page, "ADVANCE_PAYMENT_LIMIT");
 
   // A 50% ceiling contradicts the labelled 30% and 31% conflict cases.
   await saveLimitRatio(page, "0.5");

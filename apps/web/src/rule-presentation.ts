@@ -106,7 +106,7 @@ export interface PublishGate {
  * disabled with this reason rather than letting the click fail.
  */
 export function describePublishGate(
-  detail: Pick<RuleDetail, "activeDraft" | "draftValidationRun">,
+  detail: Pick<RuleDetail, "activeDraft" | "draftValidationRun"> & { rule?: { code: string } },
 ): PublishGate {
   const draft = detail.activeDraft;
   if (!draft) return { enabled: false, reason: "没有待发布的草稿版本" };
@@ -114,6 +114,12 @@ export function describePublishGate(
   const run = detail.draftValidationRun;
   if (run?.status !== "passed") {
     return { enabled: false, reason: `验证未通过：${run?.summary.failed ?? 0} 例失败` };
+  }
+  // A green run with zero cases means the golden set is empty — there is
+  // nothing to validate. SUBJECT_RED_LINE_RISK is exempt: its subject dimension
+  // comes from external verification, not contract cases.
+  if (run.summary.total === 0 && detail.rule?.code !== "SUBJECT_RED_LINE_RISK") {
+    return { enabled: false, reason: "没有可验证的案例，不能发布" };
   }
   return { enabled: true, reason: null };
 }

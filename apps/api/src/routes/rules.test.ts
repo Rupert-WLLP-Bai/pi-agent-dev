@@ -208,6 +208,54 @@ test("reports the failing case count when a red run gates publish", async () => 
   expect((await blocked.json()).error).toBe("验证未通过：2 例失败");
 });
 
+test("refuses to publish a rule whose golden set has no cases", async () => {
+  // Every engine code is labelled by the golden set, so the empty golden set an
+  // unlabelled rule would produce is seeded directly: a green run with total 0.
+  const { rule, activeDraft } = await createRule();
+  await rules.recordValidation({
+    ruleVersionId: activeDraft.id,
+    ruleCode: "ADVANCE_PAYMENT_LIMIT",
+    triggeredBy: "test",
+    startedAt: new Date(),
+    summary: {
+      total: 0,
+      passed: 0,
+      failed: 0,
+      byCaseType: {
+        POSITIVE: { total: 0, passed: 0, failed: 0 },
+        NEGATIVE: { total: 0, passed: 0, failed: 0 },
+        BOUNDARY: { total: 0, passed: 0, failed: 0 },
+      },
+    },
+    details: [],
+  });
+
+  const res = await app.handle(
+    json("POST", `/api/rules/${rule.id}/publish`, { publishedBy: "test" }),
+  );
+  expect(res.status).toBe(409);
+  expect((await res.json()).error).toBe("没有可验证的案例，不能发布");
+});
+
+test("publishes the subject red-line rule despite an empty golden set", async () => {
+  const { rule } = await createRule({ code: "SUBJECT_RED_LINE_RISK" });
+
+  const validated = await app.handle(
+    json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "test" }),
+  );
+  expect(validated.status).toBe(200);
+  const { run } = (await validated.json()) as {
+    run: { status: string; summary: { total: number } };
+  };
+  expect(run.status).toBe("passed");
+  expect(run.summary.total).toBe(0);
+
+  const res = await app.handle(
+    json("POST", `/api/rules/${rule.id}/publish`, { publishedBy: "test" }),
+  );
+  expect(res.status).toBe(200);
+});
+
 test("publishes a corrected draft after it turns green, retiring the previous version", async () => {
   const { rule } = await createRule();
   await app.handle(json("POST", `/api/rules/${rule.id}/validate`, { triggeredBy: "规则管理员" }));
@@ -340,4 +388,11 @@ test("getPublishedVersions excludes disabled rules", async () => {
   expect(
     (await rules.getPublishedVersions(["ADVANCE_PAYMENT_LIMIT"])).has("ADVANCE_PAYMENT_LIMIT"),
   ).toBe(false);
+});
+
+test("rejects a rule code outside the engine catalog", async () => {
+  const res = await app.handle(json("POST", "/api/rules", ruleBody({ code: "GHOST_RULE" })));
+
+  expect(res.status).toBe(400);
+  expect((await res.json()).error).toContain("引擎目录");
 });

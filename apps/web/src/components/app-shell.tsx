@@ -17,6 +17,7 @@ import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd"
 import { useEffect, useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
+import { readOperator } from "../operator";
 
 const { Sider, Header, Content } = Layout;
 
@@ -282,7 +283,7 @@ export function AppShell() {
               {!effectiveCollapsed && (
                 <div className="app-user-meta">
                   <b>审计管理员</b>
-                  <span>规则管理员</span>
+                  <span>{readOperator()}</span>
                 </div>
               )}
             </div>

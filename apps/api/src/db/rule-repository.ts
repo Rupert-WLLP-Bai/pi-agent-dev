@@ -547,6 +547,14 @@ export class RuleRepository {
         throw new RuleRepositoryError(409, `验证未通过：${failed} 例失败`);
       }
 
+      // A green run with zero cases means there is nothing to validate — the
+      // golden set is empty. The only exception is SUBJECT_RED_LINE_RISK, whose
+      // subject dimension is determined by external verification, not contract cases.
+      const PUBLISH_WITHOUT_CONTRACT_GOLDEN: readonly string[] = ["SUBJECT_RED_LINE_RISK"];
+      if (run?.summary.total === 0 && !PUBLISH_WITHOUT_CONTRACT_GOLDEN.includes(ruleRow.code)) {
+        throw new RuleRepositoryError(409, "没有可验证的案例，不能发布");
+      }
+
       const retired = await tx
         .update(ruleVersions)
         .set({ status: "retired" })

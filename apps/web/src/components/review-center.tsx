@@ -25,6 +25,7 @@ import {
 import { useEffect, useState } from "react";
 import type { AuditTone } from "../audit-presentation";
 import { shortAuditId } from "../audit-presentation";
+import { readOperator, writeOperator } from "../operator";
 import {
   filterReviewQueue,
   formatRemaining,
@@ -37,9 +38,6 @@ import {
   reviewSeverityTones,
   sortReviewQueue,
 } from "../review-presentation";
-
-const OPERATOR_STORAGE_KEY = "review-operator";
-const DEFAULT_OPERATOR = "我";
 
 export interface AssignRequest {
   assignee?: string | null;
@@ -65,11 +63,6 @@ const toneColors: Record<AuditTone, string> = {
   success: "green",
 };
 
-function readStoredOperator(): string {
-  if (typeof window === "undefined") return DEFAULT_OPERATOR;
-  return window.localStorage.getItem(OPERATOR_STORAGE_KEY) ?? DEFAULT_OPERATOR;
-}
-
 export function ReviewCenter({
   items,
   loading,
@@ -80,7 +73,7 @@ export function ReviewCenter({
   onRefresh,
   onAssign,
 }: ReviewCenterProps) {
-  const [operator, setOperator] = useState<string>(readStoredOperator);
+  const [operator, setOperator] = useState<string>(readOperator);
   const [filter, setFilter] = useState<ReviewQueueFilter>("ALL");
   const [search, setSearch] = useState("");
   // Rows are keyed by finding, but an assignment acts on the case behind it.
@@ -89,9 +82,7 @@ export function ReviewCenter({
   const [transferTo, setTransferTo] = useState("");
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(OPERATOR_STORAGE_KEY, operator);
-    }
+    writeOperator(operator);
   }, [operator]);
 
   // A case's SLA clock keeps running while the page is open, so the countdown is

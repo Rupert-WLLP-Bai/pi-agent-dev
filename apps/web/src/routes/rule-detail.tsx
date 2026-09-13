@@ -12,10 +12,8 @@ import {
   validateRule,
 } from "../api";
 import { RuleEditor } from "../components/rule-editor";
+import { readOperator } from "../operator";
 import type { RuleParams } from "../rule-presentation";
-
-/** The operator the API records as the actor until user accounts exist (P2). */
-const OPERATOR = "规则管理员";
 
 /**
  * 规则编辑器. The five zones live in `RuleEditor`; this route owns data access
@@ -59,7 +57,7 @@ export default function RuleDetail({ id }: { id: string }) {
   });
 
   const validateMutation = useMutation({
-    mutationFn: () => validateRule(id, OPERATOR),
+    mutationFn: () => validateRule(id, readOperator()),
     onSuccess: (run) => {
       setValidationRun(run);
       void invalidate();
@@ -71,7 +69,7 @@ export default function RuleDetail({ id }: { id: string }) {
   });
 
   const publishMutation = useMutation({
-    mutationFn: () => publishRule(id, OPERATOR),
+    mutationFn: () => publishRule(id, readOperator()),
     onSuccess: () => {
       void invalidate();
       message.success("规则已发布");

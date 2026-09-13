@@ -1,18 +1,18 @@
 # Contract Audit MVP
 
-一个可追溯的合同审计 MVP。首版只验证“预付款比例超过制度上限”的单一审查闭环：合同文本经过规范化与确定性规则评估，Pi 只能通过受控工具读取证据并提交风险建议，用户随后接受或驳回该建议。
+一个可追溯的合同审计 MVP。合同（文本、Word、PDF）经过规范化与一组确定性规则评估，Pi 只能通过受控工具读取证据并提交风险建议，用户随后接受或驳回该建议。规则本身可治理：参数版本化（草稿 / 已发布 / 已退役）、发布前案例验证，以及运行时启停——被停用的规则不再进入新的审计快照。
 
 ## 当前状态
 
-Contract Audit MVP 已完成并在 `main` 上落地。审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、React 工作台和 Playwright 验收流程均已实现；现代化审计工作台（审计队列指挥中心与 decision-first 复核工作台）已通过 `origin/modern-audit-workbench` 快进合并进 `main`。
+Contract Audit MVP 已完成并在 `main` 上落地。审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、React 工作台和 Playwright 验收流程均已实现；现代化审计工作台（审计队列指挥中心与 decision-first 复核工作台）已通过 `origin/modern-audit-workbench` 快进合并进 `main`。规则治理（参数版本化、发布前案例验证、运行时启停）、复核中心（SLA 队列与批量转交）和整改跟踪也已上线。
 
 领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [MVP Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md) 和 [modern workbench plan](./docs/superpowers/plans/2026-09-11-modern-audit-workbench.md)。
 
 ## MVP 边界
 
-包含：演示合同或文本粘贴、文本规范化、付款规则、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、PostgreSQL 留痕。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf`）、文本规范化、内置 17 条确定性规则、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、PostgreSQL 留痕。
 
-不包含：PDF/MinerU、对象存储、合同中心、SSO、Redis、真实外部数据源、报告中心、RAG、多 Agent、WebSocket 和 OpenTelemetry。
+不包含：MinerU/OCR 扫描件与图片合同识别、对象存储、合同中心、SSO、Redis、报告中心、RAG、多 Agent、WebSocket 和 OpenTelemetry。
 
 ## 目标工作区
 

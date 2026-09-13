@@ -840,6 +840,13 @@ export class InMemoryRuleRepository {
     if (run?.status !== "passed") {
       throw new RuleRepositoryError(409, `验证未通过：${run?.summary.failed ?? 0} 例失败`);
     }
+    // Mirrors the SQL publish gate: a green run with nothing behind it is not
+    // publishable, except for the subject red-line rule whose dimension is
+    // external verification rather than contract golden cases.
+    const PUBLISH_WITHOUT_CONTRACT_GOLDEN: readonly string[] = ["SUBJECT_RED_LINE_RISK"];
+    if (run?.summary.total === 0 && !PUBLISH_WITHOUT_CONTRACT_GOLDEN.includes(state.rule.code)) {
+      throw new RuleRepositoryError(409, "没有可验证的案例，不能发布");
+    }
     const previous = state.versions.find((version) => version.status === "published") ?? null;
     if (previous) previous.status = "retired";
     draft.status = "published";

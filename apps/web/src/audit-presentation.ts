@@ -1,3 +1,4 @@
+import { ENGINE_RULE_CODES } from "@contract-audit/audit";
 import type {
   AgentRun,
   AgentTraceStepKind,
@@ -181,6 +182,71 @@ export function summarizeRuleCoverage(assessments: RuleAssessment[]): RuleCovera
     },
     { total: 0, compliant: 0, needsReview: 0, conflict: 0, withEvidence: 0 },
   );
+}
+
+/**
+ * Findings visible under a workbench tab. 待处理 hides anything a reviewer has
+ * already decided; 全部 is the full list. The tab never reorders, so a finding's
+ * position in either list maps back to the full array by id.
+ */
+export function visibleFindings<T extends { review: { decision: string } | null }>(
+  findings: T[],
+  tab: "pending" | "all",
+): T[] {
+  if (tab === "all") return findings;
+  return findings.filter((finding) => finding.review === null);
+}
+
+/** One labelled cell of the inspector's finding-type fact grid. */
+export interface FactCell {
+  label: string;
+  value: string;
+  tone: "bad" | "ref" | "neutral";
+}
+
+/**
+ * The fact grid a finding shows, or null when the finding is not about a
+ * payment ratio. Only the payment rules compare a contract ratio with a policy
+ * limit, so any other finding has no ratio pair to display.
+ */
+export function factCellsForFinding(
+  findingType: string,
+  facts: { advancePaymentRatio: number; policyLimitRatio: number },
+): FactCell[] | null {
+  if (!findingType.includes("ADVANCE_PAYMENT") && !findingType.includes("PAYMENT")) return null;
+  const ratio = Math.round(facts.advancePaymentRatio * 100);
+  const limit = Math.round(facts.policyLimitRatio * 100);
+  const diff = ratio - limit;
+  return [
+    { label: "合同实际值", value: `${ratio}%`, tone: "bad" },
+    { label: "制度上限", value: `${limit}%`, tone: "ref" },
+    { label: "超出", value: `${diff > 0 ? `+${diff}` : diff}pp`, tone: "neutral" },
+  ];
+}
+
+export interface RuleDispositionGroups {
+  conflict: RuleAssessment[];
+  compliant: RuleAssessment[];
+  needsReview: RuleAssessment[];
+  /** Engine rule codes the case never assessed. */
+  notApplicable: string[];
+}
+
+/**
+ * Groups a case's assessments by the disposition a reviewer reads, and reports
+ * the engine rules the case never assessed as 不适用. The engine catalog is the
+ * denominator: a rule outside it cannot yield an assessment.
+ */
+export function groupAssessmentsByDisposition(
+  assessments: RuleAssessment[],
+): RuleDispositionGroups {
+  const assessed = new Set(assessments.map((assessment) => assessment.ruleCode));
+  return {
+    conflict: assessments.filter((a) => a.disposition === "POLICY_CONFLICT"),
+    compliant: assessments.filter((a) => a.disposition === "COMPLIANT"),
+    needsReview: assessments.filter((a) => a.disposition === "NEEDS_HUMAN_REVIEW"),
+    notApplicable: ENGINE_RULE_CODES.filter((code) => !assessed.has(code)),
+  };
 }
 
 /**

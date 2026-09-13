@@ -1,3 +1,4 @@
+import { isEngineRuleCode } from "@contract-audit/audit";
 import { runGoldenValidation } from "@contract-audit/audit/golden-eval";
 import { Elysia, t } from "elysia";
 import { type RuleRepository, RuleRepositoryError } from "../db/rule-repository";
@@ -69,6 +70,10 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
       .post(
         "/api/rules",
         async ({ body, set }) => {
+          if (!isEngineRuleCode(body.code)) {
+            set.status = 400;
+            return { error: "规则代码不在引擎目录中" };
+          }
           const ruleParams = toRuleParams(body.params);
           if (!ruleParams) {
             set.status = 400;

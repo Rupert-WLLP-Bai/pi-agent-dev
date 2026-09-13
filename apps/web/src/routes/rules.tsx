@@ -1,6 +1,7 @@
+import { ENGINE_RULE_CODES } from "@contract-audit/audit";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { App as AntApp, Form, Input, Modal } from "antd";
+import { App as AntApp, Form, Input, Modal, Select } from "antd";
 import { useState } from "react";
 import { createRule, disableRule, enableRule, listRules } from "../api";
 import { RuleTable } from "../components/rule-table";
@@ -116,9 +117,18 @@ export default function RulesPage() {
           <Form.Item
             name="code"
             label="规则代码"
-            rules={[{ required: true, message: "请输入规则代码" }]}
+            rules={[{ required: true, message: "请选择规则代码" }]}
           >
-            <Input className="mono" placeholder="例如 ADVANCE_PAYMENT_LIMIT" />
+            <Select
+              className="mono"
+              placeholder="选择引擎规则代码"
+              showSearch
+              options={ENGINE_RULE_CODES.map((code) => ({
+                value: code,
+                label: code,
+                disabled: (rulesQuery.data ?? []).some((rule) => rule.code === code),
+              }))}
+            />
           </Form.Item>
           <Form.Item
             name="contractType"
