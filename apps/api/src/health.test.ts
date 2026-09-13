@@ -1,6 +1,11 @@
 import { beforeEach, expect, test } from "bun:test";
 import { createApp } from "./app";
-import { FakeDispatcher, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
+import {
+  FakeDispatcher,
+  InMemoryAuditCaseRepository,
+  InMemoryRuleRepository,
+  RecordingEventBroker,
+} from "./testing/fakes";
 
 let repository: InMemoryAuditCaseRepository;
 let dispatcher: FakeDispatcher;
@@ -15,6 +20,7 @@ beforeEach(() => {
     repository: repository.asRepository(),
     dispatcher: dispatcher.asDispatcher(),
     broker: broker.asBroker(),
+    rules: new InMemoryRuleRepository().asRepository(),
   });
 });
 

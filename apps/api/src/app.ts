@@ -7,17 +7,26 @@ import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
 import { loadApiConfig } from "./config";
 import { createRepository } from "./db/repositories";
+import { createRuleRepository } from "./db/rule-repository";
+import { seedRules } from "./db/seed-rules";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
+import { rulesRoutes } from "./routes/rules";
 import { statsRoutes } from "./routes/stats";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
 export type { AgentRunSummary, AuditOverview, CaseSummary } from "./db/repositories";
+export type {
+  RuleDetail,
+  RuleListItem,
+  RuleVersionRecord,
+  ValidationRunRecord,
+} from "./db/rule-repository";
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));
@@ -40,6 +49,7 @@ export function createApp(deps: AppDeps) {
   return new Elysia()
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes(deps))
+    .use(rulesRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(statsRoutes({ repository: deps.repository }))
@@ -62,11 +72,16 @@ export function createApp(deps: AppDeps) {
     );
 }
 
-let app: ReturnType<typeof createApp> | undefined;
+/** The assembled Elysia app, named so consumers share one contract. */
+export type AuditApp = ReturnType<typeof createApp>;
+
+let app: AuditApp | undefined;
 
 if (import.meta.main) {
   const config = loadApiConfig();
   const repository = createRepository(config.databaseUrl);
+  const rulesRepository = createRuleRepository(config.databaseUrl);
+  await seedRules(rulesRepository);
   const broker = new AuditEventBroker();
   const dispatcher = new AuditDispatcher(
     repository,
@@ -76,7 +91,7 @@ if (import.meta.main) {
     subjectVerificationPortFor(config),
     config.agentTimeoutMs,
   );
-  app = createApp({ repository, dispatcher, broker });
+  app = createApp({ repository, dispatcher, broker, rules: rulesRepository });
   await dispatcher.start();
   app.listen(config.apiPort);
 }

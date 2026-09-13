@@ -1,14 +1,16 @@
 import { expect, test } from "bun:test";
+import { runGoldenValidation } from "./golden-eval";
 import { goldenSet } from "./golden-set";
-import type { RuleAssessment } from "./model";
-import { createAuditSnapshot } from "./orchestrator";
-import { normalizeContractDocument } from "./plaintext-adapter";
 
 /**
- * Golden-set bench: runs every deterministic rule against 12 labelled contracts
- * and asserts each rule's disposition matches the ground truth. This is the
- * regression net for the deterministic engine — any rule change that shifts a
- * disposition must update the golden set, making the trade-off explicit.
+ * Golden-set bench: runs every deterministic rule against the labelled
+ * contracts and asserts each rule's disposition matches the ground truth. This
+ * is the regression net for the deterministic engine — any rule change that
+ * shifts a disposition must update the golden set, making the trade-off
+ * explicit.
+ *
+ * The execution lives in `runGoldenValidation` (also the rule publish gate);
+ * the bench only asserts the baseline stays green.
  */
 
 const RULE_CODES = [
@@ -18,44 +20,40 @@ const RULE_CODES = [
   "DISPUTE_JURISDICTION",
 ] as const;
 
-// Track mismatches for a summary that names exactly what broke.
-const mismatches: Array<{ caseId: string; rule: string; expected: string; actual: string }> = [];
+// One run per rule; its details carry every case that labels that rule.
+const runs = RULE_CODES.map((ruleCode) => ({ ruleCode, run: runGoldenValidation(ruleCode) }));
 
-for (const golden of goldenSet) {
-  test(`bench ${golden.id}: ${golden.description}`, () => {
-    const document = normalizeContractDocument(golden.text);
-    const snapshot = createAuditSnapshot({
-      sourceRecordId: `bench-${golden.id}`,
-      document,
-      policyLimitRatio: golden.policyLimitRatio,
+for (const { ruleCode, run } of runs) {
+  for (const detail of run.details) {
+    test(`bench ${detail.caseName} · ${ruleCode}`, () => {
+      expect(detail.actual).toBe(detail.expected);
     });
-
-    const assessmentBy = new Map(
-      snapshot.ruleAssessments.map((a: RuleAssessment) => [a.ruleCode, a]),
-    );
-
-    for (const ruleCode of RULE_CODES) {
-      const assessment = assessmentBy.get(ruleCode);
-      const expectedDisposition = golden.expected[ruleCode as keyof typeof golden.expected];
-      const actualDisposition = assessment?.disposition ?? "MISSING";
-
-      if (actualDisposition !== expectedDisposition) {
-        mismatches.push({
-          caseId: golden.id,
-          rule: ruleCode,
-          expected: expectedDisposition,
-          actual: actualDisposition,
-        });
-      }
-
-      expect(actualDisposition).toBe(expectedDisposition);
-    }
-  });
+  }
 }
 
+test("every labelled case is exercised for every rule", () => {
+  for (const { ruleCode, run } of runs) {
+    const labelled = goldenSet.filter(
+      (golden) => (golden.expected as Record<string, string | undefined>)[ruleCode] !== undefined,
+    );
+    expect(run.details.length, `${ruleCode} must cover every labelled case`).toBe(labelled.length);
+    expect(run.summary.total).toBe(run.details.length);
+  }
+});
+
 test("golden set confusion matrix: zero mismatches", () => {
-  // This test runs after all bench cases and asserts the overall confusion
-  // matrix is clean. If any case failed, the individual tests already reported
-  // the detail — this is the aggregate gate.
+  // Runs after the per-case tests and asserts the overall confusion matrix is
+  // clean. If any case failed, the individual tests already reported the
+  // detail — this is the aggregate gate.
+  const mismatches = runs.flatMap(({ ruleCode, run }) =>
+    run.details
+      .filter((detail) => !detail.passed)
+      .map((detail) => ({
+        caseName: detail.caseName,
+        rule: ruleCode,
+        expected: detail.expected,
+        actual: detail.actual,
+      })),
+  );
   expect(mismatches).toEqual([]);
 });

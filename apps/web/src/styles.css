@@ -1749,3 +1749,36 @@ a.todo-item:focus-visible {
 .trace-step__body {
   margin-top: 6px;
 }
+
+/* Rule governance: the editor's five zones and the table's derived cells. */
+.rule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+}
+.rule-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.rule-param-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.rule-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rule-publish {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rule-footnote {
+  max-width: 760px;
+}

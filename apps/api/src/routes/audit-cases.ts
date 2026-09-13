@@ -1,10 +1,11 @@
 import { findDemoContract } from "@contract-audit/audit/demo-contracts";
-import type { AuditSnapshot, SourceProvenance } from "@contract-audit/audit/model";
+import type { AuditSnapshot, RuleCode, SourceProvenance } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
+import type { RuleRepository } from "../db/rule-repository";
 import type { AuditDispatcher } from "../dispatcher";
 import { parseContractFile } from "../document";
 import { type AuditEventBroker, sseResponse } from "../sse";
@@ -13,6 +14,41 @@ export interface AuditRouteDeps {
   repository: AuditCaseRepository;
   dispatcher: AuditDispatcher;
   broker: AuditEventBroker;
+  /** Published Rule Versions the snapshot's parameters are read from. */
+  rules: RuleRepository;
+}
+
+/** The deterministic rules whose parameters shape snapshot assembly. */
+const SNAPSHOT_RULE_CODES = [
+  "ADVANCE_PAYMENT_LIMIT",
+  "PENALTY_RATIO_LIMIT",
+  "TERMINATION_CLAUSE_PRESENT",
+  "DISPUTE_JURISDICTION",
+] as const;
+
+/**
+ * Maps the published Rule Versions onto the parameters createAuditSnapshot
+ * reads. An operator's explicit per-audit ceiling still wins — it is the same
+ * concept stated for one audit — and when neither an override nor a published
+ * rule is present the snapshot keeps its built-in default. Every version used
+ * is returned too, so the resulting assessments can cite it.
+ */
+async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?: number) {
+  const published = await rules.getPublishedVersions(SNAPSHOT_RULE_CODES);
+  const advanceLimit = published.get("ADVANCE_PAYMENT_LIMIT")?.params.limitRatio;
+  const penaltyLimit = published.get("PENALTY_RATIO_LIMIT")?.params.limitRatio;
+  const jurisdiction = published.get("DISPUTE_JURISDICTION")?.params.preferredJurisdiction;
+
+  const ruleVersions: Partial<Record<RuleCode, number>> = {};
+  for (const [code, version] of published) ruleVersions[code as RuleCode] = version.version;
+
+  return {
+    policyLimitRatio:
+      policyLimitRatioOverride ?? (typeof advanceLimit === "number" ? advanceLimit : undefined),
+    policyPenaltyLimit: typeof penaltyLimit === "number" ? penaltyLimit : undefined,
+    preferredJurisdiction: typeof jurisdiction === "string" ? jurisdiction : undefined,
+    ruleVersions,
+  };
 }
 
 const createBody = t.Object({
@@ -40,7 +76,7 @@ export function resolvePasteProvenance(body: {
   return { type: "DEMO", displayName: demo.title };
 }
 
-export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteDeps) {
+export function auditCasesRoutes({ repository, dispatcher, broker, rules }: AuditRouteDeps) {
   return (
     new Elysia()
       .post(
@@ -50,7 +86,7 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
           const snapshot = createAuditSnapshot({
             sourceRecordId,
             document: normalizeContractDocument(body.contractText),
-            policyLimitRatio: body.policyLimitRatio ?? 0.3,
+            ...(await buildRuleInputs(rules, body.policyLimitRatio)),
           });
           const { caseId } = await repository.createPendingCase(
             sourceRecordId,
@@ -83,14 +119,14 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
             const rawLimit = Number(body.policyLimitRatio);
             const policyLimit =
               body.policyLimitRatio === undefined || Number.isNaN(rawLimit)
-                ? 0.3
+                ? undefined
                 : rawLimit > 1
                   ? rawLimit / 100
                   : rawLimit;
             snapshot = createAuditSnapshot({
               sourceRecordId,
               document: parsed.document,
-              policyLimitRatio: policyLimit,
+              ...(await buildRuleInputs(rules, policyLimit)),
             });
           } catch (error) {
             set.status = 422;
@@ -135,7 +171,13 @@ export function auditCasesRoutes({ repository, dispatcher, broker }: AuditRouteD
         );
         const analyses = [
           ...snapshot.ruleAssessments,
-          evaluateSubjectRiskRule({ parties: snapshot.parties, verifications }),
+          {
+            ...evaluateSubjectRiskRule({ parties: snapshot.parties, verifications }),
+            ruleVersion:
+              (await rules.getPublishedVersions(["SUBJECT_RED_LINE_RISK"])).get(
+                "SUBJECT_RED_LINE_RISK",
+              )?.version ?? null,
+          },
         ];
 
         return {

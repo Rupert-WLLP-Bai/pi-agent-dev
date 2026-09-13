@@ -1,3 +1,4 @@
+import type { ValidationCaseResult, ValidationSummary } from "@contract-audit/audit/golden-eval";
 import type {
   AgentTraceTokens,
   AuditCaseStatus,
@@ -158,6 +159,99 @@ export const findingRevisions = pgTable("finding_revisions", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
+// ── Rule governance ─────────────────────────────────────────────
+
+export const ruleVersionStatuses = ["draft", "published", "retired"] as const;
+export const validationRunStatuses = ["passed", "failed"] as const;
+
+export type RuleVersionStatus = (typeof ruleVersionStatuses)[number];
+export type ValidationRunStatus = (typeof validationRunStatuses)[number];
+
+/**
+ * A rule version's parameter set: flat, primitive key-values only. The rule
+ * logic itself stays in TypeScript — a version declares the numbers and
+ * strings that logic reads, never the logic itself.
+ */
+export type RuleParams = Record<string, string | number | boolean>;
+
+/**
+ * The four negotiating stances a rule declares, each a human-readable Chinese
+ * sentence. They document the commercial position behind a parameter set; any
+ * of them may be empty when the rule has no stance on that rung.
+ */
+export interface RuleStances {
+  preferred: string;
+  acceptableRetreat: string;
+  unacceptable: string;
+  exceptionApproval: string;
+}
+
+/**
+ * A deterministic审查规则. Identity lives on the rule; every deployment of its
+ * parameters is a Rule Version, so a past assessment can cite exactly what it
+ * ran under.
+ */
+export const rules = pgTable("rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: text("code").notNull().unique(),
+  name: text("name").notNull(),
+  contractType: text("contract_type").notNull().default("全部"),
+  description: text("description").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
+/**
+ * One parameter set + stance set for a rule. A rule has at most one draft at a
+ * time; publishing retires the current published version and promotes the
+ * draft. Published versions are immutable — audit snapshots cite them.
+ */
+export const ruleVersions = pgTable(
+  "rule_versions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ruleId: uuid("rule_id")
+      .references(() => rules.id, { onDelete: "cascade" })
+      .notNull(),
+    version: integer("version").notNull(),
+    params: jsonb("params").$type<RuleParams>().notNull().default({}),
+    stances: jsonb("stances").$type<RuleStances>().notNull().default({} as RuleStances),
+    status: text("status", { enum: ruleVersionStatuses })
+      .$type<RuleVersionStatus>()
+      .notNull()
+      .default("draft"),
+    publishedBy: text("published_by"),
+    publishedAt: timestamp("published_at", { withTimezone: true, mode: "date" }),
+    /** The run that gated this version's publish. A plain id, not an FK: the run references the version back. */
+    lastValidationRunId: uuid("last_validation_run_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [uniqueIndex("rule_versions_rule_version_idx").on(table.ruleId, table.version)],
+);
+
+/**
+ * The record of one golden-set run against a rule version. Append-only: the
+ * publish gate reads the newest run, and older runs remain as the quality
+ * baseline that version was judged against.
+ */
+export const validationRuns = pgTable("validation_runs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  ruleVersionId: uuid("rule_version_id")
+    .references(() => ruleVersions.id, { onDelete: "cascade" })
+    .notNull(),
+  ruleCode: text("rule_code").notNull(),
+  triggeredBy: text("triggered_by").notNull(),
+  startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  finishedAt: timestamp("finished_at", { withTimezone: true, mode: "date" }).notNull(),
+  status: text("status", { enum: validationRunStatuses }).$type<ValidationRunStatus>().notNull(),
+  /** Counts by case type plus totals. */
+  summary: jsonb("summary").$type<ValidationSummary>().notNull(),
+  /** One row per golden case, pass or fail. */
+  details: jsonb("details").$type<ValidationCaseResult[]>().notNull(),
+});
+
 export const schema = {
   sourceRecords,
   auditCases,
@@ -166,6 +260,9 @@ export const schema = {
   agentTraceSteps,
   findingRevisions,
   subjectVerifications,
+  rules,
+  ruleVersions,
+  validationRuns,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -175,6 +272,9 @@ export type AgentRunRow = InferSelectModel<typeof agentRuns>;
 export type AgentTraceStepRow = InferSelectModel<typeof agentTraceSteps>;
 export type FindingRevisionRow = InferSelectModel<typeof findingRevisions>;
 export type SubjectVerificationRow = InferSelectModel<typeof subjectVerifications>;
+export type RuleRow = InferSelectModel<typeof rules>;
+export type RuleVersionRow = InferSelectModel<typeof ruleVersions>;
+export type ValidationRunRow = InferSelectModel<typeof validationRuns>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),
@@ -190,4 +290,17 @@ export const auditCasesRelations = relations(auditCases, ({ one, many }) => ({
 }));
 export const agentRunsRelations = relations(agentRuns, ({ many }) => ({
   steps: many(agentTraceSteps),
+}));
+export const rulesRelations = relations(rules, ({ many }) => ({
+  versions: many(ruleVersions),
+}));
+export const ruleVersionsRelations = relations(ruleVersions, ({ one, many }) => ({
+  rule: one(rules, { fields: [ruleVersions.ruleId], references: [rules.id] }),
+  validationRuns: many(validationRuns),
+}));
+export const validationRunsRelations = relations(validationRuns, ({ one }) => ({
+  ruleVersion: one(ruleVersions, {
+    fields: [validationRuns.ruleVersionId],
+    references: [ruleVersions.id],
+  }),
 }));

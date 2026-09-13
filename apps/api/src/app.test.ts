@@ -3,17 +3,24 @@ import type { AuditSnapshot, ContractParty } from "@contract-audit/audit/model";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { createApp } from "./app";
-import { FakeDispatcher, InMemoryAuditCaseRepository, RecordingEventBroker } from "./testing/fakes";
+import {
+  FakeDispatcher,
+  InMemoryAuditCaseRepository,
+  InMemoryRuleRepository,
+  RecordingEventBroker,
+} from "./testing/fakes";
 
 const demoContractText = "乙方签订后支付合同金额的70%作为预付款。";
 
 let repository: InMemoryAuditCaseRepository;
 let dispatcher: FakeDispatcher;
 let broker: RecordingEventBroker;
+let rules: InMemoryRuleRepository;
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
   repository = new InMemoryAuditCaseRepository();
+  rules = new InMemoryRuleRepository();
   dispatcher = new FakeDispatcher();
   dispatcher.isStarted = true;
   broker = new RecordingEventBroker();
@@ -21,6 +28,7 @@ beforeEach(() => {
     repository: repository.asRepository(),
     dispatcher: dispatcher.asDispatcher(),
     broker: broker.asBroker(),
+    rules: rules.asRepository(),
   });
 });
 

@@ -14,6 +14,8 @@ import AuditRunsPage from "./routes/audit-runs";
 import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
+import RuleDetail from "./routes/rule-detail";
+import RulesPage from "./routes/rules";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +97,23 @@ const traceRoute = createRoute({
   component: AuditTraceRoute,
 });
 
+const rulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/rules",
+  component: RulesPage,
+});
+
+function RuleDetailRoute() {
+  const { id } = ruleDetailRoute.useParams();
+  return <RuleDetail id={id} />;
+}
+
+const ruleDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/rules/$id",
+  component: RuleDetailRoute,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -103,6 +122,8 @@ const routeTree = rootRoute.addChildren([
   listRoute,
   detailRoute,
   traceRoute,
+  rulesRoute,
+  ruleDetailRoute,
 ]);
 
 const router = createRouter({ routeTree });

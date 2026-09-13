@@ -20,6 +20,17 @@ import type {
   SubjectVerificationRun,
 } from "@contract-audit/audit/subject-verification";
 import type { AuditCaseRepository } from "../db/repositories";
+import {
+  type RuleDetail,
+  type RuleListItem,
+  type RuleRecord,
+  type RuleRepository,
+  RuleRepositoryError,
+  type RuleVersionRecord,
+  type SeedRule,
+  type ValidationRunRecord,
+} from "../db/rule-repository";
+import type { RuleParams } from "../db/schema";
 import type { AuditDispatcher } from "../dispatcher";
 import type { AuditEventBroker } from "../sse";
 
@@ -388,5 +399,230 @@ export class ControlledAgent implements AuditAgentPort {
   rejectRun(reason: unknown): void {
     const entry = this.pending.shift();
     entry?.reject(reason);
+  }
+}
+
+let fakeRuleSeq = 0;
+const nextFakeId = (prefix: string): string => `${prefix}-${(fakeRuleSeq += 1)}`;
+
+interface FakeRuleState {
+  rule: RuleRecord;
+  versions: RuleVersionRecord[];
+  runs: ValidationRunRecord[];
+}
+
+/**
+ * In-memory stand-in for RuleRepository. It mirrors the publish gate and the
+ * one-open-draft rule, so route tests exercise the same state transitions the
+ * SQL repository enforces.
+ */
+export class InMemoryRuleRepository {
+  private states = new Map<string, FakeRuleState>();
+
+  async listRules(): Promise<RuleListItem[]> {
+    return [...this.states.values()].map(({ rule, versions, runs }) => {
+      const sorted = [...versions].sort((a, b) => b.version - a.version);
+      const latest = sorted[0] ?? null;
+      const published = sorted.find((version) => version.status === "published") ?? null;
+      const validated = sorted.find((version) => version.lastValidationRunId !== null);
+      const run = validated
+        ? (runs.find((candidate) => candidate.id === validated.lastValidationRunId) ?? null)
+        : null;
+      return {
+        ...rule,
+        currentVersion: latest?.version ?? null,
+        status: latest?.status ?? null,
+        lastValidation: run
+          ? { status: run.status, finishedAt: run.finishedAt, summary: run.summary }
+          : null,
+        publishedBy: published?.publishedBy ?? null,
+      };
+    });
+  }
+
+  async getRuleDetail(id: string): Promise<RuleDetail | null> {
+    const state = this.states.get(id);
+    if (!state) return null;
+    const versions = [...state.versions].sort((a, b) => b.version - a.version);
+    const activeDraft = versions.find((version) => version.status === "draft") ?? null;
+    const draftValidationRun = activeDraft?.lastValidationRunId
+      ? (state.runs.find((run) => run.id === activeDraft.lastValidationRunId) ?? null)
+      : null;
+    return {
+      rule: state.rule,
+      versions,
+      activeDraft,
+      draftValidationRun,
+    };
+  }
+
+  async createRule(input: Parameters<RuleRepository["createRule"]>[0]): Promise<RuleDetail> {
+    if ([...this.states.values()].some(({ rule }) => rule.code === input.code)) {
+      throw new RuleRepositoryError(409, `规则代码已存在：${input.code}`);
+    }
+    const now = new Date().toISOString();
+    const rule: RuleRecord = {
+      id: nextFakeId("rule"),
+      code: input.code,
+      name: input.name,
+      contractType: input.contractType,
+      description: input.description,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const version: RuleVersionRecord = {
+      id: nextFakeId("rv"),
+      ruleId: rule.id,
+      version: 1,
+      params: input.params,
+      stances: input.stances,
+      status: "draft",
+      publishedBy: null,
+      publishedAt: null,
+      lastValidationRunId: null,
+      createdAt: now,
+    };
+    this.states.set(rule.id, { rule, versions: [version], runs: [] });
+    return { rule, versions: [version], activeDraft: version, draftValidationRun: null };
+  }
+
+  async updateRule(
+    id: string,
+    input: Parameters<RuleRepository["updateRule"]>[1],
+  ): Promise<RuleRecord> {
+    const state = this.states.get(id);
+    if (!state) throw new RuleRepositoryError(404, "规则不存在");
+    state.rule = { ...state.rule, ...input, updatedAt: new Date().toISOString() };
+    return state.rule;
+  }
+
+  async createVersion(
+    ruleId: string,
+    input: Parameters<RuleRepository["createVersion"]>[1],
+  ): Promise<RuleVersionRecord> {
+    const state = this.states.get(ruleId);
+    if (!state) throw new RuleRepositoryError(404, "规则不存在");
+    if (state.versions.some((version) => version.status === "draft")) {
+      throw new RuleRepositoryError(409, "该规则已存在草稿版本，请先更新该草稿");
+    }
+    const version: RuleVersionRecord = {
+      id: nextFakeId("rv"),
+      ruleId,
+      version: Math.max(0, ...state.versions.map((candidate) => candidate.version)) + 1,
+      params: input.params,
+      stances: input.stances,
+      status: "draft",
+      publishedBy: null,
+      publishedAt: null,
+      lastValidationRunId: null,
+      createdAt: new Date().toISOString(),
+    };
+    state.versions.push(version);
+    return version;
+  }
+
+  async updateDraft(
+    ruleId: string,
+    versionId: string,
+    input: Parameters<RuleRepository["updateDraft"]>[2],
+  ): Promise<RuleVersionRecord> {
+    const version = this.states.get(ruleId)?.versions.find((candidate) => candidate.id === versionId);
+    if (!version) throw new RuleRepositoryError(404, "规则版本不存在");
+    if (version.status !== "draft") throw new RuleRepositoryError(409, "只有草稿版本可以修改");
+    version.params = input.params;
+    version.stances = input.stances;
+    return version;
+  }
+
+  async recordValidation(
+    input: Parameters<RuleRepository["recordValidation"]>[0],
+  ): Promise<ValidationRunRecord> {
+    const state = [...this.states.values()].find((candidate) =>
+      candidate.versions.some((version) => version.id === input.ruleVersionId),
+    );
+    if (!state) throw new RuleRepositoryError(404, "规则版本不存在");
+    const run: ValidationRunRecord = {
+      id: nextFakeId("run"),
+      ruleVersionId: input.ruleVersionId,
+      ruleCode: input.ruleCode,
+      triggeredBy: input.triggeredBy,
+      startedAt: input.startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      status: input.summary.failed === 0 ? "passed" : "failed",
+      summary: input.summary,
+      details: input.details,
+    };
+    state.runs.push(run);
+    const version = state.versions.find((candidate) => candidate.id === input.ruleVersionId);
+    if (version) version.lastValidationRunId = run.id;
+    return run;
+  }
+
+  async publish(
+    ruleId: string,
+    publishedBy: string,
+  ): Promise<{ rule: RuleRecord; version: RuleVersionRecord; retiredVersionId: string | null }> {
+    const state = this.states.get(ruleId);
+    if (!state) throw new RuleRepositoryError(404, "规则不存在");
+    const draft = state.versions.find((version) => version.status === "draft");
+    if (!draft) throw new RuleRepositoryError(409, "没有待发布的草稿版本");
+    if (!draft.lastValidationRunId) throw new RuleRepositoryError(409, "尚未运行验证");
+    const run = state.runs.find((candidate) => candidate.id === draft.lastValidationRunId);
+    if (!run || run.status !== "passed") {
+      throw new RuleRepositoryError(409, `验证未通过：${run?.summary.failed ?? 0} 例失败`);
+    }
+    const previous = state.versions.find((version) => version.status === "published") ?? null;
+    if (previous) previous.status = "retired";
+    draft.status = "published";
+    draft.publishedBy = publishedBy;
+    draft.publishedAt = new Date().toISOString();
+    return { rule: state.rule, version: draft, retiredVersionId: previous?.id ?? null };
+  }
+
+  async getPublishedVersions(
+    codes: readonly string[],
+  ): Promise<Map<string, { versionId: string; version: number; params: RuleParams }>> {
+    const result = new Map<string, { versionId: string; version: number; params: RuleParams }>();
+    for (const { rule, versions } of this.states.values()) {
+      if (!codes.includes(rule.code)) continue;
+      const published = versions.find((version) => version.status === "published");
+      if (published) {
+        result.set(rule.code, {
+          versionId: published.id,
+          version: published.version,
+          params: published.params,
+        });
+      }
+    }
+    return result;
+  }
+
+  async countRules(): Promise<number> {
+    return this.states.size;
+  }
+
+  async bootstrapRules(seeds: readonly SeedRule[], publishedBy: string): Promise<number> {
+    let created = 0;
+    for (const seed of seeds) {
+      if ([...this.states.values()].some(({ rule }) => rule.code === seed.code)) continue;
+      const detail = await this.createRule({
+        code: seed.code,
+        name: seed.name,
+        contractType: seed.contractType,
+        description: seed.description,
+        params: seed.params,
+        stances: seed.stances,
+      });
+      const version = detail.versions[0];
+      version.status = "published";
+      version.publishedBy = publishedBy;
+      version.publishedAt = new Date().toISOString();
+      created += 1;
+    }
+    return created;
+  }
+
+  asRepository(): RuleRepository {
+    return this as unknown as RuleRepository;
   }
 }
