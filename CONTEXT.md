@@ -83,3 +83,19 @@ _Avoid_: Ground Truth, automatic approval
 **Finding Revision**:
 An append-only version of a finding created from a Finding Proposal or Human Review; later revisions supersede rather than overwrite earlier ones.
 _Avoid_: mutable finding, final result
+
+**Remediation Item**:
+The tracked corrective work created from a Human Review that accepted a Finding Revision. It advances 待整改 → 整改中 → 待复核, and only a reviewer who is not its owner may close it. Closing writes back to the originating audit case as closure evidence.
+_Avoid_: task, ticket, work order
+
+**Rule Version**:
+An immutable published parameter set (thresholds, stances) of one rule. Deterministic rule logic lives in code; a version only carries the parameters it was run with. Publishing a version retires the previously published one; versions already referenced by an Audit Snapshot are never mutated.
+_Avoid_: rule config, rule settings, rule override
+
+**Validation Case**:
+A labelled contract fixture (正例 / 反例 / 边界例 / 历史误报 / 证据缺失) used to exercise one rule's logic deterministically. The code-level golden set remains the canonical source; persisted cases are its materialization for the product UI.
+_Avoid_: test case, eval sample, training data
+
+**Validation Run**:
+One recorded execution of validation cases against one Rule Version's parameters, persisted with per-case expected/actual results. It is compared against the prior run of the same rule to surface regressions; 证据缺失 (needs review) counts neither as pass nor failure.
+_Avoid_: benchmark, evaluation, score
