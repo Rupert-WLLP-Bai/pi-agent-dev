@@ -337,4 +337,65 @@ export const goldenSet: GoldenCase[] = [
       DISPUTE_JURISDICTION: "POLICY_CONFLICT",
     },
   },
+  {
+    // Boundary for DISPUTE_JURISDICTION: the named jurisdiction is a district
+    // inside our own city, so the rule's region-containment check ("重庆市南岸区"
+    // contains "重庆") must keep it compliant rather than flag a same-city clause.
+    id: "bench-13",
+    description:
+      "boundary · dispute names a district inside our city (重庆市南岸区)",
+    text: `设备安装工程合同
+
+甲方：重庆华盛贸易有限公司
+
+乙方：深圳精工科技有限公司
+
+第二条 支付方式
+甲方支付合同总价20%作为预付款。
+
+第五条 违约责任
+违约方支付合同总价10%的违约金。
+
+第七条 合同解除
+任何一方严重违约，守约方有权解除本合同。
+
+第九条 争议解决
+协商不成的，向重庆市南岸区人民法院提起诉讼。`,
+    policyLimitRatio: 0.3,
+    expected: {
+      ADVANCE_PAYMENT_LIMIT: "COMPLIANT",
+      PENALTY_RATIO_LIMIT: "COMPLIANT",
+      TERMINATION_CLAUSE_PRESENT: "COMPLIANT",
+      DISPUTE_JURISDICTION: "COMPLIANT",
+    },
+  },
+  {
+    // Boundary for TERMINATION_CLAUSE_PRESENT: the clause is named only by its
+    // heading (第八条 合同终止) and the body states completion rather than an
+    // affirmative act on the contract — the heading signal alone must satisfy it.
+    id: "bench-14",
+    description:
+      "boundary · termination named only by a heading (wording variant)",
+    text: `技术咨询服务合同
+
+甲方：重庆华盛贸易有限公司
+
+乙方：深圳精工科技有限公司
+
+第三条 支付方式
+甲方支付合同总价10%作为预付款。
+
+第六条 违约责任
+违约方支付合同总价5%的违约金。
+
+第八条 合同终止
+双方履行完毕或协商一致时，本合同权利义务终止。`,
+    policyLimitRatio: 0.3,
+    expected: {
+      ADVANCE_PAYMENT_LIMIT: "COMPLIANT",
+      PENALTY_RATIO_LIMIT: "COMPLIANT",
+      TERMINATION_CLAUSE_PRESENT: "COMPLIANT",
+      DISPUTE_JURISDICTION: "NEEDS_HUMAN_REVIEW",
+    },
+  },
 ];

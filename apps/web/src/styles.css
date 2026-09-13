@@ -1782,3 +1782,15 @@ a.todo-item:focus-visible {
 .rule-footnote {
   max-width: 760px;
 }
+
+/* Case validation: summary chips under each case-shape card, and the panels
+   that stack the run results over the regression diff. */
+.validation-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.validation-panel {
+  margin-top: 12px;
+}

@@ -9,6 +9,7 @@ import { loadApiConfig } from "./config";
 import { createRepository } from "./db/repositories";
 import { createRuleRepository } from "./db/rule-repository";
 import { seedRules } from "./db/seed-rules";
+import { seedValidationCases } from "./db/seed-validation-cases";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
@@ -17,6 +18,7 @@ import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { findingsRoutes } from "./routes/findings";
 import { rulesRoutes } from "./routes/rules";
 import { statsRoutes } from "./routes/stats";
+import { validationRoutes } from "./routes/validation";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
@@ -25,8 +27,18 @@ export type {
   RuleDetail,
   RuleListItem,
   RuleVersionRecord,
+  SeedValidationCase,
+  ValidationCaseListItem,
+  ValidationRunDetail,
+  ValidationRunListItem,
   ValidationRunRecord,
 } from "./db/rule-repository";
+export type {
+  ValidationChange,
+  ValidationDiffEntry,
+  ValidationOutcome,
+} from "./validation-diff";
+export type { ValidationRunView } from "./routes/validation";
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));
@@ -50,6 +62,7 @@ export function createApp(deps: AppDeps) {
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes(deps))
     .use(rulesRoutes({ rules: deps.rules }))
+    .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(statsRoutes({ repository: deps.repository }))
@@ -82,6 +95,7 @@ if (import.meta.main) {
   const repository = createRepository(config.databaseUrl);
   const rulesRepository = createRuleRepository(config.databaseUrl);
   await seedRules(rulesRepository);
+  await seedValidationCases(rulesRepository);
   const broker = new AuditEventBroker();
   const dispatcher = new AuditDispatcher(
     repository,

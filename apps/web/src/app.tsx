@@ -16,6 +16,7 @@ import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
 import RuleDetail from "./routes/rule-detail";
 import RulesPage from "./routes/rules";
+import ValidationPage from "./routes/validation";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,12 @@ const ruleDetailRoute = createRoute({
   component: RuleDetailRoute,
 });
 
+const validationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/cases",
+  component: ValidationPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -124,6 +131,7 @@ const routeTree = rootRoute.addChildren([
   traceRoute,
   rulesRoute,
   ruleDetailRoute,
+  validationRoute,
 ]);
 
 const router = createRouter({ routeTree });

@@ -134,8 +134,7 @@ const navGroups: MenuProps["items"] = [
       {
         key: "/cases",
         icon: <DatabaseOutlined />,
-        label: "案例验证",
-        disabled: true,
+        label: <Link to="/cases">案例验证</Link>,
       },
     ],
   },
@@ -201,6 +200,7 @@ function breadcrumbFor(pathname: string) {
       </>
     );
   }
+  if (pathname === "/cases") return "案例验证";
   return "审计队列";
 }
 

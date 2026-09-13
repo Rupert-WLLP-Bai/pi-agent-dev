@@ -6,7 +6,10 @@ import type {
   RuleDetail,
   RuleListItem,
   RuleVersionRecord,
+  ValidationCaseListItem,
   ValidationRunRecord,
+  ValidationRunListItem,
+  ValidationRunView,
 } from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
 import { treaty } from "@elysiajs/eden";
@@ -276,5 +279,43 @@ export async function publishRule(
   const { data, error } = await api.api.rules({ id }).publish.post({ publishedBy });
   if (error) throw new ApiRequestError(serverReason(error, "发布规则失败"), Number(error.status));
   if (!data || "error" in data) throw new ApiRequestError("发布规则失败", 500);
+  return data;
+}
+
+// ── Case validation ──────────────────────────────────────────────
+
+export async function listValidationCases(
+  query: { ruleCode?: string; caseType?: string } = {},
+): Promise<ValidationCaseListItem[]> {
+  const { data, error } = await api.api.validation.cases.get({ query });
+  if (error) throw new ApiRequestError("加载验证案例失败", Number(error.status));
+  if (!Array.isArray(data)) throw new ApiRequestError("加载验证案例失败", 500);
+  return data;
+}
+
+/**
+ * Runs the golden set for one rule (or every rule when `ruleId` is omitted)
+ * against the rule version's current parameters.
+ */
+export async function runValidation(input: { ruleId?: string; triggeredBy: string }) {
+  const { data, error } = await api.api.validation.runs.post(input);
+  if (error) throw new ApiRequestError(serverReason(error, "运行验证失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("运行验证失败", 500);
+  return data;
+}
+
+export async function listValidationRuns(ruleId?: string): Promise<ValidationRunListItem[]> {
+  const { data, error } = await api.api.validation.runs.get({
+    query: ruleId === undefined ? {} : { ruleId },
+  });
+  if (error) throw new ApiRequestError("加载验证历史失败", Number(error.status));
+  if (!Array.isArray(data)) throw new ApiRequestError("加载验证历史失败", 500);
+  return data;
+}
+
+export async function getValidationRun(id: string): Promise<ValidationRunView> {
+  const { data, error } = await api.api.validation.runs({ id }).get();
+  if (error) throw new ApiRequestError("加载验证运行失败", error.status);
+  if (!data || "error" in data) throw new ApiRequestError("加载验证运行失败", 404);
   return data;
 }

@@ -164,8 +164,24 @@ export const findingRevisions = pgTable("finding_revisions", {
 export const ruleVersionStatuses = ["draft", "published", "retired"] as const;
 export const validationRunStatuses = ["passed", "failed"] as const;
 
+/**
+ * The five shapes a Validation Case takes. `positive`/`negative` guard the two
+ * directions of a rule's judgement (should fire / should not fire), `boundary`
+ * pins exact thresholds and wording variants, `false_positive` is a confirmed
+ * historical over-report, and `missing_evidence` is a case that defers to a
+ * human by design (counted as neither pass nor fail).
+ */
+export const validationCaseTypes = [
+  "positive",
+  "negative",
+  "boundary",
+  "false_positive",
+  "missing_evidence",
+] as const;
+
 export type RuleVersionStatus = (typeof ruleVersionStatuses)[number];
 export type ValidationRunStatus = (typeof validationRunStatuses)[number];
+export type ValidationCaseType = (typeof validationCaseTypes)[number];
 
 /**
  * A rule version's parameter set: flat, primitive key-values only. The rule
@@ -253,6 +269,36 @@ export const validationRuns = pgTable("validation_runs", {
   details: jsonb("details").$type<ValidationCaseResult[]>().notNull(),
 });
 
+/**
+ * A materialised golden case: the contract text plus the ground truth a rule
+ * version is judged against. The canonical source is `golden-set.ts`; the seed
+ * copies it here so a case can carry an operator-facing type (正例/反例/边界例/
+ * 历史误报/证据缺失) and be filtered without recompiling.
+ *
+ * `name` mirrors the run detail's `caseName` exactly, which is what links a
+ * run's per-case result back to its catalog row.
+ */
+export const validationCases = pgTable(
+  "validation_cases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** The rule this case labels. Code, not an FK: the golden set is canonical. */
+    ruleCode: text("rule_code").notNull(),
+    caseType: text("case_type", { enum: validationCaseTypes })
+      .$type<ValidationCaseType>()
+      .notNull(),
+    name: text("name").notNull(),
+    /** The contract body the rule runs over. */
+    input: text("input").notNull(),
+    expectedDisposition: text("expected_disposition").notNull(),
+    expectedNote: text("expected_note").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [uniqueIndex("validation_cases_rule_name_idx").on(table.ruleCode, table.name)],
+);
+
 export const schema = {
   sourceRecords,
   auditCases,
@@ -264,6 +310,7 @@ export const schema = {
   rules,
   ruleVersions,
   validationRuns,
+  validationCases,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -276,6 +323,7 @@ export type SubjectVerificationRow = InferSelectModel<typeof subjectVerification
 export type RuleRow = InferSelectModel<typeof rules>;
 export type RuleVersionRow = InferSelectModel<typeof ruleVersions>;
 export type ValidationRunRow = InferSelectModel<typeof validationRuns>;
+export type ValidationCaseRow = InferSelectModel<typeof validationCases>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),
