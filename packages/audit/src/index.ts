@@ -24,6 +24,15 @@ export {
   evaluateConfidentialityPeriodRule,
 } from "./confidentiality-period-rule";
 export {
+  type ContractBlockView,
+  type ContractSearchMatch,
+  readContractBlock,
+  SEARCH_DEFAULT_LIMIT,
+  SEARCH_SNIPPET_CONTEXT,
+  searchContract,
+  UnknownContractBlockError,
+} from "./contract-search";
+export {
   buildDepositFacts,
   DEFAULT_DEPOSIT_MAX_RATIO,
   DEPOSIT_RULE_CODE,
@@ -93,6 +102,17 @@ export {
   type PerformanceBondAnalysis,
 } from "./performance-bond-rule";
 export * from "./ports";
+export {
+  assertProposalLegal,
+  type OpenFindingChoice,
+  ProposalGuardError,
+  RULE_CONTRACT_TABLE_IS_COMPLETE,
+  RULE_FINDING_CONTRACTS,
+  type RuleFindingContract,
+  ruleContractFor,
+  type SeverityRange,
+  searchKeywordFor,
+} from "./proposal-guard";
 export {
   buildRatioLimitFacts,
   evaluateRatioLimit,

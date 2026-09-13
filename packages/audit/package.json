@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./agent-trace": "./src/agent-trace.ts",
+    "./contract-search": "./src/contract-search.ts",
     "./model": "./src/model.ts",
+    "./proposal-guard": "./src/proposal-guard.ts",
     "./payment-rule": "./src/payment-rule.ts",
     "./penalty-rule": "./src/penalty-rule.ts",
     "./termination-rule": "./src/termination-rule.ts",

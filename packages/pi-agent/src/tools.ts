@@ -1,9 +1,15 @@
+import {
+  readContractBlock,
+  SEARCH_DEFAULT_LIMIT,
+  searchContract,
+} from "@contract-audit/audit/contract-search";
 import type {
   AuditSnapshot,
   EvidenceLocator,
   FindingProposal,
   FindingType,
 } from "@contract-audit/audit/model";
+import { assertProposalLegal } from "@contract-audit/audit/proposal-guard";
 import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 
@@ -73,6 +79,41 @@ export function createAuditTools(
       }),
     }),
     defineTool({
+      name: "search_contract",
+      label: "Search Contract",
+      description:
+        "Case-insensitive keyword search over the Contract Document. Returns each matching block's bounded snippet and offset; an empty list when nothing matches.",
+      parameters: Type.Object({
+        query: Type.String(),
+        limit: Type.Optional(Type.Number()),
+      }),
+      execute: async (_toolCallId, params) => {
+        const matches = searchContract(
+          snapshot.contractDocument,
+          params.query,
+          params.limit ?? SEARCH_DEFAULT_LIMIT,
+        );
+        return {
+          content: [{ type: "text", text: JSON.stringify(matches) }],
+          details: { matches },
+        };
+      },
+    }),
+    defineTool({
+      name: "read_contract_block",
+      label: "Read Contract Block",
+      description:
+        "Returns one block's full text together with its previous and next block (null at document edges).",
+      parameters: Type.Object({ blockId: Type.String() }),
+      execute: async (_toolCallId, params) => {
+        const view = readContractBlock(snapshot.contractDocument, params.blockId);
+        return {
+          content: [{ type: "text", text: JSON.stringify(view) }],
+          details: view,
+        };
+      },
+    }),
+    defineTool({
       name: "submit_finding_proposal",
       label: "Submit Finding Proposal",
       description:
@@ -93,6 +134,7 @@ export function createAuditTools(
           evidenceIds: params.evidenceIds,
           remediation: params.remediation,
         };
+        assertProposalLegal(proposal, snapshot.ruleAssessments);
         onProposal(proposal);
         return {
           content: [{ type: "text", text: '{"accepted":true}' }],
