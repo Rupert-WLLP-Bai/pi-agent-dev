@@ -207,5 +207,42 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
         },
         { body: t.Object({ publishedBy: t.String() }) },
       )
+      .post(
+        "/api/rules/:id/disable",
+        async ({ params, body, set }) => {
+          try {
+            const rule = await rules.disableRule(params.id, {
+              reason: body.reason,
+              actor: body.actor ?? "规则管理员",
+            });
+            return { rule };
+          } catch (error) {
+            if (error instanceof RuleRepositoryError) {
+              set.status = error.status;
+              return { error: error.message };
+            }
+            throw error;
+          }
+        },
+        { body: t.Object({ reason: t.String(), actor: t.Optional(t.String()) }) },
+      )
+      .post(
+        "/api/rules/:id/enable",
+        async ({ params, body, set }) => {
+          try {
+            const rule = await rules.enableRule(params.id, {
+              actor: body.actor ?? "规则管理员",
+            });
+            return { rule };
+          } catch (error) {
+            if (error instanceof RuleRepositoryError) {
+              set.status = error.status;
+              return { error: error.message };
+            }
+            throw error;
+          }
+        },
+        { body: t.Object({ actor: t.Optional(t.String()) }) },
+      )
   );
 }

@@ -221,6 +221,10 @@ export const rules = pgTable("rules", {
   name: text("name").notNull(),
   contractType: text("contract_type").notNull().default("全部"),
   description: text("description").notNull().default(""),
+  enabled: boolean("enabled").notNull().default(true),
+  disabledReason: text("disabled_reason"),
+  disabledBy: text("disabled_by"),
+  disabledAt: timestamp("disabled_at", { withTimezone: true, mode: "date" }),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });

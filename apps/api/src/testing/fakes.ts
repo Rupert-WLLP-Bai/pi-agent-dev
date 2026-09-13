@@ -693,6 +693,10 @@ export class InMemoryRuleRepository {
       name: input.name,
       contractType: input.contractType,
       description: input.description,
+      enabled: true,
+      disabledReason: null,
+      disabledBy: null,
+      disabledAt: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -720,6 +724,43 @@ export class InMemoryRuleRepository {
     if (!state) throw new RuleRepositoryError(404, "规则不存在");
     state.rule = { ...state.rule, ...input, updatedAt: new Date().toISOString() };
     return state.rule;
+  }
+
+  async disableRule(id: string, input: { reason: string; actor: string }): Promise<RuleRecord> {
+    const reason = input.reason.trim();
+    if (reason === "") throw new RuleRepositoryError(400, "停用原因不能为空");
+    const state = this.states.get(id);
+    if (!state) throw new RuleRepositoryError(404, "规则不存在");
+    const now = new Date().toISOString();
+    state.rule = {
+      ...state.rule,
+      enabled: false,
+      disabledReason: reason,
+      disabledBy: input.actor,
+      disabledAt: now,
+      updatedAt: now,
+    };
+    return state.rule;
+  }
+
+  async enableRule(id: string, _input: { actor: string }): Promise<RuleRecord> {
+    const state = this.states.get(id);
+    if (!state) throw new RuleRepositoryError(404, "规则不存在");
+    state.rule = {
+      ...state.rule,
+      enabled: true,
+      disabledReason: null,
+      disabledBy: null,
+      disabledAt: null,
+      updatedAt: new Date().toISOString(),
+    };
+    return state.rule;
+  }
+
+  async listEnabledCodes(): Promise<string[]> {
+    return [...this.states.values()]
+      .filter((state) => state.rule.enabled)
+      .map((state) => state.rule.code);
   }
 
   async createVersion(
@@ -813,6 +854,7 @@ export class InMemoryRuleRepository {
     const result = new Map<string, { versionId: string; version: number; params: RuleParams }>();
     for (const { rule, versions } of this.states.values()) {
       if (!codes.includes(rule.code)) continue;
+      if (!rule.enabled) continue;
       const published = versions.find((version) => version.status === "published");
       if (published) {
         result.set(rule.code, {

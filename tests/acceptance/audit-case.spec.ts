@@ -155,3 +155,18 @@ test("requires a reason for a false positive and retains the decision", async ({
   await expect(page.getByText("合同证据不足以支持该风险等级")).toBeVisible();
   await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
 });
+
+test("opens the review drawer for the finding selected in the risk list", async ({ page }) => {
+  await createDemoAudit(page);
+
+  // The first finding is selected by default; pick the second one explicitly.
+  await page.locator(".finding-list").getByText("争议管辖地与我方不一致", { exact: true }).click();
+  await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
+
+  const drawer = page.getByRole("dialog", { name: "确认风险" });
+  await expect(drawer).toBeVisible();
+  // The drawer must describe the finding that was chosen, not whichever one
+  // happened to be first in the list.
+  await expect(drawer.locator(".review-summary")).toContainText("争议管辖地与我方所在地不一致");
+  await expect(drawer.locator(".review-summary")).not.toContainText("预付款比例高于制度上限");
+});

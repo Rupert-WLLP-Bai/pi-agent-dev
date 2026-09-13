@@ -57,6 +57,13 @@
       "when": 1789285868466,
       "tag": "0007_soft_quentin_quire",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789370000000,
+      "tag": "0008_rule_runtime_enabled",
+      "breakpoints": true
     }
   ]
 }

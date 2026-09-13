@@ -150,9 +150,9 @@ export default function AuditCaseDetail({
               ? { type: "RETRY" }
               : null
         }
-        onOpenReview={(decision) =>
+        onOpenReview={(decision, finding) =>
           setReview({
-            finding: detail.findings.find((finding) => finding.review === null) ?? null,
+            finding,
             decision,
           })
         }
@@ -166,7 +166,7 @@ export default function AuditCaseDetail({
           void navigate({
             to: "/audit-cases/$id/trace",
             params: { id },
-            search: { runId: undefined },
+            search: { runId: undefined, expand: true },
           })
         }
       />

@@ -23,6 +23,7 @@ import {
   formatRuleTime,
   goldenCaseTypeLabels,
   parseParamValue,
+  ruleRuntimeLabels,
   ruleVersionStatusLabels,
   ruleVersionStatusTagColors,
   summarizeValidation,
@@ -371,6 +372,25 @@ export function RuleEditor({
             label: "基础信息",
             children: (
               <div className="rule-form">
+                <div className="rule-field">
+                  <Typography.Text type="secondary">运行状态</Typography.Text>
+                  <Space size={8} wrap>
+                    <Tag color={detail.rule.enabled ? "success" : "default"}>
+                      {detail.rule.enabled ? ruleRuntimeLabels.enabled : ruleRuntimeLabels.disabled}
+                    </Tag>
+                    {!detail.rule.enabled && (
+                      <Typography.Text type="secondary">
+                        {detail.rule.disabledReason
+                          ? `停用原因：${detail.rule.disabledReason}`
+                          : "未填写停用原因"}
+                        {detail.rule.disabledBy ? ` · ${detail.rule.disabledBy}` : ""}
+                        {detail.rule.disabledAt
+                          ? ` · ${formatRuleTime(detail.rule.disabledAt) ?? ""}`
+                          : ""}
+                      </Typography.Text>
+                    )}
+                  </Space>
+                </div>
                 <div className="rule-field">
                   <Typography.Text type="secondary">规则代码</Typography.Text>
                   <Input className="mono" value={detail.rule.code} disabled />

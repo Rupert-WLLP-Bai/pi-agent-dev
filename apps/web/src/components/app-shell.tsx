@@ -9,7 +9,6 @@ import {
   NodeIndexOutlined,
   SettingOutlined,
   SyncOutlined,
-  TeamOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
@@ -136,18 +135,6 @@ const navGroups: MenuProps["items"] = [
       },
     ],
   },
-  {
-    type: "group",
-    label: "系统管理",
-    children: [
-      {
-        key: "/settings/users",
-        icon: <TeamOutlined />,
-        label: "用户与权限",
-        disabled: true,
-      },
-    ],
-  },
 ];
 
 function readStoredCollapse(): boolean | null {
@@ -268,7 +255,7 @@ export function AppShell() {
       <Menu
         mode="inline"
         items={navGroups}
-        selectedKeys={selectedKeys(location.pathname)}
+        selectedKeys={selectedKeys(location.pathname, readOrigin(location.search))}
         className="app-sider-menu"
       />
     </nav>

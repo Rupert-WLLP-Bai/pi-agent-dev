@@ -46,7 +46,16 @@ const ruleBody = (overrides: Record<string, unknown> = {}) => ({
 async function createRule(overrides: Record<string, unknown> = {}) {
   const response = await app.handle(json("POST", "/api/rules", ruleBody(overrides)));
   expect(response.status).toBe(201);
-  return (await response.json()) as { rule: { id: string }; activeDraft: { id: string } };
+  return (await response.json()) as {
+    rule: {
+      id: string;
+      enabled: boolean;
+      disabledReason: string | null;
+      disabledBy: string | null;
+      disabledAt: string | null;
+    };
+    activeDraft: { id: string };
+  };
 }
 
 test("creates a rule with an open v1 draft", async () => {
@@ -256,4 +265,79 @@ test("publishes a corrected draft after it turns green, retiring the previous ve
     publishedBy: "规则管理员",
   });
   expect(list[0].lastValidation).toMatchObject({ status: "passed" });
+});
+
+test("creates a rule enabled by default", async () => {
+  const detail = await createRule();
+  expect(detail.rule.enabled).toBe(true);
+  expect(detail.rule.disabledReason).toBe(null);
+});
+
+test("rejects disable without a reason", async () => {
+  const detail = await createRule();
+  const res = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "" }),
+  );
+  expect(res.status).toBe(400);
+});
+
+test("disables a rule and shows the overlay fields", async () => {
+  const detail = await createRule();
+  const res = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "演示关闭" }),
+  );
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.rule.enabled).toBe(false);
+  expect(body.rule.disabledReason).toBe("演示关闭");
+  expect(body.rule.disabledBy).toBe("规则管理员");
+  expect(body.rule.disabledAt).not.toBe(null);
+
+  const getRes = await app.handle(new Request(`http://localhost/api/rules/${detail.rule.id}`));
+  const getBody = await getRes.json();
+  expect(getBody.rule.enabled).toBe(false);
+  expect(getBody.rule.disabledReason).toBe("演示关闭");
+});
+
+test("re-enables a disabled rule and clears the overlay", async () => {
+  const detail = await createRule();
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "临时停用" }));
+  const res = await app.handle(json("POST", `/api/rules/${detail.rule.id}/enable`, {}));
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.rule.enabled).toBe(true);
+  expect(body.rule.disabledReason).toBe(null);
+  expect(body.rule.disabledBy).toBe(null);
+  expect(body.rule.disabledAt).toBe(null);
+});
+
+test("returns 404 when disabling or enabling an unknown rule", async () => {
+  expect(
+    (await app.handle(json("POST", "/api/rules/missing/disable", { reason: "x" }))).status,
+  ).toBe(404);
+  expect((await app.handle(json("POST", "/api/rules/missing/enable", {}))).status).toBe(404);
+});
+
+test("listEnabledCodes excludes disabled rules", async () => {
+  const detail = await createRule();
+  expect(await rules.listEnabledCodes()).toContain("ADVANCE_PAYMENT_LIMIT");
+  await rules.disableRule(detail.rule.id, { reason: "test", actor: "test" });
+  expect(await rules.listEnabledCodes()).not.toContain("ADVANCE_PAYMENT_LIMIT");
+});
+
+test("getPublishedVersions excludes disabled rules", async () => {
+  const detail = await createRule();
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/validate`, { triggeredBy: "x" }));
+  await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/publish`, { publishedBy: "规则管理员" }),
+  );
+
+  expect(
+    (await rules.getPublishedVersions(["ADVANCE_PAYMENT_LIMIT"])).has("ADVANCE_PAYMENT_LIMIT"),
+  ).toBe(true);
+
+  await rules.disableRule(detail.rule.id, { reason: "test", actor: "test" });
+  expect(
+    (await rules.getPublishedVersions(["ADVANCE_PAYMENT_LIMIT"])).has("ADVANCE_PAYMENT_LIMIT"),
+  ).toBe(false);
 });

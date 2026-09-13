@@ -302,3 +302,48 @@ test("times out a stalled agent run and marks the case FAILED", async () => {
     auditCaseId: caseId,
   });
 });
+
+test("skips subject verification when SUBJECT_RED_LINE_RISK is not enabled", async () => {
+  const repo = new InMemoryAuditCaseRepository();
+  const disabledAgent = new ControlledAgent();
+  const disabledBroker = new RecordingEventBroker();
+  const disabledDispatcher = new AuditDispatcher(
+    repo.asRepository(),
+    () => disabledAgent,
+    disabledBroker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+    0,
+    { listEnabledCodes: async () => ["ADVANCE_PAYMENT_LIMIT"] },
+  );
+  await disabledDispatcher.start();
+  const originalSnapshot = snapshotFor("source-disabled", [
+    party("party-1", "深圳精工科技有限公司"),
+  ]);
+  const { caseId } = await repo.createPendingCase("source-disabled", originalSnapshot);
+
+  await disabledDispatcher.enqueue(caseId);
+  // Integration test against the real dispatcher: `runAudit` is fired
+  // fire-and-forget and ControlledAgent's run is only settled by resolveRun
+  // below, so deterministic timers cannot drive the interleaving. (Mirrors the
+  // real-clock waits the rest of this file's dispatcher tests use.)
+  await Bun.sleep(10);
+  disabledAgent.resolveRun([proposal]);
+  await Bun.sleep(10);
+
+  // The context is the untouched snapshot: no provider evidence and no
+  // subject assessment were merged in, and nothing was stored for the case.
+  const context = disabledAgent.receivedSnapshots[0];
+  expect(context).toEqual(originalSnapshot);
+  expect(context.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(
+    false,
+  );
+  expect(context.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(
+    false,
+  );
+  expect((await repo.getSubjectDimension(caseId)).verifications).toHaveLength(0);
+  expect(await repo.getCase(caseId)).toMatchObject({
+    status: "COMPLETED",
+    stage: "AWAITING_REVIEW",
+  });
+});

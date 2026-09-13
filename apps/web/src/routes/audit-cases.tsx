@@ -22,7 +22,16 @@ export default function AuditCasesList({
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { message } = AntApp.useApp();
-  const casesQuery = useQuery({ queryKey: ["audit-cases"], queryFn: getAuditCases });
+  // A queued or processing case changes status on its own; poll while any case
+  // is in flight and stop once everything has settled.
+  const casesQuery = useQuery({
+    queryKey: ["audit-cases"],
+    queryFn: getAuditCases,
+    refetchInterval: (query) => {
+      const cases = query.state.data ?? [];
+      return cases.some((c) => c.status === "PENDING" || c.status === "RUNNING") ? 2000 : false;
+    },
+  });
 
   const settle = () => queryClient.invalidateQueries({ queryKey: ["audit-cases"] });
 

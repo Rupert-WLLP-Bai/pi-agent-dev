@@ -46,7 +46,10 @@ const SNAPSHOT_RULE_CODES = [
  * is returned too, so the resulting assessments can cite it.
  */
 async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?: number) {
-  const published = await rules.getPublishedVersions(SNAPSHOT_RULE_CODES);
+  const [published, enabledCodes] = await Promise.all([
+    rules.getPublishedVersions(SNAPSHOT_RULE_CODES),
+    rules.listEnabledCodes(),
+  ]);
   const advanceLimit = published.get("ADVANCE_PAYMENT_LIMIT")?.params.limitRatio;
   const penaltyLimit = published.get("PENALTY_RATIO_LIMIT")?.params.limitRatio;
   const jurisdiction = published.get("DISPUTE_JURISDICTION")?.params.preferredJurisdiction;
@@ -68,6 +71,9 @@ async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?:
     preferredJurisdiction: typeof jurisdiction === "string" ? jurisdiction : undefined,
     ruleVersions,
     ruleParams,
+    // The operator's enabled/disabled overlay, read fresh per submission: a
+    // disabled rule is omitted from this snapshot's assessments entirely.
+    enabledRuleCodes: enabledCodes as RuleCode[],
   };
 }
 

@@ -62,7 +62,7 @@ export interface AuditCaseWorkbenchProps {
   detail: AuditCaseDetailData;
   connection: AuditConnectionState;
   action: { type: "CANCEL" | "RETRY" } | null;
-  onOpenReview: (decision: "ACCEPTED" | "REJECTED") => void;
+  onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
   onCancel: () => void;
   onRetry: () => void;
   onBack: () => void;
@@ -313,7 +313,7 @@ function InspectorPanel({
   parties: ContractParty[];
   subjectVerifications: SubjectVerification[];
   evidence: EvidenceLocator[];
-  onOpenReview: (decision: "ACCEPTED" | "REJECTED") => void;
+  onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
 }) {
   const { message } = AntApp.useApp();
   const { proposal, review } = finding;
@@ -476,10 +476,10 @@ function InspectorPanel({
 
       {review === null ? (
         <div className="inspector-actions">
-          <Button danger onClick={() => onOpenReview("REJECTED")}>
+          <Button danger onClick={() => onOpenReview("REJECTED", finding)}>
             判定误报
           </Button>
-          <Button type="primary" onClick={() => onOpenReview("ACCEPTED")}>
+          <Button type="primary" onClick={() => onOpenReview("ACCEPTED", finding)}>
             确认风险
           </Button>
         </div>

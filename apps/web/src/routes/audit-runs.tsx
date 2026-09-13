@@ -137,7 +137,7 @@ export default function AuditRunsPage() {
             void navigate({
               to: "/audit-cases/$id/trace",
               params: { id: record.auditCaseId },
-              search: { runId: record.id },
+              search: { runId: record.id, expand: undefined },
             })
           }
         >

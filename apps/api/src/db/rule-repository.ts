@@ -25,6 +25,10 @@ export interface RuleRecord {
   name: string;
   contractType: string;
   description: string;
+  enabled: boolean;
+  disabledReason: string | null;
+  disabledBy: string | null;
+  disabledAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -145,7 +149,7 @@ export interface SeedRule {
  */
 export class RuleRepositoryError extends Error {
   constructor(
-    readonly status: 404 | 409,
+    readonly status: 404 | 409 | 400,
     message: string,
   ) {
     super(message);
@@ -159,6 +163,10 @@ const toRule = (row: typeof rules.$inferSelect): RuleRecord => ({
   name: row.name,
   contractType: row.contractType,
   description: row.description,
+  enabled: row.enabled,
+  disabledReason: row.disabledReason,
+  disabledBy: row.disabledBy,
+  disabledAt: row.disabledAt?.toISOString() ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
@@ -357,6 +365,51 @@ export class RuleRepository {
     return toRule(row);
   }
 
+  /** Disables a rule from new audits. Idempotent: re-disabling updates reason. */
+  async disableRule(id: string, input: { reason: string; actor: string }): Promise<RuleRecord> {
+    const reason = input.reason.trim();
+    if (reason === "") throw new RuleRepositoryError(400, "停用原因不能为空");
+    const [row] = await this.db
+      .update(rules)
+      .set({
+        enabled: false,
+        disabledReason: reason,
+        disabledBy: input.actor,
+        disabledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(rules.id, id))
+      .returning();
+    if (!row) throw new RuleRepositoryError(404, "规则不存在");
+    return toRule(row);
+  }
+
+  /** Re-enables a rule for new audits. Clears the overlay fields. */
+  async enableRule(id: string, _input: { actor: string }): Promise<RuleRecord> {
+    const [row] = await this.db
+      .update(rules)
+      .set({
+        enabled: true,
+        disabledReason: null,
+        disabledBy: null,
+        disabledAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(rules.id, id))
+      .returning();
+    if (!row) throw new RuleRepositoryError(404, "规则不存在");
+    return toRule(row);
+  }
+
+  /** The rule codes currently enabled for new audits. */
+  async listEnabledCodes(): Promise<string[]> {
+    const rows = await this.db
+      .select({ code: rules.code })
+      .from(rules)
+      .where(eq(rules.enabled, true));
+    return rows.map((row) => row.code);
+  }
+
   /**
    * Opens the next draft version. A rule carries at most one draft: a second
    * request while one is open is a conflict, not a silent overwrite.
@@ -533,7 +586,13 @@ export class RuleRepository {
       })
       .from(ruleVersions)
       .innerJoin(rules, eq(rules.id, ruleVersions.ruleId))
-      .where(and(inArray(rules.code, [...codes]), eq(ruleVersions.status, "published")));
+      .where(
+        and(
+          inArray(rules.code, [...codes]),
+          eq(ruleVersions.status, "published"),
+          eq(rules.enabled, true),
+        ),
+      );
     return new Map(
       rows.map((row) => [
         row.code,

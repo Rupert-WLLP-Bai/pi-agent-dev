@@ -1,6 +1,18 @@
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from "@ant-design/icons";
 import type { RuleListItem } from "@contract-audit/api";
-import { Alert, Button, Empty, Input, Select, Space, Table, Tag, Typography } from "antd";
+import {
+  Alert,
+  App as AntApp,
+  Button,
+  Empty,
+  Input,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
   ALL_RULE_STATUSES,
@@ -8,6 +20,7 @@ import {
   describeLastValidation,
   filterRules,
   type RuleFilters,
+  ruleRuntimeLabels,
   ruleVersionStatusLabels,
   ruleVersionStatusTagColors,
 } from "../rule-presentation";
@@ -22,6 +35,10 @@ export interface RuleTableProps {
   onRefresh: () => void;
   onCreate: () => void;
   onOpen: (id: string) => void;
+  /** Stops a rule; the operator-supplied reason is recorded with the actor. */
+  onDisable: (id: string, reason: string) => void;
+  /** Puts a stopped rule back in rotation. */
+  onEnable: (id: string) => void;
 }
 
 const toneColor: Record<"success" | "error" | "none", string | undefined> = {
@@ -45,8 +62,50 @@ export function RuleTable({
   onRefresh,
   onCreate,
   onOpen,
+  onDisable,
+  onEnable,
 }: RuleTableProps) {
+  const { modal, message } = AntApp.useApp();
   const filtered = filterRules(rules, filters);
+
+  /**
+   * Stopping a rule is destructive to the next audit's coverage, so the reason
+   * is required and confirmed rather than fired on the toggle alone. Returning
+   * a rejected promise keeps the dialog open until a reason is entered.
+   */
+  const confirmDisable = (record: RuleListItem) => {
+    let reason = "";
+    modal.confirm({
+      title: `停用规则「${record.name}」`,
+      content: (
+        <div className="rule-disable-confirm">
+          <Typography.Text type="secondary">
+            停用后，新的审计案例将不再包含该规则；已产生的案例保留当时的评估结果。
+          </Typography.Text>
+          <Input.TextArea
+            rows={3}
+            aria-label="停用原因"
+            placeholder="请填写停用原因（必填）"
+            onChange={(event) => {
+              reason = event.target.value;
+            }}
+          />
+        </div>
+      ),
+      okText: "停用",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: () => {
+        const trimmed = reason.trim();
+        if (trimmed.length === 0) {
+          message.error("请填写停用原因");
+          return Promise.reject(new Error("停用原因不能为空"));
+        }
+        onDisable(record.id, trimmed);
+        return undefined;
+      },
+    });
+  };
 
   const columns: ColumnsType<RuleListItem> = [
     {
@@ -93,6 +152,30 @@ export function RuleTable({
             {ruleVersionStatusLabels[record.status]}
           </Tag>
         ),
+    },
+    {
+      title: "运行",
+      key: "runtime",
+      width: 150,
+      render: (_value, record) => {
+        const enabled = record.enabled !== false;
+        return (
+          <Space size={6} onClick={(event) => event.stopPropagation()}>
+            <Switch
+              size="small"
+              checked={enabled}
+              aria-label={enabled ? "停用规则" : "启用规则"}
+              onChange={(checked) => {
+                if (checked) onEnable(record.id);
+                else confirmDisable(record);
+              }}
+            />
+            <Tag color={enabled ? "success" : "default"}>
+              {enabled ? ruleRuntimeLabels.enabled : ruleRuntimeLabels.disabled}
+            </Tag>
+          </Space>
+        );
+      },
     },
     {
       title: "最近验证",
@@ -172,7 +255,10 @@ export function RuleTable({
           style={{ width: 160 }}
           aria-label="合同类型"
           onChange={(contractType) => onFiltersChange({ ...filters, contractType })}
-          options={contractTypeOptions(rules).map((type) => ({ value: type, label: type }))}
+          options={contractTypeOptions(rules).map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
         />
       </Space>
 

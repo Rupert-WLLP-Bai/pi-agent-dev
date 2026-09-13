@@ -9,6 +9,7 @@ import {
   filterRules,
   parseParamValue,
   type RuleFilters,
+  ruleRuntimeLabels,
   ruleVersionStatusLabels,
   summarizeValidation,
   validationOutcomeText,
@@ -69,8 +70,12 @@ test("labels every rule version status in Chinese", () => {
   expect(ruleVersionStatusLabels).toEqual({
     published: "已发布",
     draft: "草稿",
-    retired: "已停用",
+    retired: "已退役",
   });
+});
+
+test("names the runtime on/off states", () => {
+  expect(ruleRuntimeLabels).toEqual({ enabled: "运行中", disabled: "已停用" });
 });
 
 test("summarises validation totals per case type", () => {
@@ -128,6 +133,10 @@ test("renders the last validation cell with time and outcome", () => {
     currentVersion: 1,
     status: "published" as const,
     publishedBy: "系统初始化",
+    enabled: true,
+    disabledReason: null,
+    disabledBy: null,
+    disabledAt: null,
   };
 
   expect(describeLastValidation({ ...base, lastValidation: null }).tone).toBe("none");
@@ -171,6 +180,10 @@ const ruleListItem = (
   status,
   lastValidation: null,
   publishedBy: null,
+  enabled: true,
+  disabledReason: null,
+  disabledBy: null,
+  disabledAt: null,
 });
 
 test("filters rules by name, code, status and contract type", () => {
@@ -194,7 +207,11 @@ test("offers 全部 plus the distinct contract types", () => {
     ruleListItem("2", "B", "b", "服务类", "draft"),
     ruleListItem("3", "C", "c", "采购类", "draft"),
   ];
-  expect(contractTypeOptions(rules)).toEqual(["全部", "服务类", "采购类"]);
+  expect(contractTypeOptions(rules)).toEqual([
+    { value: "ALL", label: "全部" },
+    { value: "服务类", label: "服务类" },
+    { value: "采购类", label: "采购类" },
+  ]);
 });
 
 test("declares the deterministic input and output of a rule", () => {

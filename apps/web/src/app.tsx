@@ -100,8 +100,8 @@ const detailRoute = createRoute({
 
 function AuditTraceRoute() {
   const { id } = traceRoute.useParams();
-  const { runId } = traceRoute.useSearch();
-  return <AuditTracePage id={id} initialRunId={runId ?? null} />;
+  const { runId, expand } = traceRoute.useSearch();
+  return <AuditTracePage id={id} initialRunId={runId ?? null} defaultExpanded={expand ?? false} />;
 }
 
 const traceRoute = createRoute({
@@ -109,6 +109,7 @@ const traceRoute = createRoute({
   path: "/audit-cases/$id/trace",
   validateSearch: (search: Record<string, unknown>) => ({
     runId: typeof search.runId === "string" ? search.runId : undefined,
+    expand: search.expand === "1" || search.expand === true || undefined,
   }),
   component: AuditTraceRoute,
 });

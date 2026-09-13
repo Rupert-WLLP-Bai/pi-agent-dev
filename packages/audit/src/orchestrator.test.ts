@@ -46,3 +46,22 @@ test("extracts no parties from a contract with no party lines", () => {
 
   expect(snapshot.parties).toEqual([]);
 });
+
+test("omits assessments whose rule codes are not in enabledRuleCodes", () => {
+  const snapshot = createAuditSnapshot({
+    sourceRecordId: "source-1",
+    document: normalizeContractDocument("乙方签订后支付合同金额的70%作为预付款。"),
+    policyLimitRatio: 0.3,
+    enabledRuleCodes: ["PENALTY_RATIO_LIMIT"],
+  });
+  expect(snapshot.ruleAssessments.map((a) => a.ruleCode)).toEqual(["PENALTY_RATIO_LIMIT"]);
+});
+
+test("runs every deterministic rule when enabledRuleCodes is omitted", () => {
+  const snapshot = createAuditSnapshot({
+    sourceRecordId: "source-1",
+    document: normalizeContractDocument("乙方签订后支付合同金额的70%作为预付款。"),
+  });
+  expect(snapshot.ruleAssessments.some((a) => a.ruleCode === "ADVANCE_PAYMENT_LIMIT")).toBe(true);
+  expect(snapshot.ruleAssessments.length).toBeGreaterThan(10);
+});

@@ -366,6 +366,26 @@ export async function publishRule(
   return data;
 }
 
+/**
+ * Takes a rule out of rotation (停用). New audit cases omit it; cases already
+ * recorded keep the assessments they captured. A reason is required so the
+ * governance trail explains the disablement.
+ */
+export async function disableRule(id: string, reason: string): Promise<RuleListItem> {
+  const { data, error } = await api.api.rules({ id }).disable.post({ reason });
+  if (error) throw new ApiRequestError(serverReason(error, "停用规则失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("停用规则失败", 500);
+  return data.rule as RuleListItem;
+}
+
+/** Puts a disabled rule back in rotation (启用), clearing the disable overlay. */
+export async function enableRule(id: string): Promise<RuleListItem> {
+  const { data, error } = await api.api.rules({ id }).enable.post({});
+  if (error) throw new ApiRequestError(serverReason(error, "启用规则失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("启用规则失败", 500);
+  return data.rule as RuleListItem;
+}
+
 // ── Case validation ──────────────────────────────────────────────
 
 export async function listValidationCases(

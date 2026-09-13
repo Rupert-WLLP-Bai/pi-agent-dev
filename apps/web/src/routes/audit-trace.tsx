@@ -37,9 +37,12 @@ const formatTime = (iso: string): string =>
 export default function AuditTracePage({
   id,
   initialRunId,
+  defaultExpanded = false,
 }: {
   id: string;
   initialRunId: string | null;
+  /** Open every trace payload on first render instead of collapsing them. */
+  defaultExpanded?: boolean;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -189,6 +192,7 @@ export default function AuditTracePage({
           findings={detail.findings}
           connection={connection}
           isFetching={tracesQuery.isFetching}
+          defaultExpanded={defaultExpanded}
         />
       )}
     </div>
@@ -202,6 +206,7 @@ function RunTraceSection({
   findings,
   connection,
   isFetching,
+  defaultExpanded,
 }: {
   trace: AgentRunTrace;
   caseStatus: AuditCase["status"];
@@ -209,6 +214,7 @@ function RunTraceSection({
   findings: FindingRevision[];
   connection: AuditConnectionState;
   isFetching: boolean;
+  defaultExpanded: boolean;
 }) {
   const { run, steps } = trace;
   const state = getAgentRunState(run, caseStatus, isLatest);
@@ -273,7 +279,7 @@ function RunTraceSection({
       <div className="trace-card__meta trace-card__meta--block">
         运行 ID <b className="mono">{run.id}</b> · 开始于 {formatTime(run.createdAt)}
       </div>
-      <AgentTraceTimeline steps={steps} />
+      <AgentTraceTimeline steps={steps} defaultExpanded={defaultExpanded} />
       {findings.length > 0 ? (
         <div className="trace-findings">
           <div className="trace-findings__label">本次运行产生的审计发现</div>

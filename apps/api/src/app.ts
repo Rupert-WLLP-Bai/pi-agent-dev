@@ -123,6 +123,7 @@ if (import.meta.main) {
     config.maxConcurrentAudits,
     subjectVerificationPortFor(config),
     config.agentTimeoutMs,
+    rulesRepository,
   );
   app = createApp({ repository, dispatcher, broker, rules: rulesRepository });
   await dispatcher.start();

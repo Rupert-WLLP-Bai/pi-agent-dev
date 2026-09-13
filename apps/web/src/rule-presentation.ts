@@ -24,7 +24,7 @@ export type RuleParams = Record<string, RuleParamValue>;
 export const ruleVersionStatusLabels: Record<RuleVersionStatus, string> = {
   published: "已发布",
   draft: "草稿",
-  retired: "已停用",
+  retired: "已退役",
 };
 
 /** Ant Design v6 Tag status presets. */
@@ -32,6 +32,12 @@ export const ruleVersionStatusTagColors: Record<RuleVersionStatus, string> = {
   published: "success",
   draft: "warning",
   retired: "default",
+};
+
+/** The rule's runtime toggle, distinct from a version's lifecycle status. */
+export const ruleRuntimeLabels: { enabled: string; disabled: string } = {
+  enabled: "运行中",
+  disabled: "已停用",
 };
 
 export const validationRunStatusLabels: Record<ValidationRunStatus, string> = {
@@ -162,9 +168,12 @@ export function filterRules(rules: RuleListItem[], filters: RuleFilters): RuleLi
 }
 
 /** Contract-type filter options present in the data, with 全部 first. */
-export function contractTypeOptions(rules: RuleListItem[]): string[] {
+export function contractTypeOptions(rules: RuleListItem[]): { value: string; label: string }[] {
   const types = [...new Set(rules.map((rule) => rule.contractType))].sort();
-  return ["全部", ...types.filter((type) => type !== "全部")];
+  return [
+    { value: "ALL", label: "全部" },
+    ...types.filter((type) => type !== "全部").map((type) => ({ value: type, label: type })),
+  ];
 }
 
 /** The deterministic input and output a rule declares, so it reads as testable. */

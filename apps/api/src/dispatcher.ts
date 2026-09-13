@@ -27,6 +27,12 @@ export class AuditDispatcher {
     private readonly maxConcurrent: number,
     private readonly subjectVerificationPort: SubjectVerificationPort,
     private readonly agentTimeoutMs: number = 0,
+    /**
+     * Reads the operator's enabled/disabled rule overlay. Read fresh on every
+     * run (including retries), so a rule disabled after enqueue is honoured.
+     * Absent means "no overlay": every rule is treated as enabled.
+     */
+    private readonly ruleRepository?: { listEnabledCodes(): Promise<string[]> },
   ) {}
 
   get isStarted(): boolean {
@@ -68,6 +74,11 @@ export class AuditDispatcher {
       // this dispatcher actually performs is the subject verification.
       this.broker.publish({ type: "rules.completed", auditCaseId });
 
+      const enabledCodes = this.ruleRepository
+        ? new Set(await this.ruleRepository.listEnabledCodes())
+        : null;
+      const subjectEnabled = enabledCodes === null || enabledCodes.has("SUBJECT_RED_LINE_RISK");
+
       // Registered before the first network call, so a cancel arriving during
       // the subject stage is honoured rather than silently dropped.
       const controller = new AbortController();
@@ -76,20 +87,25 @@ export class AuditDispatcher {
       // The subject dimension runs as its own stage: it is a network call to an
       // external provider, and its answer becomes part of the bounded context
       // the agent reasons over rather than something it has to go and fetch.
-      await this.repository.updateCaseStatus(auditCaseId, "RUNNING", "SUBJECT_VERIFICATION");
-      const verification = await runSubjectVerification({
-        parties: snapshot.parties,
-        port: this.subjectVerificationPort,
-        signal: controller.signal,
-      });
-      controller.signal.throwIfAborted();
-      await this.repository.saveSubjectVerifications(auditCaseId, verification);
+      // A disabled SUBJECT_RED_LINE_RISK skips the stage wholesale: no provider
+      // call, no stored verifications, and no assessment merged into context.
+      let context: AuditSnapshot = snapshot;
+      if (subjectEnabled) {
+        await this.repository.updateCaseStatus(auditCaseId, "RUNNING", "SUBJECT_VERIFICATION");
+        const verification = await runSubjectVerification({
+          parties: snapshot.parties,
+          port: this.subjectVerificationPort,
+          signal: controller.signal,
+        });
+        controller.signal.throwIfAborted();
+        await this.repository.saveSubjectVerifications(auditCaseId, verification);
 
-      const context: AuditSnapshot = {
-        ...snapshot,
-        evidence: [...snapshot.evidence, ...verification.evidence],
-        ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
-      };
+        context = {
+          ...snapshot,
+          evidence: [...snapshot.evidence, ...verification.evidence],
+          ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
+        };
+      }
 
       await this.repository.updateCaseStatus(auditCaseId, "RUNNING", "AGENT_RUNNING");
       this.broker.publish({ type: "agent.started", auditCaseId });

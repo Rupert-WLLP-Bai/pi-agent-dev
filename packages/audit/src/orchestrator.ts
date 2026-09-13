@@ -70,6 +70,12 @@ export function createAuditSnapshot(input: {
    * parameters. A rule absent here runs on its catalogue defaults.
    */
   ruleParams?: Partial<Record<RuleCode, RuleParamSet>>;
+  /**
+   * The deterministic rules to run, by rule code. When omitted, every rule
+   * runs. When provided, the returned assessments are narrowed to these codes;
+   * fact extraction still runs in full so the snapshot's Evidence is complete.
+   */
+  enabledRuleCodes?: readonly RuleCode[];
 }): AuditSnapshot {
   const document = input.document;
   const ruleParams = input.ruleParams ?? {};
@@ -158,6 +164,13 @@ export function createAuditSnapshot(input: {
     ruleVersion: input.ruleVersions?.[assessment.ruleCode] ?? null,
   }));
 
+  const enabledRuleCodes = input.enabledRuleCodes;
+  const filteredAssessments = enabledRuleCodes
+    ? ruleAssessments.filter((assessment) =>
+        (enabledRuleCodes as readonly string[]).includes(assessment.ruleCode),
+      )
+    : ruleAssessments;
+
   return {
     sourceRecordId: input.sourceRecordId,
     contractDocument: document,
@@ -182,7 +195,7 @@ export function createAuditSnapshot(input: {
       ...forceMajeure.evidence,
       ...liabilityCap.evidence,
     ],
-    ruleAssessments,
+    ruleAssessments: filteredAssessments,
     createdAt: new Date().toISOString(),
   };
 }

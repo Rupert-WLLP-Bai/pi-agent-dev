@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { App as AntApp, Form, Input, Modal } from "antd";
 import { useState } from "react";
-import { createRule, listRules } from "../api";
+import { createRule, disableRule, enableRule, listRules } from "../api";
 import { RuleTable } from "../components/rule-table";
 import type { RuleFilters } from "../rule-presentation";
 
@@ -47,6 +47,24 @@ export default function RulesPage() {
     onError: (error: Error) => message.error(error.message),
   });
 
+  const disableMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => disableRule(id, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["rules"] });
+      message.success("规则已停用");
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
+  const enableMutation = useMutation({
+    mutationFn: enableRule,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["rules"] });
+      message.success("规则已启用");
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
   return (
     <>
       <RuleTable
@@ -59,6 +77,8 @@ export default function RulesPage() {
         onRefresh={() => void rulesQuery.refetch()}
         onCreate={() => setCreateOpen(true)}
         onOpen={(id) => void navigate({ to: "/rules/$id", params: { id } })}
+        onDisable={(id, reason) => disableMutation.mutate({ id, reason })}
+        onEnable={(id) => enableMutation.mutate(id)}
       />
 
       <Modal

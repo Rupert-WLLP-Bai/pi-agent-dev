@@ -1805,6 +1805,12 @@ a.todo-item:focus-visible {
   gap: 12px;
   flex-wrap: wrap;
 }
+.rule-disable-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
 .rule-footnote {
   max-width: 760px;
 }

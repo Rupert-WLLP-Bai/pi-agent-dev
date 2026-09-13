@@ -218,13 +218,14 @@ function TimingOverview({ entries }: { entries: TraceEntry[] }) {
   );
 }
 
-export function AgentTraceTimeline({ steps }: { steps: AgentTraceStep[] }) {
-  // Store *expanded* keys (default empty = everything collapsed). This is
-  // the inverse of the old approach (which stored collapsed keys), and it
-  // means new steps that arrive during a live run start collapsed — matching
-  // the default — instead of appearing expanded.
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-
+export function AgentTraceTimeline({
+  steps,
+  defaultExpanded = false,
+}: {
+  steps: AgentTraceStep[];
+  /** Start with every payload open — used when the trace is opened to inspect it. */
+  defaultExpanded?: boolean;
+}) {
   // Tool/message/result entries that have payloads worth expanding.
   const collapsibleKeys = useMemo(
     () =>
@@ -237,6 +238,14 @@ export function AgentTraceTimeline({ steps }: { steps: AgentTraceStep[] }) {
         )
         .map((e) => e.key),
     [steps],
+  );
+
+  // Store *expanded* keys (default empty = everything collapsed). This is
+  // the inverse of the old approach (which stored collapsed keys), and it
+  // means new steps that arrive during a live run start collapsed — matching
+  // the default — instead of appearing expanded.
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(defaultExpanded ? collapsibleKeys : []),
   );
 
   if (steps.length === 0) {
