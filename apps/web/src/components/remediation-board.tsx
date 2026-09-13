@@ -7,7 +7,6 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import type { RemediationBoard, RemediationCard } from "@contract-audit/api";
-import type { RemediationStatus } from "@contract-audit/audit/model";
 import {
   Alert,
   Button,

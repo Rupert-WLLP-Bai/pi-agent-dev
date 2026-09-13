@@ -62,7 +62,8 @@ test("remediation items auto-create, advance, and close only by a reviewer", asy
   await expect(drawer).toBeVisible();
   await drawer.getByLabel("责任人").fill("张工");
   await drawer.getByLabel("截止时间").fill("2020-01-01");
-  await drawer.getByRole("button", { name: "保存" }).click();
+  // antd inserts a space between exactly-two-CJK-char button labels (保存).
+  await drawer.getByRole("button", { name: /保\s*存/ }).click();
   await expect(page.getByText("已更新整改项").first()).toBeVisible();
   await expect(drawer.getByLabel("责任人")).toHaveValue("张工");
 
