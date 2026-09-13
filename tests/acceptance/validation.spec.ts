@@ -158,7 +158,9 @@ test("shows seeded case counts and the latest run's results, without a baseline"
   await page.route("**/api/validation/cases*", (route) =>
     route.fulfill({ json: cases(draftCreated) }),
   );
-  await page.route("**/api/validation/runs*", async (route) => {
+  // A glob `runs*` cannot match `/runs/:id` (`*` stops at `/`), so the run
+  // detail fetch would fall through to the real API and 404. Match by regex.
+  await page.route(/\/api\/validation\/runs/, async (route) => {
     const url = new URL(route.request().url());
     if (route.request().method() === "POST") {
       await route.fulfill({ json: { runs: [run(RUN_2, true)], skipped: [] } });
@@ -202,7 +204,11 @@ test("shows seeded case counts and the latest run's results, without a baseline"
 
   // The first run's results render with outcome chips, and there is no baseline.
   await expect(
-    page.getByRole("row").filter({ hasText: "bench-01 · 预付款 70% 触发风险" }).getByText("通过"),
+    page
+      .locator(".validation-results-panel")
+      .getByRole("row")
+      .filter({ hasText: "bench-01 · 预付款 70% 触发风险" })
+      .getByText("通过"),
   ).toBeVisible();
   await expect(page.getByText("首次运行，无可比对的基线。")).toBeVisible();
   await expect(page.getByText("新增回归")).toHaveCount(0);
@@ -224,7 +230,11 @@ test("shows seeded case counts and the latest run's results, without a baseline"
 
   await expect(page.getByText("新增回归")).toBeVisible();
   await expect(
-    page.getByRole("row").filter({ hasText: "bench-01 · 预付款 70% 触发风险" }).getByText("失败"),
+    page
+      .locator(".validation-results-panel")
+      .getByRole("row")
+      .filter({ hasText: "bench-01 · 预付款 70% 触发风险" })
+      .getByText("失败"),
   ).toBeVisible();
   await expect(page.getByText("预付款上限规则 · v2")).toBeVisible();
 });

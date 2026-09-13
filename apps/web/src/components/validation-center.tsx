@@ -147,7 +147,7 @@ export function ValidationCenter({
         ))}
       </div>
 
-      <Card size="small" className="validation-panel">
+      <Card size="small" className="validation-panel validation-results-panel">
         <Space direction="vertical" size={8} style={{ width: "100%" }}>
           <Typography.Text type="secondary">{describeRunMeta(latestRun)}</Typography.Text>
           {cases.length === 0 ? (
@@ -168,7 +168,7 @@ export function ValidationCenter({
         </Space>
       </Card>
 
-      <Card size="small" title="回归差异" className="validation-panel">
+      <Card size="small" title="回归差异" className="validation-panel validation-diff-panel">
         {runDetail === null ? (
           <Typography.Text type="secondary">尚未运行验证。</Typography.Text>
         ) : runDetail.previous === null ? (
