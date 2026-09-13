@@ -796,7 +796,7 @@ export class InMemoryRuleRepository {
     if (!draft) throw new RuleRepositoryError(409, "没有待发布的草稿版本");
     if (!draft.lastValidationRunId) throw new RuleRepositoryError(409, "尚未运行验证");
     const run = state.runs.find((candidate) => candidate.id === draft.lastValidationRunId);
-    if (!run || run.status !== "passed") {
+    if (run?.status !== "passed") {
       throw new RuleRepositoryError(409, `验证未通过：${run?.summary.failed ?? 0} 例失败`);
     }
     const previous = state.versions.find((version) => version.status === "published") ?? null;

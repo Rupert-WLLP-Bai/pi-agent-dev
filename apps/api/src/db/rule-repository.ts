@@ -489,7 +489,7 @@ export class RuleRepository {
         .from(validationRuns)
         .where(eq(validationRuns.id, draft.lastValidationRunId))
         .limit(1);
-      if (!run || run.status !== "passed") {
+      if (run?.status !== "passed") {
         const failed = run?.summary.failed ?? 0;
         throw new RuleRepositoryError(409, `验证未通过：${failed} 例失败`);
       }

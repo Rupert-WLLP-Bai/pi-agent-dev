@@ -1,4 +1,4 @@
-import { type GoldenCase, goldenSet } from "@contract-audit/audit/golden-set";
+import { goldenSet } from "@contract-audit/audit/golden-set";
 import type { RuleDisposition } from "@contract-audit/audit/model";
 import type { RuleRepository, SeedValidationCase } from "./rule-repository";
 import type { ValidationCaseType } from "./schema";

@@ -106,7 +106,7 @@ export function describePublishGate(
   if (!draft) return { enabled: false, reason: "没有待发布的草稿版本" };
   if (!draft.lastValidationRunId) return { enabled: false, reason: "尚未运行验证" };
   const run = detail.draftValidationRun;
-  if (!run || run.status !== "passed") {
+  if (run?.status !== "passed") {
     return { enabled: false, reason: `验证未通过：${run?.summary.failed ?? 0} 例失败` };
   }
   return { enabled: true, reason: null };
