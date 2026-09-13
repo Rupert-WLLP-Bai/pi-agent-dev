@@ -305,7 +305,6 @@ export const validationCases = pgTable(
   (table) => [uniqueIndex("validation_cases_rule_name_idx").on(table.ruleCode, table.name)],
 );
 
-
 /**
  * One Remediation Item per accepted Finding Revision. An item is opened by the
  * review that accepts a finding and is the unit the 整改跟踪 board moves: it
