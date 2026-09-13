@@ -259,18 +259,31 @@ export function assessmentsForFinding(
   findingType: string,
   assessments: RuleAssessment[],
 ): RuleAssessment[] {
-  // Build findingType → ruleCode map from the rule-finding contracts.
-  const ruleForFinding = ENGINE_RULE_CODES.find((code) => {
+  // Collect all rule codes whose contract maps to this finding type.
+  const matchingRules = ENGINE_RULE_CODES.filter((code) => {
     const contract = ruleContractFor(code);
     if (!contract) return false;
     if (contract.policyConflict?.findingType === findingType) return true;
     return contract.needsHumanReview.some((r) => r.findingType === findingType);
   });
 
-  if (ruleForFinding) {
-    const direct = assessments.filter((a) => a.ruleCode === ruleForFinding);
+  // Prefer an exact policyConflict match (specific finding types like
+  // ADVANCE_PAYMENT_POLICY_CONFLICT map to exactly one rule).
+  const exactMatch = matchingRules.find((code) => {
+    const contract = ruleContractFor(code);
+    return contract?.policyConflict?.findingType === findingType;
+  });
+  if (exactMatch) {
+    const direct = assessments.filter((a) => a.ruleCode === exactMatch);
     if (direct.length > 0) return direct;
   }
+
+  // For generic finding types (e.g. NEEDS_HUMAN_REVIEW), prefer rules that
+  // actually have a NEEDS_HUMAN_REVIEW disposition in the assessments.
+  const reviewedMatches = matchingRules
+    .map((code) => assessments.filter((a) => a.ruleCode === code))
+    .filter((matched) => matched.length > 0);
+  if (reviewedMatches.length === 1) return reviewedMatches[0];
 
   // Fallback: show only POLICY_CONFLICT assessments (the ones that
   // produced findings) when no direct rule match exists.

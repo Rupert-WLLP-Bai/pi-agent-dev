@@ -55,6 +55,15 @@ const proposal: FindingProposal = {
   remediation: "Reduce the advance payment ratio",
 };
 
+/**
+ * Lets the dispatcher's fire-and-forget `runAudit` drain. Every repository call
+ * it awaits is an already-resolved promise, so advancing the microtask queue is
+ * enough — no wall-clock wait and no fake clock are needed.
+ */
+const drainAsync = async (): Promise<void> => {
+  for (let turn = 0; turn < 64; turn += 1) await Promise.resolve();
+};
+
 let repository: InMemoryAuditCaseRepository;
 let agent: ControlledAgent;
 let broker: RecordingEventBroker;
@@ -88,6 +97,81 @@ test("does not run more than one audit when concurrency is one", async () => {
   expect(agent.startedCaseIds).toEqual(["source-a", "source-b"]);
   agent.resolveRun([proposal]);
   await new Promise((resolve) => setTimeout(resolve, 10));
+});
+
+test("enqueue makes the case claimable in the repository without dispatching locally", async () => {
+  // Occupy the single concurrency slot so the enqueued case cannot be claimed
+  // yet — its only remaining home is the repository row.
+  const { caseId: blocker } = await repository.createPendingCase(
+    "source-blocker",
+    snapshotFor("source-blocker"),
+  );
+  await dispatcher.enqueue(blocker);
+  await drainAsync();
+  expect(agent.startedCaseIds).toEqual(["source-blocker"]);
+
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  // Start from a terminal status so the write to PENDING is unambiguously the
+  // enqueue's doing.
+  await repository.updateCaseStatus(caseId, "FAILED", "FAILED");
+  await dispatcher.enqueue(caseId);
+
+  expect(await repository.getCase(caseId)).toMatchObject({ status: "PENDING", stage: "QUEUED" });
+  expect(agent.startedCaseIds).toEqual(["source-blocker"]);
+
+  // Releasing the slot lets the claim loop pick the case up from the DB.
+  agent.resolveRun([proposal]);
+  await drainAsync();
+  expect(agent.startedCaseIds).toEqual(["source-blocker", "source-a"]);
+  agent.resolveRun([proposal]);
+  await drainAsync();
+});
+
+test("two dispatchers sharing a repository run the same case only once", async () => {
+  const otherAgent = new ControlledAgent();
+  const otherBroker = new RecordingEventBroker();
+  const otherDispatcher = new AuditDispatcher(
+    repository.asRepository(),
+    () => otherAgent,
+    otherBroker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+  );
+  await otherDispatcher.start();
+
+  const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
+  // Both replicas are notified, as happens when the API node that accepted the
+  // upload is not the node that runs the audit.
+  await Promise.all([dispatcher.enqueue(caseId), otherDispatcher.enqueue(caseId)]);
+  await drainAsync();
+
+  // The atomic claim handed the case to exactly one replica: it is RUNNING and
+  // nothing is left pending for the other to pick up.
+  expect(await repository.getCase(caseId)).toMatchObject({ status: "RUNNING" });
+  expect(await repository.getPendingCaseIds()).toEqual([]);
+  expect(repository.recordedRuns).toHaveLength(1);
+  expect([...agent.startedCaseIds, ...otherAgent.startedCaseIds]).toEqual(["source-a"]);
+
+  // Resolve on both: only the owner holds a pending run.
+  agent.resolveRun([proposal]);
+  otherAgent.resolveRun([proposal]);
+  await drainAsync();
+  expect(repository.recordedRuns).toHaveLength(1);
+});
+
+test("claimNextPendingCase hands out pending cases in creation order", async () => {
+  const { caseId: first } = await repository.createPendingCase(
+    "source-first",
+    snapshotFor("source-first"),
+  );
+  const { caseId: second } = await repository.createPendingCase(
+    "source-second",
+    snapshotFor("source-second"),
+  );
+
+  expect(await repository.claimNextPendingCase()).toMatchObject({ caseId: first });
+  expect(await repository.claimNextPendingCase()).toMatchObject({ caseId: second });
+  expect(await repository.claimNextPendingCase()).toBeNull();
 });
 
 test("completes the audit for the enqueued case and records the run", async () => {
@@ -248,9 +332,9 @@ test("marks a failed agent run as FAILED and records the error", async () => {
   });
 });
 
-test("ignores a stale queued entry whose case is no longer pending", async () => {
+test("leaves a case another runner already claimed untouched", async () => {
   const { caseId } = await repository.createPendingCase("source-a", snapshotFor("source-a"));
-  // The case is claimed directly (e.g. through a concurrent path).
+  // Another replica won the claim first.
   await repository.claimCase(caseId);
   await repository.updateCaseStatus(caseId, "RUNNING", "AGENT_RUNNING");
 
@@ -261,7 +345,7 @@ test("ignores a stale queued entry whose case is no longer pending", async () =>
   expect((await repository.getCase(caseId))?.status).toBe("RUNNING");
 });
 
-test("marks stale RUNNING cases interrupted and re-enqueues pending cases on start", async () => {
+test("marks stale RUNNING cases interrupted and claims pending cases on start", async () => {
   const repository2 = new InMemoryAuditCaseRepository();
   const agent2 = new ControlledAgent();
   const broker2 = new RecordingEventBroker();

@@ -14,11 +14,13 @@ import AuditRunsPage from "./routes/audit-runs";
 import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
+import IntegrationsPage from "./routes/integrations";
 import RemediationBoardPage from "./routes/remediations";
 import ReviewCenterPage from "./routes/reviews";
 import RuleDetail from "./routes/rule-detail";
 import RulesPage from "./routes/rules";
 import ValidationPage from "./routes/validation";
+import VerificationPage from "./routes/verification";
 
 const queryClient = new QueryClient();
 
@@ -149,6 +151,18 @@ const validationRoute = createRoute({
   component: ValidationPage,
 });
 
+const integrationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/integrations",
+  component: IntegrationsPage,
+});
+
+const verificationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/verification",
+  component: VerificationPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -162,6 +176,8 @@ const routeTree = rootRoute.addChildren([
   rulesRoute,
   ruleDetailRoute,
   validationRoute,
+  integrationsRoute,
+  verificationRoute,
 ]);
 
 const router = createRouter({ routeTree });

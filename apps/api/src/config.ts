@@ -17,6 +17,12 @@ export interface ApiConfig {
   qccRiskEndpoint: string;
   /** Bearer token for QCC MCP endpoints. */
   qccToken: string;
+  /**
+   * Whether the real agent's LLM credential is present. Only presence is
+   * captured — the value stays in the pi-agent runtime, so no secret enters
+   * the config object and `GET /api/health` can report it safely.
+   */
+  llmConfigured: boolean;
 }
 
 const parseInteger = (value: string | undefined, fallback: number): number => {
@@ -24,6 +30,12 @@ const parseInteger = (value: string | undefined, fallback: number): number => {
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+/**
+ * Maximum accepted size for one uploaded contract file, in bytes. Large
+ * uploads are rejected with 413 before the document is parsed.
+ */
+export const maxUploadBytes = parseInteger(process.env.MAX_UPLOAD_BYTES, 10_485_760);
 
 export function loadApiConfig(): ApiConfig {
   return {
@@ -41,5 +53,7 @@ export function loadApiConfig(): ApiConfig {
       process.env.QCC_COMPANY_ENDPOINT ?? "https://agent.qcc.com/mcp/company/stream",
     qccRiskEndpoint: process.env.QCC_RISK_ENDPOINT ?? "https://agent.qcc.com/mcp/risk/stream",
     qccToken: process.env.QCC_TOKEN ?? "",
+    // The key is the credential; endpoint and model are non-secret settings.
+    llmConfigured: Boolean(process.env.XYG_API_KEY),
   };
 }

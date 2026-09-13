@@ -16,14 +16,15 @@ import type {
   RemediationStatus,
   Severity,
   SourceProvenance,
+  SubjectMatchStatus,
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { AgentRunIdentity, ReviewPriority } from "@contract-audit/audit/ports";
 import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
-import { count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import postgres, { type Sql } from "postgres";
 import {
   agentRuns,
   agentTraceSteps,
@@ -71,6 +72,28 @@ export interface CaseSummary extends AuditCase {
   subjectRedLineCount: number;
   /** How the contract entered the system; null when never recorded. */
   sourceProvenance: SourceProvenance | null;
+}
+
+/**
+ * One row of the external-verification timeline: a stored provider answer for
+ * one Contract Party, projected with the case it belongs to. Rows are
+ * append-only, so a re-verified case yields more than one row here.
+ */
+export interface SubjectVerificationListItem {
+  id: string;
+  auditCaseId: string;
+  contractTitle: string | null;
+  partyId: string;
+  /**
+   * The matched legal name when the subject settled, otherwise the name the
+   * provider was asked about. Never empty, so a row always names a subject.
+   */
+  subjectName: string;
+  status: SubjectMatchStatus;
+  /** The provider that answered; null when its Source Record carries none. */
+  provider: string | null;
+  capturedAt: string;
+  expiresAt: string | null;
 }
 
 /** Run-list projection: the run, the case it belongs to, and how much it traced. */
@@ -296,6 +319,16 @@ const toFinding = (row: typeof findingRevisions.$inferSelect): FindingRevision =
   createdAt: row.createdAt.toISOString(),
 });
 
+/**
+ * A Source Record's stored original file, as the download endpoint needs it:
+ * where the bytes live, and the uploaded name to hand back to the client.
+ */
+export interface SourceRecordOriginal {
+  id: string;
+  originalPath: string | null;
+  name: string | null;
+}
+
 export class AuditCaseRepository {
   constructor(private readonly db: DrizzleDB) {}
 
@@ -405,6 +438,39 @@ export class AuditCaseRepository {
   async getCase(caseId: string): Promise<AuditCase | null> {
     const [row] = await this.db.select().from(auditCases).where(eq(auditCases.id, caseId)).limit(1);
     return row ? toCase(row) : null;
+  }
+
+  /**
+   * Records where an uploaded original was stored. Called after the upload
+   * route has written the file, so a Source Record can be downloaded later.
+   * Pasted submissions never call this and keep a null path.
+   */
+  async updateSourceOriginalPath(sourceRecordId: string, originalPath: string): Promise<void> {
+    await this.db
+      .update(sourceRecords)
+      .set({ originalPath })
+      .where(eq(sourceRecords.id, sourceRecordId));
+  }
+
+  /** The stored original for a Source Record, or null when none exists. */
+  async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
+    const [row] = await this.db
+      .select({
+        id: sourceRecords.id,
+        originalPath: sourceRecords.originalPath,
+        metadata: sourceRecords.metadata,
+      })
+      .from(sourceRecords)
+      .where(eq(sourceRecords.id, sourceRecordId))
+      .limit(1);
+    if (row === undefined) return null;
+    const metadata = row.metadata;
+    let name: string | null = null;
+    if (metadata !== null && typeof metadata === "object" && "sourceDisplayName" in metadata) {
+      const candidate = metadata.sourceDisplayName;
+      if (typeof candidate === "string") name = candidate;
+    }
+    return { id: row.id, originalPath: row.originalPath, name };
   }
 
   async getSnapshot(snapshotId: string): Promise<AuditSnapshot | null> {
@@ -521,7 +587,16 @@ export class AuditCaseRepository {
         parties: auditSnapshots.parties,
       })
       .from(auditCases)
-      .leftJoin(auditSnapshots, eq(auditSnapshots.auditCaseId, auditCases.id))
+      .leftJoin(
+        auditSnapshots,
+        and(
+          eq(auditSnapshots.auditCaseId, auditCases.id),
+          eq(
+            auditSnapshots.createdAt,
+            sql`(SELECT MAX(s2.created_at) FROM ${auditSnapshots} s2 WHERE s2.audit_case_id = ${auditCases.id})`,
+          ),
+        ),
+      )
       .where(inArray(auditCases.id, caseIds));
     const caseById = new Map(caseRows.map((row) => [row.id, row]));
 
@@ -711,7 +786,16 @@ export class AuditCaseRepository {
         contractTitle: sql<string | null>`${auditSnapshots.document}->'blocks'->0->>'text'`,
       })
       .from(remediations)
-      .leftJoin(auditSnapshots, eq(auditSnapshots.auditCaseId, remediations.auditCaseId))
+      .leftJoin(
+        auditSnapshots,
+        and(
+          eq(auditSnapshots.auditCaseId, remediations.auditCaseId),
+          eq(
+            auditSnapshots.createdAt,
+            sql`(SELECT MAX(s2.created_at) FROM ${auditSnapshots} s2 WHERE s2.audit_case_id = ${remediations.auditCaseId})`,
+          ),
+        ),
+      )
       .orderBy(sql`${remediations.dueAt} ASC NULLS LAST`, remediations.createdAt);
 
     const itemsByStatus: Record<RemediationStatus, RemediationCard[]> = {
@@ -949,6 +1033,47 @@ export class AuditCaseRepository {
     return { verifications, evidence: [...evidenceById.values()] };
   }
 
+  /**
+   * The external-verification timeline: every stored answer, newest capture
+   * first. The contract title is read through a scalar subquery so a case with
+   * several snapshot generations cannot multiply its verification rows.
+   */
+  async listSubjectVerifications(limit = 50): Promise<SubjectVerificationListItem[]> {
+    const rows = await this.db
+      .select({
+        id: subjectVerifications.id,
+        auditCaseId: subjectVerifications.auditCaseId,
+        partyId: subjectVerifications.partyId,
+        status: subjectVerifications.status,
+        payload: subjectVerifications.payload,
+        provider: sql<string | null>`${sourceRecords.metadata}->>'provider'`,
+        subject: sql<string | null>`${sourceRecords.metadata}->>'subject'`,
+        contractTitle: sql<string | null>`(
+          SELECT s.document->'blocks'->0->>'text'
+          FROM audit_snapshots s
+          WHERE s.audit_case_id = ${subjectVerifications.auditCaseId}
+          ORDER BY s.created_at DESC
+          LIMIT 1
+        )`,
+      })
+      .from(subjectVerifications)
+      .leftJoin(sourceRecords, eq(sourceRecords.id, subjectVerifications.sourceRecordId))
+      .orderBy(desc(subjectVerifications.createdAt))
+      .limit(limit);
+
+    return rows.map((row) => ({
+      id: row.id,
+      auditCaseId: row.auditCaseId,
+      contractTitle: contractTitleFromFirstBlock(row.contractTitle),
+      partyId: row.partyId,
+      subjectName: row.payload.matched?.name ?? row.subject ?? row.partyId,
+      status: row.status,
+      provider: row.provider,
+      capturedAt: row.payload.capturedAt,
+      expiresAt: row.payload.expiresAt,
+    }));
+  }
+
   async getFinding(findingId: string): Promise<FindingRevision | null> {
     const [row] = await this.db
       .select()
@@ -987,7 +1112,12 @@ export class AuditCaseRepository {
              COALESCE(sr.subject_red_line_count, 0)::int AS subject_red_line_count
       FROM audit_cases c
       LEFT JOIN source_records src ON src.id = c.source_record_id
-      LEFT JOIN audit_snapshots s ON s.audit_case_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT * FROM audit_snapshots s2
+        WHERE s2.audit_case_id = c.id
+        ORDER BY s2.created_at DESC
+        LIMIT 1
+      ) s ON true
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int AS finding_count,
                (ARRAY_AGG(f.proposal->>'severity' ORDER BY
@@ -1092,7 +1222,12 @@ export class AuditCaseRepository {
       INNER JOIN finding_revisions f
         ON f.audit_case_id = c.id
        AND NOT EXISTS (SELECT 1 FROM finding_revisions newer WHERE newer.supersedes_id = f.id)
-      LEFT JOIN audit_snapshots s ON s.audit_case_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT * FROM audit_snapshots s2
+        WHERE s2.audit_case_id = c.id
+        ORDER BY s2.created_at DESC
+        LIMIT 1
+      ) s ON true
       WHERE c.stage = 'AWAITING_REVIEW'
     `);
     const now = options.now ?? new Date();
@@ -1192,7 +1327,12 @@ export class AuditCaseRepository {
                 WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END DESC
               LIMIT 1) AS highest_severity
       FROM audit_cases c
-      LEFT JOIN audit_snapshots s ON s.audit_case_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT * FROM audit_snapshots s2
+        WHERE s2.audit_case_id = c.id
+        ORDER BY s2.created_at DESC
+        LIMIT 1
+      ) s ON true
       WHERE c.stage = 'AWAITING_REVIEW'
       ORDER BY c.updated_at DESC
       LIMIT 8
@@ -1225,7 +1365,26 @@ export class AuditCaseRepository {
     };
   }
 }
-export function createRepository(databaseUrl: string): AuditCaseRepository {
+/**
+ * The process's one Postgres connection pool, plus the drizzle handle built on
+ * it. Both repositories take the `db` this returns so the app opens a single
+ * pool instead of one per repository.
+ */
+export interface DbHandle {
+  db: DrizzleDB;
+  client: Sql;
+}
+
+export function createDb(databaseUrl: string): DbHandle {
   const client = postgres(databaseUrl);
-  return new AuditCaseRepository(drizzle({ client, schema }));
+  return { db: drizzle({ client, schema }), client };
+}
+
+/**
+ * Accepts a ready `db` (the shared pool from `createDb`) or a connection string
+ * for callers that only need this repository; a string opens a private pool.
+ */
+export function createRepository(input: string | DrizzleDB): AuditCaseRepository {
+  const db = typeof input === "string" ? createDb(input).db : input;
+  return new AuditCaseRepository(db);
 }

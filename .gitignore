@@ -13,3 +13,5 @@ playwright-report
 .agents/
 .claude/
 skills-lock.json
+# Uploaded contract originals, written at runtime by the API.
+apps/api/var/

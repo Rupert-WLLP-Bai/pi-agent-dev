@@ -32,12 +32,19 @@ beforeEach(() => {
   });
 });
 
-const json = (method: string, path: string, body?: unknown): Request =>
+const json = (
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+): Request =>
   new Request(`http://localhost${path}`, {
     method,
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      ...headers,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
 test("creates a pending case and returns 202", async () => {
@@ -98,6 +105,35 @@ test("records a review as an append-only revision", async () => {
     status: "COMPLETED",
     stage: "COMPLETED",
   });
+});
+
+test("records the X-Operator header as the reviewer", async () => {
+  const { caseId } = await repository.createPendingCase("source-1", snapshotStub());
+  const findingId = await repository.appendFindingRevision(
+    caseId,
+    {
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
+
+  const response = await app.handle(
+    json(
+      "POST",
+      `/api/findings/${findingId}/reviews`,
+      { decision: "ACCEPTED" },
+      // Header values are byte strings; the web client percent-encodes names.
+      { "X-Operator": encodeURIComponent("张三") },
+    ),
+  );
+
+  expect(response.status).toBe(200);
+  const findings = await repository.getFindingsByCase(caseId);
+  expect(findings[0].review).toMatchObject({ decision: "ACCEPTED", reviewerId: "张三" });
 });
 
 test("rejects a second review of the same finding", async () => {

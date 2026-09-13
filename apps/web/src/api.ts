@@ -1,15 +1,17 @@
 import type {
   AgentRunSummary,
+  ApiHealth,
   AuditActionLog,
+  AuditApp,
   AuditOverview,
   CaseSummary,
-  createApp,
   Remediation,
   RemediationBoard,
   ReviewQueueItem,
   RuleDetail,
   RuleListItem,
   RuleVersionRecord,
+  SubjectVerificationListItem,
   ValidationCaseListItem,
   ValidationRunListItem,
   ValidationRunRecord,
@@ -29,7 +31,14 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 
 // Eden Treaty client typed directly from the Elysia app (architecture
 // constraint: monorepo front/back type derivation through Eden Treaty).
-const api = treaty<ReturnType<typeof createApp>>(API_BASE_URL);
+// The X-Operator header names the acting operator on every mutation. Header
+// values are byte strings, so a non-ASCII name (the default is "我") is
+// percent-encoded and decoded by the API. It is resolved per request so a
+// change to the operator preference takes effect on the next call; the API
+// still accepts a body actor as a fallback.
+const operatorHeader = () => ({ "X-Operator": encodeURIComponent(readOperator()) });
+
+const api = treaty<AuditApp>(API_BASE_URL, { headers: operatorHeader });
 
 export class ApiRequestError extends Error {
   constructor(
@@ -85,6 +94,7 @@ export async function createAuditCaseFromFile({ file, policyLimitRatio }: Upload
 
   const response = await fetch(`${API_BASE_URL}/api/audit-cases/upload`, {
     method: "POST",
+    headers: operatorHeader(),
     body: formData,
   });
 
@@ -236,6 +246,16 @@ export async function getAuditOverview(): Promise<AuditOverview> {
   };
 }
 
+/**
+ * The external-verification timeline: every stored provider answer, newest
+ * capture first. Read-only.
+ */
+export async function listSubjectVerifications(limit = 50): Promise<SubjectVerificationListItem[]> {
+  const { data, error } = await api.api.verifications.get({ query: { limit: String(limit) } });
+  if (error) throw new ApiRequestError("加载外部核验失败", Number(error.status));
+  return data.verifications;
+}
+
 /** `YYYY-MM-DD` for a day bucket that arrived as a Date; anything else passes through. */
 const toDayKey = (value: string | Date): string =>
   value instanceof Date ? value.toISOString().slice(0, 10) : value;
@@ -263,10 +283,51 @@ export async function reassessAuditCase(id: string) {
   return data;
 }
 
-export async function getApiHealth(): Promise<"ok" | "unavailable"> {
+export async function getApiHealth(): Promise<ApiHealth> {
   const { data, error } = await api.api.health.get();
-  if (error || !data) return "unavailable";
-  return data.status;
+  // A 503 still carries the per-integration breakdown, so read the error body
+  // too — the page must name which integration is down, not just that one is.
+  const errorValue =
+    error !== null && typeof error === "object" && "value" in error ? error.value : null;
+  return (
+    parseHealth(errorValue) ??
+    parseHealth(data) ?? {
+      status: "unavailable",
+      database: false,
+      dispatcher: false,
+      agentMode: "fake",
+      qccConfigured: false,
+      llmConfigured: false,
+    }
+  );
+}
+
+/**
+ * Validates a health body against the wire contract and normalises it. The
+ * shape is checked rather than trusted: a proxy or an older API returning
+ * something else must not be read as integration health.
+ */
+function parseHealth(value: unknown): ApiHealth | null {
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (
+    (record.status === "ok" || record.status === "unavailable") &&
+    typeof record.database === "boolean" &&
+    typeof record.dispatcher === "boolean" &&
+    (record.agentMode === "pi" || record.agentMode === "fake") &&
+    typeof record.qccConfigured === "boolean" &&
+    typeof record.llmConfigured === "boolean"
+  ) {
+    return {
+      status: record.status,
+      database: record.database,
+      dispatcher: record.dispatcher,
+      agentMode: record.agentMode,
+      qccConfigured: record.qccConfigured,
+      llmConfigured: record.llmConfigured,
+    };
+  }
+  return null;
 }
 
 export function getAuditEventsUrl(id: string): string {

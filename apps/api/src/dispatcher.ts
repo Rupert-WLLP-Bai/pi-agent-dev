@@ -16,7 +16,6 @@ const isAbortError = (error: unknown): boolean =>
 export class AuditDispatcher {
   private activeSessions = new Map<string, { abort: () => void }>();
   private cancelledCaseIds = new Set<string>();
-  private queue: string[] = [];
   private running = 0;
   private started = false;
 
@@ -42,30 +41,41 @@ export class AuditDispatcher {
   async start(): Promise<void> {
     await this.repository.markStaleRunsInterrupted();
     this.started = true;
-    const pendingCaseIds = await this.repository.getPendingCaseIds();
-    this.queue.push(...pendingCaseIds);
     await this.processQueue();
   }
 
+  /**
+   * Makes a case claimable and wakes the claim loop. The case row is the
+   * queue, not this process: promoting it to PENDING is what lets any replica
+   * pick it up, so the work survives a restart and is visible cluster-wide.
+   * A case another replica already claimed is left alone — re-promoting
+   * RUNNING work would run the same case twice.
+   */
   async enqueue(auditCaseId: string): Promise<void> {
-    this.queue.push(auditCaseId);
+    const auditCase = await this.repository.getCase(auditCaseId);
+    if (auditCase === null || auditCase.status === "RUNNING") return;
+    await this.repository.updateCaseStatus(auditCaseId, "PENDING", "QUEUED");
     await this.processQueue();
   }
 
+  /**
+   * Drains claimable work until the concurrency budget is spent or no case is
+   * left. Every replica runs this loop, so it deliberately holds no local
+   * state: the atomic claim (`FOR UPDATE SKIP LOCKED`) is what divides the
+   * pending cases among them without a shared lock.
+   */
   private async processQueue(): Promise<void> {
-    while (this.running < this.maxConcurrent && this.queue.length > 0) {
-      const auditCaseId = this.queue.shift();
-      if (auditCaseId === undefined) return;
+    while (this.running < this.maxConcurrent) {
+      const claimed = await this.repository.claimNextPendingCase();
+      if (claimed === null) return;
       this.running += 1;
-      void this.runAudit(auditCaseId);
+      void this.runAudit(claimed);
     }
   }
 
-  private async runAudit(auditCaseId: string): Promise<void> {
+  private async runAudit(claimed: { caseId: string; snapshotId: string }): Promise<void> {
+    const auditCaseId = claimed.caseId;
     try {
-      // Claim the exact enqueued case; a stale or raced entry is a no-op.
-      const claimed = await this.repository.claimCase(auditCaseId);
-      if (!claimed) return;
       const snapshot = await this.repository.getSnapshot(claimed.snapshotId);
       if (!snapshot) throw new Error(`Audit snapshot not found for case ${auditCaseId}`);
 
@@ -231,8 +241,8 @@ export class AuditDispatcher {
       session.abort();
       return;
     }
-    // Not running: drop it from the queue and cancel it if it is still pending.
-    this.queue = this.queue.filter((id) => id !== auditCaseId);
+    // Not running here: cancel it in the repository while it is still pending,
+    // so no replica can claim it out from under the cancellation.
     const auditCase = await this.repository.getCase(auditCaseId);
     if (auditCase?.status === "PENDING") {
       this.broker.publish({ type: "audit.cancelled", auditCaseId });
@@ -241,7 +251,6 @@ export class AuditDispatcher {
   }
 
   async retry(auditCaseId: string): Promise<void> {
-    await this.repository.updateCaseStatus(auditCaseId, "PENDING", "QUEUED");
     await this.enqueue(auditCaseId);
   }
 }

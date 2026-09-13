@@ -13,7 +13,8 @@ import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { RuleRepository } from "../db/rule-repository";
 import type { AuditDispatcher } from "../dispatcher";
-import { parseContractFile } from "../document";
+import { parseContractFile, validateMimeType } from "../document";
+import { readOriginal, saveOriginal } from "../document/original-store";
 import { type AuditEventBroker, sseResponse } from "../sse";
 
 export interface AuditRouteDeps {
@@ -22,6 +23,11 @@ export interface AuditRouteDeps {
   broker: AuditEventBroker;
   /** Published Rule Versions the snapshot's parameters are read from. */
   rules: RuleRepository;
+}
+
+export interface AuditCasesRouteDeps extends AuditRouteDeps {
+  /** Largest accepted upload, in bytes; anything larger is refused with 413. */
+  maxUploadBytes: number;
 }
 
 /** The deterministic rules whose parameters shape snapshot assembly. */
@@ -123,7 +129,49 @@ export function resolvePasteProvenance(body: {
   return { type: "DEMO", displayName: demo.title };
 }
 
-export function auditCasesRoutes({ repository, dispatcher, broker, rules }: AuditRouteDeps) {
+/** The declared MIME type of the multipart part carrying the uploaded file. */
+const FILE_PART_MIME = /filename="[^"]*"[^\r\n]*\r\n(?:[^\r\n]+\r\n)*?Content-Type:\s*([^\r\n;]+)/i;
+
+/**
+ * Reads the MIME type the client declared for the uploaded file's part. The
+ * multipart parser rewrites a File's `type` from its filename extension, so
+ * `file.type` cannot tell a real PDF from any file merely named `.pdf`;
+ * validating the upload contract requires the header as sent on the wire.
+ * Only part headers are read — never the payload — so this stays cheap even
+ * for a rejected oversized upload.
+ */
+async function readDeclaredFileMime(request: Request): Promise<string> {
+  const reader = request.clone().body?.getReader();
+  if (reader === undefined) return "";
+  const decoder = new TextDecoder();
+  // Part headers always precede the file content and are tiny; the cap is a
+  // guard against a body that never terminates.
+  const maxHeaderBytes = 16_384;
+  let text = "";
+  try {
+    while (text.length < maxHeaderBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += decoder.decode(value, { stream: true });
+      if (FILE_PART_MIME.test(text)) break;
+    }
+  } catch {
+    return "";
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  return FILE_PART_MIME.exec(text)?.[1]?.trim() ?? "";
+}
+
+export function auditCasesRoutes({
+  repository,
+  dispatcher,
+  broker,
+  rules,
+  maxUploadBytes,
+}: AuditCasesRouteDeps) {
+  /** Wire-declared part MIME per in-flight upload, captured before parsing. */
+  const declaredUploadMime = new WeakMap<Request, string>();
   return (
     new Elysia()
       .post(
@@ -150,15 +198,43 @@ export function auditCasesRoutes({ repository, dispatcher, broker, rules }: Audi
       // (.docx, .pdf, .txt). The file is parsed into the same Contract Document
       // IR the text endpoint produces, so everything downstream — rules, party
       // extraction, the agent — is format-agnostic.
+      .onRequest(async ({ request }) => {
+        if (request.method !== "POST" || !request.url.endsWith("/api/audit-cases/upload")) return;
+        const declared = await readDeclaredFileMime(request);
+        if (declared !== "") declaredUploadMime.set(request, declared);
+      })
       .post(
         "/api/audit-cases/upload",
-        async ({ body, set }) => {
+        async ({ body, request, set }) => {
+          // Size and type are checked before any parsing work is attempted: an
+          // oversized body is refused outright, and a file whose declared type
+          // does not match its extension never reaches the format parser.
+          if (body.file.size > maxUploadBytes) {
+            set.status = 413;
+            return { error: "file_too_large" };
+          }
+          // `file.type` is derived from the filename by the multipart parser,
+          // so the wire-declared type is what the contract is checked against;
+          // it falls back to the parser's value when no header was present.
+          const mimeError = validateMimeType(
+            body.file.name,
+            declaredUploadMime.get(request) ?? body.file.type,
+          );
+          if (mimeError !== true) {
+            set.status = 422;
+            return { error: mimeError };
+          }
           const sourceRecordId = crypto.randomUUID();
+          // Read the bytes once: the parser and the original-store both need
+          // them, and a File body is not guaranteed to be re-readable cheaply.
+          const fileBytes = new Uint8Array(await body.file.arrayBuffer());
           let snapshot: AuditSnapshot;
           try {
             const parsed = await parseContractFile({
               filename: body.file.name,
-              data: new Uint8Array(await body.file.arrayBuffer()),
+              // A copy: pdfjs transfers (and detaches) the buffer it is given,
+              // which would leave `fileBytes` unusable for the original store.
+              data: new Uint8Array(fileBytes),
             });
             // Form fields arrive as strings. The canonical unit is a 0–1 ratio
             // (same as the text endpoint's number field); a value above 1 is
@@ -188,6 +264,14 @@ export function auditCasesRoutes({ repository, dispatcher, broker, rules }: Audi
             type: "FILE_UPLOAD",
             displayName: body.file.name,
           });
+          // Persist the uploaded original and point the Source Record at it.
+          // Only file uploads reach here; pasted text keeps a null path.
+          const originalPath = await saveOriginal(
+            sourceRecordId,
+            Buffer.from(fileBytes),
+            body.file.name,
+          );
+          await repository.updateSourceOriginalPath(sourceRecordId, originalPath);
           await dispatcher.enqueue(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };
@@ -199,6 +283,35 @@ export function auditCasesRoutes({ repository, dispatcher, broker, rules }: Audi
           }),
         },
       )
+      // Download the uploaded original for a Source Record. Pasted submissions
+      // have no file, so they answer 404 rather than fabricating one.
+      .get("/api/source-records/:id/original", async ({ params, set }) => {
+        const record = await repository.getSourceRecord(params.id);
+        if (!record?.originalPath) {
+          set.status = 404;
+          return { error: "no_original" };
+        }
+        let buffer: Buffer;
+        try {
+          buffer = await readOriginal(record.originalPath);
+        } catch {
+          set.status = 404;
+          return { error: "original_missing" };
+        }
+        const filename = record.name ?? "contract";
+        // RFC 6266: a byte-safe fallback plus a UTF-8 form, so non-ASCII 
+        // upload names survive the round trip without an invalid header value.
+        const asciiName = filename.replace(/[^\x20-\x7e]|["\\]/gu, "_");
+        const disposition =
+          `attachment; filename="${asciiName}"; ` +
+          `filename*=UTF-8''${encodeURIComponent(filename)}`;
+        return new Response(new Uint8Array(buffer), {
+          headers: {
+            "content-disposition": disposition,
+            "content-type": "application/octet-stream",
+          },
+        });
+      })
       .get("/api/audit-cases", async () => repository.getCasesWithContractTitle())
       .get("/api/audit-cases/:id", async ({ params, set }) => {
         const auditCase = await repository.getCase(params.id);

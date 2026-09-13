@@ -5,5 +5,5 @@ CREATE TABLE IF NOT EXISTS "audit_action_logs" (
   "actor" varchar(64) NOT NULL,
   "reason" text,
   "version_id" uuid,
-  "created_at" timestamp DEFAULT now() NOT NULL
+  "created_at" timestamptz DEFAULT now() NOT NULL
 );

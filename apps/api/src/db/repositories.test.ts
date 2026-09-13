@@ -515,3 +515,28 @@ dbTest("getRecentRuns lists runs with step counts and contract titles", async (r
     { id: "party-2", label: "乙方", name: "成都建工集团有限公司", evidenceId: "party-2-name" },
   ]);
 });
+
+dbTest("stores an uploaded original's path and reads it back by name", async (repository) => {
+  const id = uniqueSourceRecordId();
+  await repository.createPendingCase(id, seedSnapshot(id), {
+    type: "FILE_UPLOAD",
+    displayName: "设备采购合同.docx",
+  });
+
+  await repository.updateSourceOriginalPath(id, `var/uploads/${id}.docx`);
+
+  const record = await repository.getSourceRecord(id);
+  expect(record?.originalPath).toBe(`var/uploads/${id}.docx`);
+  expect(record?.name).toBe("设备采购合同.docx");
+});
+
+dbTest("a pasted source record carries no original", async (repository) => {
+  const id = uniqueSourceRecordId();
+  await repository.createPendingCase(id, seedSnapshot(id), {
+    type: "TEXT_PASTE",
+    displayName: null,
+  });
+
+  const record = await repository.getSourceRecord(id);
+  expect(record?.originalPath).toBeNull();
+});

@@ -20,12 +20,19 @@ beforeEach(() => {
   });
 });
 
-const json = (method: string, path: string, body?: unknown): Request =>
+const json = (
+  method: string,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+): Request =>
   new Request(`http://localhost${path}`, {
     method,
-    ...(body === undefined
-      ? {}
-      : { body: JSON.stringify(body), headers: { "content-type": "application/json" } }),
+    headers: {
+      ...(body === undefined ? {} : { "content-type": "application/json" }),
+      ...headers,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
 const ruleBody = (overrides: Record<string, unknown> = {}) => ({
@@ -462,6 +469,89 @@ test("logs enable and returns the trail newest first", async () => {
     actor: "规则管理员",
     reason: "临时停用",
   });
+});
+
+test("prefers the X-Operator header over a body actor", async () => {
+  const detail = await createRule();
+  // Header values are byte strings; the web client percent-encodes non-ASCII
+  // operator names, and the API decodes them back.
+  const operator = { "X-Operator": encodeURIComponent("张三") };
+  const validated = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/validate`, { triggeredBy: "李四" }, operator),
+  );
+  expect((await validated.json()).run).toMatchObject({ triggeredBy: "张三" });
+
+  const published = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/publish`, { publishedBy: "李四" }, operator),
+  );
+  expect(published.status).toBe(200);
+  expect((await published.json()).version).toMatchObject({ publishedBy: "张三" });
+
+  const disabled = await app.handle(
+    json(
+      "POST",
+      `/api/rules/${detail.rule.id}/disable`,
+      { reason: "演示关闭", actor: "李四" },
+      operator,
+    ),
+  );
+  expect((await disabled.json()).rule).toMatchObject({ disabledBy: "张三" });
+});
+
+test("falls back to the body actor when the X-Operator header is absent", async () => {
+  const detail = await createRule();
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/validate`, { triggeredBy: "李四" }));
+
+  const published = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/publish`, { publishedBy: "李四" }),
+  );
+  expect((await published.json()).version).toMatchObject({ publishedBy: "李四" });
+
+  const disabled = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "演示关闭", actor: "李四" }),
+  );
+  expect((await disabled.json()).rule).toMatchObject({ disabledBy: "李四" });
+});
+
+test("defaults the actor to 规则管理员 when neither header nor body actor is present", async () => {
+  const detail = await createRule();
+  const disabled = await app.handle(
+    json("POST", `/api/rules/${detail.rule.id}/disable`, { reason: "演示关闭" }),
+  );
+  expect((await disabled.json()).rule).toMatchObject({ disabledBy: "规则管理员" });
+
+  await app.handle(json("POST", `/api/rules/${detail.rule.id}/enable`, {}));
+  const res = await app.handle(new Request(`http://localhost/api/rules/${detail.rule.id}/actions`));
+  const body = (await res.json()) as { actions: Array<Record<string, unknown>> };
+  expect(body.actions[0]).toMatchObject({ action: "enable", actor: "规则管理员" });
+});
+
+test("ignores a malformed X-Operator header so the body actor still applies", async () => {
+  const detail = await createRule();
+  const disabled = await app.handle(
+    json(
+      "POST",
+      `/api/rules/${detail.rule.id}/disable`,
+      { reason: "演示关闭", actor: "李四" },
+      { "X-Operator": "%E5%" },
+    ),
+  );
+  expect((await disabled.json()).rule).toMatchObject({ disabledBy: "李四" });
+});
+
+test("records the X-Operator header as the validation triggeredBy", async () => {
+  const _detail = await createRule();
+  const res = await app.handle(
+    json(
+      "POST",
+      "/api/validation/runs",
+      { triggeredBy: "李四" },
+      { "X-Operator": encodeURIComponent("张三") },
+    ),
+  );
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { runs: Array<Record<string, unknown>> };
+  expect(body.runs[0]).toMatchObject({ triggeredBy: "张三" });
 });
 
 test("returns 404 when disabling or enabling an unknown rule", async () => {

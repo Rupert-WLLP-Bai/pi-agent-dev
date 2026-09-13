@@ -4,6 +4,7 @@ import { Elysia, t } from "elysia";
 import type { RuleDetail, RuleRepository } from "../db/rule-repository";
 import type { RuleVersionStatus, ValidationCaseType, ValidationRunStatus } from "../db/schema";
 import { validationCaseTypes } from "../db/schema";
+import { operatorFrom } from "../operator-header";
 import { compareValidationRuns, type ValidationDiffEntry } from "../validation-diff";
 
 export interface ValidationRouteDeps {
@@ -79,7 +80,7 @@ export function validationRoutes({ rules }: ValidationRouteDeps) {
     )
     .post(
       "/api/validation/runs",
-      async ({ body, set }) => {
+      async ({ body, set, headers }) => {
         const details: RuleDetail[] = [];
         if (body.ruleId !== undefined) {
           if (!UUID_PATTERN.test(body.ruleId)) {
@@ -123,7 +124,7 @@ export function validationRoutes({ rules }: ValidationRouteDeps) {
           const run = await rules.recordValidation({
             ruleVersionId: version.id,
             ruleCode: detail.rule.code,
-            triggeredBy: body.triggeredBy,
+            triggeredBy: operatorFrom(headers) ?? body.triggeredBy,
             startedAt,
             summary: result.summary,
             details: result.details,

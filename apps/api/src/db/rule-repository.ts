@@ -1,9 +1,7 @@
 import type { ValidationCaseResult, ValidationSummary } from "@contract-audit/audit/golden-eval";
 import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import { classifyValidationOutcome, type ValidationOutcome } from "../validation-diff";
-import type { DrizzleDB } from "./repositories";
+import { createDb, type DrizzleDB } from "./repositories";
 import type {
   RuleParams,
   RuleStances,
@@ -11,14 +9,7 @@ import type {
   ValidationCaseType,
   ValidationRunStatus,
 } from "./schema";
-import {
-  auditActionLogs,
-  rules,
-  ruleVersions,
-  schema,
-  validationCases,
-  validationRuns,
-} from "./schema";
+import { auditActionLogs, rules, ruleVersions, validationCases, validationRuns } from "./schema";
 
 /**
  * Rule governance persistence, kept apart from AuditCaseRepository so the rule
@@ -862,7 +853,11 @@ export class RuleRepository {
   }
 }
 
-export function createRuleRepository(databaseUrl: string): RuleRepository {
-  const client = postgres(databaseUrl);
-  return new RuleRepository(drizzle({ client, schema }));
+/**
+ * Accepts a ready `db` (the shared pool from `createDb`) or a connection string
+ * for callers that only need this repository; a string opens a private pool.
+ */
+export function createRuleRepository(input: string | DrizzleDB): RuleRepository {
+  const db = typeof input === "string" ? createDb(input).db : input;
+  return new RuleRepository(db);
 }

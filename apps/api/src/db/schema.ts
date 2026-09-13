@@ -53,6 +53,11 @@ export const sourceRecords = pgTable("source_records", {
   id: uuid("id").defaultRandom().primaryKey(),
   sourceText: text("source_text").notNull(),
   metadata: jsonb("metadata"),
+  /**
+   * Path on disk to the uploaded original, when the contract arrived as a
+   * file. Null for pasted text, which has no original to download.
+   */
+  originalPath: text("original_path"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
@@ -295,7 +300,7 @@ export const auditActionLogs = pgTable("audit_action_logs", {
   reason: text("reason"),
   /** The version a publish promoted; null for disable/enable. */
   versionId: uuid("version_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 /**

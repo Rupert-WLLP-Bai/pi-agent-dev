@@ -1,6 +1,16 @@
 import { FileTextOutlined, UploadOutlined } from "@ant-design/icons";
 import { demoContracts } from "@contract-audit/audit/demo-contracts";
-import { Button, Drawer, Form, Input, InputNumber, Segmented, Space, Upload } from "antd";
+import {
+  App as AntApp,
+  Button,
+  Drawer,
+  Form,
+  Input,
+  InputNumber,
+  Segmented,
+  Space,
+  Upload,
+} from "antd";
 import { useState } from "react";
 import type { CreateAuditCaseInput, UploadContractFileInput } from "../api";
 
@@ -22,6 +32,9 @@ type InputMode = "paste" | "upload";
 
 const ACCEPTED_EXTENSIONS = [".docx", ".pdf", ".txt", ".md"];
 
+/** Mirrors the API's maxUploadBytes default so oversized files never upload. */
+const MAX_UPLOAD_BYTES = 10_485_760;
+
 function isAcceptedFile(file: File): boolean {
   const lower = file.name.toLowerCase();
   return ACCEPTED_EXTENSIONS.some((extension) => lower.endsWith(extension));
@@ -36,6 +49,7 @@ export function NewAuditDrawer({
   onUploadFile,
 }: NewAuditDrawerProps) {
   const [form] = Form.useForm<NewAuditFormValues>();
+  const { message } = AntApp.useApp();
   const [sampleId, setSampleId] = useState(demoContracts[0].id);
   const [mode, setMode] = useState<InputMode>("paste");
   const [file, setFile] = useState<File | null>(null);
@@ -135,6 +149,12 @@ export function NewAuditDrawer({
               accept={ACCEPTED_EXTENSIONS.join(",")}
               maxCount={1}
               beforeUpload={(selected) => {
+                // Refuse oversized files in the browser so they never reach
+                // the API: the server would answer 413 anyway.
+                if (selected.size > MAX_UPLOAD_BYTES) {
+                  message.error("文件超过 10MB 限制");
+                  return Upload.LIST_IGNORE;
+                }
                 if (isAcceptedFile(selected)) setFile(selected);
                 return false;
               }}

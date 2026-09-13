@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
+import { operatorFrom } from "../operator-header";
 import type { AuditEventBroker } from "../sse";
 
 interface FindingsRouteDeps {
@@ -15,7 +16,7 @@ const reviewBody = t.Object({
 export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
   return new Elysia().post(
     "/api/findings/:id/reviews",
-    async ({ params, body, set }) => {
+    async ({ params, body, set, headers }) => {
       const finding = await repository.getFinding(params.id);
       if (!finding) {
         set.status = 404;
@@ -27,7 +28,7 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
         const review = await repository.appendReviewRevision(params.id, {
           decision: body.decision,
           reason: body.reason,
-          reviewerId: "anonymous",
+          reviewerId: operatorFrom(headers) ?? "anonymous",
           reviewedAt: new Date().toISOString(),
         });
         remediationId = review.remediationId;

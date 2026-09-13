@@ -32,6 +32,8 @@ import {
   type RemediationBoard,
   type RemediationCard,
   type ReviewQueueItem,
+  type SourceRecordOriginal,
+  type SubjectVerificationListItem,
 } from "../db/repositories";
 import {
   type AuditActionLog,
@@ -127,14 +129,27 @@ export class InMemoryAuditCaseRepository {
   subjectVerificationRows: FakeSubjectVerificationRow[] = [];
   /** Remediation Items, mirroring the remediations table. */
   remediations = new Map<string, FakeRemediationState>();
+  /** Every source record id a case was created under, for download lookups. */
+  sourceRecordIds = new Set<string>();
+  /** Original file paths written by the upload route, keyed by record id. */
+  sourceOriginalPaths = new Map<string, string>();
+  /** Uploaded file name per source record, for the download response. */
+  sourceDisplayNames = new Map<string, string>();
+  /** Which source record id backs each case, so tests can address it. */
+  sourceRecordIdsByCase = new Map<string, string>();
 
   async createPendingCase(
-    _sourceRecordId: string,
+    sourceRecordId: string,
     snapshot: AuditSnapshot,
-    _provenance: SourceProvenance | null = null,
+    provenance: SourceProvenance | null = null,
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
     const createdAt = new Date().toISOString();
+    this.sourceRecordIds.add(sourceRecordId);
+    this.sourceRecordIdsByCase.set(caseId, sourceRecordId);
+    if (provenance?.displayName != null) {
+      this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
+    }
     this.cases.set(caseId, {
       status: "PENDING",
       stage: "QUEUED",
@@ -183,6 +198,20 @@ export class InMemoryAuditCaseRepository {
       sourceRecordId: `source-${caseId}`,
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
+    };
+  }
+
+  async updateSourceOriginalPath(sourceRecordId: string, originalPath: string): Promise<void> {
+    this.sourceRecordIds.add(sourceRecordId);
+    this.sourceOriginalPaths.set(sourceRecordId, originalPath);
+  }
+
+  async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
+    if (!this.sourceRecordIds.has(sourceRecordId)) return null;
+    return {
+      id: sourceRecordId,
+      originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,
+      name: this.sourceDisplayNames.get(sourceRecordId) ?? null,
     };
   }
 
@@ -535,6 +564,33 @@ export class InMemoryAuditCaseRepository {
     const cited = new Set(verifications.flatMap((verification) => verification.evidenceIds));
     const evidence = rows.flatMap((row) => row.evidence).filter((item) => cited.has(item.id));
     return { verifications, evidence };
+  }
+
+  /** Verification timeline, newest capture first, mirroring the SQL projection. */
+  async listSubjectVerifications(limit = 50): Promise<SubjectVerificationListItem[]> {
+    return [...this.subjectVerificationRows]
+      .sort(
+        (left, right) =>
+          Date.parse(right.verification.capturedAt) - Date.parse(left.verification.capturedAt),
+      )
+      .slice(0, limit)
+      .map((row) => {
+        const record = row.verification.sourceRecordId
+          ? this.savedSourceRecords.get(row.verification.sourceRecordId)
+          : undefined;
+        return {
+          id: row.verification.id,
+          auditCaseId: row.caseId,
+          contractTitle: titleForState(this.cases.get(row.caseId)),
+          partyId: row.verification.partyId,
+          subjectName:
+            row.verification.matched?.name ?? record?.subject ?? row.verification.partyId,
+          status: row.verification.status,
+          provider: record?.provider ?? null,
+          capturedAt: row.verification.capturedAt,
+          expiresAt: row.verification.expiresAt,
+        };
+      });
   }
 
   asRepository(): AuditCaseRepository {

@@ -30,6 +30,31 @@ const extensionOf = (filename: string): string => {
 };
 
 /**
+ * The MIME types each supported extension may legitimately carry. A file
+ * whose declared type is not listed for its extension is a mismatch — the
+ * bytes would not be what the parser was chosen for. `.md` shares the plain
+ * text path, so it accepts either markdown or the generic text type.
+ */
+const ALLOWED_MIME: Record<string, string[]> = {
+  ".pdf": ["application/pdf"],
+  ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ".txt": ["text/plain"],
+  ".md": ["text/markdown", "text/plain"],
+};
+
+/**
+ * Checks an upload's declared MIME type against the whitelist for its
+ * extension. Returns `true` when the pair is acceptable, otherwise a stable
+ * error code the caller maps to a 422 response.
+ */
+export function validateMimeType(filename: string, mimeType: string): true | string {
+  const allowed = ALLOWED_MIME[extensionOf(filename)];
+  if (allowed === undefined) return "unsupported_file_type";
+  if (!allowed.includes(mimeType)) return "mime_mismatch";
+  return true;
+}
+
+/**
  * Turns an uploaded contract into the Contract Document IR. Format dispatch is
  * by extension; every branch converges on the same IR builder, so downstream
  * rules cannot tell a docx from a pasted text.

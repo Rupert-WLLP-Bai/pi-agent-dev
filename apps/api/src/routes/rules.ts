@@ -3,6 +3,7 @@ import { runGoldenValidation } from "@contract-audit/audit/golden-eval";
 import { Elysia, t } from "elysia";
 import { type RuleRepository, RuleRepositoryError } from "../db/rule-repository";
 import type { RuleParams } from "../db/schema";
+import { operatorFrom } from "../operator-header";
 
 export interface RulesRouteDeps {
   rules: RuleRepository;
@@ -176,7 +177,7 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
       )
       .post(
         "/api/rules/:id/validate",
-        async ({ params, body, set }) => {
+        async ({ params, body, set, headers }) => {
           const detail = await rules.getRuleDetail(params.id);
           if (!detail) {
             set.status = 404;
@@ -193,7 +194,7 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
           const run = await rules.recordValidation({
             ruleVersionId: draft.id,
             ruleCode: detail.rule.code,
-            triggeredBy: body.triggeredBy,
+            triggeredBy: operatorFrom(headers) ?? body.triggeredBy,
             startedAt,
             summary: result.summary,
             details: result.details,
@@ -204,9 +205,12 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
       )
       .post(
         "/api/rules/:id/publish",
-        async ({ params, body, set }) => {
+        async ({ params, body, set, headers }) => {
           try {
-            const result = await rules.publish(params.id, body.publishedBy);
+            const result = await rules.publish(
+              params.id,
+              operatorFrom(headers) ?? body.publishedBy,
+            );
             return { rule: result.rule, version: result.version };
           } catch (error) {
             if (error instanceof RuleRepositoryError) {
@@ -220,11 +224,11 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
       )
       .post(
         "/api/rules/:id/disable",
-        async ({ params, body, set }) => {
+        async ({ params, body, set, headers }) => {
           try {
             const rule = await rules.disableRule(params.id, {
               reason: body.reason,
-              actor: body.actor ?? "规则管理员",
+              actor: operatorFrom(headers) ?? body.actor ?? "规则管理员",
             });
             return { rule };
           } catch (error) {
@@ -239,10 +243,10 @@ export function rulesRoutes({ rules }: RulesRouteDeps) {
       )
       .post(
         "/api/rules/:id/enable",
-        async ({ params, body, set }) => {
+        async ({ params, body, set, headers }) => {
           try {
             const rule = await rules.enableRule(params.id, {
-              actor: body.actor ?? "规则管理员",
+              actor: operatorFrom(headers) ?? body.actor ?? "规则管理员",
             });
             return { rule };
           } catch (error) {

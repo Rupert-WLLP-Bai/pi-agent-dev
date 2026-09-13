@@ -5,8 +5,8 @@ import { FakeAuditAgent, PiAuditAgent } from "@contract-audit/pi-agent";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { loadApiConfig } from "./config";
-import { createRepository } from "./db/repositories";
+import { loadApiConfig, maxUploadBytes } from "./config";
+import { createDb, createRepository } from "./db/repositories";
 import { createRuleRepository } from "./db/rule-repository";
 import { seedRules } from "./db/seed-rules";
 import { seedValidationCases } from "./db/seed-validation-cases";
@@ -21,6 +21,7 @@ import { reviewsRoutes } from "./routes/reviews";
 import { rulesRoutes } from "./routes/rules";
 import { statsRoutes } from "./routes/stats";
 import { validationRoutes } from "./routes/validation";
+import { verificationsRoutes } from "./routes/verifications";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps;
@@ -33,6 +34,7 @@ export type {
   RemediationCard,
   RemediationColumn,
   ReviewQueueItem,
+  SubjectVerificationListItem,
 } from "./db/repositories";
 export type {
   AuditActionLog,
@@ -46,6 +48,23 @@ export type {
   ValidationRunRecord,
 } from "./db/rule-repository";
 export type { ValidationRunView } from "./routes/validation";
+/**
+ * The integration-health snapshot `GET /api/health` returns. Credentials are
+ * reported as presence only — never as values — so the endpoint is safe to
+ * poll from the browser and to log.
+ */
+export interface ApiHealth {
+  status: "ok" | "unavailable";
+  database: boolean;
+  dispatcher: boolean;
+  /** Which agent implementation is wired in; "fake" needs no LLM credentials. */
+  agentMode: "pi" | "fake";
+  /** Whether the QCC bearer token is present, not the token itself. */
+  qccConfigured: boolean;
+  /** Whether the real agent's LLM key is present, not the key itself. */
+  llmConfigured: boolean;
+}
+
 export type {
   ValidationChange,
   ValidationDiffEntry,
@@ -72,7 +91,7 @@ export function createApp(deps: AppDeps) {
   const config = loadApiConfig();
   return new Elysia()
     .use(cors({ origin: config.webOrigin }))
-    .use(auditCasesRoutes(deps))
+    .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(rulesRoutes({ rules: deps.rules }))
     .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
@@ -85,15 +104,24 @@ export function createApp(deps: AppDeps) {
         slaHours: config.reviewSlaHours,
       }),
     )
+    .use(verificationsRoutes({ repository: deps.repository }))
     .use(statsRoutes({ repository: deps.repository }))
-    .get("/api/health", async ({ set }) => {
+    .get("/api/health", async ({ set }): Promise<ApiHealth> => {
       const databaseOk = await deps.repository.ping();
       const dispatcherOk = deps.dispatcher.isStarted;
       if (!databaseOk || !dispatcherOk) {
         set.status = 503;
-        return { status: "unavailable" as const, database: databaseOk, dispatcher: dispatcherOk };
       }
-      return { status: "ok" as const };
+      // Every field is reported in both states so the integrations page can
+      // name the exact failing integration rather than only the aggregate.
+      return {
+        status: databaseOk && dispatcherOk ? "ok" : "unavailable",
+        database: databaseOk,
+        dispatcher: dispatcherOk,
+        agentMode: config.agentMode,
+        qccConfigured: config.qccToken.length > 0,
+        llmConfigured: config.llmConfigured,
+      };
     })
     .use(
       openapi({
@@ -112,8 +140,9 @@ let app: AuditApp | undefined;
 
 if (import.meta.main) {
   const config = loadApiConfig();
-  const repository = createRepository(config.databaseUrl);
-  const rulesRepository = createRuleRepository(config.databaseUrl);
+  const { db } = createDb(config.databaseUrl);
+  const repository = createRepository(db);
+  const rulesRepository = createRuleRepository(db);
   await seedRules(rulesRepository);
   await seedValidationCases(rulesRepository);
   const broker = new AuditEventBroker();

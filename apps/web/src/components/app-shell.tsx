@@ -1,8 +1,10 @@
 import {
+  ApiOutlined,
   AuditOutlined,
   CheckCircleOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  LinkOutlined,
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
@@ -136,6 +138,22 @@ const navGroups: MenuProps["items"] = [
       },
     ],
   },
+  {
+    type: "group",
+    label: "能力与集成",
+    children: [
+      {
+        key: "/verification",
+        icon: <LinkOutlined />,
+        label: <Link to="/verification">外部核验</Link>,
+      },
+      {
+        key: "/integrations",
+        icon: <ApiOutlined />,
+        label: <Link to="/integrations">集成健康</Link>,
+      },
+    ],
+  },
 ];
 
 function readStoredCollapse(): boolean | null {
@@ -204,6 +222,8 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
     );
   }
   if (pathname === "/cases") return "案例验证";
+  if (pathname === "/integrations") return "集成健康";
+  if (pathname === "/verification") return "外部核验";
   return "审计队列";
 }
 
@@ -221,7 +241,7 @@ export function AppShell() {
     queryFn: getApiHealth,
     refetchInterval: 30_000,
   });
-  const health = healthQuery.data ?? "checking";
+  const health = healthQuery.data?.status ?? "checking";
   const showHealth = health !== "ok";
 
   const detailPage = location.pathname.startsWith("/audit-cases/");
