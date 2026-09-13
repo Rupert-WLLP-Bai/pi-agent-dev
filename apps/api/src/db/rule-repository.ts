@@ -660,9 +660,7 @@ export class RuleRepository {
       .limit(50);
     const index = rows.findIndex((row) => row.id === currentId);
     const prior =
-      index >= 0
-        ? (rows[index + 1] ?? null)
-        : (rows.find((row) => row.id !== currentId) ?? null);
+      index >= 0 ? (rows[index + 1] ?? null) : (rows.find((row) => row.id !== currentId) ?? null);
     if (!prior) return null;
     return { ...toRunListItem(prior), details: prior.details };
   }

@@ -69,9 +69,10 @@ test("a case that stops passing is a regression, and one that starts is fixed", 
 
 test("recognising a case as a deferral ranks worse than a pass but better than a failure", () => {
   const previous = [result("pass-to-defer", "COMPLIANT", "COMPLIANT")];
-  expect(compareValidationRuns([result("pass-to-defer", "COMPLIANT", "NEEDS_HUMAN_REVIEW")], previous)[0].change).toBe(
-    "regression",
-  );
+  expect(
+    compareValidationRuns([result("pass-to-defer", "COMPLIANT", "NEEDS_HUMAN_REVIEW")], previous)[0]
+      .change,
+  ).toBe("regression");
 
   const deferred = [result("defer-to-pass", "COMPLIANT", "NEEDS_HUMAN_REVIEW")];
   expect(
@@ -79,12 +80,15 @@ test("recognising a case as a deferral ranks worse than a pass but better than a
   ).toBe("fixed");
 
   const failing = [result("fail-to-defer", "COMPLIANT", "POLICY_CONFLICT")];
-  expect(compareValidationRuns([result("fail-to-defer", "COMPLIANT", "NEEDS_HUMAN_REVIEW")], failing)[0].change).toBe(
-    "fixed",
-  );
+  expect(
+    compareValidationRuns([result("fail-to-defer", "COMPLIANT", "NEEDS_HUMAN_REVIEW")], failing)[0]
+      .change,
+  ).toBe("fixed");
 });
 
 test("a case dropped since the prior run cannot be compared and is omitted", () => {
   const previous = [result("gone", "COMPLIANT", "COMPLIANT")];
-  expect(compareValidationRuns([result("kept", "COMPLIANT", "COMPLIANT")], previous)).toHaveLength(1);
+  expect(compareValidationRuns([result("kept", "COMPLIANT", "COMPLIANT")], previous)).toHaveLength(
+    1,
+  );
 });

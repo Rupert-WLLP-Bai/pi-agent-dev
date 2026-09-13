@@ -73,7 +73,9 @@ export default function ValidationPage() {
       }
       const skipped = batch.skipped;
       if (skipped.length > 0) {
-        message.warning(`已跳过：${skipped.map((item) => item.ruleName).join("、")}（${skipped[0].reason}）`);
+        message.warning(
+          `已跳过：${skipped.map((item) => item.ruleName).join("、")}（${skipped[0].reason}）`,
+        );
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["validation-cases"] }),

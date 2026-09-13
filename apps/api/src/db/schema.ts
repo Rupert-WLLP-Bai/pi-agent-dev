@@ -292,9 +292,7 @@ export const validationCases = pgTable(
     input: text("input").notNull(),
     expectedDisposition: text("expected_disposition").notNull(),
     expectedNote: text("expected_note").notNull().default(""),
-    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
-      .defaultNow()
-      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   },
   (table) => [uniqueIndex("validation_cases_rule_name_idx").on(table.ruleCode, table.name)],
 );

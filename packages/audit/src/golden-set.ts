@@ -342,8 +342,7 @@ export const goldenSet: GoldenCase[] = [
     // inside our own city, so the rule's region-containment check ("重庆市南岸区"
     // contains "重庆") must keep it compliant rather than flag a same-city clause.
     id: "bench-13",
-    description:
-      "boundary · dispute names a district inside our city (重庆市南岸区)",
+    description: "boundary · dispute names a district inside our city (重庆市南岸区)",
     text: `设备安装工程合同
 
 甲方：重庆华盛贸易有限公司
@@ -374,8 +373,7 @@ export const goldenSet: GoldenCase[] = [
     // heading (第八条 合同终止) and the body states completion rather than an
     // affirmative act on the contract — the heading signal alone must satisfy it.
     id: "bench-14",
-    description:
-      "boundary · termination named only by a heading (wording variant)",
+    description: "boundary · termination named only by a heading (wording variant)",
     text: `技术咨询服务合同
 
 甲方：重庆华盛贸易有限公司

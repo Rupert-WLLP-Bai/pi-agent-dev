@@ -33,12 +33,12 @@ export type {
   ValidationRunListItem,
   ValidationRunRecord,
 } from "./db/rule-repository";
+export type { ValidationRunView } from "./routes/validation";
 export type {
   ValidationChange,
   ValidationDiffEntry,
   ValidationOutcome,
 } from "./validation-diff";
-export type { ValidationRunView } from "./routes/validation";
 
 function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));

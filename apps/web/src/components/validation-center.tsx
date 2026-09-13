@@ -9,14 +9,14 @@ import { Alert, Button, Card, Empty, Select, Space, Table, Tag, Typography } fro
 import type { ColumnsType } from "antd/es/table";
 import { goldenCaseTypeLabels } from "../rule-presentation";
 import {
-  type ValidationCaseResult,
   caseResultOutcome,
   describeRunMeta,
   movementDiffEntries,
   summarizeCaseCards,
+  type ValidationCaseResult,
+  validationCaseTypeLabels,
   validationChangeLabels,
   validationChangeTagColors,
-  validationCaseTypeLabels,
   validationOutcomeLabels,
   validationOutcomeTagColors,
 } from "../validation-presentation";
@@ -40,7 +40,9 @@ export interface ValidationCenterProps {
  * five-way type where one exists (a case that defers only inside the run's
  * three-way classification still reads as 证据缺失 here).
  */
-const resultColumns = (caseTypeByName: Map<string, ValidationCaseListItem["caseType"]>): ColumnsType<ValidationCaseResult> => [
+const resultColumns = (
+  caseTypeByName: Map<string, ValidationCaseListItem["caseType"]>,
+): ColumnsType<ValidationCaseResult> => [
   { title: "案例", dataIndex: "caseName" },
   {
     title: "类型",
@@ -57,7 +59,9 @@ const resultColumns = (caseTypeByName: Map<string, ValidationCaseListItem["caseT
     width: 110,
     render: (_value, record) => {
       const outcome = caseResultOutcome(record);
-      return <Tag color={validationOutcomeTagColors[outcome]}>{validationOutcomeLabels[outcome]}</Tag>;
+      return (
+        <Tag color={validationOutcomeTagColors[outcome]}>{validationOutcomeLabels[outcome]}</Tag>
+      );
     },
   },
   { title: "差异说明", dataIndex: "note", render: (value: string) => value || "—" },
@@ -103,7 +107,10 @@ export function ValidationCenter({
             style={{ width: 260 }}
             value={selectedRuleId ?? undefined}
             placeholder="选择规则"
-            options={rules.map((rule) => ({ value: rule.id, label: `${rule.name}（${rule.code}）` }))}
+            options={rules.map((rule) => ({
+              value: rule.id,
+              label: `${rule.name}（${rule.code}）`,
+            }))}
             onChange={onSelectRule}
           />
           <Button
@@ -118,7 +125,9 @@ export function ValidationCenter({
         </div>
       </div>
 
-      {error !== null && <Alert type="error" showIcon message="加载验证数据失败" description={error.message} />}
+      {error !== null && (
+        <Alert type="error" showIcon message="加载验证数据失败" description={error.message} />
+      )}
 
       <div className="queue-summary">
         {cards.map((card) => (
@@ -191,7 +200,9 @@ export function ValidationCenter({
                 dataIndex: "change",
                 width: 110,
                 render: (value: ValidationRunView["diff"][number]["change"]) => (
-                  <Tag color={validationChangeTagColors[value]}>{validationChangeLabels[value]}</Tag>
+                  <Tag color={validationChangeTagColors[value]}>
+                    {validationChangeLabels[value]}
+                  </Tag>
                 ),
               },
               { title: "说明", dataIndex: "note", render: (value: string) => value || "—" },

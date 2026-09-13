@@ -7,8 +7,8 @@ import type {
   RuleListItem,
   RuleVersionRecord,
   ValidationCaseListItem,
-  ValidationRunRecord,
   ValidationRunListItem,
+  ValidationRunRecord,
   ValidationRunView,
 } from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";

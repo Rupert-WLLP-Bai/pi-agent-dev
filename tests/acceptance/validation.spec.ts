@@ -56,7 +56,14 @@ const cases = (afterDraft: boolean) => [
     afterDraft ? "COMPLIANT" : "POLICY_CONFLICT",
     "POLICY_CONFLICT",
   ),
-  caseAt("c2", "positive", "bench-03 · 预付款 50% 触发风险", "pass", "POLICY_CONFLICT", "POLICY_CONFLICT"),
+  caseAt(
+    "c2",
+    "positive",
+    "bench-03 · 预付款 50% 触发风险",
+    "pass",
+    "POLICY_CONFLICT",
+    "POLICY_CONFLICT",
+  ),
   caseAt("c3", "negative", "bench-02 · 预付款 30% 合规", "pass"),
   caseAt("c4", "boundary", "bench-08 · 预付款 30% 恰好上限", "pass"),
   caseAt(
@@ -135,13 +142,18 @@ const diffFor = (afterDraft: boolean) =>
     };
   });
 
-test("shows seeded case counts and the latest run's results, without a baseline", async ({ page }) => {
+test("shows seeded case counts and the latest run's results, without a baseline", async ({
+  page,
+}) => {
   let draftCreated = false;
 
   await page.route("**/api/rules", (route) => route.fulfill({ json: [rule] }));
   await page.route("**/api/rules/*/versions", async (route) => {
     draftCreated = true;
-    await route.fulfill({ status: 201, json: { version: { id: "v2", version: 2, status: "draft" } } });
+    await route.fulfill({
+      status: 201,
+      json: { version: { id: "v2", version: 2, status: "draft" } },
+    });
   });
   await page.route("**/api/validation/cases*", (route) =>
     route.fulfill({ json: cases(draftCreated) }),
@@ -153,7 +165,9 @@ test("shows seeded case counts and the latest run's results, without a baseline"
       return;
     }
     if (url.pathname.endsWith("/runs")) {
-      await route.fulfill({ json: draftCreated ? [run(RUN_2, true), run(RUN_1, false)] : [run(RUN_1, false)] });
+      await route.fulfill({
+        json: draftCreated ? [run(RUN_2, true), run(RUN_1, false)] : [run(RUN_1, false)],
+      });
       return;
     }
     const afterDraft = url.pathname.endsWith(RUN_2);
@@ -187,7 +201,9 @@ test("shows seeded case counts and the latest run's results, without a baseline"
   await page.getByText("预付款上限规则（ADVANCE_PAYMENT_LIMIT）").last().click();
 
   // The first run's results render with outcome chips, and there is no baseline.
-  await expect(page.getByRole("row").filter({ hasText: "bench-01 · 预付款 70% 触发风险" }).getByText("通过")).toBeVisible();
+  await expect(
+    page.getByRole("row").filter({ hasText: "bench-01 · 预付款 70% 触发风险" }).getByText("通过"),
+  ).toBeVisible();
   await expect(page.getByText("首次运行，无可比对的基线。")).toBeVisible();
   await expect(page.getByText("新增回归")).toHaveCount(0);
   await expect(page.getByText("已修复")).toHaveCount(0);
