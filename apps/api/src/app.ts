@@ -81,6 +81,7 @@ export type { DemoWorldView, SeedDemoWorldResult, SeededScenarioView } from "./d
 export type { OriginalStorage } from "./document/original-store";
 export type { ApiHealth } from "./health";
 export type { ContractDetailView, ContractListItem } from "./routes/contracts";
+export type { DossierAmountChain } from "./routes/dossiers";
 export type { ValidationRunView } from "./routes/validation";
 export type {
   ValidationChange,

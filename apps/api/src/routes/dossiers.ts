@@ -7,7 +7,7 @@ import {
 } from "@contract-audit/audit/dossier-consistency";
 import { extractContractParties } from "@contract-audit/audit/party-extractor";
 import { readStatedTotals } from "@contract-audit/audit/stated-total";
-import { Elysia, t } from "elysia";
+import { Elysia, type Static, t } from "elysia";
 import { loadApiConfig } from "../config";
 import { parseContractFile, validateExtension } from "../document";
 import { openapiTags } from "../openapi";
@@ -70,6 +70,9 @@ const amountChainSchema = t.Object(
 );
 
 const errorSchema = t.Object({ error: t.String() });
+
+/** Wire shape of the amount-chain review, owned here for the Eden client and the UI. */
+export type DossierAmountChain = Static<typeof amountChainSchema>;
 
 export function dossiersRoutes({ maxUploadBytes }: { maxUploadBytes: number }) {
   return new Elysia().post(

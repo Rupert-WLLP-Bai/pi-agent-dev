@@ -15,6 +15,7 @@ import AuditTracePage from "./routes/audit-trace";
 import ContractsListPage, { ContractDetailPage } from "./routes/contracts";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
+import DossierReviewPage from "./routes/dossier-review";
 import IntegrationsPage from "./routes/integrations";
 import LlmProvidersPage from "./routes/llm-providers";
 import RemediationBoardPage from "./routes/remediations";
@@ -177,6 +178,12 @@ const contractsRoute = createRoute({
   component: ContractsListPage,
 });
 
+const dossierReviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/dossier-review",
+  component: DossierReviewPage,
+});
+
 function ContractDetailRoute() {
   const { id } = contractDetailRoute.useParams();
   return <ContractDetailPage id={id} />;
@@ -206,6 +213,7 @@ const routeTree = rootRoute.addChildren([
   verificationRoute,
   contractsRoute,
   contractDetailRoute,
+  dossierReviewRoute,
 ]);
 
 const router = createRouter({ routeTree });

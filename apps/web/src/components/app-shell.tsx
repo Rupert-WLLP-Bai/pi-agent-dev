@@ -5,6 +5,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   FileTextOutlined,
+  FolderOpenOutlined,
   LinkOutlined,
   MenuFoldOutlined,
   MenuOutlined,
@@ -110,6 +111,11 @@ const navGroups: MenuProps["items"] = [
         key: "/contracts",
         icon: <FileTextOutlined />,
         label: <Link to="/contracts">合同中心</Link>,
+      },
+      {
+        key: "/dossier-review",
+        icon: <FolderOpenOutlined />,
+        label: <Link to="/dossier-review">卷宗核对</Link>,
       },
       {
         key: "/audit-runs",
@@ -249,6 +255,7 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
       </>
     );
   }
+  if (pathname === "/dossier-review") return "卷宗核对";
   if (pathname === "/audit-runs") return "运行轨迹";
   if (pathname === "/rules") return "规则管理";
   if (pathname.startsWith("/rules/")) {

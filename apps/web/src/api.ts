@@ -6,6 +6,7 @@ import type {
   AuditOverview,
   CaseSummary,
   DemoWorldView,
+  DossierAmountChain,
   Remediation,
   RemediationBoard,
   ReviewQueueItem,
@@ -128,6 +129,41 @@ export async function createAuditCaseFromFile({ file, policyLimitRatio }: Upload
   }
   return (await response.json()) as { id: string; status: string };
 }
+
+/** The stable error codes the amount-chain endpoint refuses a request with. */
+const dossierErrorMessage = (code: string | undefined): string => {
+  if (code === "dossier_needs_at_least_two_files") return "至少需要两个文件才能做跨文档核对";
+  if (code === "file_too_large") return "有文件超过上传大小上限";
+  if (code === "unsupported_file_type") return "有文件类型不被支持";
+  return "卷宗核对失败";
+};
+
+/**
+ * Reviews one project dossier's amount chain: the price sheet's totals against
+ * what each contract states. Stateless — nothing is filed, so the result lives
+ * only as long as the page showing it.
+ */
+export async function reviewDossierAmountChain(input: {
+  files: File[];
+  /** Comma-separated fragments; omitted defers to the server's configuration. */
+  ownOrganizationNames?: string;
+}): Promise<DossierAmountChain> {
+  const { data, error } = await api.api.dossiers["amount-chain"].post({
+    files: input.files,
+    ...(input.ownOrganizationNames === undefined || input.ownOrganizationNames.trim() === ""
+      ? {}
+      : { ownOrganizationNames: input.ownOrganizationNames }),
+  });
+  if (error) {
+    const value = error.value as { error?: string } | undefined;
+    throw new ApiRequestError(dossierErrorMessage(value?.error), Number(error.status));
+  }
+  if (!data) throw new ApiRequestError("卷宗核对失败", 500);
+  return data;
+}
+
+/** The review's shape, owned by the API route schema and re-exported for the page. */
+export type { DossierAmountChain };
 
 export async function getAuditCases(): Promise<CaseSummary[]> {
   const { data, error } = await api.api["audit-cases"].get();
