@@ -76,6 +76,19 @@ test("separates blocks when the vertical gap exceeds the line spacing", async ()
   expect(blocks[blocks.length - 1].text).toContain("LINE THREE");
 });
 
+test("the caller's bytes survive parsing, so a second reader still sees them", async () => {
+  // pdfjs transfers whatever buffer it is handed. A scanned contract is read
+  // twice — text layer first, then OCR — so parsing must not detach the input.
+  const data = buildPdf(["ADVANCE PAYMENT 70%"]);
+  const byteLength = data.byteLength;
+
+  await parsePdf(data);
+
+  expect(data.byteLength).toBe(byteLength);
+  const again = await parsePdf(data);
+  expect(again[0].text).toContain("ADVANCE PAYMENT 70%");
+});
+
 test("returns no blocks for a PDF without text content", async () => {
   const content = "BT /F1 12 Tf 72 700 Td ET";
   const objects = [

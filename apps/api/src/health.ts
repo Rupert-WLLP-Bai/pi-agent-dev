@@ -1,6 +1,7 @@
 import { mkdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { ApiConfig } from "./config";
+import type { OcrPort } from "./document/ocr";
 import { createAwsS3Client, type ObjectStoreConfig } from "./document/original-store";
 import type { VerificationCache } from "./qcc/cache";
 
@@ -41,6 +42,8 @@ export interface ApiHealth {
     objectStore: HealthConnection;
     llm: HealthConnection;
     qcc: HealthConnection;
+    /** The scanned-document recognizer; degradable — only scans need it. */
+    ocr: HealthConnection;
     dispatcher: HealthConnection;
   };
 }
@@ -78,6 +81,8 @@ export interface HealthInputs {
     riskEndpoint: string;
     tokenConfigured: boolean;
   };
+  /** The configured recognizer. Its own `probe` reports reachability. */
+  ocr: OcrPort;
 }
 
 /** A dead dependency must not stall `GET /api/health`; each network probe is capped. */
@@ -218,6 +223,19 @@ const dispatcherConnection = (inputs: HealthInputs): HealthConnection =>
     `worker 池（MAX_CONCURRENT_AUDITS=${inputs.config.maxConcurrentAudits}）`,
   );
 
+const ocrConnection = async (ocr: OcrPort): Promise<HealthConnection> => {
+  if (!ocr.enabled) {
+    const probe = await ocr.probe();
+    return connection(false, ocr.target, probe.detail);
+  }
+  try {
+    const probe = await withTimeout(ocr.probe(), PROBE_TIMEOUT_MS);
+    return connection(probe.ok, ocr.target, probe.detail);
+  } catch (error) {
+    return connection(false, ocr.target, describeError(error));
+  }
+};
+
 /**
  * Builds the `GET /api/health` body from injected probes. Pure: it never
  * touches a database, queue, or agent directly, and it never throws — any
@@ -225,12 +243,13 @@ const dispatcherConnection = (inputs: HealthInputs): HealthConnection =>
  * the fatal-only `status` rule intact.
  */
 export async function buildHealthSnapshot(inputs: HealthInputs): Promise<ApiHealth> {
-  const [database, redis, objectStore, llm, qcc, dispatcher] = await Promise.all([
+  const [database, redis, objectStore, llm, qcc, ocr, dispatcher] = await Promise.all([
     databaseConnection(inputs),
     redisConnection(inputs),
     objectStoreConnection(inputs.objectStore),
     llmConnection(inputs.agent),
     qccConnection(inputs.qcc),
+    ocrConnection(inputs.ocr),
     dispatcherConnection(inputs),
   ]);
   return {
@@ -240,6 +259,6 @@ export async function buildHealthSnapshot(inputs: HealthInputs): Promise<ApiHeal
     agentMode: inputs.config.agentMode,
     qccConfigured: inputs.qcc.tokenConfigured,
     llmConfigured: inputs.config.llmConfigured,
-    connections: { database, redis, objectStore, llm, qcc, dispatcher },
+    connections: { database, redis, objectStore, llm, qcc, ocr, dispatcher },
   };
 }

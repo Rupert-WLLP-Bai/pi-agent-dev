@@ -356,8 +356,16 @@ function parseHealth(value: unknown): ApiHealth | null {
   return null;
 }
 
-/** The six dependencies the health endpoint reports, in display order. */
-const CONNECTION_KEYS = ["database", "redis", "objectStore", "llm", "qcc", "dispatcher"] as const;
+/** The seven dependencies the health endpoint reports, in display order. */
+const CONNECTION_KEYS = [
+  "database",
+  "redis",
+  "objectStore",
+  "llm",
+  "qcc",
+  "ocr",
+  "dispatcher",
+] as const;
 
 /**
  * Normalises the per-dependency breakdown. A connection whose shape does not

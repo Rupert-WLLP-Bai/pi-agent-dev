@@ -138,6 +138,7 @@ export const apiHealthSchema = t.Object(
         objectStore: healthConnectionSchema,
         llm: healthConnectionSchema,
         qcc: healthConnectionSchema,
+        ocr: healthConnectionSchema,
         dispatcher: healthConnectionSchema,
       },
       { additionalProperties: true },

@@ -113,9 +113,16 @@ function toBlocks(lines: Line[], page: number): RawBlock[] {
   return blocks;
 }
 
-/** Reads a .pdf into raw blocks, page by page. */
+/**
+ * Reads a .pdf into raw blocks, page by page.
+ *
+ * The bytes are copied first because pdfjs transfers the buffer it is handed,
+ * leaving the caller's view detached. A scanned contract is read twice — once
+ * for its text layer, then again by OCR — so consuming the caller's buffer
+ * would make the second read silently see zero bytes.
+ */
 export async function parsePdf(data: Uint8Array): Promise<RawBlock[]> {
-  const task = getDocument({ data, useSystemFonts: true });
+  const task = getDocument({ data: new Uint8Array(data), useSystemFonts: true });
   const pdf = await task.promise;
   const blocks: RawBlock[] = [];
 

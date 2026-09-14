@@ -56,6 +56,7 @@ import {
 } from "../db/rule-repository";
 import type { RuleParams } from "../db/schema";
 import type { AuditDispatcher } from "../dispatcher";
+import type { OcrBlock, OcrPort, OcrProbe, OcrResult } from "../document/ocr";
 import type { AuditEventBroker } from "../sse";
 
 interface FakeCaseState {
@@ -614,6 +615,7 @@ export class InMemoryAuditCaseRepository {
         revision,
         auditCaseId: caseId,
         caseStatus: state?.status ?? null,
+        caseStage: state?.stage ?? null,
         findingPins,
       };
     });
@@ -1499,5 +1501,71 @@ export class InMemoryRuleRepository {
 
   asRepository(): RuleRepository {
     return this as unknown as RuleRepository;
+  }
+}
+
+/**
+ * A PDF whose pages carry no text operators — the shape a scanned contract
+ * takes, and the only input that routes parsing through OCR. Built by hand so
+ * tests stay hermetic: no fixture file, no binary blob in git, no network.
+ */
+export function buildTextlessPdf(pages = 1): Uint8Array {
+  const content = "BT /F1 12 Tf 72 700 Td ET";
+  const kids = Array.from({ length: pages }, (_, index) => `${index + 4} 0 R`).join(" ");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    `<< /Type /Pages /Kids [${kids}] /Count ${pages} >>`,
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    ...Array.from(
+      { length: pages },
+      () =>
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 3 0 R /Resources << >> >>",
+    ),
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  for (let i = 0; i < objects.length; i += 1) {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+  const xrefPos = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let i = 1; i <= objects.length; i += 1) {
+    pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+  return new TextEncoder().encode(pdf);
+}
+
+/**
+ * A recognizer that returns canned blocks, so tests can exercise the
+ * scanned-PDF path without rendering pages or reaching a model endpoint.
+ */
+export class FakeOcrPort implements OcrPort {
+  readonly provider = "fake";
+  readonly target = "内存假实现";
+  calls = 0;
+
+  constructor(
+    private readonly blocks: OcrBlock[],
+    readonly enabled = true,
+    private readonly degradedPages: number[] = [],
+  ) {}
+
+  async probe(): Promise<OcrProbe> {
+    return this.enabled ? { ok: true, detail: null } : { ok: false, detail: "假实现已关闭" };
+  }
+
+  async recognizePdf(): Promise<OcrResult> {
+    this.calls += 1;
+    const pages = new Set(this.blocks.map((block) => block.page));
+    return {
+      blocks: this.blocks,
+      pagesRead: pages.size,
+      pageCount: pages.size,
+      engine: "fake:test",
+      degradedPages: this.degradedPages,
+    };
   }
 }

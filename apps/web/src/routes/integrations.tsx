@@ -3,6 +3,7 @@ import {
   CloudServerOutlined,
   DatabaseOutlined,
   RobotOutlined,
+  ScanOutlined,
   SyncOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
@@ -40,7 +41,7 @@ interface ConnectionCard {
 }
 
 /**
- * The six dependencies, in the order an operator scans them: primary storage
+ * The seven dependencies, in the order an operator scans them: primary storage
  * first, then the degradable side services, then the agent's own dependencies.
  */
 const connectionCards: ConnectionCard[] = [
@@ -49,6 +50,7 @@ const connectionCards: ConnectionCard[] = [
   { key: "redis", name: "Redis", icon: <ThunderboltOutlined /> },
   { key: "llm", name: "模型服务", icon: <RobotOutlined /> },
   { key: "qcc", name: "企查查", icon: <ApiOutlined /> },
+  { key: "ocr", name: "OCR 识别", icon: <ScanOutlined /> },
   { key: "dispatcher", name: "审计调度器", icon: <SyncOutlined /> },
 ];
 
@@ -85,8 +87,8 @@ function PageHead({ mode }: { mode?: { label: string; color: string } }) {
           集成健康
         </Typography.Title>
         <Typography.Text type="secondary">
-          逐项列出后端数据库、对象存储、Redis、模型服务、企查查与审计调度器实际连到的地址；每 30
-          秒自动刷新。
+          逐项列出后端数据库、对象存储、Redis、模型服务、企查查、OCR
+          识别与审计调度器实际连到的地址；每 30 秒自动刷新。
         </Typography.Text>
       </div>
       <div className="page-head-actions">

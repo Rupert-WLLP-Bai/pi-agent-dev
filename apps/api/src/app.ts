@@ -12,6 +12,7 @@ import { seedRules } from "./db/seed-rules";
 import { seedValidationCases } from "./db/seed-validation-cases";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
+import { createOcrPort, type OcrPort } from "./document/ocr";
 import { loadObjectStoreConfig } from "./document/original-store";
 import { type ApiHealth, buildHealthSnapshot } from "./health";
 import { LlmProviderRegistry } from "./llm/provider-registry";
@@ -50,6 +51,8 @@ export type AppDeps = AuditRouteDeps & {
   registry?: LlmProviderRegistry;
   /** The connected Redis cache the health probe pings; null when Redis is off. */
   redisCache?: VerificationCache | null;
+  /** The scanned-document recognizer; absent reads the wiring from the environment. */
+  ocr?: OcrPort;
 };
 export type {
   AgentRunSummary,
@@ -76,6 +79,7 @@ export type {
 export type { DemoWorldView, SeedDemoWorldResult, SeededScenarioView } from "./demo/seed-world";
 export type { OriginalStorage } from "./document/original-store";
 export type { ApiHealth } from "./health";
+export type { ContractDetailView, ContractListItem } from "./routes/contracts";
 export type { ValidationRunView } from "./routes/validation";
 export type {
   ValidationChange,
@@ -114,6 +118,9 @@ export function createApp(deps: AppDeps) {
   const config = loadApiConfig();
   const providers = deps.llmProviders ?? createMemoryLlmProviderStore();
   const registry = deps.registry ?? new LlmProviderRegistry(providers);
+  // Built once per app: the health route probes it, and `parseContractFile`
+  // reaches for the same configuration when a scanned PDF turns up.
+  const ocrPort = deps.ocr ?? createOcrPort();
   return new Elysia()
     .onRequest(({ request, set }) => {
       const incoming = request.headers.get("x-request-id")?.trim();
@@ -174,6 +181,7 @@ export function createApp(deps: AppDeps) {
             riskEndpoint: config.qccRiskEndpoint,
             tokenConfigured: config.qccToken.length > 0,
           },
+          ocr: ocrPort,
         });
       },
       {
@@ -181,7 +189,7 @@ export function createApp(deps: AppDeps) {
         detail: {
           summary: "集成健康检查",
           description:
-            "返回数据库、调度器、Redis、对象存储、模型服务与企查查的连通性。仅数据库或调度器失败时返回 503；凭据只报存在性，从不返回值。",
+            "返回数据库、调度器、Redis、对象存储、模型服务、企查查与 OCR 识别的连通性。仅数据库或调度器失败时返回 503；凭据只报存在性，从不返回值。",
           tags: [openapiTags.system],
         },
       },

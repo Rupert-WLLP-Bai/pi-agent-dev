@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ApiConfig } from "./config";
+import type { OcrPort, OcrProbe } from "./document/ocr";
 import { buildHealthSnapshot, type HealthInputs } from "./health";
 import type { VerificationCache } from "./qcc/cache";
 
@@ -16,6 +17,18 @@ const redisClient = (ping: boolean | (() => Promise<boolean>)): VerificationCach
   async set() {},
   async ping() {
     return typeof ping === "boolean" ? ping : ping();
+  },
+});
+
+const ocrPort = (probe: OcrProbe, enabled = true): OcrPort => ({
+  provider: "vlm",
+  target: "cq/Qwen3.6-27B @ http://127.0.0.1:18091/v1",
+  enabled,
+  async probe() {
+    return probe;
+  },
+  async recognizePdf() {
+    throw new Error("not used in health tests");
   },
 });
 
@@ -58,6 +71,7 @@ const baseInputs = (overrides: Partial<HealthInputs> = {}): HealthInputs => ({
     riskEndpoint: "https://agent.qcc.com/mcp/risk/stream",
     tokenConfigured: true,
   },
+  ocr: ocrPort({ ok: true, detail: null }),
   ...overrides,
 });
 
@@ -82,7 +96,15 @@ test("all healthy inputs report ok with every connection up", async () => {
   expect(snapshot.agentMode).toBe("pi");
   expect(snapshot.qccConfigured).toBe(true);
   expect(snapshot.llmConfigured).toBe(true);
-  for (const name of ["database", "redis", "objectStore", "llm", "qcc", "dispatcher"] as const) {
+  for (const name of [
+    "database",
+    "redis",
+    "objectStore",
+    "llm",
+    "qcc",
+    "ocr",
+    "dispatcher",
+  ] as const) {
     expect(snapshot.connections[name].ok).toBe(true);
     expect(snapshot.connections[name].detail).toBeNull();
   }
@@ -139,6 +161,39 @@ test("a failed object-store probe degrades without changing status", async () =>
   expect(snapshot.connections.objectStore.ok).toBe(false);
   expect(snapshot.connections.objectStore.target).toContain("（本地目录）");
   expect(snapshot.connections.objectStore.detail).not.toBeNull();
+});
+
+test("an unreachable or disabled OCR provider degrades without changing status", async () => {
+  const unreachable = await buildHealthSnapshot(
+    baseInputs({ ocr: ocrPort({ ok: false, detail: "模型列表返回 503" }) }),
+  );
+
+  expect(unreachable.status).toBe("ok");
+  expect(unreachable.connections.ocr.ok).toBe(false);
+  expect(unreachable.connections.ocr.detail).toBe("模型列表返回 503");
+
+  const disabled = await buildHealthSnapshot(
+    baseInputs({ ocr: ocrPort({ ok: false, detail: "未设置 OCR_VLM_ENDPOINT" }, false) }),
+  );
+
+  expect(disabled.status).toBe("ok");
+  expect(disabled.connections.ocr.ok).toBe(false);
+  expect(disabled.connections.ocr.detail).toBe("未设置 OCR_VLM_ENDPOINT");
+});
+
+test("an OCR probe that rejects is reported as a failed probe, never thrown", async () => {
+  const snapshot = await buildHealthSnapshot(
+    baseInputs({
+      ocr: {
+        ...ocrPort({ ok: true, detail: null }),
+        probe: () => Promise.reject(new Error("connect ECONNREFUSED")),
+      },
+    }),
+  );
+
+  expect(snapshot.status).toBe("ok");
+  expect(snapshot.connections.ocr.ok).toBe(false);
+  expect(snapshot.connections.ocr.detail).toBe("connect ECONNREFUSED");
 });
 
 test("a database or dispatcher failure makes the snapshot unavailable", async () => {

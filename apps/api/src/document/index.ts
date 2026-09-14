@@ -1,6 +1,7 @@
 import type { ContractDocument, RawBlock } from "@contract-audit/audit/document-ir";
 import { buildContractDocument } from "@contract-audit/audit/document-ir";
 import { parseDocx } from "./docx-parser";
+import { createOcrPort, type OcrPort } from "./ocr";
 import { parsePdf } from "./pdf-parser";
 
 export class UnsupportedContractFormatError extends Error {
@@ -18,10 +19,33 @@ export class EmptyContractError extends Error {
   }
 }
 
+/**
+ * A PDF with no text layer that OCR could not read either. Distinct from
+ * `EmptyContractError` because the remedy is different: the file is not empty,
+ * the recognizer is off or failed.
+ */
+export class ScannedPdfNotRecognizedError extends Error {
+  constructor(filename: string, detail: string) {
+    super(`扫描件合同无法识别：${filename}（${detail}）`);
+    this.name = "ScannedPdfNotRecognizedError";
+  }
+}
+
+/** How a scanned PDF was recognized, recorded so the audit trail can cite it. */
+export interface OcrProvenance {
+  engine: string;
+  pagesRead: number;
+  pageCount: number;
+  /** Pages the recognizer could not finish; their content is missing. */
+  degradedPages: number[];
+}
+
 export interface ParsedContract {
   document: ContractDocument;
   /** Canonical text — what the parser read, joined into one auditable body. */
   text: string;
+  /** Present only when the blocks came from OCR rather than a text layer. */
+  ocr?: OcrProvenance;
 }
 
 const extensionOf = (filename: string): string => {
@@ -55,21 +79,60 @@ export function validateMimeType(filename: string, mimeType: string): true | str
 }
 
 /**
+ * The recognizer used when a caller does not inject one. Built lazily so
+ * importing this module never touches the environment, and shared so a
+ * multi-page audit does not re-read configuration per file.
+ */
+let sharedOcr: OcrPort | null = null;
+const defaultOcrPort = (): OcrPort => {
+  sharedOcr ??= createOcrPort();
+  return sharedOcr;
+};
+
+/**
  * Turns an uploaded contract into the Contract Document IR. Format dispatch is
  * by extension; every branch converges on the same IR builder, so downstream
- * rules cannot tell a docx from a pasted text.
+ * rules cannot tell a docx from a pasted text — or from a scanned page that
+ * only OCR could read.
  */
-export async function parseContractFile(input: {
-  filename: string;
-  data: Uint8Array;
-}): Promise<ParsedContract> {
+export async function parseContractFile(
+  input: {
+    filename: string;
+    data: Uint8Array;
+  },
+  ocr: OcrPort = defaultOcrPort(),
+): Promise<ParsedContract> {
   const extension = extensionOf(input.filename);
   let rawBlocks: RawBlock[];
+  let provenance: OcrProvenance | undefined;
 
   if (extension === ".docx") {
     rawBlocks = await parseDocx(input.data);
   } else if (extension === ".pdf") {
     rawBlocks = await parsePdf(input.data);
+    // Signed contracts arrive as scans with no text layer at all. Zero blocks
+    // from a PDF is the signal to recognize it, not to reject it.
+    if (rawBlocks.length === 0) {
+      if (!ocr.enabled) {
+        const probe = await ocr.probe();
+        throw new ScannedPdfNotRecognizedError(input.filename, probe.detail ?? "未配置 OCR 提供方");
+      }
+      const recognized = await ocr.recognizePdf(input.data);
+      rawBlocks = recognized.blocks.map((block) => ({
+        text: block.text,
+        kind: "paragraph" as const,
+        page: block.page,
+      }));
+      provenance = {
+        engine: recognized.engine,
+        pagesRead: recognized.pagesRead,
+        pageCount: recognized.pageCount,
+        degradedPages: recognized.degradedPages,
+      };
+      if (rawBlocks.length === 0) {
+        throw new ScannedPdfNotRecognizedError(input.filename, `${ocr.provider} 未返回任何文字`);
+      }
+    }
   } else if (extension === ".txt" || extension === ".md") {
     const text = new TextDecoder().decode(input.data);
     rawBlocks = text.split(/\n{2,}/u).map((paragraph) => ({ text: paragraph, kind: "paragraph" }));
@@ -81,5 +144,6 @@ export async function parseContractFile(input: {
     throw new EmptyContractError(input.filename);
   }
 
-  return buildContractDocument(rawBlocks);
+  const parsed = buildContractDocument(rawBlocks);
+  return provenance === undefined ? parsed : { ...parsed, ocr: provenance };
 }
