@@ -34,6 +34,7 @@ import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { contractsRoutes } from "./routes/contracts";
 import { demoWorldRoutes } from "./routes/demo-world";
+import { dossiersRoutes } from "./routes/dossiers";
 import { findingsRoutes } from "./routes/findings";
 import { llmProvidersRoutes } from "./routes/llm-providers";
 import { remediationsRoutes } from "./routes/remediations";
@@ -136,6 +137,7 @@ export function createApp(deps: AppDeps) {
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(contractsRoutes({ repository: deps.repository }))
+    .use(dossiersRoutes({ maxUploadBytes }))
     .use(demoWorldRoutes({ repository: deps.repository }))
     .use(rulesRoutes({ rules: deps.rules }))
     .use(validationRoutes({ rules: deps.rules }))

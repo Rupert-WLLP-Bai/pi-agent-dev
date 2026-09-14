@@ -75,6 +75,14 @@ const ALLOWED_MIME: Record<string, string[]> = {
 };
 
 /**
+ * Checks that a filename's extension picks one of the parsers this module has.
+ * Returns `true`, or a stable error code the caller maps to a 422 response.
+ */
+export function validateExtension(filename: string): true | string {
+  return ALLOWED_MIME[extensionOf(filename)] === undefined ? "unsupported_file_type" : true;
+}
+
+/**
  * Checks an upload's declared MIME type against the whitelist for its
  * extension. Returns `true` when the pair is acceptable, otherwise a stable
  * error code the caller maps to a 422 response.

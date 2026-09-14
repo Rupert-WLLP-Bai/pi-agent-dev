@@ -18,12 +18,26 @@ export interface ApiConfig {
   /** Bearer token for QCC MCP endpoints. */
   qccToken: string;
   /**
+   * Name fragments identifying our own organization, used to read which side of
+   * the money we are on in a given contract. Empty means no Contract Stance is
+   * inferred, and every rule is applied as it was before stance existed —
+   * a wrong stance silences rules, so an unconfigured deployment must not guess.
+   */
+  ownOrganizationNames: readonly string[];
+  /**
    * Whether the real agent's LLM credential is present. Only presence is
    * captured — the value stays in the pi-agent runtime, so no secret enters
    * the config object and `GET /api/health` can report it safely.
    */
   llmConfigured: boolean;
 }
+
+/** A comma-separated list, tolerating the full-width comma a Chinese keyboard types. */
+const parseNameList = (value: string | undefined): readonly string[] =>
+  (value ?? "")
+    .split(/[,，]/u)
+    .map((name) => name.trim())
+    .filter((name) => name.length > 0);
 
 const parseInteger = (value: string | undefined, fallback: number): number => {
   if (value === undefined || value.trim() === "") return fallback;
@@ -56,6 +70,7 @@ export function loadApiConfig(): ApiConfig {
       process.env.QCC_COMPANY_ENDPOINT ?? "https://agent.qcc.com/mcp/company/stream",
     qccRiskEndpoint: process.env.QCC_RISK_ENDPOINT ?? "https://agent.qcc.com/mcp/risk/stream",
     qccToken: process.env.QCC_TOKEN ?? "",
+    ownOrganizationNames: parseNameList(process.env.OWN_ORGANIZATION_NAMES),
     // The key is the credential; endpoint and model are non-secret settings.
     llmConfigured: Boolean(process.env.XYG_API_KEY),
   };

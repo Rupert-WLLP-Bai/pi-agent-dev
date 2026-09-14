@@ -1,6 +1,7 @@
 import type { AuditSnapshot, ContractDocument } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import { loadApiConfig } from "../config";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { RuleRepository } from "../db/rule-repository";
 import { parseContractFile } from "../document";
@@ -43,6 +44,7 @@ export async function ensureRunSnapshot(
   repository: AuditCaseRepository,
   auditCaseId: string,
   rules: RuleRepository,
+  ownOrganizationNames: readonly string[] = loadApiConfig().ownOrganizationNames,
 ): Promise<AuditSnapshot> {
   const auditCase = await repository.getCase(auditCaseId);
   if (!auditCase) throw new Error(`Audit case not found: ${auditCaseId}`);
@@ -78,6 +80,7 @@ export async function ensureRunSnapshot(
   const snapshot = createAuditSnapshot({
     sourceRecordId: auditCase.sourceRecordId,
     document,
+    ownOrganizationNames,
     ...(await buildRuleInputs(rules, policyOverride)),
   });
 

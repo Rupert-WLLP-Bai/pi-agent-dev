@@ -33,6 +33,8 @@
     "./remediation": "./src/remediation.ts",
     "./assessment-utils": "./src/assessment-utils.ts",
     "./revision-finding-diff": "./src/revision-finding-diff.ts",
-    "./remediation-closure": "./src/remediation-closure.ts"
+    "./remediation-closure": "./src/remediation-closure.ts",
+    "./dossier-consistency": "./src/dossier-consistency.ts",
+    "./stated-total": "./src/stated-total.ts"
   }
 }

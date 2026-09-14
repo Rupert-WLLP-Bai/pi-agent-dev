@@ -44,6 +44,7 @@ const baseConfig = (overrides: Partial<ApiConfig> = {}): ApiConfig => ({
   qccCompanyEndpoint: "https://agent.qcc.com/mcp/company/stream",
   qccRiskEndpoint: "https://agent.qcc.com/mcp/risk/stream",
   qccToken: "qcc-token-present",
+  ownOrganizationNames: ["中国移动通信集团重庆有限公司"],
   llmConfigured: true,
   ...overrides,
 });
