@@ -149,7 +149,7 @@ bun run acceptance
 
 - 复用已运行的服务由 `PLAYWRIGHT_REUSE_SERVERS` 控制；`CI=true` 强制干净启动。
 - 浏览器 CDN 不可用时：`PLAYWRIGHT_CHANNEL=chrome bun run acceptance`。
-- 并行跑在别的端口：`PLAYWRIGHT_API_PORT=3100 PLAYWRIGHT_WEB_PORT=5273`。
+- 并行跑在别的端口（勿占演示默认 3000/5173）：`PLAYWRIGHT_API_PORT=3010 PLAYWRIGHT_WEB_PORT=5183`。
 
 真实 LLM 冒烟（只打印遥测，不打印密钥）：
 
@@ -172,7 +172,12 @@ bun --filter @contract-audit/pi-agent run smoke
 4. **`./scripts/dev-up.sh` 不能在 macOS 运行**（缺 `setsid`/`ss`），用第 3 节两条
    命令代替。
 5. **验收测试与 dev 服务互斥。** dev 服务常驻 3000/5173 时，Playwright 默认复用
-   它们；`pi` 模式下会真的打 LLM。跑验收前先停服务。
+   它们；`pi` 模式下会真的打 LLM。跑验收前先停服务，或给 Playwright 换端口：
+   `PLAYWRIGHT_API_PORT=3010 PLAYWRIGHT_WEB_PORT=5183`（见第 5 节）。
+6. **演示副本与改造并行。** 稳定演示用 worktree `.worktrees/demo-stable`（分支
+   `demo/stable`，说明见其中 `DEMO.md`），默认占 3000/5173。主工作区做质量改造时
+   请用其它端口，例如 `API_PORT=3010 bun apps/api/src/app.ts` 与
+   `bun --filter @contract-audit/web dev --port 5183`，避免和演示抢端口。
 
 ## 7. 停止
 

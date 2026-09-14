@@ -18,6 +18,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -62,60 +63,76 @@ export const sourceRecords = pgTable("source_records", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
-export const auditCases = pgTable("audit_cases", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  status: text("status", { enum: auditStatuses }).$type<AuditCaseStatus>().notNull(),
-  stage: text("stage", { enum: auditStages }).$type<AuditStage>().notNull(),
-  sourceRecordId: uuid("source_record_id")
-    .references(() => sourceRecords.id)
-    .notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-  /** Operator the case is assigned to for review; null when unassigned. */
-  assignee: text("assignee"),
-  /** Review queue priority; null when the operator has not set one. */
-  reviewPriority: text("review_priority").$type<ReviewPriority>(),
-});
+export const auditCases = pgTable(
+  "audit_cases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    status: text("status", { enum: auditStatuses }).$type<AuditCaseStatus>().notNull(),
+    stage: text("stage", { enum: auditStages }).$type<AuditStage>().notNull(),
+    sourceRecordId: uuid("source_record_id")
+      .references(() => sourceRecords.id)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    /** Operator the case is assigned to for review; null when unassigned. */
+    assignee: text("assignee"),
+    /** Review queue priority; null when the operator has not set one. */
+    reviewPriority: text("review_priority").$type<ReviewPriority>(),
+  },
+  (table) => [
+    index("audit_cases_status_created_at_idx").on(table.status, table.createdAt),
+    index("audit_cases_stage_idx").on(table.stage),
+    index("audit_cases_created_at_idx").on(table.createdAt),
+  ],
+);
 
-export const auditSnapshots = pgTable("audit_snapshots", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  auditCaseId: uuid("audit_case_id")
-    .references(() => auditCases.id)
-    .notNull(),
-  sourceRecordId: uuid("source_record_id")
-    .references(() => sourceRecords.id)
-    .notNull(),
-  document: jsonb("document").$type<AuditSnapshot["contractDocument"]>().notNull(),
-  facts: jsonb("facts").$type<AuditSnapshot["facts"]>().notNull(),
-  parties: jsonb("parties").$type<AuditSnapshot["parties"]>().notNull(),
-  policy: jsonb("policy"),
-  evidence: jsonb("evidence").$type<AuditSnapshot["evidence"]>().notNull(),
-  /**
-   * Holds an array of assessments. The physical column keeps its original
-   * singular name so the migration diff stays purely additive; the property is
-   * named for what it is.
-   */
-  ruleAssessments: jsonb("rule_assessment").$type<AuditSnapshot["ruleAssessments"]>().notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-});
+export const auditSnapshots = pgTable(
+  "audit_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id)
+      .notNull(),
+    sourceRecordId: uuid("source_record_id")
+      .references(() => sourceRecords.id)
+      .notNull(),
+    document: jsonb("document").$type<AuditSnapshot["contractDocument"]>().notNull(),
+    facts: jsonb("facts").$type<AuditSnapshot["facts"]>().notNull(),
+    parties: jsonb("parties").$type<AuditSnapshot["parties"]>().notNull(),
+    policy: jsonb("policy"),
+    evidence: jsonb("evidence").$type<AuditSnapshot["evidence"]>().notNull(),
+    /**
+     * Holds an array of assessments. The physical column keeps its original
+     * singular name so the migration diff stays purely additive; the property is
+     * named for what it is.
+     */
+    ruleAssessments: jsonb("rule_assessment").$type<AuditSnapshot["ruleAssessments"]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("audit_snapshots_case_created_at_idx").on(table.auditCaseId, table.createdAt)],
+);
 
 /**
  * One external-verification answer per Contract Party. Rows are append-only:
  * re-verifying a case appends rather than overwrites, so a reviewer can always
  * see which provider answers an earlier decision rested on.
  */
-export const subjectVerifications = pgTable("subject_verifications", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  auditCaseId: uuid("audit_case_id")
-    .references(() => auditCases.id)
-    .notNull(),
-  partyId: text("party_id").notNull(),
-  status: text("status").$type<SubjectMatchStatus>().notNull(),
-  sourceRecordId: uuid("source_record_id"),
-  payload: jsonb("payload").$type<SubjectVerification>().notNull(),
-  evidence: jsonb("evidence").$type<EvidenceLocator[]>().notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-});
+export const subjectVerifications = pgTable(
+  "subject_verifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id)
+      .notNull(),
+    partyId: text("party_id").notNull(),
+    status: text("status").$type<SubjectMatchStatus>().notNull(),
+    sourceRecordId: uuid("source_record_id"),
+    payload: jsonb("payload").$type<SubjectVerification>().notNull(),
+    evidence: jsonb("evidence").$type<EvidenceLocator[]>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("subject_verifications_audit_case_id_idx").on(table.auditCaseId)],
+);
 
 /**
  * One party-history lookup per Audit Case. Append-only like subject
@@ -132,19 +149,23 @@ export const partyHistoryRecords = pgTable("party_history_records", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
-export const agentRuns = pgTable("agent_runs", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  auditCaseId: uuid("audit_case_id")
-    .references(() => auditCases.id)
-    .notNull(),
-  provider: text("provider").notNull(),
-  model: text("model").notNull(),
-  version: text("version").notNull(),
-  usage: jsonb("usage").$type<Record<string, number> | null>(),
-  durationMs: integer("duration_ms"),
-  error: text("error"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-});
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id)
+      .notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    version: text("version").notNull(),
+    usage: jsonb("usage").$type<Record<string, number> | null>(),
+    durationMs: integer("duration_ms"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [index("agent_runs_audit_case_id_idx").on(table.auditCaseId)],
+);
 
 /**
  * The ordered steps an Agent Run left behind. Append-only: a trace is evidence
@@ -175,19 +196,29 @@ export const agentTraceSteps = pgTable(
     tokens: jsonb("tokens").$type<AgentTraceTokens | null>(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   },
-  (table) => [uniqueIndex("agent_trace_steps_run_sequence_idx").on(table.runId, table.sequence)],
+  (table) => [
+    uniqueIndex("agent_trace_steps_run_sequence_idx").on(table.runId, table.sequence),
+    index("agent_trace_steps_audit_case_id_idx").on(table.auditCaseId),
+  ],
 );
 
-export const findingRevisions = pgTable("finding_revisions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  auditCaseId: uuid("audit_case_id")
-    .references(() => auditCases.id)
-    .notNull(),
-  proposal: jsonb("proposal").$type<FindingProposal>().notNull(),
-  supersedesId: uuid("supersedes_id"),
-  review: jsonb("review").$type<HumanReview | null>(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
-});
+export const findingRevisions = pgTable(
+  "finding_revisions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id)
+      .notNull(),
+    proposal: jsonb("proposal").$type<FindingProposal>().notNull(),
+    supersedesId: uuid("supersedes_id"),
+    review: jsonb("review").$type<HumanReview | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("finding_revisions_audit_case_id_idx").on(table.auditCaseId),
+    index("finding_revisions_supersedes_id_idx").on(table.supersedesId),
+  ],
+);
 
 // ── Rule governance ─────────────────────────────────────────────
 

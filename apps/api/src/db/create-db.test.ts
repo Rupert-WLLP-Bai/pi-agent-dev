@@ -3,14 +3,15 @@ import { AuditCaseRepository, createDb, createRepository, type DrizzleDB } from 
 import { createRuleRepository, RuleRepository } from "./rule-repository";
 
 /**
- * Reads the pool a repository holds. `db` is private, and that privacy is the
- * point: the assertion is about which pool instance landed in that field, and a
- * factory that opened its own pool would hide behind the same field. The cast is
- * sound because both repository classes declare exactly this field.
+ * Reads the pool a repository holds. AuditCaseRepository is a facade: the
+ * shared `db` lives on its queue aggregate. RuleRepository still owns `db`
+ * directly.
  */
 const poolOf = (repository: AuditCaseRepository | RuleRepository): unknown => {
-  const holder = repository as unknown as { db: unknown };
-  return holder.db;
+  if (repository instanceof RuleRepository) {
+    return (repository as unknown as { db: unknown }).db;
+  }
+  return (repository as unknown as { queue: { db: unknown } }).queue.db;
 };
 
 /** A stand-in whose identity survives into whichever factory receives it. */
