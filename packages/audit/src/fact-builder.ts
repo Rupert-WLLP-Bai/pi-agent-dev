@@ -28,6 +28,8 @@ export function buildPaymentFacts(input: {
   sourceRecordId: string;
   document: ContractDocument;
   policyLimitRatio: number;
+  /** Published Rule Version that supplied `policyLimitRatio`, when known. */
+  policyRuleVersionId?: string | null;
 }): PaymentTermAnalysis {
   const blocks = input.document.blocks;
 
@@ -40,18 +42,18 @@ export function buildPaymentFacts(input: {
   }
 
   const match = targetBlock ? PERCENTAGE_PATTERN.exec(targetBlock.text) : null;
-  const policyQuotedText = `policyLimitRatio: ${input.policyLimitRatio}`;
+  const limitPercent = Math.round(input.policyLimitRatio * 100);
+  const policyQuotedValue = `${limitPercent}%（limitRatio = ${input.policyLimitRatio}）`;
 
   const policyEvidence: EvidenceLocator = {
     id: "policy-limit",
     sourceRecordId: input.sourceRecordId,
     location: {
-      kind: "DOCUMENT_SPAN",
-      contractDocumentHash: input.document.hash,
-      blockId: "policy-limit",
-      startOffset: 0,
-      endOffset: Array.from(policyQuotedText).length,
-      quotedText: policyQuotedText,
+      kind: "POLICY_PARAMETER",
+      ruleCode: "ADVANCE_PAYMENT_LIMIT",
+      ruleVersionId: input.policyRuleVersionId ?? null,
+      parameterKey: "limitRatio",
+      quotedValue: policyQuotedValue,
     },
   };
 

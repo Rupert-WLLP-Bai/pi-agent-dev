@@ -60,13 +60,15 @@ import {
 import type { AuditConnectionState } from "../hooks/use-audit-events";
 import { AuditStateBadge } from "./audit-state-badge";
 
+type AuditCaseSnapshotView = {
+  facts: PaymentFacts;
+  parties: ContractParty[];
+  document: ContractDocument;
+};
+
 export interface AuditCaseDetailData {
   case: AuditCase;
-  snapshot: {
-    facts: PaymentFacts;
-    parties: ContractParty[];
-    document: ContractDocument;
-  };
+  snapshot: AuditCaseSnapshotView | null;
   evidence: EvidenceLocator[];
   ruleAssessments: RuleAssessment[];
   subjectVerifications: SubjectVerification[];
@@ -78,7 +80,7 @@ export interface AuditCaseDetailData {
 }
 
 export interface AuditCaseWorkbenchProps {
-  detail: AuditCaseDetailData;
+  detail: AuditCaseDetailData & { snapshot: AuditCaseSnapshotView };
   connection: AuditConnectionState;
   action: { type: "CANCEL" | "RETRY" | "REASSESS" } | null;
   onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
@@ -137,16 +139,17 @@ const dispositionColors: Record<RuleAssessment["disposition"], string> = {
   NEEDS_HUMAN_REVIEW: "orange",
 };
 
-/** The payment rule's policy input is a synthetic document span, not contract text. */
+/** Legacy snapshots stored the payment limit as a fake document span with this id. */
 const POLICY_INPUT_EVIDENCE_ID = "policy-limit";
 
-/** The document block a locator points at, or null when it anchors an external record. */
+/** The document block a locator points at, or null when it anchors outside the IR. */
 const documentBlockId = (locator: EvidenceLocator): string | null =>
   locator.location.kind === "DOCUMENT_SPAN" ? locator.location.blockId : null;
 
 const evidenceGroupFor = (locator: EvidenceLocator): EvidenceSourceGroup => {
   if (locator.location.kind === "EXTERNAL_RECORD") return "EXTERNAL";
   if (locator.location.kind === "PRIOR_CASE_RECORD") return "HISTORY";
+  if (locator.location.kind === "POLICY_PARAMETER") return "POLICY";
   return locator.id === POLICY_INPUT_EVIDENCE_ID ? "POLICY" : "CONTRACT";
 };
 
@@ -486,6 +489,20 @@ function InspectorPanel({
                           </div>
                           <div className="source-meta">
                             <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
+                          </div>
+                        </div>
+                      ) : locator.location.kind === "POLICY_PARAMETER" ? (
+                        <div key={locator.id} className="source-item">
+                          <strong>
+                            {shortAuditId(locator.id)} · 制度参数 ·{" "}
+                            {getRuleCodeLabel(locator.location.ruleCode)}
+                          </strong>
+                          <div className="source-quote">{locator.location.quotedValue}</div>
+                          <div className="source-meta">
+                            <span>参数 {locator.location.parameterKey}</span>
+                            {locator.location.ruleVersionId && (
+                              <span>规则版本 · {locator.location.ruleVersionId.slice(0, 8)}…</span>
+                            )}
                           </div>
                         </div>
                       ) : locator.location.kind === "PRIOR_CASE_RECORD" ? (

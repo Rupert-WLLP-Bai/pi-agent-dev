@@ -90,6 +90,7 @@ export function createAuditSnapshot(input: {
     sourceRecordId: input.sourceRecordId,
     document,
     policyLimitRatio,
+    policyRuleVersionId: input.ruleVersionIds?.ADVANCE_PAYMENT_LIMIT ?? null,
   });
   const { parties, evidence: partyEvidence } = extractContractParties({
     sourceRecordId: input.sourceRecordId,

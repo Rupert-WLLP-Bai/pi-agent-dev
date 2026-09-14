@@ -29,7 +29,12 @@ test("exposes the policy limit as a citable evidence locator", () => {
 
   expect(analysis.evidence[1]).toMatchObject({
     id: "policy-limit",
-    location: { blockId: "policy-limit", quotedText: "policyLimitRatio: 0.3" },
+    location: {
+      kind: "POLICY_PARAMETER",
+      ruleCode: "ADVANCE_PAYMENT_LIMIT",
+      parameterKey: "limitRatio",
+      quotedValue: "30%（limitRatio = 0.3）",
+    },
   });
   expect(analysis.evidence.map((locator) => locator.id)).toEqual([
     "contract-payment",

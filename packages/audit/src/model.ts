@@ -150,11 +150,28 @@ export interface PriorCaseRecordLocator {
   title: string;
 }
 
+/**
+ * A published rule parameter that shaped a deterministic assessment. The value
+ * is not quoted from the contract; it names the Rule Version row and key that
+ * supplied the threshold at audit time.
+ */
+export interface PolicyParameterLocator {
+  kind: "POLICY_PARAMETER";
+  ruleCode: RuleCode;
+  ruleVersionId: string | null;
+  parameterKey: string;
+  quotedValue: string;
+}
+
 export interface EvidenceLocator {
   /** Stable ID citable by rule assessments and finding proposals. */
   id: string;
   sourceRecordId: string;
-  location: DocumentSpanLocator | ExternalRecordLocator | PriorCaseRecordLocator;
+  location:
+    | DocumentSpanLocator
+    | ExternalRecordLocator
+    | PriorCaseRecordLocator
+    | PolicyParameterLocator;
 }
 
 // ── Contract Document ────────────────────────────────────────────
@@ -234,6 +251,8 @@ export type FindingType =
 export type Severity = "LOW" | "MEDIUM" | "HIGH";
 
 export interface FindingProposal {
+  /** The Rule Assessment this proposal cites as its justification. */
+  assessmentId: string;
   findingType: FindingType;
   severity: Severity;
   rationale: string;
@@ -289,6 +308,7 @@ export interface SourceProvenance {
 export type AuditCaseStatus =
   | "PENDING"
   | "RUNNING"
+  | "AWAITING_REVIEW"
   | "COMPLETED"
   | "FAILED"
   | "CANCELLED"
