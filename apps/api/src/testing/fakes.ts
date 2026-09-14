@@ -28,7 +28,9 @@ import type {
   SubjectVerificationRun,
 } from "@contract-audit/audit/subject-verification";
 import {
+  type AgentRunSummary,
   type AuditCaseRepository,
+  type AuditOverview,
   compareReviewQueueItems,
   contractTitleFromFirstBlock,
   type Remediation,
@@ -727,6 +729,116 @@ export class InMemoryAuditCaseRepository {
           expiresAt: row.verification.expiresAt,
         };
       });
+  }
+
+  /** Recent agent runs across every case, newest first. */
+  async getRecentRuns(limit: number): Promise<AgentRunSummary[]> {
+    return [...this.recordedRuns]
+      .map((run, index) => ({ run, index }))
+      .sort((left, right) => right.index - left.index)
+      .slice(0, limit)
+      .map(({ run }) => {
+        const state = this.cases.get(run.auditCaseId);
+        const snapshot = state ? latestSnapshot(state) : null;
+        return {
+          id: run.id,
+          auditCaseId: run.auditCaseId,
+          provider: run.identity.provider,
+          model: run.identity.model,
+          version: run.identity.version,
+          usage: run.usage,
+          durationMs: run.durationMs,
+          error: run.error,
+          createdAt: state?.createdAt ?? new Date(0).toISOString(),
+          contractTitle: titleForState(state),
+          parties: snapshot?.parties ?? [],
+          caseStatus: (state?.status ?? "PENDING") as AuditCaseStatus,
+          stepCount: this.recordedTraceSteps.filter((step) => step.runId === run.id).length,
+        };
+      });
+  }
+
+  /** Dashboard aggregates, mirroring the SQL projection over stored rows. */
+  async getOverview(): Promise<AuditOverview> {
+    const cases = [...this.cases.entries()];
+    const chainHeads = cases.flatMap(([, state]) =>
+      state.findings.filter(
+        (finding) => !state.findings.some((other) => other.supersedesId === finding.id),
+      ),
+    );
+
+    const findingsByTypeMap = new Map<string, number>();
+    for (const finding of chainHeads) {
+      const key = finding.proposal.findingType;
+      findingsByTypeMap.set(key, (findingsByTypeMap.get(key) ?? 0) + 1);
+    }
+
+    const successfulDurations = this.recordedRuns
+      .filter((run) => run.error === null && run.durationMs != null)
+      .map((run) => run.durationMs as number)
+      .sort((a, b) => a - b);
+    const medianAgentDurationMs =
+      successfulDurations.length === 0
+        ? null
+        : (successfulDurations[Math.floor((successfulDurations.length - 1) / 2)] ?? null);
+
+    const dayKey = (iso: string): string => iso.slice(0, 10);
+    const today = new Date();
+    const dailyCounts: Array<{ date: string; count: number }> = [];
+    for (let offset = 29; offset >= 0; offset -= 1) {
+      const day = new Date(today);
+      day.setUTCDate(today.getUTCDate() - offset);
+      const key = day.toISOString().slice(0, 10);
+      dailyCounts.push({
+        date: key,
+        count: cases.filter(([, state]) => dayKey(state.createdAt) === key).length,
+      });
+    }
+
+    const severityRank: Record<Severity, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    const pendingReview = cases
+      .filter(([, state]) => state.stage === "AWAITING_REVIEW")
+      .map(([id, state]) => {
+        const heads = state.findings.filter(
+          (finding) => !state.findings.some((other) => other.supersedesId === finding.id),
+        );
+        let highestSeverity: Severity | null = null;
+        for (const finding of heads) {
+          const severity = finding.proposal.severity;
+          if (highestSeverity === null || severityRank[severity] > severityRank[highestSeverity]) {
+            highestSeverity = severity;
+          }
+        }
+        return {
+          id,
+          title: titleForState(state),
+          updatedAt: state.updatedAt,
+          highestSeverity,
+        };
+      })
+      .sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt));
+
+    return {
+      totalCases: cases.length,
+      awaitingReview: cases.filter(([, state]) => state.stage === "AWAITING_REVIEW").length,
+      reachedReview: cases.filter(
+        ([, state]) => state.stage === "AWAITING_REVIEW" || state.stage === "COMPLETED",
+      ).length,
+      dailyCounts,
+      findingsByType: [...findingsByTypeMap.entries()].map(([findingType, count]) => ({
+        findingType,
+        count,
+      })),
+      acceptedFindings: chainHeads.filter((finding) => finding.review?.decision === "ACCEPTED")
+        .length,
+      rejectedFindings: chainHeads.filter((finding) => finding.review?.decision === "REJECTED")
+        .length,
+      citedFindings: chainHeads.filter((finding) => finding.proposal.evidenceIds.length > 0).length,
+      chainHeadFindings: chainHeads.length,
+      medianAgentDurationMs,
+      successfulAgentRuns: this.recordedRuns.filter((run) => run.error === null).length,
+      pendingReview,
+    };
   }
 
   asRepository(): AuditCaseRepository {

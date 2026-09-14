@@ -13,6 +13,22 @@ jobs:
   quality:
     name: Lint, typecheck, unit tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: contract_audit
+          POSTGRES_PASSWORD: contract_audit
+          POSTGRES_DB: contract_audit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U contract_audit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
     steps:
       - uses: actions/checkout@v4
 
@@ -28,6 +44,14 @@ jobs:
 
       - name: Typecheck
         run: bun run typecheck
+
+      - name: Check schema and migrations agree
+        working-directory: apps/api
+        run: bunx drizzle-kit check
+
+      - name: Apply database migrations
+        working-directory: apps/api
+        run: bun run migrate
 
       - name: Unit tests
         run: bun run test
