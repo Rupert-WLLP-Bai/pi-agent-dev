@@ -1,8 +1,8 @@
 import { createAgentTraceCollector } from "@contract-audit/audit/agent-trace";
 import type { AuditSnapshot } from "@contract-audit/audit/model";
 import {
-  counterpartyCreditCodes,
-  counterpartyNames,
+  contractPartyCreditCodes,
+  contractPartyNames,
   evaluatePartyHistoryRule,
 } from "@contract-audit/audit/party-history-rule";
 import type {
@@ -22,7 +22,7 @@ const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
 
 export class AuditDispatcher {
-  private activeSessions = new Map<string, { abort: () => void }>();
+  private activeAgentRuns = new Map<string, { abort: () => void }>();
   private cancelledCaseIds = new Set<string>();
   private running = 0;
   private started = false;
@@ -117,7 +117,7 @@ export class AuditDispatcher {
       // Registered before the first network call, so a cancel arriving during
       // the subject stage is honoured rather than silently dropped.
       const controller = new AbortController();
-      this.activeSessions.set(auditCaseId, { abort: () => controller.abort() });
+      this.activeAgentRuns.set(auditCaseId, { abort: () => controller.abort() });
 
       // The subject dimension runs as its own stage: it is a network call to an
       // external provider, and its answer becomes part of the bounded context
@@ -146,11 +146,11 @@ export class AuditDispatcher {
       if (historyEnabled) {
         const auditCase = await this.repository.getCase(auditCaseId);
         const { verifications } = await this.repository.getSubjectDimension(auditCaseId);
-        const creditCodes = counterpartyCreditCodes(context.parties, verifications);
+        const creditCodes = contractPartyCreditCodes(context.parties, verifications);
         const prior = await this.repository.findPriorPartyCases({
           excludeCaseId: auditCaseId,
           createdBefore: new Date(auditCase?.createdAt ?? Date.now()),
-          partyNames: counterpartyNames(context.parties),
+          partyNames: contractPartyNames(context.parties),
           creditCodes,
         });
         const history = evaluatePartyHistoryRule({
@@ -233,7 +233,7 @@ export class AuditDispatcher {
         await this.repository.updateCaseStatus(auditCaseId, "FAILED", "FAILED");
       }
     } finally {
-      this.activeSessions.delete(auditCaseId);
+      this.activeAgentRuns.delete(auditCaseId);
       this.running -= 1;
       await this.processQueue();
     }
@@ -273,7 +273,7 @@ export class AuditDispatcher {
   }
 
   async cancel(auditCaseId: string): Promise<void> {
-    const session = this.activeSessions.get(auditCaseId);
+    const session = this.activeAgentRuns.get(auditCaseId);
     if (session) {
       this.cancelledCaseIds.add(auditCaseId);
       session.abort();

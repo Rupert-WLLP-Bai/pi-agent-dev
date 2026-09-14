@@ -490,6 +490,7 @@ export class InMemoryAuditCaseRepository {
         dueAt: item.dueAt,
         overdue:
           item.status !== "closed" && item.dueAt !== null && Date.parse(item.dueAt) < now.getTime(),
+        closureHint: item.closureHint,
       });
     }
     const columns = remediationStatusOrder.map((status) => ({
@@ -498,6 +499,10 @@ export class InMemoryAuditCaseRepository {
       items: itemsByStatus[status],
     }));
     return { columns, total: this.remediations.size };
+  }
+
+  async getRemediationsForCase(auditCaseId: string): Promise<Remediation[]> {
+    return [...this.remediations.values()].filter((item) => item.auditCaseId === auditCaseId);
   }
 
   async updateRemediation(

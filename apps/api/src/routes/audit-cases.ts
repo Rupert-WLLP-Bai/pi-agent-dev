@@ -382,14 +382,26 @@ export function auditCasesRoutes({
           }
           const snapshot = await repository.getSnapshotByCase(params.id);
           const findings = await repository.getFindingsByCase(params.id);
+          const remediations = await repository.getRemediationsForCase(params.id);
           const title =
             contractTitleFromFirstBlock(snapshot?.contractDocument.blocks[0]?.text) ?? "未命名合同";
+          const contractId = await repository.contractIdForCase(params.id);
+          const revisionDiffs =
+            contractId === null ? [] : ((await repository.getContract(contractId))?.diffs ?? []);
           const buffer = await buildAuditReportDocx({
             caseId: params.id,
             contractTitle: title,
             status: auditCase.status,
             snapshot,
             findings,
+            remediations: remediations.map((item) => ({
+              summary: item.summary,
+              severity: item.severity,
+              status: item.status,
+              owner: item.owner,
+              closureHint: item.closureHint,
+            })),
+            revisionDiffs,
           });
           return new Response(new Uint8Array(buffer), {
             headers: {

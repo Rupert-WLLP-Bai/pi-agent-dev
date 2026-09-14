@@ -30,6 +30,7 @@ import {
   describeAdvance,
   formatRemediationDue,
   formatRemediationSummary,
+  remediationClosureHintLabels,
   remediationColumnFlags,
   remediationSeverityLabels,
   remediationSeverityTones,
@@ -249,6 +250,11 @@ export function RemediationKanban({
                           )}
                           {due.label}
                         </span>
+                        {card.closureHint ? (
+                          <span className="remediation-closure-hint">
+                            {remediationClosureHintLabels[card.closureHint]}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })
@@ -284,6 +290,11 @@ export function RemediationKanban({
               <Descriptions.Item label="审计案件">
                 <span className="mono">{shortAuditId(selected.caseId)}</span>
               </Descriptions.Item>
+              {selected.closureHint ? (
+                <Descriptions.Item label="落实提示">
+                  {remediationClosureHintLabels[selected.closureHint]}
+                </Descriptions.Item>
+              ) : null}
             </Descriptions>
 
             <div className="remediation-editor">

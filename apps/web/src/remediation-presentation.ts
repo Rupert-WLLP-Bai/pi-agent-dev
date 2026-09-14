@@ -39,6 +39,15 @@ export const remediationSeverityTones: Record<Severity, AuditTone> = {
   LOW: "info",
 };
 
+export const remediationClosureHintLabels: Record<
+  NonNullable<RemediationCard["closureHint"]>,
+  string
+> = {
+  implemented: "新版本评估：已落实",
+  open: "新版本评估：未落实",
+  unknown: "新版本评估：无法判定",
+};
+
 /**
  * The advance affordance. Derived from the shared state machine so the board
  * cannot offer a move the API would reject, and `null` marks the two stages

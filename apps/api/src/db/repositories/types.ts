@@ -152,6 +152,8 @@ export interface RemediationCard {
   owner: string | null;
   dueAt: string | null;
   overdue: boolean;
+  /** Deterministic hint from a later Contract Revision re-run; not a close decision. */
+  closureHint: "implemented" | "open" | "unknown" | null;
 }
 
 export interface RemediationColumn {

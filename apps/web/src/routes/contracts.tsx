@@ -71,6 +71,9 @@ export function ContractDetailPage({ id }: { id: string }) {
                       <Link key="case" to="/audit-cases/$id" params={{ id: row.auditCaseId }}>
                         打开案件
                       </Link>,
+                      <a key="report" href={`/api/audit-cases/${row.auditCaseId}/report.docx`}>
+                        审查报告
+                      </a>,
                     ]
                   : []
               }

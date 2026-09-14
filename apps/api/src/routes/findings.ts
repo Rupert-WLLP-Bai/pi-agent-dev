@@ -23,7 +23,7 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
       const finding = await repository.getFinding(params.id);
       if (!finding) {
         set.status = 404;
-        return { error: "Finding not found" };
+        return { error: "Finding proposal not found" };
       }
 
       let remediationId: string | null = null;
@@ -38,7 +38,7 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
       } catch (error) {
         if (error instanceof Error && error.message.startsWith("FINDING_ALREADY_REVIEWED")) {
           set.status = 409;
-          return { error: "Finding already reviewed" };
+          return { error: "Finding proposal already reviewed" };
         }
         throw error;
       }

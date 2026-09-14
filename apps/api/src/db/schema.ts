@@ -386,8 +386,8 @@ export const auditActionLogs = pgTable("audit_action_logs", {
 });
 
 /**
- * A materialised golden case: the contract text plus the ground truth a rule
- * version is judged against. The canonical source is `golden-set.ts`; the seed
+ * A materialised golden case: the contract text plus the expected labelled
+ * outcome a rule version is judged against. The canonical source is `golden-set.ts`; the seed
  * copies it here so a case can carry an operator-facing type (正例/反例/边界例/
  * 历史误报/证据缺失) and be filtered without recompiling.
  *

@@ -9,8 +9,8 @@ import {
 import type { FindingType, RemediationStatus } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import {
-  counterpartyCreditCodes,
-  counterpartyNames,
+  contractPartyCreditCodes,
+  contractPartyNames,
   evaluatePartyHistoryRule,
 } from "@contract-audit/audit/party-history-rule";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
@@ -126,11 +126,11 @@ async function plantCase(
   });
   await repository.saveSubjectVerifications(caseId, verification);
 
-  const creditCodes = counterpartyCreditCodes(snapshot.parties, verification.verifications);
+  const creditCodes = contractPartyCreditCodes(snapshot.parties, verification.verifications);
   const prior = await repository.findPriorPartyCases({
     excludeCaseId: caseId,
     createdBefore: new Date(spec.createdAt),
-    partyNames: counterpartyNames(snapshot.parties),
+    partyNames: contractPartyNames(snapshot.parties),
     creditCodes,
   });
   const history = evaluatePartyHistoryRule({

@@ -234,6 +234,10 @@ export class AuditCaseRepository {
     return this.findings.getRemediationBoard(...args);
   }
 
+  async getRemediationsForCase(...args: Parameters<FindingRepository["getRemediationsForCase"]>) {
+    return this.findings.getRemediationsForCase(...args);
+  }
+
   /**
    * Applies the operator-editable fields, and — when `status` is given —
    * advances the item exactly one step. Any other target is an illegal

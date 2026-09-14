@@ -11,7 +11,7 @@ export const PARTY_HISTORY_RULE_CODE = "PARTY_HISTORY_ASSOCIATION" as const;
 
 /**
  * One reviewed finding on an earlier Audit Case that names the same
- * counterparty. The lookup that produces these lives in the repository; this
+ * Contract Party. The lookup that produces these lives in the repository; this
  * rule only judges what that lookup returned.
  */
 export interface PriorPartyFinding {
@@ -49,24 +49,27 @@ export interface PartyHistoryRun {
 }
 
 /**
- * Names the current case should look up in history. 乙方 is the counterparty
+ * Names the current case should look up in history. 乙方 is the Contract Party
  * we care about; matching 甲方 would join every case that names us.
  */
-export function counterpartyNames(parties: ContractParty[]): string[] {
+export function contractPartyNames(parties: ContractParty[]): string[] {
   const counterparties = parties.filter((party) => party.label === "乙方");
   const selected = counterparties.length > 0 ? counterparties : parties;
   return [...new Set(selected.map((party) => party.name))];
 }
 
+/** @deprecated Use contractPartyNames */
+export const counterpartyNames = contractPartyNames;
+
 /**
- * Credit codes that belong to counterparties. Using every party's code would
+ * Credit codes that belong to Contract Parties. Using every party's code would
  * join every case that names us as 甲方.
  */
-export function counterpartyCreditCodes(
+export function contractPartyCreditCodes(
   parties: ContractParty[],
   verifications: Array<{ partyId: string; matched?: { unifiedSocialCreditCode?: string } | null }>,
 ): string[] {
-  const names = new Set(counterpartyNames(parties));
+  const names = new Set(contractPartyNames(parties));
   const codes: string[] = [];
   for (const item of verifications) {
     const party = parties.find((candidate) => candidate.id === item.partyId);
@@ -76,6 +79,9 @@ export function counterpartyCreditCodes(
   }
   return [...new Set(codes)];
 }
+
+/** @deprecated Use contractPartyCreditCodes */
+export const counterpartyCreditCodes = contractPartyCreditCodes;
 
 const evidenceIdFor = (finding: PriorPartyFinding): string =>
   `history-${finding.priorCaseId}-${finding.findingRevisionId}`;

@@ -760,6 +760,15 @@ export function AuditCaseWorkbench({
                 下载原文
               </Button>
             )}
+            {(awaitingReview || completed) && (
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                href={`/api/audit-cases/${auditCase.id}/report.docx`}
+              >
+                审查报告
+              </Button>
+            )}
           </div>
         </div>
         <div className="case-meta">

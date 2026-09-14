@@ -88,6 +88,8 @@ export * from "./model";
 export { createAuditSnapshot } from "./orchestrator";
 export { extractContractParties } from "./party-extractor";
 export {
+  contractPartyCreditCodes,
+  contractPartyNames,
   counterpartyCreditCodes,
   counterpartyNames,
   evaluatePartyHistoryRule,

@@ -44,6 +44,12 @@ const remediationCardSchema = t.Object(
     owner: t.Union([t.String(), t.Null()]),
     dueAt: t.Union([t.String(), t.Null()]),
     overdue: t.Boolean({ description: "读时派生；已关闭的卡片永不逾期" }),
+    closureHint: t.Union([
+      t.Literal("implemented"),
+      t.Literal("open"),
+      t.Literal("unknown"),
+      t.Null(),
+    ]),
   },
   { additionalProperties: true },
 );

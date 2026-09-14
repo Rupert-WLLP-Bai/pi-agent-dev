@@ -203,6 +203,7 @@ export class FindingRepository {
         owner: remediations.owner,
         dueAt: remediations.dueAt,
         status: remediations.status,
+        closureHint: remediations.closureHint,
         contractTitle: sql<string | null>`${auditSnapshots.document}->'blocks'->0->>'text'`,
       })
       .from(remediations)
@@ -236,6 +237,7 @@ export class FindingRepository {
         owner: row.owner,
         dueAt,
         overdue: status !== "closed" && dueAt !== null && Date.parse(dueAt) < now.getTime(),
+        closureHint: row.closureHint ?? null,
       });
     }
     const columns = remediationStatusOrder.map((status) => ({
@@ -246,14 +248,14 @@ export class FindingRepository {
     return { columns, total: rows.length };
   }
 
-  /**
-   * Applies the operator-editable fields, and — when `status` is given —
-   * advances the item exactly one step. Any other target is an illegal
-   * transition, including `closed`, which only the close action may set.
-   *
-   * The read takes a row lock, so two concurrent advances cannot both see the
-   * same `from` and skip a column.
-   */
+  async getRemediationsForCase(auditCaseId: string): Promise<Remediation[]> {
+    const rows = await this.db
+      .select()
+      .from(remediations)
+      .where(eq(remediations.auditCaseId, auditCaseId))
+      .orderBy(remediations.createdAt);
+    return rows.map((row) => toRemediation(row));
+  }
 
   /**
    * Applies the operator-editable fields, and — when `status` is given —
