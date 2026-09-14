@@ -12,7 +12,9 @@ import type {
   SubjectVerificationPort,
 } from "@contract-audit/audit/ports";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
+import { ensureRunSnapshot } from "./audit/assemble-run-snapshot";
 import type { AuditCaseRepository } from "./db/repositories";
+import type { RuleRepository } from "./db/rule-repository";
 import type { AuditEventBroker } from "./sse";
 
 const isAbortError = (error: unknown): boolean =>
@@ -36,7 +38,7 @@ export class AuditDispatcher {
      * run (including retries), so a rule disabled after enqueue is honoured.
      * Absent means "no overlay": every rule is treated as enabled.
      */
-    private readonly ruleRepository?: { listEnabledCodes(): Promise<string[]> },
+    private readonly rules?: RuleRepository,
   ) {}
 
   get isStarted(): boolean {
@@ -79,11 +81,11 @@ export class AuditDispatcher {
     }
   }
 
-  private async runAudit(claimed: { caseId: string; snapshotId: string }): Promise<void> {
+  private async runAudit(claimed: { caseId: string; snapshotId: string | null }): Promise<void> {
     const auditCaseId = claimed.caseId;
     try {
-      const snapshot = await this.repository.getSnapshot(claimed.snapshotId);
-      if (!snapshot) throw new Error(`Audit snapshot not found for case ${auditCaseId}`);
+      if (!this.rules) throw new Error("RULE_REPOSITORY_REQUIRED");
+      const snapshot = await ensureRunSnapshot(this.repository, auditCaseId, this.rules);
 
       this.broker.publish({ type: "audit.started", auditCaseId });
       // Rules already ran while the snapshot was assembled, so the first stage
@@ -105,9 +107,10 @@ export class AuditDispatcher {
         ),
       });
 
-      const enabledCodes = this.ruleRepository
-        ? new Set(await this.ruleRepository.listEnabledCodes())
-        : null;
+      const listed = this.rules ? await this.rules.listEnabledCodes() : null;
+      // An empty overlay means "no rule rows yet" (tests / unseeded DB), not
+      // "every rule disabled". Only a non-empty list is treated as selective.
+      const enabledCodes = listed === null || listed.length === 0 ? null : new Set(listed);
       const subjectEnabled = enabledCodes === null || enabledCodes.has("SUBJECT_RED_LINE_RISK");
 
       // Registered before the first network call, so a cancel arriving during
@@ -211,7 +214,7 @@ export class AuditDispatcher {
         await this.repository.appendFindingRevision(auditCaseId, proposal, null);
         this.broker.publish({ type: "finding.proposed", auditCaseId, proposal });
       }
-      await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "AWAITING_REVIEW");
+      await this.repository.updateCaseStatus(auditCaseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
       this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
     } catch (error) {
       const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);

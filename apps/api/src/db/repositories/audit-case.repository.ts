@@ -48,6 +48,22 @@ export class AuditCaseRepository {
     return this.queue.createPendingCase(...args);
   }
 
+  async createQueuedCase(...args: Parameters<AuditQueueRepository["createQueuedCase"]>) {
+    return this.queue.createQueuedCase(...args);
+  }
+
+  async getSourceRecordContent(
+    ...args: Parameters<AuditQueueRepository["getSourceRecordContent"]>
+  ) {
+    return this.queue.getSourceRecordContent(...args);
+  }
+
+  async patchSourceRecordMetadata(
+    ...args: Parameters<AuditQueueRepository["patchSourceRecordMetadata"]>
+  ) {
+    return this.queue.patchSourceRecordMetadata(...args);
+  }
+
   async updateCaseStatus(...args: Parameters<AuditQueueRepository["updateCaseStatus"]>) {
     return this.queue.updateCaseStatus(...args);
   }

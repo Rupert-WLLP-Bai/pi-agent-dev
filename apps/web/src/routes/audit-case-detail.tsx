@@ -148,10 +148,20 @@ export default function AuditCaseDetail({
     reviewMutation.error instanceof ApiRequestError && reviewMutation.error.status === 409;
   const reviewError = reviewMutation.isError && !conflicted ? reviewMutation.error.message : null;
 
+  if (detail.snapshot === null) {
+    return (
+      <div className="page workbench-loading" aria-busy="true">
+        <Skeleton active paragraph={{ rows: 8 }} title={{ width: "40%" }} />
+      </div>
+    );
+  }
+
+  const loadedDetail = { ...detail, snapshot: detail.snapshot };
+
   return (
     <>
       <AuditCaseWorkbench
-        detail={detail}
+        detail={loadedDetail}
         connection={connection}
         action={
           cancelMutation.isPending

@@ -53,6 +53,7 @@ const agentRunSummarySchema = t.Object(
       [
         t.Literal("PENDING"),
         t.Literal("RUNNING"),
+        t.Literal("AWAITING_REVIEW"),
         t.Literal("COMPLETED"),
         t.Literal("FAILED"),
         t.Literal("CANCELLED"),

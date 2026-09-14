@@ -60,7 +60,10 @@ export function getAuditDisplayState(auditCase: {
   status: string;
   stage: string;
 }): AuditDisplayState {
-  const key = auditCase.stage === "AWAITING_REVIEW" ? "AWAITING_REVIEW" : auditCase.status;
+  const key =
+    auditCase.status === "AWAITING_REVIEW" || auditCase.stage === "AWAITING_REVIEW"
+      ? "AWAITING_REVIEW"
+      : auditCase.status;
   const state = (displayStates as Record<string, Omit<AuditDisplayState, "key"> | undefined>)[key];
   if (state) return { key: key as AuditDisplayKey, ...state };
   return { key: "UNKNOWN", label: auditCase.stage || auditCase.status, tone: "neutral" };
@@ -367,7 +370,12 @@ export const evidenceSourceGroupOrder: EvidenceSourceGroup[] = [
 const retryableStatuses = new Set<AuditCaseStatus>(["FAILED", "CANCELLED", "INTERRUPTED"]);
 
 export function getAvailableCaseActions(auditCase: AuditCase): AuditCaseAction[] {
-  if (auditCase.stage === "AWAITING_REVIEW" || auditCase.stage === "COMPLETED") return ["VIEW"];
+  if (
+    auditCase.status === "AWAITING_REVIEW" ||
+    auditCase.stage === "AWAITING_REVIEW" ||
+    auditCase.stage === "COMPLETED"
+  )
+    return ["VIEW"];
   if (auditCase.status === "PENDING" || auditCase.status === "RUNNING") return ["VIEW", "CANCEL"];
   if (retryableStatuses.has(auditCase.status)) return ["VIEW", "RETRY"];
   return ["VIEW"];

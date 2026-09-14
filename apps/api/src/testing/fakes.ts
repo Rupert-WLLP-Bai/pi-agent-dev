@@ -147,6 +147,10 @@ export class InMemoryAuditCaseRepository {
   sourceProvenanceByRecord = new Map<string, SourceProvenance | null>();
   /** Which source record id backs each case, so tests can address it. */
   sourceRecordIdsByCase = new Map<string, string>();
+  /** Pasted contract text keyed by source record id. */
+  sourceTexts = new Map<string, string>();
+  /** Extra metadata merged into getSourceRecordContent. */
+  sourceMetadata = new Map<string, Record<string, unknown>>();
   /** Frozen party-history lookups, newest last, keyed by case id. */
   partyHistoryRows: Array<{ caseId: string; run: PartyHistoryRun }> = [];
 
@@ -184,24 +188,100 @@ export class InMemoryAuditCaseRepository {
     });
     const snapshotId = `snapshot-${caseId}-1`;
     this.snapshotsById.set(snapshotId, { caseId, snapshot });
+    this.sourceTexts.set(
+      sourceRecordId,
+      snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
+    );
     return { caseId, snapshotId };
   }
 
-  async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string } | null> {
+  async createQueuedCase(
+    sourceRecordId: string,
+    sourceText: string,
+    provenance: SourceProvenance | null = null,
+    options: {
+      createdAt?: Date;
+      metadata?: Record<string, unknown>;
+      assignee?: string | null;
+    } = {},
+  ): Promise<{ caseId: string }> {
+    const caseId = `case-${this.cases.size + 1}`;
+    const createdAt = (options.createdAt ?? new Date()).toISOString();
+    this.sourceRecordIds.add(sourceRecordId);
+    this.sourceRecordIdsByCase.set(caseId, sourceRecordId);
+    this.sourceProvenanceByRecord.set(sourceRecordId, provenance);
+    this.sourceTexts.set(sourceRecordId, sourceText);
+    if (options.metadata) this.sourceMetadata.set(sourceRecordId, { ...options.metadata });
+    if (provenance?.displayName != null) {
+      this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
+    }
+    this.cases.set(caseId, {
+      status: "PENDING",
+      stage: "QUEUED",
+      snapshots: [],
+      findings: [],
+      assignee: options.assignee ?? null,
+      reviewPriority: null,
+      createdAt,
+      updatedAt: createdAt,
+      scenarioId:
+        typeof options.metadata?.scenarioId === "string" ? options.metadata.scenarioId : null,
+      caseKey: typeof options.metadata?.caseKey === "string" ? options.metadata.caseKey : null,
+      demoSeed: options.metadata?.demoSeed === true,
+    });
+    return { caseId };
+  }
+
+  async getSourceRecordContent(sourceRecordId: string): Promise<{
+    sourceText: string;
+    originalPath: string | null;
+    metadata: Record<string, unknown> | null;
+  } | null> {
+    if (!this.sourceRecordIds.has(sourceRecordId)) return null;
+    return {
+      sourceText: this.sourceTexts.get(sourceRecordId) ?? "",
+      originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,
+      metadata: this.sourceMetadata.get(sourceRecordId) ?? null,
+    };
+  }
+
+  async patchSourceRecordMetadata(
+    sourceRecordId: string,
+    patch: Record<string, unknown>,
+  ): Promise<void> {
+    this.sourceMetadata.set(sourceRecordId, {
+      ...(this.sourceMetadata.get(sourceRecordId) ?? {}),
+      ...patch,
+    });
+  }
+
+  async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string | null } | null> {
     for (const [caseId, state] of this.cases) {
       if (state.status === "PENDING") {
         state.status = "RUNNING";
-        return { caseId, snapshotId: `snapshot-${caseId}-${state.snapshots.length}` };
+        state.stage = "NORMALIZING";
+        const latest = latestSnapshot(state);
+        return {
+          caseId,
+          snapshotId: latest ? (`snapshot-${caseId}-${state.snapshots.length}` as string) : null,
+        };
       }
     }
     return null;
   }
 
-  async claimCase(auditCaseId: string): Promise<{ caseId: string; snapshotId: string } | null> {
+  async claimCase(
+    auditCaseId: string,
+  ): Promise<{ caseId: string; snapshotId: string | null } | null> {
     const state = this.cases.get(auditCaseId);
     if (state?.status !== "PENDING") return null;
     state.status = "RUNNING";
-    return { caseId: auditCaseId, snapshotId: `snapshot-${auditCaseId}-${state.snapshots.length}` };
+    state.stage = "NORMALIZING";
+    const latest = latestSnapshot(state);
+    return {
+      caseId: auditCaseId,
+      snapshotId: latest ? (`snapshot-${auditCaseId}-${state.snapshots.length}` as string) : null,
+    };
   }
 
   async getPendingCaseIds(): Promise<string[]> {

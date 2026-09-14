@@ -150,7 +150,7 @@ async function plantCase(repository: DemoWorldRepository, spec: ScenarioCase): P
     const id = await repository.appendFindingRevision(caseId, proposal, null);
     findingIds.push({ id, findingType: proposal.findingType });
   }
-  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
 
   if (spec.assignee) {
     await repository.setCaseAssignment(caseId, { assignee: spec.assignee });

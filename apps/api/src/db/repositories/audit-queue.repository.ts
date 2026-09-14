@@ -13,16 +13,20 @@ import type { DrizzleDB, SourceRecordOriginal } from "./types";
 export class AuditQueueRepository {
   constructor(private readonly db: DrizzleDB) {}
 
-  async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string } | null> {
+  async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string | null } | null> {
     return this.db.transaction(async (tx) => {
-      const rows = await tx.execute<{ case_id: string; snapshot_id: string }>(sql`
-        SELECT c.id AS case_id, s.id AS snapshot_id
+      const rows = await tx.execute<{ case_id: string; snapshot_id: string | null }>(sql`
+        SELECT c.id AS case_id,
+               (
+                 SELECT s.id
+                 FROM audit_snapshots s
+                 WHERE s.audit_case_id = c.id
+                 ORDER BY s.created_at DESC
+                 LIMIT 1
+               ) AS snapshot_id
         FROM audit_cases c
-        INNER JOIN audit_snapshots s ON s.audit_case_id = c.id
         WHERE c.status = 'PENDING'
-        -- Claiming hands the runner one snapshot; when a case has been
-        -- reassessed, the newest generation is the one to run.
-        ORDER BY c.created_at ASC, s.created_at DESC
+        ORDER BY c.created_at ASC
         LIMIT 1
         FOR UPDATE OF c SKIP LOCKED
       `);
@@ -31,20 +35,27 @@ export class AuditQueueRepository {
 
       await tx
         .update(auditCases)
-        .set({ status: "RUNNING", updatedAt: new Date() })
+        .set({ status: "RUNNING", stage: "NORMALIZING", updatedAt: new Date() })
         .where(eq(auditCases.id, row.case_id));
       return { caseId: row.case_id, snapshotId: row.snapshot_id };
     });
   }
 
-  async claimCase(auditCaseId: string): Promise<{ caseId: string; snapshotId: string } | null> {
+  async claimCase(
+    auditCaseId: string,
+  ): Promise<{ caseId: string; snapshotId: string | null } | null> {
     return this.db.transaction(async (tx) => {
-      const rows = await tx.execute<{ case_id: string; snapshot_id: string }>(sql`
-        SELECT c.id AS case_id, s.id AS snapshot_id
+      const rows = await tx.execute<{ case_id: string; snapshot_id: string | null }>(sql`
+        SELECT c.id AS case_id,
+               (
+                 SELECT s.id
+                 FROM audit_snapshots s
+                 WHERE s.audit_case_id = c.id
+                 ORDER BY s.created_at DESC
+                 LIMIT 1
+               ) AS snapshot_id
         FROM audit_cases c
-        INNER JOIN audit_snapshots s ON s.audit_case_id = c.id
         WHERE c.id = ${auditCaseId} AND c.status = 'PENDING'
-        ORDER BY s.created_at DESC
         LIMIT 1
         FOR UPDATE OF c SKIP LOCKED
       `);
@@ -53,9 +64,50 @@ export class AuditQueueRepository {
 
       await tx
         .update(auditCases)
-        .set({ status: "RUNNING", updatedAt: new Date() })
+        .set({ status: "RUNNING", stage: "NORMALIZING", updatedAt: new Date() })
         .where(eq(auditCases.id, row.case_id));
       return { caseId: row.case_id, snapshotId: row.snapshot_id };
+    });
+  }
+
+  async createQueuedCase(
+    sourceRecordId: string,
+    sourceText: string,
+    provenance: SourceProvenance | null = null,
+    options: {
+      createdAt?: Date;
+      metadata?: Record<string, unknown>;
+      assignee?: string | null;
+    } = {},
+  ): Promise<{ caseId: string }> {
+    return this.db.transaction(async (tx) => {
+      await tx
+        .insert(sourceRecords)
+        .values({
+          id: sourceRecordId,
+          sourceText,
+          metadata: {
+            ...(provenance === null
+              ? {}
+              : { sourceType: provenance.type, sourceDisplayName: provenance.displayName }),
+            ...(options.metadata ?? {}),
+          },
+        })
+        .onConflictDoNothing({ target: sourceRecords.id });
+
+      const createdAt = options.createdAt;
+      const [auditCase] = await tx
+        .insert(auditCases)
+        .values({
+          sourceRecordId,
+          status: "PENDING",
+          stage: "QUEUED",
+          ...(createdAt === undefined ? {} : { createdAt, updatedAt: createdAt }),
+          ...(options.assignee === undefined ? {} : { assignee: options.assignee }),
+        })
+        .returning({ id: auditCases.id });
+
+      return { caseId: auditCase.id };
     });
   }
 
@@ -257,6 +309,46 @@ export class AuditQueueRepository {
   /** The stored original for a Source Record, or null when none exists. */
 
   /** The stored original for a Source Record, or null when none exists. */
+  async getSourceRecordContent(sourceRecordId: string): Promise<{
+    sourceText: string;
+    originalPath: string | null;
+    metadata: Record<string, unknown> | null;
+  } | null> {
+    const [row] = await this.db
+      .select({
+        sourceText: sourceRecords.sourceText,
+        originalPath: sourceRecords.originalPath,
+        metadata: sourceRecords.metadata,
+      })
+      .from(sourceRecords)
+      .where(eq(sourceRecords.id, sourceRecordId))
+      .limit(1);
+    if (row === undefined) return null;
+    const metadata =
+      row.metadata !== null && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : null;
+    return {
+      sourceText: row.sourceText,
+      originalPath: row.originalPath,
+      metadata,
+    };
+  }
+
+  async patchSourceRecordMetadata(
+    sourceRecordId: string,
+    patch: Record<string, unknown>,
+  ): Promise<void> {
+    const existing = await this.getSourceRecordContent(sourceRecordId);
+    if (!existing) return;
+    await this.db
+      .update(sourceRecords)
+      .set({
+        metadata: { ...(existing.metadata ?? {}), ...patch },
+      })
+      .where(eq(sourceRecords.id, sourceRecordId));
+  }
+
   async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
     const [row] = await this.db
       .select({

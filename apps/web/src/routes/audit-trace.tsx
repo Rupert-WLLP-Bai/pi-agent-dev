@@ -117,7 +117,7 @@ export default function AuditTracePage({
     );
   }
 
-  const contractTitle = detail.snapshot.document.blocks[0]?.text ?? "未命名合同";
+  const contractTitle = detail.snapshot?.document.blocks[0]?.text ?? "未命名合同";
   const selectedIsLive =
     selected !== null &&
     getAgentRunState(selected.run, detail.case.status, traces[0]?.run.id === selected.run.id) ===

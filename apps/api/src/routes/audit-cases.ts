@@ -1,19 +1,11 @@
 import { findDemoContract } from "@contract-audit/audit/demo-contracts";
-import type {
-  AuditCaseStatus,
-  AuditSnapshot,
-  RuleCode,
-  RuleParamSet,
-  SourceProvenance,
-} from "@contract-audit/audit/model";
-import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
-import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import type { AuditCaseStatus, SourceProvenance } from "@contract-audit/audit/model";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { RuleRepository } from "../db/rule-repository";
 import type { AuditDispatcher } from "../dispatcher";
-import { parseContractFile, validateMimeType } from "../document";
+import { validateMimeType } from "../document";
 import { originalStorageOf, readOriginal, saveOriginal } from "../document/original-store";
 import { errorSchema, notFoundSchema, openapiTags } from "../openapi";
 import { type AuditEventBroker, sseResponse } from "../sse";
@@ -31,66 +23,6 @@ export interface AuditCasesRouteDeps extends AuditRouteDeps {
   maxUploadBytes: number;
 }
 
-/** The deterministic rules whose parameters shape snapshot assembly. */
-const SNAPSHOT_RULE_CODES = [
-  "ADVANCE_PAYMENT_LIMIT",
-  "PENALTY_RATIO_LIMIT",
-  "TERMINATION_CLAUSE_PRESENT",
-  "DISPUTE_JURISDICTION",
-  "PERFORMANCE_BOND_RATIO_LIMIT",
-  "PAYMENT_TERM_LIMIT",
-  "DEPOSIT_RATIO_LIMIT",
-  "WARRANTY_RETENTION_RATIO_LIMIT",
-  "BID_BOND_RATIO_LIMIT",
-  "CONFIDENTIALITY_PERIOD_MISSING",
-  "LIABILITY_CAP_MISSING",
-] as const;
-
-/**
- * Maps the published Rule Versions onto the parameters createAuditSnapshot
- * reads. An operator's explicit per-audit ceiling still wins — it is the same
- * concept stated for one audit — and when neither an override nor a published
- * rule is present the snapshot keeps its built-in default. Every version used
- * is returned too, so the resulting assessments can cite it.
- */
-async function buildRuleInputs(rules: RuleRepository, policyLimitRatioOverride?: number) {
-  const [published, enabledCodes] = await Promise.all([
-    rules.getPublishedVersions(SNAPSHOT_RULE_CODES),
-    rules.listEnabledCodes(),
-  ]);
-  const advanceLimit = published.get("ADVANCE_PAYMENT_LIMIT")?.params.limitRatio;
-  const penaltyLimit = published.get("PENALTY_RATIO_LIMIT")?.params.limitRatio;
-  const jurisdiction = published.get("DISPUTE_JURISDICTION")?.params.preferredJurisdiction;
-
-  const ruleVersions: Partial<Record<RuleCode, number>> = {};
-  for (const [code, version] of published) ruleVersions[code as RuleCode] = version.version;
-
-  const ruleVersionIds: Partial<Record<RuleCode, string>> = {};
-  for (const [code, version] of published) ruleVersionIds[code as RuleCode] = version.versionId;
-
-  const ruleParams: Partial<Record<RuleCode, RuleParamSet>> = {};
-  for (const [code, version] of published) {
-    if (Object.keys(version.params).length > 0) {
-      ruleParams[code as RuleCode] = version.params;
-    }
-  }
-
-  return {
-    policyLimitRatio:
-      policyLimitRatioOverride ?? (typeof advanceLimit === "number" ? advanceLimit : undefined),
-    policyPenaltyLimit: typeof penaltyLimit === "number" ? penaltyLimit : undefined,
-    preferredJurisdiction: typeof jurisdiction === "string" ? jurisdiction : undefined,
-    ruleVersions,
-    ruleParams,
-    // The version row each parameter set came from, so the snapshot's policy
-    // can name the exact rows it was judged under.
-    ruleVersionIds,
-    // The operator's enabled/disabled overlay, read fresh per submission: a
-    // disabled rule is omitted from this snapshot's assessments entirely.
-    enabledRuleCodes: enabledCodes as RuleCode[],
-  };
-}
-
 const createBody = t.Object({
   source: t.Literal("text"),
   contractText: t.String(),
@@ -104,6 +36,7 @@ const AUDIT_CASE_TAGS = [openapiTags.auditCases];
 const auditCaseStatusSchema = t.Union([
   t.Literal("PENDING"),
   t.Literal("RUNNING"),
+  t.Literal("AWAITING_REVIEW"),
   t.Literal("COMPLETED"),
   t.Literal("FAILED"),
   t.Literal("CANCELLED"),
@@ -188,6 +121,7 @@ const caseSummarySchema = t.Object(
 const REASSESSABLE_STATUSES: Record<AuditCaseStatus, boolean> = {
   PENDING: false,
   RUNNING: false,
+  AWAITING_REVIEW: false,
   COMPLETED: false,
   FAILED: true,
   CANCELLED: true,
@@ -260,15 +194,16 @@ export function auditCasesRoutes({
         "/api/audit-cases",
         async ({ body, set }) => {
           const sourceRecordId = crypto.randomUUID();
-          const snapshot = createAuditSnapshot({
+          const { caseId } = await repository.createQueuedCase(
             sourceRecordId,
-            document: normalizeContractDocument(body.contractText),
-            ...(await buildRuleInputs(rules, body.policyLimitRatio)),
-          });
-          const { caseId } = await repository.createPendingCase(
-            sourceRecordId,
-            snapshot,
+            body.contractText,
             resolvePasteProvenance(body),
+            {
+              metadata:
+                body.policyLimitRatio === undefined
+                  ? undefined
+                  : { policyLimitRatio: body.policyLimitRatio },
+            },
           );
           await dispatcher.enqueue(caseId);
           set.status = 202;
@@ -325,42 +260,24 @@ export function auditCasesRoutes({
           // Read the bytes once: the parser and the original-store both need
           // them, and a File body is not guaranteed to be re-readable cheaply.
           const fileBytes = new Uint8Array(await body.file.arrayBuffer());
-          let snapshot: AuditSnapshot;
-          try {
-            const parsed = await parseContractFile({
-              filename: body.file.name,
-              // A copy: pdfjs transfers (and detaches) the buffer it is given,
-              // which would leave `fileBytes` unusable for the original store.
-              data: new Uint8Array(fileBytes),
-            });
-            // Form fields arrive as strings. The canonical unit is a 0–1 ratio
-            // (same as the text endpoint's number field); a value above 1 is
-            // treated as a percentage ("30" → 0.3) so both callers work.
-            const rawLimit = Number(body.policyLimitRatio);
-            const policyLimit =
-              body.policyLimitRatio === undefined || Number.isNaN(rawLimit)
-                ? undefined
-                : rawLimit > 1
-                  ? rawLimit / 100
-                  : rawLimit;
-            snapshot = createAuditSnapshot({
-              sourceRecordId,
-              document: parsed.document,
-              ...(await buildRuleInputs(rules, policyLimit)),
-            });
-          } catch (error) {
-            set.status = 422;
-            return {
-              error:
-                error instanceof Error && error.name === "EmptyContractError"
-                  ? "合同文件内容为空，无法发起审计"
-                  : "不支持的合同格式（仅支持 .docx、.pdf、.txt）",
-            };
-          }
-          const { caseId } = await repository.createPendingCase(sourceRecordId, snapshot, {
-            type: "FILE_UPLOAD",
-            displayName: body.file.name,
-          });
+          const rawLimit = Number(body.policyLimitRatio);
+          const policyLimit =
+            body.policyLimitRatio === undefined || Number.isNaN(rawLimit)
+              ? undefined
+              : rawLimit > 1
+                ? rawLimit / 100
+                : rawLimit;
+          const { caseId } = await repository.createQueuedCase(
+            sourceRecordId,
+            "",
+            { type: "FILE_UPLOAD", displayName: body.file.name },
+            {
+              metadata: {
+                uploadFileName: body.file.name,
+                ...(policyLimit === undefined ? {} : { policyLimitRatio: policyLimit }),
+              },
+            },
+          );
           // Persist the uploaded original and point the Source Record at it.
           // Only file uploads reach here; pasted text keeps a null path.
           const originalPath = await saveOriginal(
@@ -460,9 +377,20 @@ export function auditCasesRoutes({
           }
           const snapshot = await repository.getSnapshotByCase(params.id);
           const findings = await repository.getFindingsByCase(params.id);
+          const sourceRecord = await repository.getSourceRecord(auditCase.sourceRecordId);
           if (!snapshot) {
-            set.status = 404;
-            return { error: "Audit snapshot not found" };
+            return {
+              case: auditCase,
+              snapshot: null,
+              evidence: [],
+              ruleAssessments: [],
+              subjectVerifications: [],
+              partyHistory: [],
+              findings,
+              sourceProvenance: sourceRecord?.provenance ?? null,
+              originalDownloadable: Boolean(sourceRecord?.originalPath),
+              originalStorage: originalStorageOf(sourceRecord?.originalPath),
+            };
           }
 
           const { verifications, evidence: subjectEvidence } = await repository.getSubjectDimension(
@@ -490,7 +418,6 @@ export function auditCasesRoutes({
               ]
             : snapshot.ruleAssessments;
 
-          const sourceRecord = await repository.getSourceRecord(auditCase.sourceRecordId);
           const history = await repository.getPartyHistory(params.id);
           const historyRule = allRules.find((rule) => rule.code === "PARTY_HISTORY_ASSOCIATION");
           const historyEnabled = historyRule ? historyRule.enabled !== false : true;
@@ -635,14 +562,9 @@ export function auditCasesRoutes({
             set.status = 404;
             return { error: "audit_snapshot_not_found" };
           }
-          const snapshot = createAuditSnapshot({
-            sourceRecordId: previous.sourceRecordId,
-            document: previous.contractDocument,
-            ...(await buildRuleInputs(rules)),
+          await repository.patchSourceRecordMetadata(previous.sourceRecordId, {
+            pendingReassess: true,
           });
-          await repository.appendSnapshot(params.id, snapshot);
-          // Requeue through the same transition a retry uses, so the case carries
-          // the newest snapshot into the next run.
           await repository.updateCaseStatus(params.id, "PENDING", "QUEUED");
           await dispatcher.enqueue(params.id);
           set.status = 202;

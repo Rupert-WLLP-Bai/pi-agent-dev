@@ -185,7 +185,7 @@ export class AuditReadModelRepository {
         ORDER BY s2.created_at DESC
         LIMIT 1
       ) s ON true
-      WHERE c.stage = 'AWAITING_REVIEW'
+      WHERE c.status = 'AWAITING_REVIEW' OR c.stage = 'AWAITING_REVIEW'
     `);
     const now = options.now ?? new Date();
     const items = rows.map((row): ReviewQueueItem => {
@@ -229,8 +229,8 @@ export class AuditReadModelRepository {
       reached_review: number;
     }>(sql`
       SELECT COUNT(*)::int AS total_cases,
-             COUNT(*) FILTER (WHERE c.stage = 'AWAITING_REVIEW')::int AS awaiting_review,
-             COUNT(*) FILTER (WHERE c.stage IN ('AWAITING_REVIEW', 'COMPLETED'))::int AS reached_review
+             COUNT(*) FILTER (WHERE c.status = 'AWAITING_REVIEW' OR c.stage = 'AWAITING_REVIEW')::int AS awaiting_review,
+             COUNT(*) FILTER (WHERE c.status = 'AWAITING_REVIEW' OR c.stage IN ('AWAITING_REVIEW', 'COMPLETED'))::int AS reached_review
       FROM audit_cases c
     `);
 
@@ -296,7 +296,7 @@ export class AuditReadModelRepository {
         ORDER BY s2.created_at DESC
         LIMIT 1
       ) s ON true
-      WHERE c.stage = 'AWAITING_REVIEW'
+      WHERE c.status = 'AWAITING_REVIEW' OR c.stage = 'AWAITING_REVIEW'
       ORDER BY c.updated_at DESC
       LIMIT 8
     `);

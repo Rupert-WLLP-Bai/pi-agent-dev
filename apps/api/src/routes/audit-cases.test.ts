@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { demoContracts } from "@contract-audit/audit/demo-contracts";
 import { type AuditApp, createApp } from "../app";
+import { ensureRunSnapshot } from "../audit/assemble-run-snapshot";
 import {
   FakeDispatcher,
   InMemoryAuditCaseRepository,
@@ -81,7 +82,12 @@ const advancePaymentRule = {
 const ADVANCE_CONTRACT = "第一条 甲方于合同签订后七日内支付合同总价70%的预付款。";
 
 /** Submits a paste and returns the rule codes the created snapshot assessed. */
-async function ruleCodesForNewCase(app: AuditApp, contractText: string): Promise<string[]> {
+async function ruleCodesForNewCase(
+  app: AuditApp,
+  repository: InMemoryAuditCaseRepository,
+  rules: InMemoryRuleRepository,
+  contractText: string,
+): Promise<string[]> {
   const created = await app.handle(
     new Request("http://localhost/api/audit-cases", {
       method: "POST",
@@ -91,6 +97,7 @@ async function ruleCodesForNewCase(app: AuditApp, contractText: string): Promise
   );
   expect(created.status).toBe(202);
   const { id } = (await created.json()) as { id: string };
+  await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
   const detail = await app.handle(new Request(`http://localhost/api/audit-cases/${id}`));
   const { ruleAssessments } = (await detail.json()) as {
     ruleAssessments: Array<{ ruleCode: string }>;
@@ -100,9 +107,10 @@ async function ruleCodesForNewCase(app: AuditApp, contractText: string): Promise
 
 test("omits a disabled rule's assessment from the created snapshot", async () => {
   const rules = new InMemoryRuleRepository();
+  const repository = new InMemoryAuditCaseRepository();
   const { rule } = await rules.createRule(advancePaymentRule);
   const app = createApp({
-    repository: new InMemoryAuditCaseRepository().asRepository(),
+    repository: repository.asRepository(),
     dispatcher: new FakeDispatcher().asDispatcher(),
     broker: new RecordingEventBroker().asBroker(),
     rules: rules.asRepository(),
@@ -110,11 +118,15 @@ test("omits a disabled rule's assessment from the created snapshot", async () =>
 
   // Control: while the rule is enabled its assessment is present, so the
   // absence below is the overlay taking effect rather than an empty snapshot.
-  expect(await ruleCodesForNewCase(app, ADVANCE_CONTRACT)).toContain("ADVANCE_PAYMENT_LIMIT");
+  expect(await ruleCodesForNewCase(app, repository, rules, ADVANCE_CONTRACT)).toContain(
+    "ADVANCE_PAYMENT_LIMIT",
+  );
 
   await rules.disableRule(rule.id, { reason: "演示关闭", actor: "规则管理员" });
 
-  expect(await ruleCodesForNewCase(app, ADVANCE_CONTRACT)).not.toContain("ADVANCE_PAYMENT_LIMIT");
+  expect(await ruleCodesForNewCase(app, repository, rules, ADVANCE_CONTRACT)).not.toContain(
+    "ADVANCE_PAYMENT_LIMIT",
+  );
 });
 
 /**
@@ -149,19 +161,21 @@ const reassess = (app: AuditApp, id: string): Promise<Response> =>
 
 const setup = () => {
   const repository = new InMemoryAuditCaseRepository();
+  const rules = new InMemoryRuleRepository();
   const dispatcher = new FakeDispatcher();
   const app = createApp({
     repository: repository.asRepository(),
     dispatcher: dispatcher.asDispatcher(),
     broker: new RecordingEventBroker().asBroker(),
-    rules: new InMemoryRuleRepository().asRepository(),
+    rules: rules.asRepository(),
   });
-  return { repository, dispatcher, app };
+  return { repository, rules, dispatcher, app };
 };
 
 test("reassessing a failed case appends a snapshot and requeues it", async () => {
-  const { repository, dispatcher, app } = setup();
+  const { repository, rules, dispatcher, app } = setup();
   const id = await createCase(app);
+  await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
   await repository.updateCaseStatus(id, "FAILED", "FAILED");
   const original = await repository.getSnapshotByCase(id);
   const enqueuedBefore = dispatcher.enqueued.length;
@@ -175,19 +189,20 @@ test("reassessing a failed case appends a snapshot and requeues it", async () =>
   expect(dispatcher.enqueued).toHaveLength(enqueuedBefore + 1);
   expect(dispatcher.enqueued.at(-1)).toBe(id);
 
-  // A new generation was appended rather than overwriting the original, and
-  // the read now resolves to that newest one.
+  await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
+
   const latest = await repository.getSnapshotByCase(id);
   expect(repository.cases.get(id)?.snapshots.length).toBe(2);
-  expect(latest).not.toBe(original);
+  expect(latest).not.toEqual(original);
   const stored = repository.cases.get(id)?.snapshots.at(-1) ?? null;
   expect(latest).toEqual(stored);
 });
 
 for (const status of ["COMPLETED", "RUNNING", "PENDING"] as const) {
   test(`reassessing a ${status} case is refused with 409`, async () => {
-    const { repository, dispatcher, app } = setup();
+    const { repository, rules, dispatcher, app } = setup();
     const id = await createCase(app);
+    await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
     await repository.updateCaseStatus(id, status, status);
     const enqueuedBefore = dispatcher.enqueued.length;
 

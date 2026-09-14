@@ -125,7 +125,7 @@ export function reviewsRoutes({ repository, broker, slaHours }: ReviewsRouteDeps
         }
         // Assignment is a review-queue action. A case that is not awaiting
         // review has no queue item to transfer, so the request is a conflict.
-        if (auditCase.stage !== "AWAITING_REVIEW") {
+        if (auditCase.status !== "AWAITING_REVIEW" && auditCase.stage !== "AWAITING_REVIEW") {
           set.status = 409;
           return { error: "Audit case is not awaiting review" };
         }

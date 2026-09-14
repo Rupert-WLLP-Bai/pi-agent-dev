@@ -32,6 +32,7 @@ import {
 const auditStatuses = [
   "PENDING",
   "RUNNING",
+  "AWAITING_REVIEW",
   "COMPLETED",
   "FAILED",
   "CANCELLED",

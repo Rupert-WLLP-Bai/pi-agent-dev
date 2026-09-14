@@ -46,6 +46,7 @@ const snapshot = (sourceRecordId: string) =>
   });
 
 const proposal: FindingProposal = {
+  assessmentId: "assessment-payment",
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
   severity: "HIGH",
   rationale: "超限",
@@ -76,7 +77,7 @@ async function exerciseOverviewAndRuns(repository: {
 }): Promise<{ totalCases: number; stepCount: number; acceptedFindings: number }> {
   const sourceId = crypto.randomUUID();
   const { caseId } = await repository.createPendingCase(sourceId, snapshot(sourceId));
-  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
   const findingId = await repository.appendFindingRevision(caseId, proposal, null);
   await repository.appendReviewRevision(findingId, review);
 
