@@ -33,7 +33,13 @@ export default function VerificationPage() {
     {
       title: "主体名",
       dataIndex: "subjectName",
-      render: (value: string) => <span className="table-title">{value}</span>,
+      render: (value: string) => (
+        <div className="table-primary">
+          <span className="table-title" title={value}>
+            {value}
+          </span>
+        </div>
+      ),
     },
     {
       title: "状态",
@@ -47,7 +53,7 @@ export default function VerificationPage() {
       title: "提供方",
       dataIndex: "provider",
       width: 160,
-      render: (value: string | null) => <span className="mono">{value ?? "—"}</span>,
+      render: (value: string | null) => <span className="mono">{value ?? "-"}</span>,
     },
     {
       title: "采集时间",
@@ -59,7 +65,7 @@ export default function VerificationPage() {
       title: "过期时间",
       dataIndex: "expiresAt",
       width: 180,
-      render: (value: string | null) => (value ? formatTime(value) : "—"),
+      render: (value: string | null) => (value ? formatTime(value) : "-"),
     },
     {
       title: "案件",

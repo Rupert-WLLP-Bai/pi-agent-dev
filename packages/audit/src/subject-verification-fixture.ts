@@ -90,6 +90,94 @@ const SUBJECTS: Record<string, { candidate: SubjectCandidate; counts: Counts }> 
     },
     counts: { 开庭公告: 2 },
   },
+  宁波安达物流有限公司: {
+    candidate: {
+      name: "宁波安达物流有限公司",
+      unifiedSocialCreditCode: "91330200MA2H8Q1R5T",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
+  苏州远航机械有限公司: {
+    candidate: {
+      name: "苏州远航机械有限公司",
+      unifiedSocialCreditCode: "91320500MA1N6C2D8F",
+      registrationStatus: "存续",
+    },
+    counts: { 裁判文书: 2 },
+  },
+  武汉光谷软件有限公司: {
+    candidate: {
+      name: "武汉光谷软件有限公司",
+      unifiedSocialCreditCode: "91420100MA4K8P3Q7R",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
+  青岛海川贸易有限公司: {
+    candidate: {
+      name: "青岛海川贸易有限公司",
+      unifiedSocialCreditCode: "91370200MA3D5T9W2X",
+      registrationStatus: "存续",
+    },
+    counts: { 开庭公告: 1 },
+  },
+  西安西部材料有限公司: {
+    candidate: {
+      name: "西安西部材料有限公司",
+      unifiedSocialCreditCode: "91610100MA7B4L6N1P",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
+  长沙湘能电力有限公司: {
+    candidate: {
+      name: "长沙湘能电力有限公司",
+      unifiedSocialCreditCode: "91430100MA8C2V5Y9Z",
+      registrationStatus: "存续",
+    },
+    counts: { 股权出质: 1 },
+  },
+  合肥智造装备有限公司: {
+    candidate: {
+      name: "合肥智造装备有限公司",
+      unifiedSocialCreditCode: "91340100MA2E7G4H8J",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
+  南京云启信息有限公司: {
+    candidate: {
+      name: "南京云启信息有限公司",
+      unifiedSocialCreditCode: "91320100MA5F9K1M3N",
+      registrationStatus: "存续",
+    },
+    counts: { 裁判文书: 4 },
+  },
+  天津滨海物流有限公司: {
+    candidate: {
+      name: "天津滨海物流有限公司",
+      unifiedSocialCreditCode: "91120100MA6H3P8Q2R",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
+  福州海峡建设有限公司: {
+    candidate: {
+      name: "福州海峡建设有限公司",
+      unifiedSocialCreditCode: "91350100MA9J5S7T4U",
+      registrationStatus: "存续",
+    },
+    counts: { 开庭公告: 3 },
+  },
+  郑州中原机电有限公司: {
+    candidate: {
+      name: "郑州中原机电有限公司",
+      unifiedSocialCreditCode: "91410100MA1K8W2X6Y",
+      registrationStatus: "存续",
+    },
+    counts: {},
+  },
 };
 
 function buildDimensions(counts: Counts) {

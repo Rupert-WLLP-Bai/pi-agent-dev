@@ -14,6 +14,7 @@ import {
   Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { useEffect, useRef, useState } from "react";
 import {
   ALL_RULE_STATUSES,
   contractTypeOptions,
@@ -67,6 +68,19 @@ export function RuleTable({
 }: RuleTableProps) {
   const { modal, message } = AntApp.useApp();
   const filtered = filterRules(rules, filters);
+  const tableHostRef = useRef<HTMLDivElement>(null);
+  const [tableScrollY, setTableScrollY] = useState(480);
+
+  useEffect(() => {
+    if (error) return;
+    const host = tableHostRef.current;
+    if (!host) return;
+    const update = () => setTableScrollY(Math.max(host.clientHeight - 55, 160));
+    const observer = new ResizeObserver(update);
+    observer.observe(host);
+    update();
+    return () => observer.disconnect();
+  }, [error]);
 
   /**
    * Stopping a rule is destructive to the next audit's coverage, so the reason
@@ -111,12 +125,19 @@ export function RuleTable({
     {
       title: "规则名",
       key: "name",
-      render: (_value, record) => (
-        <div className="table-primary">
-          <span className="table-title">{record.name}</span>
-          <span className="table-sub">{record.description || "—"}</span>
-        </div>
-      ),
+      render: (_value, record) => {
+        const description = record.description || "-";
+        return (
+          <div className="table-primary">
+            <span className="table-title" title={record.name}>
+              {record.name}
+            </span>
+            <span className="table-sub" title={description}>
+              {description}
+            </span>
+          </div>
+        );
+      },
     },
     {
       title: "规则代码",
@@ -135,7 +156,7 @@ export function RuleTable({
       width: 100,
       render: (_value, record) =>
         record.currentVersion === null ? (
-          "—"
+          "-"
         ) : (
           <span className="mono">v{record.currentVersion}</span>
         ),
@@ -146,7 +167,7 @@ export function RuleTable({
       width: 100,
       render: (_value, record) =>
         record.status === null ? (
-          "—"
+          "-"
         ) : (
           <Tag color={ruleVersionStatusTagColors[record.status]}>
             {ruleVersionStatusLabels[record.status]}
@@ -190,7 +211,7 @@ export function RuleTable({
       title: "发布人",
       key: "publishedBy",
       width: 120,
-      render: (_value, record) => record.publishedBy ?? "—",
+      render: (_value, record) => record.publishedBy ?? "-",
     },
     {
       title: "操作",
@@ -205,7 +226,7 @@ export function RuleTable({
   ];
 
   return (
-    <div className="page">
+    <div className="page page--fill">
       <div className="page-head">
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
@@ -271,19 +292,21 @@ export function RuleTable({
           action={<Button onClick={onRefresh}>重试</Button>}
         />
       ) : (
-        <Table<RuleListItem>
-          rowKey="id"
-          columns={columns}
-          dataSource={filtered}
-          loading={loading}
-          scroll={{ x: "max-content" }}
-          pagination={false}
-          onRow={(record) => ({
-            onClick: () => onOpen(record.id),
-            style: { cursor: "pointer" },
-          })}
-          locale={{ emptyText: <Empty description="暂无规则" /> }}
-        />
+        <div className="page-table-fill" ref={tableHostRef}>
+          <Table<RuleListItem>
+            rowKey="id"
+            columns={columns}
+            dataSource={filtered}
+            loading={loading}
+            scroll={{ x: "max-content", y: tableScrollY }}
+            pagination={false}
+            onRow={(record) => ({
+              onClick: () => onOpen(record.id),
+              style: { cursor: "pointer" },
+            })}
+            locale={{ emptyText: <Empty description="暂无规则" /> }}
+          />
+        </div>
       )}
     </div>
   );

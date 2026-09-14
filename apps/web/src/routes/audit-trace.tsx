@@ -263,7 +263,7 @@ function RunTraceSection({
       }
       extra={
         <span className="trace-card__meta">
-          {steps.length} 步 · {duration ?? "—"}
+          {steps.length} 步 · {duration ?? "-"}
           {run.usage === null ? null : (
             <>
               {" · "}

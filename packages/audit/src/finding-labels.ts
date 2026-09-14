@@ -28,6 +28,7 @@ export const findingTypeLabels: Record<FindingType, string> = {
   CONFIDENTIALITY_PERIOD_MISSING: "缺少保密期限约定",
   FORCE_MAJEURE_OVERBROAD: "不可抗力范围过宽",
   LIABILITY_CAP_MISSING: "赔偿责任上限缺失或不对等",
+  PARTY_HISTORY_ASSOCIATION: "相对方历史风险关联",
   NEEDS_HUMAN_REVIEW: "需要人工复核",
 };
 

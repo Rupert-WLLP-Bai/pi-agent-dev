@@ -1,5 +1,10 @@
 import { createAgentTraceCollector } from "@contract-audit/audit/agent-trace";
 import type { AuditSnapshot } from "@contract-audit/audit/model";
+import {
+  counterpartyCreditCodes,
+  counterpartyNames,
+  evaluatePartyHistoryRule,
+} from "@contract-audit/audit/party-history-rule";
 import type {
   AgentRunResult,
   AgentTraceSink,
@@ -130,6 +135,29 @@ export class AuditDispatcher {
           ...snapshot,
           evidence: [...snapshot.evidence, ...verification.evidence],
           ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
+        };
+      }
+
+      const historyEnabled = enabledCodes === null || enabledCodes.has("PARTY_HISTORY_ASSOCIATION");
+      if (historyEnabled) {
+        const auditCase = await this.repository.getCase(auditCaseId);
+        const { verifications } = await this.repository.getSubjectDimension(auditCaseId);
+        const creditCodes = counterpartyCreditCodes(context.parties, verifications);
+        const prior = await this.repository.findPriorPartyCases({
+          excludeCaseId: auditCaseId,
+          createdBefore: new Date(auditCase?.createdAt ?? Date.now()),
+          partyNames: counterpartyNames(context.parties),
+          creditCodes,
+        });
+        const history = evaluatePartyHistoryRule({
+          parties: context.parties,
+          priorFindings: prior,
+        });
+        await this.repository.savePartyHistory(auditCaseId, history);
+        context = {
+          ...context,
+          evidence: [...context.evidence, ...history.evidence],
+          ruleAssessments: [...context.ruleAssessments, history.assessment],
         };
       }
 

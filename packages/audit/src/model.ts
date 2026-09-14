@@ -19,7 +19,8 @@ export type RuleCode =
   | "GUARANTEE_MODE_AMBIGUOUS"
   | "CONFIDENTIALITY_PERIOD_MISSING"
   | "FORCE_MAJEURE_OVERBROAD"
-  | "LIABILITY_CAP_MISSING";
+  | "LIABILITY_CAP_MISSING"
+  | "PARTY_HISTORY_ASSOCIATION";
 
 /**
  * A Rule Version's parameter set, opaque to the engine until a rule reads it.
@@ -132,11 +133,28 @@ export interface ExternalRecordLocator {
   expiresAt: string | null;
 }
 
+/**
+ * A reviewed finding on an earlier Audit Case for the same counterparty.
+ * Captured at audit time so later cases do not rewrite what this Bounded
+ * Audit Context actually saw.
+ */
+export interface PriorCaseRecordLocator {
+  kind: "PRIOR_CASE_RECORD";
+  priorCaseId: string;
+  findingRevisionId: string;
+  partyName: string;
+  findingType: FindingType;
+  decision: ReviewDecision;
+  reviewerId: string;
+  reviewedAt: string;
+  title: string;
+}
+
 export interface EvidenceLocator {
   /** Stable ID citable by rule assessments and finding proposals. */
   id: string;
   sourceRecordId: string;
-  location: DocumentSpanLocator | ExternalRecordLocator;
+  location: DocumentSpanLocator | ExternalRecordLocator | PriorCaseRecordLocator;
 }
 
 // ── Contract Document ────────────────────────────────────────────
@@ -211,6 +229,7 @@ export type FindingType =
   | "CONFIDENTIALITY_PERIOD_MISSING"
   | "FORCE_MAJEURE_OVERBROAD"
   | "LIABILITY_CAP_MISSING"
+  | "PARTY_HISTORY_ASSOCIATION"
   | "NEEDS_HUMAN_REVIEW";
 export type Severity = "LOW" | "MEDIUM" | "HIGH";
 

@@ -140,7 +140,7 @@ export function describeLastValidation(item: RuleListItem): {
   tone: "success" | "error" | "none";
 } {
   const validation = item.lastValidation;
-  if (!validation) return { text: "—", tone: "none" };
+  if (!validation) return { text: "-", tone: "none" };
   const time = formatRuleTime(validation.finishedAt);
   const outcome = validation.status === "passed" ? "通过" : "有回归";
   return {

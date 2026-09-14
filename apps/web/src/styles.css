@@ -92,11 +92,17 @@ body {
 .table-title {
   font-weight: 600;
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .table-sub {
   color: var(--color-text-secondary);
   font-size: 11px;
   line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Token usage readout */
@@ -444,6 +450,9 @@ body {
   padding: 1px 8px;
   border: 1px solid;
   font-size: 11.5px;
+  /* A pill carries its own typography: it is rendered as the first line of a
+     two-line cell, where inheriting the bold title weight would thicken it. */
+  font-weight: 400;
   white-space: nowrap;
 }
 .audit-state-badge__dot {
@@ -493,6 +502,27 @@ body {
   min-width: 0;
   margin-inline: auto;
   padding: var(--page-block) var(--page-gutter);
+}
+
+.page--fill {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  max-width: var(--page-max);
+  margin-inline: auto;
+}
+
+.page-table-fill {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.page-table-fill .ant-table-wrapper,
+.page-table-fill .ant-spin-nested-loading,
+.page-table-fill .ant-spin-container {
+  height: 100%;
 }
 
 /* A band that touches the content edges while its own text keeps the gutter,
@@ -557,7 +587,10 @@ body {
   flex-shrink: 0;
 }
 /* Both columns of a dashboard row share one height, so the chart column spends
-   the leftover space on the plot instead of leaving a blank gap beneath it. */
+   the leftover space on the plot instead of leaving a blank gap beneath it.
+   What that height IS comes from the paged list beside it, never from the data:
+   `.dash-list-body` below holds a fixed body height, so twenty finding types
+   stretch the chart no further than eight do. */
 .dash-row > .ant-col > .dash-fill-card {
   height: 100%;
 }
@@ -570,6 +603,20 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+/* The list keeps the card's height fixed whatever the last page holds, and the
+   pager sits against the bottom edge rather than floating up under a short
+   final page. */
+.dash-list-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 236px;
+}
+.dash-pager {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
 }
 .trend-chart {
   position: relative;
@@ -663,13 +710,19 @@ body {
 }
 .hbar-row {
   display: grid;
-  grid-template-columns: 80px 1fr 28px;
+  /* A finding-type label is a Chinese phrase up to a dozen characters; at 80px
+     it wrapped to two lines and every row grew, which is what made the chart
+     beside it long. The tooltip already carries the full label. */
+  grid-template-columns: 132px 1fr 28px;
   gap: 8px;
   align-items: center;
   font-size: 11.5px;
 }
 .hbar-label {
   color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hbar-track {
   height: 10px;
@@ -684,6 +737,13 @@ body {
 .hbar-value {
   font-weight: 600;
   text-align: center;
+}
+/* A dashboard row takes its height from the paged list beside it, which leaves
+   the short quality tiles floating at the top of a tall card; centring them
+   reads as deliberate instead of under-filled. The trend card has no direct
+   Row child, so this only reaches the metric tiles. */
+.dash-fill-card > .ant-card-body > .ant-row {
+  margin-block: auto;
 }
 .quality-item {
   padding: 10px;
@@ -810,15 +870,6 @@ a.todo-item:focus-visible {
   width: 330px;
 }
 
-.queue-table .contract-title {
-  font-weight: 600;
-  font-size: 13px;
-}
-.queue-table .contract-sub {
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  margin-top: 2px;
-}
 .queue-table .id-line {
   display: flex;
   align-items: center;

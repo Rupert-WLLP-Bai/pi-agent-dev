@@ -190,7 +190,7 @@ function TimingOverview({ entries }: { entries: TraceEntry[] }) {
       leftPct,
       widthPct: widthPct > 0 ? widthPct : 0.5,
       color,
-      title: `${step.label} · ${formatDuration(dur) ?? "—"} · +${((start - firstAt) / 1000).toFixed(2)}s`,
+      title: `${step.label} · ${formatDuration(dur) ?? "-"} · +${((start - firstAt) / 1000).toFixed(2)}s`,
     });
 
     prevEnd = Math.max(prevEnd, end);

@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
+import { errorSchema, notFoundSchema, openapiTags } from "../openapi";
 import { operatorFrom } from "../operator-header";
 import type { AuditEventBroker } from "../sse";
 
@@ -9,8 +10,10 @@ interface FindingsRouteDeps {
 }
 
 const reviewBody = t.Object({
-  decision: t.Union([t.Literal("ACCEPTED"), t.Literal("REJECTED")]),
-  reason: t.Optional(t.String()),
+  decision: t.Union([t.Literal("ACCEPTED"), t.Literal("REJECTED")], {
+    description: "ACCEPTED 会打开一条整改项；REJECTED 只落定复核",
+  }),
+  reason: t.Optional(t.String({ description: "复核理由，记入该修订的人工复核" })),
 });
 
 export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
@@ -58,6 +61,33 @@ export function findingsRoutes({ repository, broker }: FindingsRouteDeps) {
       }
       return { id: params.id, reviewed: true as const };
     },
-    { body: reviewBody },
+    {
+      params: t.Object({ id: t.String({ description: "发现（Finding Revision）id" }) }),
+      body: reviewBody,
+      detail: {
+        summary: "人工复核一条发现",
+        description:
+          "对一条链头发现记录人工复核决策。复核是**只追加**的：每次决策生成一个新的 Finding Revision，旧版本不被改写，历史始终可读。\n\n" +
+          "- 前置条件：该发现必须尚未复核，否则返回 `409`（一条发现只复核一次）。\n" +
+          "- ACCEPTED 会打开一条整改项并推送 `remediation.created`；REJECTED 只落定复核。\n" +
+          "- 案件只有在**全部**链头发现都完成复核后才闭合（AWAITING_REVIEW → COMPLETED）；" +
+          "执行这一转换的那次复核会额外推送 `audit.completed`。\n" +
+          "- 操作人取自 `X-Operator` 请求头（百分号编码），缺省记为 `anonymous`。\n\n" +
+          "状态码：`200` 已记录（`{ id, reviewed: true }`）；`404` 发现不存在；`409` 该发现已复核；`422` 请求体或路径参数不合法。",
+        tags: [openapiTags.reviews],
+      },
+      response: {
+        200: t.Object(
+          {
+            id: t.String(),
+            reviewed: t.Boolean({ description: "恒为 true" }),
+          },
+          { additionalProperties: true },
+        ),
+        404: notFoundSchema,
+        409: errorSchema,
+        422: errorSchema,
+      },
+    },
   );
 }

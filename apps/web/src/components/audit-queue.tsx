@@ -44,6 +44,8 @@ export interface AuditQueueCase extends AuditCase {
   subjectRedLineCount?: number;
   /** Null when the API never recorded where the contract came from. */
   sourceProvenance?: SourceProvenance | null;
+  /** Where an uploaded original lives; null when there is no file. */
+  originalStorage?: "s3" | "local" | null;
 }
 
 export interface AuditQueueProps {
@@ -282,7 +284,11 @@ export function AuditQueue({
                   title: "合同",
                   key: "contract",
                   render: (_, record) => (
-                    <div className="contract-title">{record.contractTitle ?? "未命名合同"}</div>
+                    <div className="table-primary">
+                      <span className="table-title" title={record.contractTitle ?? "未命名合同"}>
+                        {record.contractTitle ?? "未命名合同"}
+                      </span>
+                    </div>
                   ),
                 },
                 {
@@ -290,12 +296,19 @@ export function AuditQueue({
                   key: "source",
                   width: 180,
                   render: (_, record) => {
-                    const source = describeSourceProvenance(record.sourceProvenance ?? null);
+                    const source = describeSourceProvenance(
+                      record.sourceProvenance ?? null,
+                      record.originalStorage ?? null,
+                    );
                     return (
-                      <div>
-                        <div>{source.primary}</div>
+                      <div className="table-primary">
+                        <span className="table-title" title={source.primary}>
+                          {source.primary}
+                        </span>
                         {source.secondary !== null && (
-                          <div className="contract-sub">{source.secondary}</div>
+                          <span className="table-sub" title={source.secondary}>
+                            {source.secondary}
+                          </span>
                         )}
                       </div>
                     );
@@ -341,7 +354,7 @@ export function AuditQueue({
                             {count}
                           </span>
                         ) : (
-                          <span style={{ color: "#98A2B3" }}>—</span>
+                          <span style={{ color: "#98A2B3" }}>-</span>
                         )}
                         {subjectCount > 0 && (
                           <span className="risk-cell risk-subject">
@@ -358,9 +371,13 @@ export function AuditQueue({
                   key: "state",
                   width: 140,
                   render: (_, record) => (
-                    <div>
-                      <AuditStateBadge auditCase={record} />
-                      <div className="contract-sub">{getAuditStageLabel(record.stage)}</div>
+                    <div className="table-primary">
+                      <span className="table-title">
+                        <AuditStateBadge auditCase={record} />
+                      </span>
+                      <span className="table-sub" title={getAuditStageLabel(record.stage)}>
+                        {getAuditStageLabel(record.stage)}
+                      </span>
                     </div>
                   ),
                 },
@@ -368,12 +385,20 @@ export function AuditQueue({
                   title: "更新时间",
                   key: "updated",
                   width: 140,
-                  render: (_, record) => (
-                    <div>
-                      <div>{relativeTime(record.updatedAt)}</div>
-                      <div className="contract-sub">{formatTimestamp(record.updatedAt)}</div>
-                    </div>
-                  ),
+                  render: (_, record) => {
+                    const relative = relativeTime(record.updatedAt);
+                    const absolute = formatTimestamp(record.updatedAt);
+                    return (
+                      <div className="table-primary">
+                        <span className="table-title" title={relative}>
+                          {relative}
+                        </span>
+                        <span className="table-sub" title={absolute}>
+                          {absolute}
+                        </span>
+                      </div>
+                    );
+                  },
                 },
                 {
                   title: "操作",

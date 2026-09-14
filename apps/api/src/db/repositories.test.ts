@@ -2,6 +2,8 @@ import { beforeAll, expect, test } from "bun:test";
 import type { FindingProposal, HumanReview } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
+import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -539,4 +541,150 @@ dbTest("a pasted source record carries no original", async (repository) => {
 
   const record = await repository.getSourceRecord(id);
   expect(record?.originalPath).toBeNull();
+});
+
+dbTest("finds reviewed findings on an earlier case for the same 乙方", async (repository) => {
+  const olderId = uniqueSourceRecordId();
+  const newerId = uniqueSourceRecordId();
+  const { caseId: priorId } = await repository.createPendingCase(
+    olderId,
+    seedPartySnapshot(olderId),
+    null,
+    { createdAt: new Date("2026-06-01T00:00:00.000Z") },
+  );
+  const proposalId = await repository.appendFindingRevision(priorId, seedProposal, null);
+  await repository.appendReviewRevision(proposalId, {
+    ...seedReview,
+    reviewerId: "张三",
+    reviewedAt: "2026-06-14T08:00:00.000Z",
+  });
+
+  const { caseId: currentId } = await repository.createPendingCase(
+    newerId,
+    seedPartySnapshot(newerId),
+    null,
+    { createdAt: new Date("2026-09-14T00:00:00.000Z") },
+  );
+  const current = await repository.getCase(currentId);
+  const prior = await repository.findPriorPartyCases({
+    excludeCaseId: currentId,
+    createdBefore: new Date(current?.createdAt ?? Date.now()),
+    partyNames: ["成都建工集团有限公司"],
+    creditCodes: [],
+  });
+
+  expect(prior).toHaveLength(1);
+  expect(prior[0]?.partyName).toBe("成都建工集团有限公司");
+  expect(prior[0]?.decision).toBe("ACCEPTED");
+  expect(prior[0]?.reviewerId).toBe("张三");
+  expect(prior[0]?.priorCaseId).toBe(priorId);
+});
+
+dbTest("does not join a later case or the current case itself", async (repository) => {
+  const olderId = uniqueSourceRecordId();
+  const currentIdSource = uniqueSourceRecordId();
+  const laterId = uniqueSourceRecordId();
+  const { caseId: priorId } = await repository.createPendingCase(
+    olderId,
+    seedPartySnapshot(olderId),
+    null,
+    { createdAt: new Date("2026-06-01T00:00:00.000Z") },
+  );
+  const priorFinding = await repository.appendFindingRevision(priorId, seedProposal, null);
+  await repository.appendReviewRevision(priorFinding, {
+    ...seedReview,
+    reviewerId: "张三",
+    reviewedAt: "2026-06-14T08:00:00.000Z",
+  });
+
+  const { caseId: currentId } = await repository.createPendingCase(
+    currentIdSource,
+    seedPartySnapshot(currentIdSource),
+    null,
+    { createdAt: new Date("2026-09-14T00:00:00.000Z") },
+  );
+  const currentFinding = await repository.appendFindingRevision(currentId, seedProposal, null);
+  await repository.appendReviewRevision(currentFinding, {
+    ...seedReview,
+    reviewerId: "李四",
+    reviewedAt: "2026-09-14T08:00:00.000Z",
+  });
+
+  const { caseId: laterCaseId } = await repository.createPendingCase(
+    laterId,
+    seedPartySnapshot(laterId),
+    null,
+    { createdAt: new Date("2026-10-01T00:00:00.000Z") },
+  );
+  const laterFinding = await repository.appendFindingRevision(laterCaseId, seedProposal, null);
+  await repository.appendReviewRevision(laterFinding, {
+    ...seedReview,
+    reviewerId: "王芳",
+    reviewedAt: "2026-10-02T08:00:00.000Z",
+  });
+
+  const prior = await repository.findPriorPartyCases({
+    excludeCaseId: currentId,
+    createdBefore: new Date("2026-09-14T00:00:00.000Z"),
+    partyNames: ["成都建工集团有限公司"],
+    creditCodes: [],
+  });
+  expect(prior.map((item) => item.priorCaseId)).toEqual([priorId]);
+});
+
+dbTest(
+  "matches an earlier case by unified social credit code when names differ",
+  async (repository) => {
+    const olderId = uniqueSourceRecordId();
+    const newerId = uniqueSourceRecordId();
+    const { caseId: priorId } = await repository.createPendingCase(
+      olderId,
+      seedPartySnapshot(olderId),
+      null,
+      { createdAt: new Date("2026-06-01T00:00:00.000Z") },
+    );
+    const priorFinding = await repository.appendFindingRevision(priorId, seedProposal, null);
+    await repository.appendReviewRevision(priorFinding, {
+      ...seedReview,
+      reviewerId: "张三",
+      reviewedAt: "2026-06-14T08:00:00.000Z",
+    });
+    const priorSnapshot = seedPartySnapshot(olderId);
+    const verification = await runSubjectVerification({
+      parties: priorSnapshot.parties,
+      port: createFixtureSubjectVerificationPort(),
+    });
+    await repository.saveSubjectVerifications(priorId, verification);
+
+    const { caseId: currentId } = await repository.createPendingCase(
+      newerId,
+      seedPartySnapshot(newerId),
+      null,
+      { createdAt: new Date("2026-09-14T00:00:00.000Z") },
+    );
+    const prior = await repository.findPriorPartyCases({
+      excludeCaseId: currentId,
+      createdBefore: new Date("2026-09-14T00:00:00.000Z"),
+      partyNames: ["名称已变更的相对方"],
+      creditCodes: ["91510100MA6C2W9H4K"],
+    });
+    expect(prior).toHaveLength(1);
+    expect(prior[0]?.priorCaseId).toBe(priorId);
+  },
+);
+
+dbTest("deleteDemoSeededCases removes only rows tagged demoSeed", async (repository) => {
+  const demoId = uniqueSourceRecordId();
+  const keepId = uniqueSourceRecordId();
+  await repository.createPendingCase(demoId, seedSnapshot(demoId), null, {
+    metadata: { demoSeed: true, scenarioId: "x", caseKey: "k" },
+  });
+  const { caseId: keepCaseId } = await repository.createPendingCase(keepId, seedSnapshot(keepId), {
+    type: "TEXT_PASTE",
+    displayName: null,
+  });
+
+  expect(await repository.deleteDemoSeededCases()).toBe(1);
+  expect(await repository.listDemoSeededCases()).toEqual([]);
+  expect(await repository.getCase(keepCaseId)).not.toBeNull();
 });

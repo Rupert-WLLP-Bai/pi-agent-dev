@@ -1,4 +1,4 @@
-# MVP Local Verification Runbook
+# Local Verification Runbook
 
 ## Prerequisites
 
@@ -11,13 +11,17 @@
 1. Copy environment template:
    ```bash
    cp .env.example .env
-   # Edit .env to add XYG_ENDPOINT, XYG_API_KEY, XYG_MODEL
+   # Fill in LLM config (XYG_ENDPOINT, XYG_API_KEY, XYG_MODEL) here, or leave it
+   # empty and configure a provider on the 模型服务 page (/settings/providers).
    ```
 
-2. Start PostgreSQL:
+2. Start local infrastructure:
    ```bash
-   docker compose up -d postgres
+   docker compose up -d postgres minio redis
    ```
+   MinIO and Redis are optional: with `S3_ENDPOINT` / `REDIS_URL` left empty,
+   contract originals go to the local `UPLOAD_DIR` directory and subject
+   verification is uncached. That is the normal local state, not an error.
 
 3. Install dependencies:
    ```bash
@@ -59,6 +63,37 @@
     docker build -f apps/api/Dockerfile -t contract-audit-api .
     ```
 
+## Run the Stack
+
+**development** — infrastructure in containers, application host-native (hot reload):
+
+```bash
+docker compose up -d postgres minio redis
+bun --filter @contract-audit/api dev    # host-native API, :3000
+bun --filter @contract-audit/web dev    # Vite :5173, proxies /api to :3000
+```
+
+**demo** — the whole stack built into containers:
+
+```bash
+docker compose up --build
+# open http://localhost:8080
+docker compose exec api bun run seed:demo   # demo seed is not run automatically
+```
+
+The API container applies migrations on boot, and `AUDIT_AGENT_MODE` defaults to
+`fake` in the container, so the demo needs no LLM credentials.
+
+Service ports:
+
+| Service | Port |
+| --- | --- |
+| postgres | 5432 |
+| minio | 9000 (S3 API) / 9001 (console) |
+| redis | 6379 |
+| api | 3000 |
+| web | 8080 |
+
 ## Manual Verification
 
 Start the API and web dev servers in separate terminals:
@@ -84,6 +119,22 @@ PostgreSQL is not reachable on `127.0.0.1:5432`.
 
 Open http://localhost:5173/audit-cases to use the workbench.
 
+## Pages
+
+Entry points in the workbench:
+
+- `/dashboard` — audit cockpit (the `/` route redirects here)
+- `/audit-cases`, `/audit-cases/:id` — audit queue and decision-first workbench
+- `/reviews` — review center, `/remediations` — remediation board
+- `/rules`, `/cases` — rule governance and case validation
+- `/verification`, `/integrations` — external verification and integration health
+- `/settings/providers` — 模型服务 (sidebar group 系统管理): manage OpenAI-compatible LLM providers
+- `/api/openapi` — the API reference (Elysia OpenAPI/Scalar). It sits under the
+  `/api` prefix so the same URL works directly on :3000, through the Vite proxy
+  on :5173 and through the nginx proxy on :8080; `/api/openapi/json` is the raw
+  specification. The Scalar renderer itself is loaded from a CDN, so the page
+  needs network access — the JSON endpoint does not.
+
 ## Acceptance Tests
 
 `bun run acceptance` runs the Playwright suite. It starts the API in
@@ -103,5 +154,10 @@ to end (prints telemetry only — never the API key):
 bun --filter @contract-audit/pi-agent run smoke
 ```
 
-The API key is held in process memory only; it is never written to disk,
-logged, or returned by the API.
+The `XYG_*` environment path holds its API key in process memory only; it is
+never written to disk, logged, or returned by the API. A provider added through
+the 模型服务 page (`/settings/providers`) does persist its key in the PostgreSQL
+`llm_providers` table — that is the cost of adding and editing providers at
+runtime. For both paths the key is never returned by any API response (the API
+reports presence plus a masked hint only), never logged, and never reaches the
+browser.

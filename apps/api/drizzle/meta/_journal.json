@@ -85,6 +85,20 @@
       "when": 1789400000000,
       "tag": "0011_audit_log_timestamptz",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789410000000,
+      "tag": "0012_party_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789420000000,
+      "tag": "0013_nebulous_sandman",
+      "breakpoints": true
     }
   ]
 }

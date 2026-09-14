@@ -20,11 +20,13 @@
     "./golden-set": "./src/golden-set.ts",
     "./orchestrator": "./src/orchestrator.ts",
     "./party-extractor": "./src/party-extractor.ts",
+    "./party-history-rule": "./src/party-history-rule.ts",
     "./subject-rule": "./src/subject-rule.ts",
     "./subject-verification": "./src/subject-verification.ts",
     "./subject-verification-fixture": "./src/subject-verification-fixture.ts",
     "./ports": "./src/ports.ts",
     "./demo-contracts": "./src/demo-contracts.ts",
+    "./demo-scenarios": "./src/demo-scenarios.ts",
     "./workspace": "./src/workspace.ts",
     "./finding-labels": "./src/finding-labels.ts",
     "./remediation": "./src/remediation.ts"

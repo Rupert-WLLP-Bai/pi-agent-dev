@@ -130,7 +130,7 @@ export default function RuleDetail({ id }: { id: string }) {
             {detail.activeDraft ? (
               <Tag color="warning">草稿 v{detail.activeDraft.version}</Tag>
             ) : (
-              <Tag color="success">已发布 v{detail.versions[0]?.version ?? "—"}</Tag>
+              <Tag color="success">已发布 v{detail.versions[0]?.version ?? "-"}</Tag>
             )}
           </Space>
           <Typography.Text type="secondary">

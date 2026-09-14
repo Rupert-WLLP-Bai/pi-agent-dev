@@ -2,7 +2,9 @@ import { expect, test } from "bun:test";
 import { ENGINE_RULE_CODES } from "@contract-audit/audit";
 import type { AuditCase, RuleAssessment } from "@contract-audit/audit/model";
 import {
+  canDownloadOriginal,
   deriveQueueStats,
+  describeSourceProvenance,
   factCellsForFinding,
   filterAndSortCases,
   getAuditDisplayState,
@@ -115,4 +117,42 @@ test("coverage groups assessments and reports unassessed engine rules", () => {
   ]);
   expect(groups.notApplicable).toHaveLength(ENGINE_RULE_CODES.length - 3);
   expect(groups.notApplicable).not.toContain("ADVANCE_PAYMENT_LIMIT");
+});
+
+test("only a file upload with stored bytes can be downloaded", () => {
+  expect(
+    canDownloadOriginal({
+      sourceProvenance: { type: "FILE_UPLOAD", displayName: "合同.docx" },
+      originalDownloadable: true,
+    }),
+  ).toBe(true);
+  expect(
+    canDownloadOriginal({
+      sourceProvenance: { type: "TEXT_PASTE", displayName: null },
+      originalDownloadable: false,
+    }),
+  ).toBe(false);
+  expect(
+    canDownloadOriginal({
+      sourceProvenance: { type: "FILE_UPLOAD", displayName: "合同.docx" },
+      originalDownloadable: false,
+    }),
+  ).toBe(false);
+});
+
+test("file-upload provenance names object storage vs local disk", () => {
+  expect(
+    describeSourceProvenance({ type: "FILE_UPLOAD", displayName: "设备采购合同.docx" }, "s3"),
+  ).toEqual({
+    primary: "设备采购合同.docx",
+    secondary: "对象存储",
+  });
+  expect(describeSourceProvenance({ type: "FILE_UPLOAD", displayName: null }, "local")).toEqual({
+    primary: "本地文件",
+    secondary: null,
+  });
+  expect(describeSourceProvenance({ type: "TEXT_PASTE", displayName: null }, null)).toEqual({
+    primary: "文本粘贴",
+    secondary: null,
+  });
 });

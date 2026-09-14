@@ -64,7 +64,7 @@ const resultColumns = (
       );
     },
   },
-  { title: "差异说明", dataIndex: "note", render: (value: string) => value || "—" },
+  { title: "差异说明", dataIndex: "note", render: (value: string) => value || "-" },
 ];
 
 /**
@@ -186,7 +186,7 @@ export function ValidationCenter({
                 dataIndex: "previous",
                 width: 100,
                 render: (value: ValidationRunView["diff"][number]["previous"]) =>
-                  value === null ? "—" : validationOutcomeLabels[value],
+                  value === null ? "-" : validationOutcomeLabels[value],
               },
               {
                 title: "本次",
@@ -205,7 +205,7 @@ export function ValidationCenter({
                   </Tag>
                 ),
               },
-              { title: "说明", dataIndex: "note", render: (value: string) => value || "—" },
+              { title: "说明", dataIndex: "note", render: (value: string) => value || "-" },
             ]}
             dataSource={movements}
             pagination={false}

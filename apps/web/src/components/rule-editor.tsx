@@ -165,13 +165,13 @@ export function RuleEditor({
       title: "发布人",
       key: "publishedBy",
       width: 140,
-      render: (_value, record) => record.publishedBy ?? "—",
+      render: (_value, record) => record.publishedBy ?? "-",
     },
     {
       title: "发布时间",
       key: "publishedAt",
       width: 190,
-      render: (_value, record) => formatRuleTime(record.publishedAt) ?? "—",
+      render: (_value, record) => formatRuleTime(record.publishedAt) ?? "-",
     },
     {
       title: "最近验证",
@@ -183,7 +183,7 @@ export function RuleEditor({
             {validationRunStatusLabels[latestRun.status]}
           </Tag>
         ) : (
-          "—"
+          "-"
         ),
     },
   ];
@@ -195,7 +195,7 @@ export function RuleEditor({
       title: "时间",
       dataIndex: "createdAt",
       width: 190,
-      render: (value: string) => formatRuleTime(value) ?? "—",
+      render: (value: string) => formatRuleTime(value) ?? "-",
     },
     {
       title: "操作",
@@ -207,7 +207,7 @@ export function RuleEditor({
     {
       title: "原因",
       dataIndex: "reason",
-      render: (value: string | null) => value ?? "—",
+      render: (value: string | null) => value ?? "-",
     },
   ];
 
@@ -326,7 +326,7 @@ export function RuleEditor({
         </Button>
         {latestRun && (
           <Typography.Text type="secondary">
-            最近运行 {formatRuleTime(latestRun.finishedAt) ?? "—"} ·{" "}
+            最近运行 {formatRuleTime(latestRun.finishedAt) ?? "-"} ·{" "}
             {validationOutcomeText(latestRun.summary)}
           </Typography.Text>
         )}

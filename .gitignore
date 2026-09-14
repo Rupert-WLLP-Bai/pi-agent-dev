@@ -17,3 +17,6 @@ skills-lock.json
 apps/api/var/
 compose.override.yaml
 .superpowers/
+
+# Local agent plan scratch.
+.cursor/plans/

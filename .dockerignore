@@ -4,4 +4,3 @@ dist
 .git
 .drizzle
 .pi
-apps/api/drizzle

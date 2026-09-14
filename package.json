@@ -13,7 +13,8 @@
     "test": "bun test packages apps",
     "acceptance": "playwright test",
     "verify": "bun run lint && bun run typecheck && bun run test",
-    "dev": "bun --filter @contract-audit/api dev"
+    "dev": "bun --filter @contract-audit/api dev",
+    "seed:demo": "bun --env-file=.env apps/api/src/demo/seed-cli.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",

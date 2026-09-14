@@ -15,6 +15,7 @@ import AuditTracePage from "./routes/audit-trace";
 import DashboardPage from "./routes/dashboard";
 import DemoPage from "./routes/demo";
 import IntegrationsPage from "./routes/integrations";
+import LlmProvidersPage from "./routes/llm-providers";
 import RemediationBoardPage from "./routes/remediations";
 import ReviewCenterPage from "./routes/reviews";
 import RuleDetail from "./routes/rule-detail";
@@ -157,6 +158,12 @@ const integrationsRoute = createRoute({
   component: IntegrationsPage,
 });
 
+const providersRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/providers",
+  component: LlmProvidersPage,
+});
+
 const verificationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/verification",
@@ -177,6 +184,7 @@ const routeTree = rootRoute.addChildren([
   ruleDetailRoute,
   validationRoute,
   integrationsRoute,
+  providersRoute,
   verificationRoute,
 ]);
 

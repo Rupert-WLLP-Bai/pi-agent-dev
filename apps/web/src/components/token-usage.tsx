@@ -21,7 +21,7 @@ function Detail({ label, value }: { label: string; value: string }) {
  */
 export function TokenUsage({ usage }: { usage: Record<string, number> | null }) {
   const breakdown = tokenUsageBreakdown(usage);
-  if (breakdown === null) return <span className="token-usage token-usage--empty">—</span>;
+  if (breakdown === null) return <span className="token-usage token-usage--empty">-</span>;
 
   const { input, output, total, cacheRead, cacheWrite, cacheRate } = breakdown;
   const cache = `${(cacheRate ?? 0).toFixed(2)}%缓存`;

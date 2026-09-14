@@ -1,7 +1,9 @@
 import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type {
   AgentTraceStep,
+  AuditCaseStatus,
   AuditSnapshot,
+  AuditStage,
   EvidenceLocator,
   FindingProposal,
   FindingRevision,
@@ -11,6 +13,7 @@ import type {
   SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
+import type { PartyHistoryRun, PriorPartyFinding } from "@contract-audit/audit/party-history-rule";
 import type {
   AgentRunIdentity,
   AgentRunResult,
@@ -59,6 +62,9 @@ interface FakeCaseState {
   reviewPriority: ReviewPriority | null;
   createdAt: string;
   updatedAt: string;
+  scenarioId: string | null;
+  caseKey: string | null;
+  demoSeed: boolean;
 }
 
 /** The newest snapshot generation for a case, or null before one exists. */
@@ -135,18 +141,28 @@ export class InMemoryAuditCaseRepository {
   sourceOriginalPaths = new Map<string, string>();
   /** Uploaded file name per source record, for the download response. */
   sourceDisplayNames = new Map<string, string>();
+  /** Provenance recorded at create time, keyed by source record id. */
+  sourceProvenanceByRecord = new Map<string, SourceProvenance | null>();
   /** Which source record id backs each case, so tests can address it. */
   sourceRecordIdsByCase = new Map<string, string>();
+  /** Frozen party-history lookups, newest last, keyed by case id. */
+  partyHistoryRows: Array<{ caseId: string; run: PartyHistoryRun }> = [];
 
   async createPendingCase(
     sourceRecordId: string,
     snapshot: AuditSnapshot,
     provenance: SourceProvenance | null = null,
+    options: {
+      createdAt?: Date;
+      metadata?: Record<string, unknown>;
+      assignee?: string | null;
+    } = {},
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
-    const createdAt = new Date().toISOString();
+    const createdAt = (options.createdAt ?? new Date()).toISOString();
     this.sourceRecordIds.add(sourceRecordId);
     this.sourceRecordIdsByCase.set(caseId, sourceRecordId);
+    this.sourceProvenanceByRecord.set(sourceRecordId, provenance);
     if (provenance?.displayName != null) {
       this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
     }
@@ -155,10 +171,14 @@ export class InMemoryAuditCaseRepository {
       stage: "QUEUED",
       snapshots: [snapshot],
       findings: [],
-      assignee: null,
+      assignee: options.assignee ?? null,
       reviewPriority: null,
       createdAt,
       updatedAt: createdAt,
+      scenarioId:
+        typeof options.metadata?.scenarioId === "string" ? options.metadata.scenarioId : null,
+      caseKey: typeof options.metadata?.caseKey === "string" ? options.metadata.caseKey : null,
+      demoSeed: options.metadata?.demoSeed === true,
     });
     const snapshotId = `snapshot-${caseId}-1`;
     this.snapshotsById.set(snapshotId, { caseId, snapshot });
@@ -195,7 +215,7 @@ export class InMemoryAuditCaseRepository {
       id: caseId,
       status: state.status,
       stage: state.stage,
-      sourceRecordId: `source-${caseId}`,
+      sourceRecordId: this.sourceRecordIdsByCase.get(caseId) ?? `source-${caseId}`,
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
     };
@@ -212,6 +232,7 @@ export class InMemoryAuditCaseRepository {
       id: sourceRecordId,
       originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,
       name: this.sourceDisplayNames.get(sourceRecordId) ?? null,
+      provenance: this.sourceProvenanceByRecord.get(sourceRecordId) ?? null,
     };
   }
 
@@ -574,6 +595,111 @@ export class InMemoryAuditCaseRepository {
     const cited = new Set(verifications.flatMap((verification) => verification.evidenceIds));
     const evidence = rows.flatMap((row) => row.evidence).filter((item) => cited.has(item.id));
     return { verifications, evidence };
+  }
+
+  async findPriorPartyCases(input: {
+    excludeCaseId: string;
+    createdBefore: Date;
+    partyNames: string[];
+    creditCodes: string[];
+  }): Promise<PriorPartyFinding[]> {
+    if (input.partyNames.length === 0 && input.creditCodes.length === 0) return [];
+    const nameSet = new Set(input.partyNames);
+    const codeSet = new Set(input.creditCodes);
+    const before = input.createdBefore.getTime();
+    const result: PriorPartyFinding[] = [];
+
+    for (const [caseId, state] of this.cases) {
+      if (caseId === input.excludeCaseId) continue;
+      if (Date.parse(state.createdAt) >= before) continue;
+      const snapshot = latestSnapshot(state);
+      if (!snapshot) continue;
+      const named = snapshot.parties.find((party) => nameSet.has(party.name));
+      const verificationCodes = this.subjectVerificationRows
+        .filter((row) => row.caseId === caseId)
+        .flatMap((row) => {
+          const code = row.verification.matched?.unifiedSocialCreditCode;
+          return code === undefined ? [] : [code];
+        });
+      const codeHit = verificationCodes.some((code) => codeSet.has(code));
+      if (!named && !codeHit) continue;
+      const partyName =
+        named?.name ??
+        snapshot.parties.find((party) => party.label === "乙方")?.name ??
+        snapshot.parties[0]?.name ??
+        "相对方";
+      const superseded = new Set(
+        state.findings.flatMap((finding) =>
+          finding.supersedesId === null ? [] : [finding.supersedesId],
+        ),
+      );
+      const heads = state.findings.filter(
+        (finding) => !superseded.has(finding.id) && finding.review !== null,
+      );
+      const sourceRecordId = this.sourceRecordIdsByCase.get(caseId) ?? `source-${caseId}`;
+      for (const finding of heads) {
+        if (finding.review === null) continue;
+        result.push({
+          priorCaseId: caseId,
+          sourceRecordId,
+          partyName,
+          findingRevisionId: finding.id,
+          findingType: finding.proposal.findingType,
+          decision: finding.review.decision,
+          reviewerId: finding.review.reviewerId,
+          reviewedAt: finding.review.reviewedAt,
+          title: titleForState(state),
+        });
+      }
+    }
+    return result;
+  }
+
+  async savePartyHistory(caseId: string, run: PartyHistoryRun): Promise<void> {
+    this.partyHistoryRows.push({ caseId, run });
+  }
+
+  async getPartyHistory(caseId: string): Promise<PartyHistoryRun | null> {
+    const rows = this.partyHistoryRows.filter((row) => row.caseId === caseId);
+    return rows[rows.length - 1]?.run ?? null;
+  }
+
+  async deleteDemoSeededCases(): Promise<number> {
+    const ids = [...this.cases.entries()]
+      .filter(([, state]) => state.demoSeed)
+      .map(([caseId]) => caseId);
+    for (const caseId of ids) {
+      this.cases.delete(caseId);
+      this.partyHistoryRows = this.partyHistoryRows.filter((row) => row.caseId !== caseId);
+      this.subjectVerificationRows = this.subjectVerificationRows.filter(
+        (row) => row.caseId !== caseId,
+      );
+      for (const [id, item] of this.remediations) {
+        if (item.auditCaseId === caseId) this.remediations.delete(id);
+      }
+    }
+    return ids.length;
+  }
+
+  async listDemoSeededCases(): Promise<
+    Array<{
+      caseId: string;
+      scenarioId: string;
+      caseKey: string;
+      status: AuditCaseStatus;
+      stage: AuditStage;
+    }>
+  > {
+    return [...this.cases.entries()]
+      .filter(([, state]) => state.demoSeed)
+      .sort((left, right) => Date.parse(left[1].createdAt) - Date.parse(right[1].createdAt))
+      .map(([caseId, state]) => ({
+        caseId,
+        scenarioId: state.scenarioId ?? "",
+        caseKey: state.caseKey ?? "",
+        status: state.status as AuditCaseStatus,
+        stage: state.stage as AuditStage,
+      }));
   }
 
   /** Verification timeline, newest capture first, mirroring the SQL projection. */

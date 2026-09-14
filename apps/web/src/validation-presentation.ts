@@ -151,6 +151,6 @@ export function summarizeCaseCards(cases: readonly ValidationCaseListItem[]): Va
 /** 规则 · 版本 · 最近运行时间 · 触发人, the line under the header. */
 export function describeRunMeta(run: ValidationRunListItem | null): string {
   if (!run) return "尚未运行验证";
-  const time = formatRuleTime(run.finishedAt) ?? "—";
+  const time = formatRuleTime(run.finishedAt) ?? "-";
   return `${run.ruleName} · v${run.ruleVersion} · 最近运行 ${time} · 触发人 ${run.triggeredBy}`;
 }

@@ -7,6 +7,7 @@ import {
   Card,
   Col,
   Empty,
+  Pagination,
   Result,
   Row,
   Segmented,
@@ -27,6 +28,14 @@ const RANGE_OPTIONS = [
   { value: 14, label: "14 天" },
   { value: 30, label: "30 天" },
 ];
+
+/**
+ * Rows per page for the two dashboard lists. A dashboard row takes the height
+ * of its tallest card, so these are also what keeps the trend chart beside the
+ * risk list from being stretched to an unbounded height.
+ */
+const RISK_PAGE_SIZE = 8;
+const PENDING_PAGE_SIZE = 5;
 
 const PENDING_FILTERS: Array<{ value: Severity | "ALL"; label: string }> = [
   { value: "ALL", label: "全部" },
@@ -81,6 +90,11 @@ export default function DashboardPage() {
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [rangeDays, setRangeDays] = useState(30);
   const [pendingSeverity, setPendingSeverity] = useState<Severity | "ALL">("ALL");
+  // Both lists are bounded rather than scrolled: a dashboard row sizes itself to
+  // its tallest card, so an unbounded risk list stretched the trend chart beside
+  // it to the height of however many finding types happened to exist.
+  const [riskPage, setRiskPage] = useState(1);
+  const [pendingPage, setPendingPage] = useState(1);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -168,7 +182,7 @@ export default function DashboardPage() {
     },
     {
       title: "自动审查中位耗时",
-      value: medianSeconds === null ? "—" : medianSeconds.toFixed(1),
+      value: medianSeconds === null ? "-" : medianSeconds.toFixed(1),
       suffix: medianSeconds === null ? "" : " 秒",
       delta: `成功运行 ${overview.successfulAgentRuns} 次`,
       up: false,
@@ -207,6 +221,21 @@ export default function DashboardPage() {
 
   const visiblePending = overview.pendingReview.filter((item) =>
     pendingSeverity === "ALL" ? true : item.highestSeverity === pendingSeverity,
+  );
+
+  // Clamp as well as slice: a refresh can shrink either list below the page the
+  // operator was on, and an empty page would otherwise render as a blank card.
+  const riskPageCount = Math.max(1, Math.ceil(riskTypes.length / RISK_PAGE_SIZE));
+  const currentRiskPage = Math.min(riskPage, riskPageCount);
+  const pagedRiskTypes = riskTypes.slice(
+    (currentRiskPage - 1) * RISK_PAGE_SIZE,
+    currentRiskPage * RISK_PAGE_SIZE,
+  );
+  const pendingPageCount = Math.max(1, Math.ceil(visiblePending.length / PENDING_PAGE_SIZE));
+  const currentPendingPage = Math.min(pendingPage, pendingPageCount);
+  const pagedPending = visiblePending.slice(
+    (currentPendingPage - 1) * PENDING_PAGE_SIZE,
+    currentPendingPage * PENDING_PAGE_SIZE,
   );
 
   const kpiCard = (kpi: Kpi) => (
@@ -305,30 +334,46 @@ export default function DashboardPage() {
             {riskTotal === 0 ? (
               <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无风险发现" />
             ) : (
-              <div className="hbar-list">
-                {riskTypes.map((item) => {
-                  const pct = (item.count / riskTotal) * 100;
-                  return (
-                    <Tooltip
-                      key={item.findingType}
-                      title={`${getFindingTypeLabel(item.findingType)} · ${item.count} 条 · 占全部发现的 ${pct.toFixed(1)}%`}
-                    >
-                      <div className="hbar-row">
-                        <span className="hbar-label">{getFindingTypeLabel(item.findingType)}</span>
-                        <div className="hbar-track">
-                          <div
-                            className="hbar-fill"
-                            style={{
-                              width: `${Math.max(pct, 4)}%`,
-                              background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
-                            }}
-                          />
+              <div className="dash-list-body">
+                <div className="hbar-list">
+                  {pagedRiskTypes.map((item) => {
+                    const pct = (item.count / riskTotal) * 100;
+                    return (
+                      <Tooltip
+                        key={item.findingType}
+                        title={`${getFindingTypeLabel(item.findingType)} · ${item.count} 条 · 占全部发现的 ${pct.toFixed(1)}%`}
+                      >
+                        <div className="hbar-row">
+                          <span className="hbar-label">
+                            {getFindingTypeLabel(item.findingType)}
+                          </span>
+                          <div className="hbar-track">
+                            <div
+                              className="hbar-fill"
+                              style={{
+                                width: `${Math.max(pct, 4)}%`,
+                                background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
+                              }}
+                            />
+                          </div>
+                          <b className="hbar-value">{item.count}</b>
                         </div>
-                        <b className="hbar-value">{item.count}</b>
-                      </div>
-                    </Tooltip>
-                  );
-                })}
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+                {riskPageCount > 1 && (
+                  <div className="dash-pager">
+                    <Pagination
+                      size="small"
+                      simple
+                      current={currentRiskPage}
+                      pageSize={RISK_PAGE_SIZE}
+                      total={riskTypes.length}
+                      onChange={setRiskPage}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -366,7 +411,12 @@ export default function DashboardPage() {
                     value: option.value,
                     label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
                   }))}
-                  onChange={(value) => setPendingSeverity(value as Severity | "ALL")}
+                  onChange={(value) => {
+                    // Narrowing the severity filter shortens the list under the
+                    // pager, so the page returns to the first one with it.
+                    setPendingSeverity(value as Severity | "ALL");
+                    setPendingPage(1);
+                  }}
                 />
                 <Link to="/reviews">去复核中心</Link>
               </Space>
@@ -382,30 +432,50 @@ export default function DashboardPage() {
                 }
               />
             ) : (
-              <div className="todo-list">
-                {visiblePending.map((item) => {
-                  const tag =
-                    item.highestSeverity === null ? "待复核" : severityLabels[item.highestSeverity];
-                  const color = todoTagColors[tag] ?? "#0B5C99";
-                  return (
-                    <Link
-                      key={item.id}
-                      to="/audit-cases/$id"
-                      params={{ id: item.id }}
-                      search={{ origin: "reviews" }}
-                      className="todo-item"
-                    >
-                      <b>{item.title ?? "未命名合同"}</b>
-                      <span
-                        className="todo-tag"
-                        style={{ color, background: `${color}15`, border: `1px solid ${color}40` }}
+              <div className="dash-list-body">
+                <div className="todo-list">
+                  {pagedPending.map((item) => {
+                    const tag =
+                      item.highestSeverity === null
+                        ? "待复核"
+                        : severityLabels[item.highestSeverity];
+                    const color = todoTagColors[tag] ?? "#0B5C99";
+                    return (
+                      <Link
+                        key={item.id}
+                        to="/audit-cases/$id"
+                        params={{ id: item.id }}
+                        search={{ origin: "reviews" }}
+                        className="todo-item"
                       >
-                        {tag}
-                      </span>
-                      <time>{relativeTime(item.updatedAt)}</time>
-                    </Link>
-                  );
-                })}
+                        <b>{item.title ?? "未命名合同"}</b>
+                        <span
+                          className="todo-tag"
+                          style={{
+                            color,
+                            background: `${color}15`,
+                            border: `1px solid ${color}40`,
+                          }}
+                        >
+                          {tag}
+                        </span>
+                        <time>{relativeTime(item.updatedAt)}</time>
+                      </Link>
+                    );
+                  })}
+                </div>
+                {pendingPageCount > 1 && (
+                  <div className="dash-pager">
+                    <Pagination
+                      size="small"
+                      simple
+                      current={currentPendingPage}
+                      pageSize={PENDING_PAGE_SIZE}
+                      total={visiblePending.length}
+                      onChange={setPendingPage}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </Card>

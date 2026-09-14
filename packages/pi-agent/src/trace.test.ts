@@ -75,6 +75,28 @@ test("marks a failed tool result as an error", () => {
   expect(observations[1]?.output).toBe("UNKNOWN_EVIDENCE: nope");
 });
 
+test("records a provider error so a 400 is not mistaken for a silent no-tool run", () => {
+  const { observations, reporter } = recorder();
+
+  reporter.observe({
+    type: "message_end",
+    message: {
+      role: "assistant",
+      content: [],
+      stopReason: "error",
+      errorMessage: "400: unknown variant `developer`",
+    },
+  });
+
+  expect(reporter.lastProviderError).toBe("400: unknown variant `developer`");
+  expect(observations).toHaveLength(1);
+  expect(observations[0]).toMatchObject({
+    kind: "MESSAGE",
+    isError: true,
+    output: "400: unknown variant `developer`",
+  });
+});
+
 test("captures assistant text with its token counts, and skips other messages", () => {
   const { observations, reporter } = recorder();
 

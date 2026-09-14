@@ -59,12 +59,20 @@ export default function AuditRunsPage() {
     {
       title: "合同",
       dataIndex: "contractTitle",
-      render: (_value, record) => (
-        <div className="table-primary">
-          <span className="table-title">{record.contractTitle ?? "未命名合同"}</span>
-          <span className="table-sub">{describeParties(record.parties)}</span>
-        </div>
-      ),
+      render: (_value, record) => {
+        const contractTitle = record.contractTitle ?? "未命名合同";
+        const parties = describeParties(record.parties);
+        return (
+          <div className="table-primary">
+            <span className="table-title" title={contractTitle}>
+              {contractTitle}
+            </span>
+            <span className="table-sub" title={parties}>
+              {parties}
+            </span>
+          </div>
+        );
+      },
     },
     {
       title: "审计 ID",
@@ -111,7 +119,7 @@ export default function AuditRunsPage() {
       dataIndex: "durationMs",
       width: 100,
       align: "right",
-      render: (value: number | null) => formatDuration(value) ?? "—",
+      render: (value: number | null) => formatDuration(value) ?? "-",
     },
     {
       title: "Token",

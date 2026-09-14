@@ -31,8 +31,10 @@ const DERIVED_RULE_CODES = [
 test("materialises exactly the rules the golden set labels", () => {
   const codes = [...new Set(VALIDATION_CASE_SEEDS.map((seed) => seed.ruleCode))];
   expect(codes).toEqual(DERIVED_RULE_CODES);
-  // Subject verification decides this one; it has no case body to validate.
+  // Subject verification and party history decide these outside the document;
+  // they have no golden-set body to validate.
   expect(codes).not.toContain("SUBJECT_RED_LINE_RISK");
+  expect(codes).not.toContain("PARTY_HISTORY_ASSOCIATION");
 });
 
 test("每个规则至少两条验证案例", () => {

@@ -157,6 +157,12 @@ export const RULE_FINDING_CONTRACTS = [
     needsHumanReview: [{ findingType: "NEEDS_HUMAN_REVIEW", severity: ["LOW", "MEDIUM"] }],
     searchKeyword: "赔偿",
   },
+  {
+    ruleCode: "PARTY_HISTORY_ASSOCIATION",
+    policyConflict: { findingType: "PARTY_HISTORY_ASSOCIATION", severity: "HIGH" },
+    needsHumanReview: [{ findingType: "PARTY_HISTORY_ASSOCIATION", severity: ["MEDIUM", "HIGH"] }],
+    searchKeyword: "历史",
+  },
 ] as const satisfies readonly RuleFindingContract[];
 
 type ContractedRuleCode = (typeof RULE_FINDING_CONTRACTS)[number]["ruleCode"];

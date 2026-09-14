@@ -102,6 +102,7 @@ export const getRuleCodeLabel = (code: RuleCode): string =>
     CONFIDENTIALITY_PERIOD_MISSING: "保密期限规则",
     FORCE_MAJEURE_OVERBROAD: "不可抗力范围规则",
     LIABILITY_CAP_MISSING: "赔偿责任上限规则",
+    PARTY_HISTORY_ASSOCIATION: "相对方历史关联规则",
   })[code];
 
 export const getRuleDispositionLabel = (disposition: RuleDisposition): string =>
@@ -140,16 +141,39 @@ const sourceTypeLabels: Record<SourceType, string> = {
 
 export const getSourceTypeLabel = (type: SourceType): string => sourceTypeLabels[type];
 
+export type OriginalStorage = "s3" | "local";
+
+/**
+ * Whether the workbench should offer a download. Only a file upload that
+ * actually stored bytes is downloadable — a paste never is.
+ */
+export function canDownloadOriginal(input: {
+  sourceProvenance: SourceProvenance | null;
+  originalDownloadable: boolean;
+}): boolean {
+  return input.originalDownloadable && input.sourceProvenance?.type === "FILE_UPLOAD";
+}
+
 /**
  * The two lines of a queue row's 来源 cell. A record with no recorded
  * provenance shows a dash: `CONTEXT.md` treats a Source Record's origin as a
  * fact, and a missing fact is not evidence of a paste.
  */
-export function describeSourceProvenance(provenance: SourceProvenance | null): {
+export function describeSourceProvenance(
+  provenance: SourceProvenance | null,
+  originalStorage: OriginalStorage | null = null,
+): {
   primary: string;
   secondary: string | null;
 } {
-  if (provenance === null) return { primary: "—", secondary: null };
+  if (provenance === null) return { primary: "-", secondary: null };
+  if (provenance.type === "FILE_UPLOAD") {
+    const storageLabel =
+      originalStorage === "s3" ? "对象存储" : originalStorage === "local" ? "本地文件" : "文件上传";
+    return provenance.displayName === null
+      ? { primary: storageLabel, secondary: null }
+      : { primary: provenance.displayName, secondary: storageLabel };
+  }
   const label = getSourceTypeLabel(provenance.type);
   return provenance.displayName === null
     ? { primary: label, secondary: null }
@@ -317,11 +341,17 @@ export const evidenceSourceGroupLabels = {
   CONTRACT: "合同原文",
   POLICY: "制度依据",
   EXTERNAL: "外部核验",
+  HISTORY: "历史案件",
 } as const;
 
 export type EvidenceSourceGroup = keyof typeof evidenceSourceGroupLabels;
 
-export const evidenceSourceGroupOrder: EvidenceSourceGroup[] = ["CONTRACT", "POLICY", "EXTERNAL"];
+export const evidenceSourceGroupOrder: EvidenceSourceGroup[] = [
+  "CONTRACT",
+  "POLICY",
+  "EXTERNAL",
+  "HISTORY",
+];
 
 const retryableStatuses = new Set<AuditCaseStatus>(["FAILED", "CANCELLED", "INTERRUPTED"]);
 
@@ -544,7 +574,7 @@ export function formatTracePayload(value: unknown, limit = 4000): string | null 
  */
 export function formatTraceOffset(runStartedAt: string, at: string): string {
   const elapsedMs = new Date(at).getTime() - new Date(runStartedAt).getTime();
-  if (!Number.isFinite(elapsedMs)) return "—";
+  if (!Number.isFinite(elapsedMs)) return "-";
   return `+${(Math.max(0, elapsedMs) / 1000).toFixed(2)}s`;
 }
 

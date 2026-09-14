@@ -133,14 +133,16 @@ export function ReviewCenter({
       title: "合同与发现",
       key: "finding",
       render: (_: unknown, record: ReviewQueueItem) => (
-        <div>
-          <div className="contract-title">{record.contractTitle}</div>
-          <div className="contract-sub">
+        <div className="table-primary">
+          <span className="table-title" title={record.contractTitle}>
+            {record.contractTitle}
+          </span>
+          <span className="table-sub" title={record.title}>
             {record.title}
             <span className="mono" style={{ marginLeft: 8, fontSize: 11 }}>
               {shortAuditId(record.caseId)}
             </span>
-          </div>
+          </span>
         </div>
       ),
     },
@@ -169,7 +171,9 @@ export function ReviewCenter({
       width: 148,
       render: (_: unknown, record: ReviewQueueItem) => (
         <div>
-          <div>{record.assignee ?? "未指派"}</div>
+          <div className="table-title" title={record.assignee ?? "未指派"}>
+            {record.assignee ?? "未指派"}
+          </div>
           {record.priority !== null && (
             <Tag color={toneColors[priorityTones[record.priority]]} style={{ marginTop: 4 }}>
               {priorityLabels[record.priority]}

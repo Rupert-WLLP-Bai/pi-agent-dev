@@ -1,116 +1,185 @@
-import { beforeEach, expect, test } from "bun:test";
-import type { AuditApp } from "./app";
-import { createApp } from "./app";
-import {
-  FakeDispatcher,
-  InMemoryAuditCaseRepository,
-  InMemoryRuleRepository,
-  RecordingEventBroker,
-} from "./testing/fakes";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { ApiConfig } from "./config";
+import { buildHealthSnapshot, type HealthInputs } from "./health";
+import type { VerificationCache } from "./qcc/cache";
 
-let repository: InMemoryAuditCaseRepository;
-let dispatcher: FakeDispatcher;
-let broker: RecordingEventBroker;
-let app: AuditApp;
+let uploadDir: string;
+let previousUploadDir: string | undefined;
 
-const buildApp = () =>
-  createApp({
-    repository: repository.asRepository(),
-    dispatcher: dispatcher.asDispatcher(),
-    broker: broker.asBroker(),
-    rules: new InMemoryRuleRepository().asRepository(),
-  });
-
-const readHealth = async (target: ReturnType<typeof createApp>) =>
-  target.handle(new Request("http://localhost/api/health"));
-
-beforeEach(() => {
-  repository = new InMemoryAuditCaseRepository();
-  dispatcher = new FakeDispatcher();
-  broker = new RecordingEventBroker();
-  app = buildApp();
+const redisClient = (ping: boolean | (() => Promise<boolean>)): VerificationCache => ({
+  async get() {
+    return null;
+  },
+  async set() {},
+  async ping() {
+    return typeof ping === "boolean" ? ping : ping();
+  },
 });
 
-test("reports database and dispatcher readiness", async () => {
-  repository.databaseAvailable = true;
-  dispatcher.isStarted = true;
-
-  const response = await readHealth(app);
-
-  expect(response.status).toBe(200);
-  const body = await response.json();
-  expect(body.status).toBe("ok");
-  expect(body.database).toBe(true);
-  expect(body.dispatcher).toBe(true);
+const baseConfig = (overrides: Partial<ApiConfig> = {}): ApiConfig => ({
+  databaseUrl: "postgresql://contract_audit:contract_audit@localhost:5433/contract_audit",
+  agentTimeoutMs: 300_000,
+  maxConcurrentAudits: 1,
+  apiPort: 3000,
+  webOrigin: "http://localhost:5173",
+  agentMode: "pi",
+  subjectVerificationMode: "qcc",
+  reviewSlaHours: 24,
+  qccCompanyEndpoint: "https://agent.qcc.com/mcp/company/stream",
+  qccRiskEndpoint: "https://agent.qcc.com/mcp/risk/stream",
+  qccToken: "qcc-token-present",
+  llmConfigured: true,
+  ...overrides,
 });
 
-test("reports every integration field alongside the aggregate status", async () => {
-  repository.databaseAvailable = true;
-  dispatcher.isStarted = true;
-
-  const body = await (await readHealth(app)).json();
-
-  expect(typeof body.database).toBe("boolean");
-  expect(typeof body.dispatcher).toBe("boolean");
-  expect(["pi", "fake"]).toContain(body.agentMode);
-  expect(typeof body.qccConfigured).toBe("boolean");
-  expect(typeof body.llmConfigured).toBe("boolean");
+const baseInputs = (overrides: Partial<HealthInputs> = {}): HealthInputs => ({
+  config: baseConfig(),
+  databaseOk: true,
+  dispatcherOk: true,
+  redis: { url: "redis://redis:6379", client: redisClient(true) },
+  objectStore: {
+    accessKey: "key",
+    secretKey: "secret",
+    bucket: "contract-originals",
+    region: "us-east-1",
+  },
+  agent: {
+    mode: "pi",
+    providerName: "deepseek",
+    endpoint: "http://221.178.103.68",
+    model: "deepseek-v4-flash",
+    configured: true,
+  },
+  qcc: {
+    companyEndpoint: "https://agent.qcc.com/mcp/company/stream",
+    riskEndpoint: "https://agent.qcc.com/mcp/risk/stream",
+    tokenConfigured: true,
+  },
+  ...overrides,
 });
 
-test("reports 503 when the database is unreachable", async () => {
-  repository.databaseAvailable = false;
-  dispatcher.isStarted = true;
-
-  const response = await readHealth(app);
-
-  expect(response.status).toBe(503);
-  const body = await response.json();
-  expect(body.status).toBe("unavailable");
-  expect(body.database).toBe(false);
-  // The failing integration is named without hiding the healthy ones.
-  expect(body.dispatcher).toBe(true);
+beforeEach(async () => {
+  previousUploadDir = process.env.UPLOAD_DIR;
+  uploadDir = await mkdtemp(join(tmpdir(), "health-"));
+  process.env.UPLOAD_DIR = uploadDir;
 });
 
-test("reports 503 when the dispatcher has not started", async () => {
-  repository.databaseAvailable = true;
-  dispatcher.isStarted = false;
-
-  const response = await readHealth(app);
-
-  expect(response.status).toBe(503);
-  const body = await response.json();
-  expect(body.dispatcher).toBe(false);
+afterEach(async () => {
+  if (previousUploadDir === undefined) delete process.env.UPLOAD_DIR;
+  else process.env.UPLOAD_DIR = previousUploadDir;
+  await rm(uploadDir, { recursive: true, force: true });
 });
 
-test("reports credential presence without echoing credential values", async () => {
-  const qccToken = "qcc-secret-9f8e7d";
-  const llmKey = "llm-secret-1a2b3c";
-  const previousQccToken = process.env.QCC_TOKEN;
-  const previousLlmKey = process.env.XYG_API_KEY;
-  process.env.QCC_TOKEN = qccToken;
-  process.env.XYG_API_KEY = llmKey;
-  try {
-    repository.databaseAvailable = true;
-    dispatcher.isStarted = true;
-    // createApp reads the environment when it is built, so probe a fresh app.
-    const response = await readHealth(buildApp());
+test("all healthy inputs report ok with every connection up", async () => {
+  const snapshot = await buildHealthSnapshot(baseInputs());
 
-    expect(response.status).toBe(200);
-    const text = await response.text();
-    expect(text).not.toContain(qccToken);
-    expect(text).not.toContain(llmKey);
-
-    const body = JSON.parse(text);
-    expect(body.qccConfigured).toBe(true);
-    expect(body.llmConfigured).toBe(true);
-    expect(body).not.toHaveProperty("token");
-    expect(body).not.toHaveProperty("apiKey");
-    expect(body).not.toHaveProperty("secret");
-    expect(body).not.toHaveProperty("qccToken");
-  } finally {
-    if (previousQccToken === undefined) delete process.env.QCC_TOKEN;
-    else process.env.QCC_TOKEN = previousQccToken;
-    if (previousLlmKey === undefined) delete process.env.XYG_API_KEY;
-    else process.env.XYG_API_KEY = previousLlmKey;
+  expect(snapshot.status).toBe("ok");
+  expect(snapshot.database).toBe(true);
+  expect(snapshot.dispatcher).toBe(true);
+  expect(snapshot.agentMode).toBe("pi");
+  expect(snapshot.qccConfigured).toBe(true);
+  expect(snapshot.llmConfigured).toBe(true);
+  for (const name of ["database", "redis", "objectStore", "llm", "qcc", "dispatcher"] as const) {
+    expect(snapshot.connections[name].ok).toBe(true);
+    expect(snapshot.connections[name].detail).toBeNull();
   }
+  expect(snapshot.connections.database.target).toBe("localhost:5433/contract_audit");
+  expect(snapshot.connections.redis.target).toBe("redis:6379");
+  expect(snapshot.connections.objectStore.target).toContain(uploadDir);
+  expect(snapshot.connections.llm.target).toBe("deepseek-v4-flash @ http://221.178.103.68");
+});
+
+test("a down or unconfigured Redis degrades without changing status", async () => {
+  const down = await buildHealthSnapshot(
+    baseInputs({ redis: { url: "redis://redis:6379", client: redisClient(false) } }),
+  );
+
+  expect(down.status).toBe("ok");
+  expect(down.connections.redis.ok).toBe(false);
+  expect(down.connections.redis.target).toBe("redis:6379");
+  expect(down.connections.redis.detail).not.toBeNull();
+
+  const unconfigured = await buildHealthSnapshot(
+    baseInputs({ redis: { url: undefined, client: null } }),
+  );
+
+  expect(unconfigured.status).toBe("ok");
+  expect(unconfigured.connections.redis.ok).toBe(false);
+  expect(unconfigured.connections.redis.target).toBe("未配置");
+  expect(unconfigured.connections.redis.detail).not.toBeNull();
+});
+
+test("a client that rejects its ping is reported as a failed probe, never thrown", async () => {
+  const rejected = await buildHealthSnapshot(
+    baseInputs({
+      redis: {
+        url: "redis://redis:6379",
+        client: redisClient(() => Promise.reject(new Error("redis ping exploded"))),
+      },
+    }),
+  );
+
+  expect(rejected.status).toBe("ok");
+  expect(rejected.connections.redis.ok).toBe(false);
+  expect(rejected.connections.redis.detail).toBe("redis ping exploded");
+});
+
+test("a failed object-store probe degrades without changing status", async () => {
+  // Point the local fallback at a path whose parent is a file, so mkdir fails.
+  const blocker = join(uploadDir, "blocker");
+  await writeFile(blocker, "not a directory");
+  process.env.UPLOAD_DIR = join(blocker, "uploads");
+
+  const snapshot = await buildHealthSnapshot(baseInputs());
+
+  expect(snapshot.status).toBe("ok");
+  expect(snapshot.connections.objectStore.ok).toBe(false);
+  expect(snapshot.connections.objectStore.target).toContain("（本地目录）");
+  expect(snapshot.connections.objectStore.detail).not.toBeNull();
+});
+
+test("a database or dispatcher failure makes the snapshot unavailable", async () => {
+  const databaseDown = await buildHealthSnapshot(baseInputs({ databaseOk: false }));
+
+  expect(databaseDown.status).toBe("unavailable");
+  expect(databaseDown.database).toBe(false);
+  expect(databaseDown.connections.database.ok).toBe(false);
+
+  const dispatcherDown = await buildHealthSnapshot(baseInputs({ dispatcherOk: false }));
+
+  expect(dispatcherDown.status).toBe("unavailable");
+  expect(dispatcherDown.dispatcher).toBe(false);
+  expect(dispatcherDown.connections.dispatcher.ok).toBe(false);
+});
+
+test("no credential value can be reached from the serialized snapshot", async () => {
+  const password = "sup3r-s3cret-pw";
+  const snapshot = await buildHealthSnapshot(
+    baseInputs({
+      config: baseConfig({
+        databaseUrl: `postgresql://contract_audit:${password}@localhost:5433/contract_audit`,
+      }),
+      redis: { url: "redis://:hunter2@redis:6379", client: redisClient(true) },
+    }),
+  );
+
+  const serialized = JSON.stringify(snapshot);
+
+  expect(serialized).not.toContain(password);
+  expect(serialized).not.toContain("hunter2");
+  expect(snapshot.connections.database.target).toBe("localhost:5433/contract_audit");
+  expect(snapshot.qccConfigured).toBe(true);
+  expect(snapshot.llmConfigured).toBe(true);
+});
+
+test("Redis target rendering strips credentials from the URL", async () => {
+  const snapshot = await buildHealthSnapshot(
+    baseInputs({ redis: { url: "redis://:hunter2@redis:6379", client: redisClient(true) } }),
+  );
+
+  expect(snapshot.connections.redis.target).toBe("redis:6379");
+  expect(snapshot.connections.redis.target).not.toContain("hunter2");
 });

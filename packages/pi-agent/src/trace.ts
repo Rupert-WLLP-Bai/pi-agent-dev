@@ -8,6 +8,11 @@ export interface PiTraceReporter {
   observe(event: unknown): void;
   /** How many tool calls the reporter saw. Distinguishes "no findings" from "never ran". */
   readonly toolCalls: number;
+  /**
+   * The provider's own error text when a turn ended in `stopReason: "error"`.
+   * Empty-content 400s otherwise look like a successful no-tool run.
+   */
+  readonly lastProviderError: string | null;
   /** Reports the run's own outcome; call once, when the run leaves its try block. */
   close(outcome: "completed" | "failed"): void;
 }
@@ -74,6 +79,7 @@ export function createPiTraceReporter(
 ): PiTraceReporter {
   const toolStartedAt = new Map<string, number>();
   let toolCalls = 0;
+  let lastProviderError: string | null = null;
   let started = false;
   let closed = false;
 
@@ -84,6 +90,9 @@ export function createPiTraceReporter(
     sink,
     get toolCalls() {
       return toolCalls;
+    },
+    get lastProviderError() {
+      return lastProviderError;
     },
     observe(raw) {
       if (!isRecord(raw)) return;
@@ -134,6 +143,25 @@ export function createPiTraceReporter(
           return;
         }
         case "message_end": {
+          if (isRecord(raw.message) && raw.message.stopReason === "error") {
+            const errorMessage =
+              typeof raw.message.errorMessage === "string" && raw.message.errorMessage.length > 0
+                ? raw.message.errorMessage
+                : "provider error";
+            lastProviderError = errorMessage;
+            sink({
+              kind: "MESSAGE",
+              at,
+              label: "assistant",
+              ref: null,
+              input: null,
+              output: errorMessage,
+              isError: true,
+              durationMs: null,
+              tokens: readTokens(raw.message),
+            });
+            return;
+          }
           const text = assistantTextOf(raw.message);
           if (text === null) return;
           sink({

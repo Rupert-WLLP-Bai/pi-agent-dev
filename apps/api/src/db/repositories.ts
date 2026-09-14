@@ -19,18 +19,21 @@ import type {
   SubjectMatchStatus,
   SubjectVerification,
 } from "@contract-audit/audit/model";
+import type { PartyHistoryRun, PriorPartyFinding } from "@contract-audit/audit/party-history-rule";
 import type { AgentRunIdentity, ReviewPriority } from "@contract-audit/audit/ports";
 import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
-import { and, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres, { type Sql } from "postgres";
+import { originalStorageOf } from "../document/original-store";
 import {
   agentRuns,
   agentTraceSteps,
   auditCases,
   auditSnapshots,
   findingRevisions,
+  partyHistoryRecords,
   remediations,
   schema,
   sourceRecords,
@@ -72,6 +75,8 @@ export interface CaseSummary extends AuditCase {
   subjectRedLineCount: number;
   /** How the contract entered the system; null when never recorded. */
   sourceProvenance: SourceProvenance | null;
+  /** Where an uploaded original lives; null when there is no file. */
+  originalStorage: "s3" | "local" | null;
 }
 
 /**
@@ -327,6 +332,7 @@ export interface SourceRecordOriginal {
   id: string;
   originalPath: string | null;
   name: string | null;
+  provenance: SourceProvenance | null;
 }
 
 export class AuditCaseRepository {
@@ -336,6 +342,11 @@ export class AuditCaseRepository {
     sourceRecordId: string,
     snapshot: AuditSnapshot,
     provenance: SourceProvenance | null = null,
+    options: {
+      createdAt?: Date;
+      metadata?: Record<string, unknown>;
+      assignee?: string | null;
+    } = {},
   ): Promise<{ caseId: string; snapshotId: string }> {
     return this.db.transaction(async (tx) => {
       await tx
@@ -348,16 +359,20 @@ export class AuditCaseRepository {
             ...(provenance === null
               ? {}
               : { sourceType: provenance.type, sourceDisplayName: provenance.displayName }),
+            ...(options.metadata ?? {}),
           },
         })
         .onConflictDoNothing({ target: sourceRecords.id });
 
+      const createdAt = options.createdAt;
       const [auditCase] = await tx
         .insert(auditCases)
         .values({
           sourceRecordId,
           status: "PENDING",
           stage: "QUEUED",
+          ...(createdAt === undefined ? {} : { createdAt, updatedAt: createdAt }),
+          ...(options.assignee === undefined ? {} : { assignee: options.assignee }),
         })
         .returning({ id: auditCases.id });
 
@@ -466,11 +481,21 @@ export class AuditCaseRepository {
     if (row === undefined) return null;
     const metadata = row.metadata;
     let name: string | null = null;
-    if (metadata !== null && typeof metadata === "object" && "sourceDisplayName" in metadata) {
-      const candidate = metadata.sourceDisplayName;
-      if (typeof candidate === "string") name = candidate;
+    let sourceType: string | null = null;
+    if (metadata !== null && typeof metadata === "object") {
+      if ("sourceDisplayName" in metadata && typeof metadata.sourceDisplayName === "string") {
+        name = metadata.sourceDisplayName;
+      }
+      if ("sourceType" in metadata && typeof metadata.sourceType === "string") {
+        sourceType = metadata.sourceType;
+      }
     }
-    return { id: row.id, originalPath: row.originalPath, name };
+    return {
+      id: row.id,
+      originalPath: row.originalPath,
+      name,
+      provenance: toSourceProvenance(sourceType, name),
+    };
   }
 
   async getSnapshot(snapshotId: string): Promise<AuditSnapshot | null> {
@@ -1048,6 +1073,220 @@ export class AuditCaseRepository {
   }
 
   /**
+   * Earlier reviewed findings on cases that name the same counterparty (or the
+   * same unified social credit code) and were created before this case. The
+   * lookup is frozen by the caller into party_history_records so later cases
+   * cannot rewrite what this Bounded Audit Context saw.
+   */
+  async findPriorPartyCases(input: {
+    excludeCaseId: string;
+    createdBefore: Date;
+    partyNames: string[];
+    creditCodes: string[];
+  }): Promise<PriorPartyFinding[]> {
+    if (input.partyNames.length === 0 && input.creditCodes.length === 0) return [];
+
+    const caseRows = await this.db
+      .select({
+        id: auditCases.id,
+        sourceRecordId: auditCases.sourceRecordId,
+        createdAt: auditCases.createdAt,
+      })
+      .from(auditCases)
+      .where(
+        and(ne(auditCases.id, input.excludeCaseId), lt(auditCases.createdAt, input.createdBefore)),
+      );
+    if (caseRows.length === 0) return [];
+
+    const caseIds = caseRows.map((row) => row.id);
+    const snapshotRows = await this.db
+      .select({
+        auditCaseId: auditSnapshots.auditCaseId,
+        parties: auditSnapshots.parties,
+        document: auditSnapshots.document,
+        createdAt: auditSnapshots.createdAt,
+      })
+      .from(auditSnapshots)
+      .where(inArray(auditSnapshots.auditCaseId, caseIds))
+      .orderBy(desc(auditSnapshots.createdAt));
+
+    const latestByCase = new Map<string, (typeof snapshotRows)[number]>();
+    for (const row of snapshotRows) {
+      if (!latestByCase.has(row.auditCaseId)) latestByCase.set(row.auditCaseId, row);
+    }
+
+    const verificationRows =
+      input.creditCodes.length === 0
+        ? []
+        : await this.db
+            .select({
+              auditCaseId: subjectVerifications.auditCaseId,
+              payload: subjectVerifications.payload,
+            })
+            .from(subjectVerifications)
+            .where(inArray(subjectVerifications.auditCaseId, caseIds));
+
+    const codesByCase = new Map<string, Set<string>>();
+    for (const row of verificationRows) {
+      const code = row.payload.matched?.unifiedSocialCreditCode;
+      if (!code) continue;
+      const set = codesByCase.get(row.auditCaseId) ?? new Set<string>();
+      set.add(code);
+      codesByCase.set(row.auditCaseId, set);
+    }
+
+    const nameSet = new Set(input.partyNames);
+    const codeSet = new Set(input.creditCodes);
+    const matched: Array<{
+      caseId: string;
+      sourceRecordId: string;
+      partyName: string;
+      title: string;
+    }> = [];
+
+    for (const caseRow of caseRows) {
+      const snapshot = latestByCase.get(caseRow.id);
+      if (!snapshot) continue;
+      const parties = snapshot.parties;
+      const named = parties.find((party) => nameSet.has(party.name));
+      const codes = codesByCase.get(caseRow.id);
+      const codeHit = codes ? [...codes].some((code) => codeSet.has(code)) : false;
+      if (!named && !codeHit) continue;
+      const partyName =
+        named?.name ??
+        parties.find((party) => party.label === "乙方")?.name ??
+        parties[0]?.name ??
+        "相对方";
+      matched.push({
+        caseId: caseRow.id,
+        sourceRecordId: caseRow.sourceRecordId,
+        partyName,
+        title: contractTitleFromFirstBlock(snapshot.document.blocks[0]?.text) ?? "未命名合同",
+      });
+    }
+
+    if (matched.length === 0) return [];
+
+    const findings = await this.db
+      .select()
+      .from(findingRevisions)
+      .where(
+        inArray(
+          findingRevisions.auditCaseId,
+          matched.map((item) => item.caseId),
+        ),
+      );
+    const superseded = new Set(
+      findings.flatMap((row) => (row.supersedesId === null ? [] : [row.supersedesId])),
+    );
+    const heads = findings.filter((row) => !superseded.has(row.id) && row.review !== null);
+    const byCase = new Map(matched.map((item) => [item.caseId, item]));
+    const result: PriorPartyFinding[] = [];
+    for (const row of heads) {
+      const meta = byCase.get(row.auditCaseId);
+      if (!meta || row.review === null) continue;
+      result.push({
+        priorCaseId: row.auditCaseId,
+        sourceRecordId: meta.sourceRecordId,
+        partyName: meta.partyName,
+        findingRevisionId: row.id,
+        findingType: row.proposal.findingType,
+        decision: row.review.decision,
+        reviewerId: row.review.reviewerId,
+        reviewedAt: row.review.reviewedAt,
+        title: meta.title,
+      });
+    }
+    return result;
+  }
+
+  async savePartyHistory(caseId: string, run: PartyHistoryRun): Promise<void> {
+    await this.db.insert(partyHistoryRecords).values({
+      auditCaseId: caseId,
+      payload: run,
+      evidence: run.evidence,
+    });
+  }
+
+  async getPartyHistory(caseId: string): Promise<PartyHistoryRun | null> {
+    const [row] = await this.db
+      .select()
+      .from(partyHistoryRecords)
+      .where(eq(partyHistoryRecords.auditCaseId, caseId))
+      .orderBy(desc(partyHistoryRecords.createdAt))
+      .limit(1);
+    return row?.payload ?? null;
+  }
+
+  /**
+   * Removes audit cases whose source record was planted by the demo seeder.
+   * Operator pastes and uploads are left untouched.
+   */
+  async deleteDemoSeededCases(): Promise<number> {
+    const seeded = await this.db.execute<{ id: string }>(sql`
+      SELECT id FROM source_records WHERE metadata->>'demoSeed' = 'true'
+    `);
+    if (seeded.length === 0) return 0;
+    const sourceIds = seeded.map((row) => row.id);
+    const caseRows = await this.db
+      .select({ id: auditCases.id })
+      .from(auditCases)
+      .where(inArray(auditCases.sourceRecordId, sourceIds));
+    const caseIds = caseRows.map((row) => row.id);
+    if (caseIds.length > 0) {
+      await this.db.delete(agentTraceSteps).where(inArray(agentTraceSteps.auditCaseId, caseIds));
+      await this.db.delete(agentRuns).where(inArray(agentRuns.auditCaseId, caseIds));
+      await this.db.delete(remediations).where(inArray(remediations.auditCaseId, caseIds));
+      await this.db.delete(findingRevisions).where(inArray(findingRevisions.auditCaseId, caseIds));
+      await this.db
+        .delete(partyHistoryRecords)
+        .where(inArray(partyHistoryRecords.auditCaseId, caseIds));
+      await this.db
+        .delete(subjectVerifications)
+        .where(inArray(subjectVerifications.auditCaseId, caseIds));
+      await this.db.delete(auditSnapshots).where(inArray(auditSnapshots.auditCaseId, caseIds));
+      await this.db.delete(auditCases).where(inArray(auditCases.id, caseIds));
+    }
+    await this.db.delete(sourceRecords).where(inArray(sourceRecords.id, sourceIds));
+    return caseIds.length;
+  }
+
+  async listDemoSeededCases(): Promise<
+    Array<{
+      caseId: string;
+      scenarioId: string;
+      caseKey: string;
+      status: AuditCaseStatus;
+      stage: AuditStage;
+    }>
+  > {
+    const rows = await this.db.execute<{
+      case_id: string;
+      scenario_id: string | null;
+      case_key: string | null;
+      status: string;
+      stage: string;
+    }>(sql`
+      SELECT c.id AS case_id,
+             src.metadata->>'scenarioId' AS scenario_id,
+             src.metadata->>'caseKey' AS case_key,
+             c.status,
+             c.stage
+      FROM audit_cases c
+      INNER JOIN source_records src ON src.id = c.source_record_id
+      WHERE src.metadata->>'demoSeed' = 'true'
+      ORDER BY c.created_at ASC
+    `);
+    return rows.map((row) => ({
+      caseId: row.case_id,
+      scenarioId: row.scenario_id ?? "",
+      caseKey: row.case_key ?? "",
+      status: row.status as AuditCaseStatus,
+      stage: row.stage as AuditStage,
+    }));
+  }
+
+  /**
    * The external-verification timeline: every stored answer, newest capture
    * first. The contract title is read through a scalar subquery so a case with
    * several snapshot generations cannot multiply its verification rows.
@@ -1110,6 +1349,7 @@ export class AuditCaseRepository {
       source_record_id: string;
       source_type: string | null;
       source_display_name: string | null;
+      original_path: string | null;
       created_at: string | Date;
       updated_at: string | Date;
       contract_title: string | null;
@@ -1121,6 +1361,7 @@ export class AuditCaseRepository {
              s.document->'blocks'->0->>'text' AS contract_title,
              src.metadata->>'sourceType' AS source_type,
              src.metadata->>'sourceDisplayName' AS source_display_name,
+             src.original_path AS original_path,
              COALESCE(h.finding_count, 0)::int AS finding_count,
              h.highest_severity,
              COALESCE(sr.subject_red_line_count, 0)::int AS subject_red_line_count
@@ -1176,6 +1417,7 @@ export class AuditCaseRepository {
       highestSeverity: toSeverity(row.highest_severity),
       subjectRedLineCount: row.subject_red_line_count,
       sourceProvenance: toSourceProvenance(row.source_type, row.source_display_name),
+      originalStorage: originalStorageOf(row.original_path),
     }));
   }
 

@@ -81,6 +81,15 @@ export {
 export * from "./model";
 export { createAuditSnapshot } from "./orchestrator";
 export { extractContractParties } from "./party-extractor";
+export {
+  counterpartyCreditCodes,
+  counterpartyNames,
+  evaluatePartyHistoryRule,
+  PARTY_HISTORY_RULE_CODE,
+  type PartyHistoryHit,
+  type PartyHistoryRun,
+  type PriorPartyFinding,
+} from "./party-history-rule";
 export { ADVANCE_PAYMENT_RULE_CODE, evaluateAdvancePaymentRule } from "./payment-rule";
 export {
   buildPaymentTermFacts,

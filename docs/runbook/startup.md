@@ -14,30 +14,43 @@
 ```bash
 cp .env.example .env          # 首次；本机已配好，见下
 bun install                   # 安装依赖（workspaces）
-docker compose up -d postgres # 启动 PostgreSQL 18
+docker compose up -d postgres minio redis   # 本地基础设施：PostgreSQL + MinIO + Redis
 cd apps/api && bun run migrate && cd ../..   # 应用迁移（13 张表）
 bunx playwright install       # 首次安装浏览器
 ```
+
+MinIO 与 Redis 都是可选的：`S3_ENDPOINT` / `REDIS_URL` 留空时原文落本地目录、核验不缓存，
+本地开发照常可用（见下表）。
 
 `.env` 关键变量（`git` 忽略，不入库）：
 
 | 变量 | 本机值 | 说明 |
 |---|---|---|
-| `XYG_ENDPOINT` / `XYG_API_KEY` / `XYG_MODEL` | 已配置 | 真实 LLM，仅存进程内存 |
+| `XYG_ENDPOINT` / `XYG_API_KEY` / `XYG_MODEL` | 已配置 | 真实 LLM；环境变量路径的 API key 仅存进程内存 |
 | `DATABASE_URL` | `postgresql://contract_audit:contract_audit@localhost:5433/contract_audit` | 见第 6 节端口说明 |
 | `AUDIT_AGENT_MODE` | `pi`（默认）| 设 `fake` 可无凭证跑通全流程 |
-| `AGENT_TIMEOUT_MS` | `300000` | 单次 Agent 运行上限，`0` 表示不超时 |
+| `AGENT_TIMEOUT_MS` | `900000` | 单次 Agent 运行上限，`0` 表示不超时。实测无竞争时一次完整审计约 62 秒（约 20 次工具调用），所以 900000 只是上限；超时会记为失败的 Agent 运行且不会自动续跑，接口较慢时不要调低 |
 | `SUBJECT_VERIFICATION_MODE` | `fixture`（默认）| `qcc` 走企查查 MCP |
 | `MAX_CONCURRENT_AUDITS` | `1` | 并发审计数 |
+| `S3_ENDPOINT` | 空（默认）| 未配置时合同原文写本地 `UPLOAD_DIR`；这是正常的本地状态 |
+| `S3_BUCKET` / `S3_REGION` | `contract-originals` / `us-east-1` | 对象存储桶与区域默认值 |
+| `UPLOAD_DIR` | `var/uploads` | 对象存储未配置时的本地回退目录 |
+| `REDIS_URL` | 空（默认）| 未配置即关闭企查查核验缓存，这是正常的本地状态 |
+
+LLM 也可以在「模型服务」页（`/settings/providers`，侧边栏「系统管理」）配置：新增
+OpenAI 兼容 provider（名称 / base URL / 模型 / API key / 最大输入输出 token / 启用开关），
+恰好一个为「当前」，即下一次审计使用的配置；表为空时回退到上面的 `XYG_*`。通过该页添加的
+provider 会把 key 持久化到 PostgreSQL `llm_providers` 表；无论哪条路径，key 都不会随 API
+返回、不会写日志、不会进入浏览器。
 
 ## 3. 日常启动
 
-开两个终端，各跑一条：
+### 开发（基础设施在容器，应用在宿主）
 
 ```bash
+docker compose up -d postgres minio redis   # 基础设施
 # 终端 1 — API（读取根目录 .env）
 bun --filter @contract-audit/api dev
-
 # 终端 2 — Web（Vite，/api 代理到 3000）
 bun --filter @contract-audit/web dev
 ```
@@ -47,16 +60,57 @@ bun --filter @contract-audit/web dev
 > Linux / WSL 上可用 `./scripts/dev-up.sh`（`--status` / `--stop`），它用
 > `setsid` + `ss` 管理进程组；**macOS 没有这两个命令，请不要用该脚本**。
 
-健康检查：
+### 演示（整套栈进容器）
+
+```bash
+docker compose up --build
+```
+
+打开 <http://localhost:8080>。服务与端口：
+
+| 服务 | 端口 |
+|---|---|
+| postgres | 5432 |
+| minio | 9000（S3 API）/ 9001（控制台）|
+| redis | 6379 |
+| api | 3000 |
+| web | 8080 |
+
+API 容器启动时自动应用迁移；`AUDIT_AGENT_MODE` 在容器中默认 `fake`，因此演示无需 LLM
+凭证。演示种子**不会**自动执行，需要时手动触发：
+
+```bash
+docker compose exec api bun run seed:demo
+```
+
+### 健康检查
 
 ```bash
 curl -s http://localhost:3000/api/health
-# {"status":"ok","database":true,"dispatcher":true,"agentMode":"pi",
-#  "qccConfigured":false,"llmConfigured":true}
+# {
+#   "status": "ok",
+#   "database": true,
+#   "dispatcher": true,
+#   "agentMode": "pi",
+#   "qccConfigured": false,
+#   "llmConfigured": true,
+#   "connections": {
+#     "database":    { "ok": true,  "target": "localhost:5433/contract_audit", "detail": null },
+#     "redis":       { "ok": false, "target": "未配置", "detail": "未设置 REDIS_URL，企查查结果不做缓存" },
+#     "objectStore": { "ok": true,  "target": "<工作目录>/var/uploads（本地目录）", "detail": null },
+#     "llm":         { "ok": true,  "target": "deepseek-v4-flash @ http://<XYG_ENDPOINT>", "detail": null },
+#     "qcc":         { "ok": false, "target": "agent.qcc.com · 公司核验 + 风险扫描",
+#                      "detail": "未设置 QCC_TOKEN，主体核验使用固定样本" },
+#     "dispatcher":  { "ok": true,  "target": "worker 池（MAX_CONCURRENT_AUDITS=1）", "detail": null }
+#   }
+# }
 ```
 
-`database` / `dispatcher` 为 `true` 才可正常审计；`llmConfigured` 表示是否读到
-`XYG_API_KEY`（`pi` 模式下为 `false` 时审计会失败）。
+`database` / `dispatcher` 为 `true` 才可正常审计，也只有这两者为 `false` 时端点返回
+HTTP 503。`redis`、`objectStore` 可降级：未配置或不可用时 `ok` 为 `false`，但不会改变
+`status`。`connections.*.target` 已剥离凭据，密钥只报告是否配置（`qccConfigured` /
+`llmConfigured`）。未配置 `XYG_*`（且无激活 provider）时 `llmConfigured` 为 `false`、
+`llm.detail` 为「未配置 LLM 凭据」。
 
 ## 4. 页面路由
 
@@ -73,6 +127,7 @@ curl -s http://localhost:3000/api/health
 | `/cases` | 案例验证（发布前回归）|
 | `/verification` | 外部核验 |
 | `/integrations` | 集成健康 |
+| `/settings/providers` | 模型服务（系统管理组）|
 | `/demo` | 演示概览（规则矩阵）|
 
 ## 5. 质量闸门
@@ -123,5 +178,5 @@ bun --filter @contract-audit/pi-agent run smoke
 
 - 前台两条命令：各自 `Ctrl-C`。
 - 后台/托管进程：结束 `bun --filter @contract-audit` 相关进程。
-- 数据库：`docker compose stop postgres`（保留数据）；`docker compose down`
-  （移除容器，保留卷）。
+- 本地基础设施：`docker compose stop postgres minio redis`（保留数据）；
+  `docker compose down`（移除容器，保留卷）。

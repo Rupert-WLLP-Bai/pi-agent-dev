@@ -37,8 +37,8 @@ export class PiAuditAgent implements AuditAgentPort {
   private readonly config: PiConfig;
   readonly identity: AgentRunIdentity;
 
-  constructor() {
-    this.config = loadPiConfig();
+  constructor(config?: PiConfig) {
+    this.config = config ?? loadPiConfig();
     this.identity = {
       provider: "pi",
       model: this.config.model,
@@ -88,7 +88,7 @@ export class PiAuditAgent implements AuditAgentPort {
       // findings *and* zero tool calls means the model never audited anything,
       // which must not be reported as a pass.
       if (proposals.size === 0 && reporter.toolCalls === 0) {
-        throw new Error("AGENT_RUN_COMPLETED_WITHOUT_PROPOSAL");
+        throw new Error(reporter.lastProviderError ?? "AGENT_RUN_COMPLETED_WITHOUT_PROPOSAL");
       }
       outcome = "completed";
 

@@ -42,7 +42,10 @@ export function loadApiConfig(): ApiConfig {
     databaseUrl:
       process.env.DATABASE_URL ??
       "postgresql://contract_audit:contract_audit@localhost:5432/contract_audit",
-    agentTimeoutMs: parseInteger(process.env.AGENT_TIMEOUT_MS, 300_000),
+    // 15 min: a thinking-on dsv4 turn can burn the whole max_tokens budget
+    // before the first tool call. Thinking-off is ~seconds per turn; keep a
+    // generous ceiling so a slow gateway cannot fail a healthy 20-call audit.
+    agentTimeoutMs: parseInteger(process.env.AGENT_TIMEOUT_MS, 900_000),
     maxConcurrentAudits: parseInteger(process.env.MAX_CONCURRENT_AUDITS, 1),
     apiPort: parseInteger(process.env.API_PORT, 3000),
     webOrigin: process.env.WEB_ORIGIN ?? "http://localhost:5173",

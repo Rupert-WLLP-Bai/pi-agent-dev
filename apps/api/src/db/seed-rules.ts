@@ -245,6 +245,20 @@ export const SEED_RULE_DEFINITIONS: readonly SeedRule[] = [
       exceptionApproval: "高级管理层书面审批",
     },
   },
+  {
+    code: "PARTY_HISTORY_ASSOCIATION",
+    name: "相对方历史关联规则",
+    contractType: "全部",
+    description:
+      "同一相对方在历史案件中已被确认的风险，或曾被判定为误报的同类发现，应在本次审计中自动关联，避免不同复核人漏看跨案线索。",
+    params: {},
+    stances: {
+      preferred: "首选 无历史确认风险",
+      acceptableRetreat: "可退让 历史仅为误报，需对照本次条款人工确认",
+      unacceptable: "不可接受 同一相对方历史案件存在已确认风险却未关联",
+      exceptionApproval: "法务书面确认",
+    },
+  },
 ];
 
 /**

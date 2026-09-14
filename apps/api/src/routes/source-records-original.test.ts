@@ -113,3 +113,34 @@ test("a pasted submission has no original and answers 404", async () => {
   expect(download.status).toBe(404);
   expect(await download.json()).toEqual({ error: "no_original" });
 });
+
+test("case detail marks an uploaded original as downloadable", async () => {
+  const { app } = setup();
+
+  const created = await upload(app, "设备采购合同.txt", "text/plain", CONTRACT_TEXT);
+  const { id: caseId } = (await created.json()) as { id: string };
+
+  const detail = await app.handle(new Request(`http://localhost/api/audit-cases/${caseId}`));
+  expect(detail.status).toBe(200);
+  const body = await detail.json();
+  expect(body.originalDownloadable).toBe(true);
+  expect(body.sourceProvenance).toEqual({
+    type: "FILE_UPLOAD",
+    displayName: "设备采购合同.txt",
+  });
+  expect(body.originalStorage).toBe("local");
+});
+
+test("case detail does not offer a download for pasted text", async () => {
+  const { app } = setup();
+
+  const created = await paste(app, CONTRACT_TEXT);
+  const { id: caseId } = (await created.json()) as { id: string };
+
+  const detail = await app.handle(new Request(`http://localhost/api/audit-cases/${caseId}`));
+  expect(detail.status).toBe(200);
+  const body = await detail.json();
+  expect(body.originalDownloadable).toBe(false);
+  expect(body.sourceProvenance).toEqual({ type: "TEXT_PASTE", displayName: null });
+  expect(body.originalStorage).toBeNull();
+});

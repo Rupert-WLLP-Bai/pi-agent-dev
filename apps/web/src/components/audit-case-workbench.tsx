@@ -1,4 +1,9 @@
-import { ArrowLeftOutlined, CopyOutlined, NodeIndexOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  CopyOutlined,
+  DownloadOutlined,
+  NodeIndexOutlined,
+} from "@ant-design/icons";
 import type {
   AuditCase,
   ContractDocument,
@@ -10,8 +15,11 @@ import type {
   RuleAssessment,
   RuleCode,
   Severity,
+  SourceProvenance,
   SubjectVerification,
 } from "@contract-audit/audit/model";
+import type { PartyHistoryHit } from "@contract-audit/audit/party-history-rule";
+import { Link } from "@tanstack/react-router";
 import {
   Alert,
   Button,
@@ -29,6 +37,8 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   assessmentsForFinding,
+  canDownloadOriginal,
+  describeSourceProvenance,
   type EvidenceSourceGroup,
   evidenceSourceGroupLabels,
   evidenceSourceGroupOrder,
@@ -60,7 +70,11 @@ export interface AuditCaseDetailData {
   evidence: EvidenceLocator[];
   ruleAssessments: RuleAssessment[];
   subjectVerifications: SubjectVerification[];
+  partyHistory: PartyHistoryHit[];
   findings: FindingRevision[];
+  sourceProvenance?: SourceProvenance | null;
+  originalDownloadable?: boolean;
+  originalStorage?: "s3" | "local" | null;
 }
 
 export interface AuditCaseWorkbenchProps {
@@ -108,6 +122,15 @@ const stepItems = [
 const formatTime = (value: string): string =>
   new Date(value).toLocaleString("zh-CN", { hour12: false });
 
+const dayLabel = (value: unknown): string => {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string" || typeof value === "number") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  }
+  return "";
+};
+
 const dispositionColors: Record<RuleAssessment["disposition"], string> = {
   POLICY_CONFLICT: "red",
   COMPLIANT: "green",
@@ -123,6 +146,7 @@ const documentBlockId = (locator: EvidenceLocator): string | null =>
 
 const evidenceGroupFor = (locator: EvidenceLocator): EvidenceSourceGroup => {
   if (locator.location.kind === "EXTERNAL_RECORD") return "EXTERNAL";
+  if (locator.location.kind === "PRIOR_CASE_RECORD") return "HISTORY";
   return locator.id === POLICY_INPUT_EVIDENCE_ID ? "POLICY" : "CONTRACT";
 };
 
@@ -296,6 +320,7 @@ function InspectorPanel({
   ruleAssessments,
   parties,
   subjectVerifications,
+  partyHistory,
   evidence,
   onOpenReview,
   onFocusBlock,
@@ -305,6 +330,7 @@ function InspectorPanel({
   ruleAssessments: RuleAssessment[];
   parties: ContractParty[];
   subjectVerifications: SubjectVerification[];
+  partyHistory: PartyHistoryHit[];
   evidence: EvidenceLocator[];
   onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
   onFocusBlock: (blockId: string) => void;
@@ -388,6 +414,39 @@ function InspectorPanel({
         </div>
 
         <div className="inspect-section">
+          <h4>相对方历史案件 ({partyHistory.length})</h4>
+          {partyHistory.length === 0 ? (
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              未发现同一相对方的历史审核记录
+            </Typography.Text>
+          ) : (
+            <div className="subject-panel">
+              {partyHistory.map((hit) => (
+                <div key={hit.priorCaseId} className="subject-item">
+                  <div className="subject-head">
+                    <b>{hit.title}</b>
+                    <Link to="/audit-cases/$id" params={{ id: hit.priorCaseId }}>
+                      打开
+                    </Link>
+                  </div>
+                  <div className="subject-meta">
+                    <span>相对方 {hit.partyName}</span>
+                  </div>
+                  <ul className="subject-candidates">
+                    {hit.findings.map((item) => (
+                      <li key={item.findingRevisionId}>
+                        {findingTypeLabels[item.findingType]} · {decisionLabels[item.decision]} ·
+                        法务{item.reviewerId} · {dayLabel(item.reviewedAt)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="inspect-section">
           <h4>证据来源 ({citedEvidence.length})</h4>
           {citedEvidence.length === 0 ? (
             <Typography.Text type="secondary" style={{ fontSize: 11 }}>
@@ -403,7 +462,7 @@ function InspectorPanel({
                     <span className="source-count">{items.length}</span>
                   </div>
                   {items.length === 0 ? (
-                    <div className="source-empty">—</div>
+                    <div className="source-empty">-</div>
                   ) : (
                     items.map((locator) =>
                       locator.location.kind === "EXTERNAL_RECORD" ? (
@@ -427,6 +486,31 @@ function InspectorPanel({
                           </div>
                           <div className="source-meta">
                             <span>来源记录 · {locator.sourceRecordId.slice(0, 8)}…</span>
+                          </div>
+                        </div>
+                      ) : locator.location.kind === "PRIOR_CASE_RECORD" ? (
+                        <div key={locator.id} className="source-item">
+                          <strong>
+                            {shortAuditId(locator.id)} · {locator.location.title}
+                          </strong>
+                          <div className="source-meta">
+                            <span>相对方 {locator.location.partyName}</span>
+                            <span>
+                              {findingTypeLabels[locator.location.findingType]} ·{" "}
+                              {decisionLabels[locator.location.decision]}
+                            </span>
+                            <span>
+                              法务{locator.location.reviewerId} ·{" "}
+                              {dayLabel(locator.location.reviewedAt)}
+                            </span>
+                          </div>
+                          <div className="source-meta">
+                            <Link
+                              to="/audit-cases/$id"
+                              params={{ id: locator.location.priorCaseId }}
+                            >
+                              打开历史案件
+                            </Link>
                           </div>
                         </div>
                       ) : (
@@ -515,7 +599,11 @@ export function AuditCaseWorkbench({
     evidence,
     ruleAssessments,
     subjectVerifications,
+    partyHistory = [],
     findings,
+    sourceProvenance = null,
+    originalDownloadable = false,
+    originalStorage = null,
   } = detail;
   const stage = auditCase.stage;
   const failed = stage === "FAILED" || stage === "CANCELLED" || stage === "INTERRUPTED";
@@ -646,6 +734,15 @@ export function AuditCaseWorkbench({
             <Button size="small" icon={<NodeIndexOutlined />} onClick={onOpenTrace}>
               运行轨迹
             </Button>
+            {canDownloadOriginal({ sourceProvenance, originalDownloadable }) && (
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                href={`/api/source-records/${auditCase.sourceRecordId}/original`}
+              >
+                下载原文
+              </Button>
+            )}
           </div>
         </div>
         <div className="case-meta">
@@ -662,6 +759,9 @@ export function AuditCaseWorkbench({
           </span>
           <span>
             来源记录 ID <b className="mono">{auditCase.sourceRecordId}</b>
+          </span>
+          <span>
+            来源 <b>{describeSourceProvenance(sourceProvenance, originalStorage).primary}</b>
           </span>
           <span>
             创建时间 <b>{formatTime(auditCase.createdAt)}</b>
@@ -795,7 +895,7 @@ export function AuditCaseWorkbench({
             <div className="document-page">
               <h1>{contractTitle}</h1>
               <div className="doc-no">
-                合同版本 · 区块 {snapshot.document.blocks[0]?.blockId ?? "—"}
+                合同版本 · 区块 {snapshot.document.blocks[0]?.blockId ?? "-"}
               </div>
               {renderDocumentBlocks(snapshot.document, selectedBlockId, problemBlockIds)}
             </div>
@@ -819,6 +919,7 @@ export function AuditCaseWorkbench({
                 )}
                 parties={snapshot.parties}
                 subjectVerifications={subjectVerifications}
+                partyHistory={partyHistory}
                 evidence={evidence}
                 onOpenReview={onOpenReview}
                 onFocusBlock={setFocusedBlockId}
@@ -849,7 +950,7 @@ export function AuditCaseWorkbench({
                 <span className="coverage-group__count">{section.items.length} 项</span>
               </div>
               {section.items.length === 0 ? (
-                <div className="coverage-group__empty">—</div>
+                <div className="coverage-group__empty">-</div>
               ) : (
                 <ul className="coverage-group__list">
                   {section.items.map((label) => (

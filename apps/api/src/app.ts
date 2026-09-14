@@ -12,10 +12,27 @@ import { seedRules } from "./db/seed-rules";
 import { seedValidationCases } from "./db/seed-validation-cases";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
+import { loadObjectStoreConfig } from "./document/original-store";
+import { type ApiHealth, buildHealthSnapshot } from "./health";
+import { LlmProviderRegistry } from "./llm/provider-registry";
+import {
+  createLlmProviderRepository,
+  createMemoryLlmProviderStore,
+  type LlmProviderStore,
+} from "./llm/provider-repository";
+import { seedProviderFromEnv } from "./llm/seed-from-env";
+import { apiHealthSchema, openapiOptions, openapiTags } from "./openapi";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
+import {
+  connectRedis,
+  createCachedSubjectVerificationPort,
+  type VerificationCache,
+} from "./qcc/cache";
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
+import { demoWorldRoutes } from "./routes/demo-world";
 import { findingsRoutes } from "./routes/findings";
+import { llmProvidersRoutes } from "./routes/llm-providers";
 import { remediationsRoutes } from "./routes/remediations";
 import { reviewsRoutes } from "./routes/reviews";
 import { rulesRoutes } from "./routes/rules";
@@ -24,7 +41,14 @@ import { validationRoutes } from "./routes/validation";
 import { verificationsRoutes } from "./routes/verifications";
 import { AuditEventBroker } from "./sse";
 
-export type AppDeps = AuditRouteDeps;
+export type AppDeps = AuditRouteDeps & {
+  /** Model-service persistence; absent falls back to the in-memory store (tests). */
+  llmProviders?: LlmProviderStore;
+  /** The runtime registry shared by the agent factory and the health snapshot. */
+  registry?: LlmProviderRegistry;
+  /** The connected Redis cache the health probe pings; null when Redis is off. */
+  redisCache?: VerificationCache | null;
+};
 export type {
   AgentRunSummary,
   AuditOverview,
@@ -47,51 +71,51 @@ export type {
   ValidationRunListItem,
   ValidationRunRecord,
 } from "./db/rule-repository";
+export type { DemoWorldView, SeedDemoWorldResult, SeededScenarioView } from "./demo/seed-world";
+export type { OriginalStorage } from "./document/original-store";
+export type { ApiHealth } from "./health";
 export type { ValidationRunView } from "./routes/validation";
-/**
- * The integration-health snapshot `GET /api/health` returns. Credentials are
- * reported as presence only — never as values — so the endpoint is safe to
- * poll from the browser and to log.
- */
-export interface ApiHealth {
-  status: "ok" | "unavailable";
-  database: boolean;
-  dispatcher: boolean;
-  /** Which agent implementation is wired in; "fake" needs no LLM credentials. */
-  agentMode: "pi" | "fake";
-  /** Whether the QCC bearer token is present, not the token itself. */
-  qccConfigured: boolean;
-  /** Whether the real agent's LLM key is present, not the key itself. */
-  llmConfigured: boolean;
-}
-
 export type {
   ValidationChange,
   ValidationDiffEntry,
   ValidationOutcome,
 } from "./validation-diff";
 
-function agentFactoryFor(mode: "pi" | "fake"): (snapshot: AuditSnapshot) => AuditAgentPort {
+function agentFactoryFor(
+  mode: "pi" | "fake",
+  registry: LlmProviderRegistry,
+): (snapshot: AuditSnapshot) => AuditAgentPort {
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));
-  return () => new PiAuditAgent();
+  // The dispatcher calls this once per run and reads `agent.identity`, so the
+  // registry lookup must stay synchronous — `current()` is a cache read.
+  return () => new PiAuditAgent(registry.current());
 }
 
-function subjectVerificationPortFor(config: ReturnType<typeof loadApiConfig>) {
+function subjectVerificationPortFor(
+  config: ReturnType<typeof loadApiConfig>,
+  cache: Awaited<ReturnType<typeof connectRedis>>,
+) {
   if (config.subjectVerificationMode === "qcc" && config.qccToken) {
-    return createQccSubjectVerificationPort({
-      companyEndpoint: config.qccCompanyEndpoint,
-      riskEndpoint: config.qccRiskEndpoint,
-      token: config.qccToken,
-    });
+    return createCachedSubjectVerificationPort(
+      createQccSubjectVerificationPort({
+        companyEndpoint: config.qccCompanyEndpoint,
+        riskEndpoint: config.qccRiskEndpoint,
+        token: config.qccToken,
+      }),
+      cache,
+    );
   }
   return createFixtureSubjectVerificationPort();
 }
 
 export function createApp(deps: AppDeps) {
   const config = loadApiConfig();
+  const providers = deps.llmProviders ?? createMemoryLlmProviderStore();
+  const registry = deps.registry ?? new LlmProviderRegistry(providers);
   return new Elysia()
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
+    .use(demoWorldRoutes({ repository: deps.repository }))
     .use(rulesRoutes({ rules: deps.rules }))
     .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
@@ -106,31 +130,49 @@ export function createApp(deps: AppDeps) {
     )
     .use(verificationsRoutes({ repository: deps.repository }))
     .use(statsRoutes({ repository: deps.repository }))
-    .get("/api/health", async ({ set }): Promise<ApiHealth> => {
-      const databaseOk = await deps.repository.ping();
-      const dispatcherOk = deps.dispatcher.isStarted;
-      if (!databaseOk || !dispatcherOk) {
-        set.status = 503;
-      }
-      // Every field is reported in both states so the integrations page can
-      // name the exact failing integration rather than only the aggregate.
-      return {
-        status: databaseOk && dispatcherOk ? "ok" : "unavailable",
-        database: databaseOk,
-        dispatcher: dispatcherOk,
-        agentMode: config.agentMode,
-        qccConfigured: config.qccToken.length > 0,
-        llmConfigured: config.llmConfigured,
-      };
-    })
     .use(
-      openapi({
-        path: "/openapi",
-        documentation: {
-          info: { title: "Contract Audit API", version: "1.0.0" },
-        },
+      llmProvidersRoutes({
+        providers,
+        // Every mutation re-reads the active row so the next audit run picks up
+        // the change without a restart.
+        onChanged: () => registry.refresh(),
       }),
-    );
+    )
+    .get(
+      "/api/health",
+      async ({ set }): Promise<ApiHealth> => {
+        const databaseOk = await deps.repository.ping();
+        const dispatcherOk = deps.dispatcher.isStarted;
+        // Only the database and the dispatcher are fatal; a degraded cache or
+        // object store still answers 200 with its connection flagged.
+        if (!databaseOk || !dispatcherOk) {
+          set.status = 503;
+        }
+        return buildHealthSnapshot({
+          config,
+          databaseOk,
+          dispatcherOk,
+          redis: { url: process.env.REDIS_URL, client: deps.redisCache ?? null },
+          objectStore: loadObjectStoreConfig(),
+          agent: { mode: config.agentMode, ...registry.describe() },
+          qcc: {
+            companyEndpoint: config.qccCompanyEndpoint,
+            riskEndpoint: config.qccRiskEndpoint,
+            tokenConfigured: config.qccToken.length > 0,
+          },
+        });
+      },
+      {
+        response: { 200: apiHealthSchema, 503: apiHealthSchema },
+        detail: {
+          summary: "集成健康检查",
+          description:
+            "返回数据库、调度器、Redis、对象存储、模型服务与企查查的连通性。仅数据库或调度器失败时返回 503；凭据只报存在性，从不返回值。",
+          tags: [openapiTags.system],
+        },
+      },
+    )
+    .use(openapi({ ...openapiOptions }));
 }
 
 /** The assembled Elysia app, named so consumers share one contract. */
@@ -143,19 +185,36 @@ if (import.meta.main) {
   const { db } = createDb(config.databaseUrl);
   const repository = createRepository(db);
   const rulesRepository = createRuleRepository(db);
+  const providerRepository = createLlmProviderRepository(db);
+  // Import the environment configuration as the first provider so the console
+  // shows the model service that audits are actually using.
+  await seedProviderFromEnv(providerRepository);
+  // Read the active provider before the dispatcher starts, so the first audit
+  // run already uses the operator's choice when one is configured.
+  const providerRegistry = new LlmProviderRegistry(providerRepository);
+  await providerRegistry.refresh();
   await seedRules(rulesRepository);
   await seedValidationCases(rulesRepository);
+  const redisCache = await connectRedis(process.env.REDIS_URL);
   const broker = new AuditEventBroker();
   const dispatcher = new AuditDispatcher(
     repository,
-    agentFactoryFor(config.agentMode),
+    agentFactoryFor(config.agentMode, providerRegistry),
     broker,
     config.maxConcurrentAudits,
-    subjectVerificationPortFor(config),
+    subjectVerificationPortFor(config, redisCache),
     config.agentTimeoutMs,
     rulesRepository,
   );
-  app = createApp({ repository, dispatcher, broker, rules: rulesRepository });
+  app = createApp({
+    repository,
+    dispatcher,
+    broker,
+    rules: rulesRepository,
+    llmProviders: providerRepository,
+    registry: providerRegistry,
+    redisCache,
+  });
   await dispatcher.start();
   app.listen(config.apiPort);
 }

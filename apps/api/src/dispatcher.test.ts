@@ -236,6 +236,46 @@ test("hands the agent a context that includes the subject verification evidence"
   );
 });
 
+test("hands the agent prior-case evidence when the same counterparty was reviewed before", async () => {
+  const chengdu = "成都建工集团有限公司";
+  const older = new Date("2026-06-01T00:00:00.000Z");
+  const { caseId: priorId } = await repository.createPendingCase(
+    "source-prior",
+    snapshotFor("source-prior", [party("party-1", chengdu)]),
+    null,
+    { createdAt: older },
+  );
+  const findingId = await repository.appendFindingRevision(priorId, proposal, null);
+  await repository.appendReviewRevision(findingId, {
+    decision: "ACCEPTED",
+    reviewerId: "张三",
+    reviewedAt: "2026-06-14T08:00:00.000Z",
+  });
+  await repository.updateCaseStatus(priorId, "COMPLETED", "COMPLETED");
+
+  const { caseId } = await repository.createPendingCase(
+    "source-current",
+    snapshotFor("source-current", [party("party-1", chengdu)]),
+    null,
+    { createdAt: new Date("2026-09-14T00:00:00.000Z") },
+  );
+  await dispatcher.enqueue(caseId);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  agent.resolveRun([proposal]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const context = agent.receivedSnapshots[0];
+  expect(
+    context.ruleAssessments.some(
+      (item) =>
+        item.ruleCode === "PARTY_HISTORY_ASSOCIATION" && item.disposition === "POLICY_CONFLICT",
+    ),
+  ).toBe(true);
+  expect(context.evidence.some((locator) => locator.location.kind === "PRIOR_CASE_RECORD")).toBe(
+    true,
+  );
+});
+
 test("records an unavailable subject verification without failing the case", async () => {
   const repository2 = new InMemoryAuditCaseRepository();
   const agent2 = new ControlledAgent();

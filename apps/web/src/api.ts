@@ -5,12 +5,14 @@ import type {
   AuditApp,
   AuditOverview,
   CaseSummary,
+  DemoWorldView,
   Remediation,
   RemediationBoard,
   ReviewQueueItem,
   RuleDetail,
   RuleListItem,
   RuleVersionRecord,
+  SeedDemoWorldResult,
   SubjectVerificationListItem,
   ValidationCaseListItem,
   ValidationRunListItem,
@@ -298,6 +300,7 @@ export async function getApiHealth(): Promise<ApiHealth> {
       agentMode: "fake",
       qccConfigured: false,
       llmConfigured: false,
+      connections: parseConnections(undefined),
     }
   );
 }
@@ -325,9 +328,36 @@ function parseHealth(value: unknown): ApiHealth | null {
       agentMode: record.agentMode,
       qccConfigured: record.qccConfigured,
       llmConfigured: record.llmConfigured,
+      connections: parseConnections(record.connections),
     };
   }
   return null;
+}
+
+/** The six dependencies the health endpoint reports, in display order. */
+const CONNECTION_KEYS = ["database", "redis", "objectStore", "llm", "qcc", "dispatcher"] as const;
+
+/**
+ * Normalises the per-dependency breakdown. A connection whose shape does not
+ * match the contract is dropped rather than trusted; the result is always an
+ * object (never undefined) so a consumer can index it safely.
+ */
+function parseConnections(value: unknown): ApiHealth["connections"] {
+  const record =
+    typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const parsed: Record<string, { ok: boolean; target: string; detail: string | null }> = {};
+  for (const key of CONNECTION_KEYS) {
+    const raw = record[key];
+    if (typeof raw !== "object" || raw === null) continue;
+    const connection = raw as Record<string, unknown>;
+    if (typeof connection.ok !== "boolean" || typeof connection.target !== "string") continue;
+    parsed[key] = {
+      ok: connection.ok,
+      target: connection.target,
+      detail: typeof connection.detail === "string" ? connection.detail : null,
+    };
+  }
+  return parsed as ApiHealth["connections"];
 }
 
 export function getAuditEventsUrl(id: string): string {
@@ -505,4 +535,147 @@ export async function getValidationRun(id: string): Promise<ValidationRunView> {
   if (error) throw new ApiRequestError("加载验证运行失败", error.status);
   if (!data || "error" in data) throw new ApiRequestError("加载验证运行失败", 404);
   return data;
+}
+
+export async function getDemoWorld(): Promise<DemoWorldView> {
+  const { data, error } = await api.api.demo.world.get();
+  if (error) throw new ApiRequestError("加载演示数据失败", Number(error.status));
+  if (!data) throw new ApiRequestError("加载演示数据失败", 500);
+  return data;
+}
+
+export async function seedDemoWorld(
+  input: { reset?: boolean; fillerCount?: number; rngSeed?: number } = {},
+): Promise<SeedDemoWorldResult> {
+  const { data, error } = await api.api.demo.world.post(input);
+  if (error) throw new ApiRequestError("灌入演示数据失败", Number(error.status));
+  if (!data) throw new ApiRequestError("灌入演示数据失败", 500);
+  return data;
+}
+
+// ── Model services (OpenAI-compatible providers) ────────────────
+
+/**
+ * One operator-configured OpenAI-compatible endpoint. The raw key never leaves
+ * the server: the client only ever sees `apiKeyConfigured` and the masked
+ * `apiKeyHint`, so a key cannot be rendered even by mistake.
+ */
+export interface LlmProvider {
+  id: string;
+  name: string;
+  endpoint: string;
+  model: string;
+  maxInput: number;
+  maxOutput: number;
+  enabled: boolean;
+  /** The provider audits are currently routed to; at most one is active. */
+  isActive: boolean;
+  apiKeyConfigured: boolean;
+  /** Masked hint such as `sk-…4f9c`; null when no key is stored. */
+  apiKeyHint: string | null;
+  lastCheckedAt: string | null;
+  lastCheckOk: boolean | null;
+  lastCheckError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Create payload. `name`, `endpoint`, `model` and `apiKey` are required; the
+ * rest fall back to server defaults. The API refuses to open a provider
+ * without a key, so the create type makes one mandatory.
+ */
+export interface LlmProviderCreateInput {
+  name: string;
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  maxInput?: number;
+  maxOutput?: number;
+  enabled?: boolean;
+}
+
+/**
+ * Update payload: every field optional — an omitted or empty `apiKey` keeps
+ * the stored key, so a settings edit never blanks a credential.
+ */
+export interface LlmProviderUpdateInput {
+  name?: string;
+  endpoint?: string;
+  model?: string;
+  apiKey?: string;
+  maxInput?: number;
+  maxOutput?: number;
+  enabled?: boolean;
+}
+
+/** The outcome of a live 测试连接 probe against the endpoint. */
+export interface LlmProviderTestResult {
+  ok: boolean;
+  error: string | null;
+  latencyMs: number;
+}
+
+export async function listLlmProviders(): Promise<LlmProvider[]> {
+  const { data, error } = await api.api["llm-providers"].get();
+  if (error) throw new ApiRequestError("加载模型服务失败", Number(error.status));
+  if (!Array.isArray(data)) throw new ApiRequestError("加载模型服务失败", 500);
+  return data;
+}
+
+export async function createLlmProvider(input: LlmProviderCreateInput): Promise<LlmProvider> {
+  const { data, error } = await api.api["llm-providers"].post(input);
+  if (error)
+    throw new ApiRequestError(serverReason(error, "新增模型服务失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("新增模型服务失败", 500);
+  return data;
+}
+
+export async function updateLlmProvider(
+  id: string,
+  input: LlmProviderUpdateInput,
+): Promise<LlmProvider> {
+  const { data, error } = await api.api["llm-providers"]({ id }).patch(input);
+  if (error)
+    throw new ApiRequestError(serverReason(error, "更新模型服务失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("更新模型服务失败", 500);
+  return data;
+}
+
+export async function deleteLlmProvider(id: string): Promise<void> {
+  const { error } = await api.api["llm-providers"]({ id }).delete();
+  if (error)
+    throw new ApiRequestError(serverReason(error, "删除模型服务失败"), Number(error.status));
+}
+
+/** Routes subsequent audits to this provider, deactivating the previous one. */
+export async function activateLlmProvider(id: string): Promise<LlmProvider> {
+  const { data, error } = await api.api["llm-providers"]({ id }).activate.post();
+  if (error)
+    throw new ApiRequestError(serverReason(error, "切换模型服务失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("切换模型服务失败", 500);
+  return data;
+}
+
+/** Probes the saved endpoint with its stored key; the result is also recorded. */
+export async function testLlmProvider(id: string): Promise<LlmProviderTestResult> {
+  const { data, error } = await api.api["llm-providers"]({ id }).test.post();
+  if (error) throw new ApiRequestError(serverReason(error, "测试连接失败"), Number(error.status));
+  // A failed probe is a 200 carrying `{ ok: false, error }`, so the discriminant
+  // is `ok` — the success payload has an `error` field too.
+  if (!data || !("ok" in data)) throw new ApiRequestError("测试连接失败", 500);
+  return data;
+}
+
+/**
+ * The model ids the saved endpoint advertises (`GET /models`), so the operator
+ * can pick one instead of typing it. A saved provider is required because the
+ * probe uses the stored key; there is no draft-probe endpoint.
+ */
+export async function listLlmProviderModels(id: string): Promise<string[]> {
+  const { data, error } = await api.api["llm-providers"]({ id }).models.get();
+  if (error)
+    throw new ApiRequestError(serverReason(error, "获取模型列表失败"), Number(error.status));
+  if (!data || "error" in data) throw new ApiRequestError("获取模型列表失败", 500);
+  return data.models;
 }

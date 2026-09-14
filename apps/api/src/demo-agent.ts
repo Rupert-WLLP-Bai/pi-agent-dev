@@ -136,6 +136,13 @@ const CONFLICT_PRIORITY: Array<{
     rationale: "赔偿责任上限缺失或不对等",
     remediation: "约定对等的赔偿责任限额，排除法定无效情形。",
   },
+  {
+    ruleCode: "PARTY_HISTORY_ASSOCIATION",
+    findingType: "PARTY_HISTORY_ASSOCIATION",
+    severity: "HIGH",
+    rationale: "",
+    remediation: "调阅该相对方历史案件与复核结论，评估是否构成复发或漏关联风险后再签约。",
+  },
 ];
 
 const ABSENCE_FINDINGS: Array<{
@@ -197,6 +204,12 @@ const ABSENCE_FINDINGS: Array<{
     findingType: "NEEDS_HUMAN_REVIEW",
     severity: "MEDIUM",
     remediation: "评估高价值合同的赔偿责任范围，必要时约定责任上限。",
+  },
+  {
+    ruleCode: "PARTY_HISTORY_ASSOCIATION",
+    findingType: "PARTY_HISTORY_ASSOCIATION",
+    severity: "MEDIUM",
+    remediation: "对照历史误报样本，确认本次条款是否仍构成风险。",
   },
 ];
 

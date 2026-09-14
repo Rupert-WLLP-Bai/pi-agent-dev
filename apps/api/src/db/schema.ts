@@ -12,9 +12,10 @@ import type {
   SubjectMatchStatus,
   SubjectVerification,
 } from "@contract-audit/audit/model";
+import type { PartyHistoryRun } from "@contract-audit/audit/party-history-rule";
 import type { ReviewPriority } from "@contract-audit/audit/ports";
 import type { InferSelectModel } from "drizzle-orm";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   integer,
@@ -112,6 +113,21 @@ export const subjectVerifications = pgTable("subject_verifications", {
   status: text("status").$type<SubjectMatchStatus>().notNull(),
   sourceRecordId: uuid("source_record_id"),
   payload: jsonb("payload").$type<SubjectVerification>().notNull(),
+  evidence: jsonb("evidence").$type<EvidenceLocator[]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
+/**
+ * One party-history lookup per Audit Case. Append-only like subject
+ * verifications: the Bounded Audit Context records what earlier cases were
+ * visible at audit time, so later seeding cannot rewrite a past decision.
+ */
+export const partyHistoryRecords = pgTable("party_history_records", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  auditCaseId: uuid("audit_case_id")
+    .references(() => auditCases.id, { onDelete: "cascade" })
+    .notNull(),
+  payload: jsonb("payload").$type<PartyHistoryRun>().notNull(),
   evidence: jsonb("evidence").$type<EvidenceLocator[]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
@@ -367,6 +383,38 @@ export const remediations = pgTable(
   (table) => [uniqueIndex("remediations_finding_revision_idx").on(table.findingRevisionId)],
 );
 
+/**
+ * One OpenAI-compatible模型服务 the audit agent can run on. The active row is
+ * the config the next audit run uses; a partial unique index keeps at most one
+ * row active so activation is a single flip rather than an ordering question.
+ * Credentials live here so an operator can rotate them from the console — the
+ * DTO reports only whether a key is set and its last four characters, never
+ * the key itself.
+ */
+export const llmProviders = pgTable(
+  "llm_providers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull().unique(),
+    endpoint: text("endpoint").notNull(),
+    model: text("model").notNull(),
+    apiKey: text("api_key").notNull(),
+    maxInput: integer("max_input").notNull().default(128000),
+    maxOutput: integer("max_output").notNull().default(4096),
+    enabled: boolean("enabled").notNull().default(true),
+    /** The row the runtime reads; at most one — see the partial index below. */
+    isActive: boolean("is_active").notNull().default(false),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true, mode: "date" }),
+    lastCheckOk: boolean("last_check_ok"),
+    lastCheckError: text("last_check_error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("llm_providers_active_idx").on(table.isActive).where(sql`${table.isActive}`),
+  ],
+);
+
 export const schema = {
   sourceRecords,
   auditCases,
@@ -376,11 +424,13 @@ export const schema = {
   findingRevisions,
   remediations,
   subjectVerifications,
+  partyHistoryRecords,
   rules,
   ruleVersions,
   validationRuns,
   validationCases,
   auditActionLogs,
+  llmProviders,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -391,11 +441,13 @@ export type AgentTraceStepRow = InferSelectModel<typeof agentTraceSteps>;
 export type FindingRevisionRow = InferSelectModel<typeof findingRevisions>;
 export type RemediationRow = InferSelectModel<typeof remediations>;
 export type SubjectVerificationRow = InferSelectModel<typeof subjectVerifications>;
+export type PartyHistoryRecordRow = InferSelectModel<typeof partyHistoryRecords>;
 export type RuleRow = InferSelectModel<typeof rules>;
 export type RuleVersionRow = InferSelectModel<typeof ruleVersions>;
 export type ValidationRunRow = InferSelectModel<typeof validationRuns>;
 export type ValidationCaseRow = InferSelectModel<typeof validationCases>;
 export type AuditActionLogRow = InferSelectModel<typeof auditActionLogs>;
+export type LlmProviderRow = InferSelectModel<typeof llmProviders>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),
