@@ -99,3 +99,23 @@ _Avoid_: test case, eval sample, training data
 **Validation Run**:
 One recorded execution of validation cases against one Rule Version's parameters, persisted with per-case expected/actual results. It is compared against the prior run of the same rule to surface regressions; 证据缺失 (needs review) counts neither as pass nor failure.
 _Avoid_: benchmark, evaluation, score
+
+**Rule Code**:
+The stable identifier of one deterministic rule in the engine catalogue (for example `ADVANCE_PAYMENT_LIMIT`). Finding Proposals cite a Rule Assessment by id; the resolved Rule Code is denormalized for queries and revision diff.
+_Avoid_: finding type alone, rule name string
+
+**Audit Snapshot Policy**:
+The enabled rule overlay and parameter overrides frozen into one Audit Snapshot generation — which rules ran and which Rule Version ids supplied thresholds at audit time.
+_Avoid_: runtime config, latest policy
+
+**Agent Trace**:
+The ordered log of an Agent Run: stages, tool calls, tool results, and assistant messages. It records what the agent did, not the business conclusions.
+_Avoid_: session dump, chat log
+
+**Subject Verification**:
+One external lookup pass for a Contract Party against a provider Source Record, producing match status, risk dimensions, and Evidence Locators cited by the subject rule.
+_Avoid_: counterparty check (generic), company API response
+
+**Party History Run**:
+The deterministic evaluation of prior reviewed findings on the same Contract Party, frozen into one Audit Case as Evidence and a Rule Assessment.
+_Avoid_: CRM history, manual memory
