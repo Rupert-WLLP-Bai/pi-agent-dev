@@ -44,7 +44,9 @@ test("uploads a .txt contract through the drawer and lands on the case page", as
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
 
-  // The case detail page opens and the audit completes.
+  // The case detail page opens and the agent finishes. It stops at
+  // AWAITING_REVIEW rather than COMPLETED: this contract's 70% advance payment
+  // raises a finding, and an undecided finding still owes a human a decision.
   await page.waitForURL(/\/audit-cases\/.+$/, { timeout: 15_000 });
   await expect
     .poll(
@@ -55,9 +57,9 @@ test("uploads a .txt contract through the drawer and lands on the case page", as
         if (!resp.ok()) return "NO_CASE";
         return (await resp.json()).case?.status;
       },
-      { timeout: 30_000, message: "uploaded case should complete" },
+      { timeout: 30_000, message: "uploaded case should reach a decision point" },
     )
-    .toBe("COMPLETED");
+    .toBe("AWAITING_REVIEW");
 
   // The document panel shows the contract title as the first block, and both
   // parties were extracted from the uploaded file.

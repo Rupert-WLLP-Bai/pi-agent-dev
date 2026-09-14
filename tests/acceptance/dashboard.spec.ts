@@ -30,7 +30,12 @@ async function createDemoAudit(page: Page) {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
-  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible({ timeout: 15000 });
+  // Gate on the list entry rather than the inspector's 判断依据 text: the
+  // inspector shows whichever finding sorts first, and 相对方历史关联 climbs above
+  // this one as the shared dev database accumulates confirmed risks.
+  await expect(
+    page.locator(".finding-list").getByText("预付款比例超过制度上限", { exact: true }),
+  ).toBeVisible({ timeout: 15000 });
 }
 
 test("derives cockpit KPIs and risk mix from stored cases, not constants", async ({ page }) => {

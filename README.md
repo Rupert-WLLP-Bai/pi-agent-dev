@@ -74,6 +74,17 @@ Biome 配置见 `biome.json`：2 空格缩进、100 列、双引号、尾逗号�
 
 CI 见 `.github/workflows/ci.yml`：`quality` job 跑 lint/typecheck/单测；`acceptance` job 起 PostgreSQL service、应用迁移并跑 Playwright。
 
+**本机跑验收测试要给它一个专用库**，因为 CI 里每次都是全新数据库，本机不是。验收用例之间通过数据库互相影响：相对方历史关联规则会读此前的案件，一次运行留下的"已确认风险"会改变下一次审计出多少条发现，本来能"已完成"的案件会变成"待复核"。同理，端口默认 3000/5173，若被别的工作树或常驻 dev 栈占着，Playwright 会**复用**那个服务，于是你对着一份旧代码断言（新页面直接 `Not Found`）。三个变量都可覆盖：
+
+```bash
+docker exec pi-agent-dev-postgres-1 createdb -U contract_audit contract_audit_acceptance
+cd apps/api && DATABASE_URL=postgresql://contract_audit:contract_audit@localhost:5433/contract_audit_acceptance bun run migrate && cd ..
+PLAYWRIGHT_DATABASE_URL=postgresql://contract_audit:contract_audit@localhost:5433/contract_audit_acceptance \
+  PLAYWRIGHT_WEB_PORT=5193 PLAYWRIGHT_API_PORT=3023 bunx playwright test
+```
+
+要重置这个库，得**整库删建**：`drop schema public` 不够，drizzle 的迁移记录在独立的 `drizzle` schema 里，只删 public 会让 `migrate` 认为一切已应用而不建任何表。
+
 ```bash
 cp .env.example .env                   # 填写 LLM 配置（或留空走模型服务页）
 docker compose up -d postgres minio redis  # 本地基础设施

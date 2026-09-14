@@ -75,8 +75,11 @@ test("routes an unresolvable counterparty to a human instead of inventing risk",
 }) => {
   await createDemoAudit(page, "备电采购");
 
-  // Wait for the case to reach a terminal state — the finding type depends on
-  // which deterministic rules fire, so we poll the API rather than text-match.
+  // Wait for the agent to finish — the finding type depends on which
+  // deterministic rules fire, so we poll the API rather than text-match. Handing
+  // the decision back is what this test is about, so the state to wait for is
+  // AWAITING_REVIEW: an unsettled counterparty raises 需要人工复核, and that
+  // finding is undecided until a reviewer says otherwise.
   await expect
     .poll(
       async () => {
@@ -88,7 +91,7 @@ test("routes an unresolvable counterparty to a human instead of inventing risk",
       },
       { timeout: 30_000 },
     )
-    .toBe("COMPLETED");
+    .toBe("AWAITING_REVIEW");
 
   // The 乙方 has no organization suffix, so the provider answers ambiguously
   // and hands the decision back to the reviewer.

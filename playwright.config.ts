@@ -10,6 +10,19 @@ const reuseExistingServer =
 const apiPort = Number(process.env.PLAYWRIGHT_API_PORT ?? 3000);
 const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 5173);
 
+// A scratch database, when one is named, keeps a run from reading or leaving
+// artifacts in the developer's demo data. The specs are not independent of what
+// the database already holds: the party-history rule reads earlier cases, so a
+// confirmed risk left behind by one run changes how many findings the next run's
+// audit raises, and a case that used to complete starts awaiting review. CI gets
+// this for free from a fresh service container; on a host, pass
+// PLAYWRIGHT_DATABASE_URL. It is applied after .env is sourced, or .env would
+// win.
+const databaseOverride =
+  process.env.PLAYWRIGHT_DATABASE_URL === undefined
+    ? ""
+    : `DATABASE_URL=${process.env.PLAYWRIGHT_DATABASE_URL} `;
+
 const config: Config = {
   testDir: "./tests",
   // The web server is Vite in dev mode, which compiles routes on first request.
@@ -24,7 +37,7 @@ const config: Config = {
       // Run the API directly, not via the `--watch` dev script: a file watcher
       // restarts the server whenever test artifacts are written, which makes
       // the browser intermittently see an unavailable API.
-      command: `set -a; [ -f .env ] && . ./.env; set +a; API_PORT=${apiPort} AUDIT_AGENT_MODE=fake bun apps/api/src/app.ts`,
+      command: `set -a; [ -f .env ] && . ./.env; set +a; ${databaseOverride}API_PORT=${apiPort} AUDIT_AGENT_MODE=fake bun apps/api/src/app.ts`,
       port: apiPort,
       timeout: 60_000,
       reuseExistingServer,

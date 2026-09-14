@@ -40,9 +40,11 @@ test("accepts a .txt contract upload and audits it end-to-end", async ({ page })
   expect(uploadResp.status()).toBe(202);
   const { id } = await uploadResp.json();
 
-  // Poll the API until the case reaches a terminal state, then load the page.
-  // The E2E stack runs the fake agent (sub-second), but the upload parse adds
-  // a hop, so we wait for COMPLETED rather than assuming instant readiness.
+  // Poll until the agent is done, then load the page. The E2E stack runs the
+  // fake agent (sub-second), but the upload parse adds a hop, so waiting beats
+  // assuming instant readiness. The state to wait for is AWAITING_REVIEW, not
+  // COMPLETED: this contract's 70% advance payment raises the finding asserted
+  // below, and a case with an undecided finding still owes a human a decision.
   await expect
     .poll(
       async () => {
@@ -50,9 +52,9 @@ test("accepts a .txt contract upload and audits it end-to-end", async ({ page })
         const body = await resp.json();
         return body.case?.status;
       },
-      { timeout: 30_000, message: "uploaded case should complete" },
+      { timeout: 30_000, message: "uploaded case should reach a decision point" },
     )
-    .toBe("COMPLETED");
+    .toBe("AWAITING_REVIEW");
 
   await page.goto(`/audit-cases/${id}`);
 

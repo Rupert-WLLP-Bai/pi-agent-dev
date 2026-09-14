@@ -99,8 +99,9 @@ test("labels each row with the source it actually came from", async ({ page }) =
   // A plain paste has no name of its own, so the channel stands alone.
   await expect(sourceOf("办公场地租赁合同")).toHaveText("文本粘贴");
 
-  // Provenance that was never recorded shows a dash, never a guessed channel.
-  await expect(sourceOf("未命名合同")).toHaveText("—");
+  // Provenance that was never recorded shows the empty-value dash the design
+  // spec fixes for every table (§4.2), never a guessed channel.
+  await expect(sourceOf("未命名合同")).toHaveText("-");
 });
 
 test("shows contract titles and keeps the audit ID as a secondary identity", async ({ page }) => {

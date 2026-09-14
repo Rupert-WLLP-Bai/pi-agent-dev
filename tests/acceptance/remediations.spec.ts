@@ -20,7 +20,7 @@ test.afterAll(async () => {
 /**
  * 整改跟踪 end-to-end: the closure of the 发现 → 整改 → 复核 → 关闭 loop.
  *
- * 1. Submit the default demo contract (two findings) and confirm both as risk.
+ * 1. Submit the default demo contract and confirm every finding as risk.
  * 2. Each acceptance opens one remediation card in 待整改.
  * 3. Set an owner and an already-passed deadline; the card shows overdue.
  * 4. Advance 待整改 → 整改中 → 待复核.
@@ -45,26 +45,43 @@ async function createDemoAudit(page: Page): Promise<string> {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
-  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible({ timeout: 15000 });
+  // Gate on the list entry rather than the inspector's 判断依据 text: the
+  // inspector shows whichever finding sorts first, and 相对方历史关联 climbs above
+  // this one as the shared dev database accumulates confirmed risks.
+  await expect(
+    page.locator(".finding-list").getByText("预付款比例超过制度上限", { exact: true }),
+  ).toBeVisible({ timeout: 15000 });
   return page.url().split("/").pop()!;
 }
 
-/** Confirms every chain-head finding on the open case as risk. */
-async function confirmBothFindings(page: Page) {
-  for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
-    await page.locator(".finding-list").getByText(label, { exact: true }).click();
+/**
+ * Confirms every chain-head finding on the open case as risk, and reports how
+ * many that was — one remediation card is opened per acceptance.
+ *
+ * How many findings the demo contract raises depends on the shared database:
+ * 相对方历史关联 joins the two contract risks once a confirmed risk exists for
+ * this counterparty. The list defaults to 待处理 and a decision drops the
+ * finding out of it, so each round takes the first entry and the shrinking count
+ * marks progress — the 复核已提交 toast lingers from the previous round.
+ */
+async function confirmPendingFindings(page: Page): Promise<number> {
+  const findings = page.locator(".finding-item");
+  const total = await findings.count();
+  for (let remaining = total; remaining > 0; remaining -= 1) {
+    await findings.first().click();
     await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
     const dialog = page.getByRole("dialog", { name: "确认风险" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "确认风险" }).click();
-    await expect(page.getByText("复核已提交")).toBeVisible();
+    await expect(findings).toHaveCount(remaining - 1);
   }
+  return total;
 }
 
 test("remediation items auto-create, advance, and close only by a reviewer", async ({ page }) => {
   const caseId = await createDemoAudit(page);
   createdCaseIds.push(caseId);
-  await confirmBothFindings(page);
+  const findingCount = await confirmPendingFindings(page);
 
   // ── 1. Each accepted finding opens a card in 待整改 ──
   await page.goto("/remediations");
@@ -72,7 +89,7 @@ test("remediation items auto-create, advance, and close only by a reviewer", asy
   const columns = page.locator(".remediation-column");
   await expect(columns.nth(0)).toContainText("待整改");
   const pendingCards = columns.nth(0).locator(`.remediation-card[data-case-id="${caseId}"]`);
-  await expect(pendingCards).toHaveCount(2);
+  await expect(pendingCards).toHaveCount(findingCount);
 
   // ── 2. Open a card and set owner + an already-passed deadline ──
   await pendingCards.first().click();
@@ -97,6 +114,11 @@ test("remediation items auto-create, advance, and close only by a reviewer", asy
   await expect(drawer.getByText("待复核", { exact: true })).toBeVisible();
 
   // ── 5. The owner may not confirm their own fix ──
+  // The API records the closer from the X-Operator header, not from the dialog's
+  // 复核人 field — a client cannot close as someone else by typing their name.
+  // So acting as the owner means switching the operator preference the header is
+  // read from; the field only drives the dialog's own same-person warning.
+  await page.evaluate(() => window.localStorage.setItem("review-operator", "张工"));
   await drawer.getByRole("button", { name: "关闭整改项" }).click();
   const closeDialog = page.getByRole("dialog", { name: /复核人确认/ });
   await expect(closeDialog).toBeVisible();
@@ -108,6 +130,7 @@ test("remediation items auto-create, advance, and close only by a reviewer", asy
   ).toBeVisible();
 
   // ── 6. A different reviewer closes it ──
+  await page.evaluate(() => window.localStorage.setItem("review-operator", "李复核"));
   await closeDialog.getByLabel("复核人").fill("李复核");
   await closeDialog.getByRole("button", { name: "确认关闭" }).click();
   await expect(page.getByText("整改项已关闭").first()).toBeVisible();

@@ -84,7 +84,7 @@ export default function DossierReviewPage() {
     {
       title: "侧别",
       dataIndex: "side",
-      render: (side: SheetTotal["side"]) => (side === null ? "—" : sideLabels[side]),
+      render: (side: SheetTotal["side"]) => (side === null ? "-" : sideLabels[side]),
     },
     {
       title: "税基",
