@@ -132,6 +132,8 @@ export interface Remediation {
   progressNote: string | null;
   closedBy: string | null;
   closedAt: string | null;
+  closureEvidence: import("@contract-audit/audit/model").EvidenceLocator[] | null;
+  closureHint: "implemented" | "open" | "unknown" | null;
   createdAt: string;
   updatedAt: string;
 }

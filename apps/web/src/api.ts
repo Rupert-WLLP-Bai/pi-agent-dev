@@ -61,18 +61,72 @@ export interface CreateAuditCaseInput {
    * recorded as a plain paste.
    */
   demoId?: string;
+  /** Link this audit as the next revision of an existing Contract. */
+  contractId?: string;
+}
+
+export interface ContractListItem {
+  id: string;
+  title: string;
+  createdAt: string;
+  revisionCount: number;
+  latestVersion: number | null;
+}
+
+export interface ContractDetailView {
+  contract: { id: string; title: string; createdAt: string };
+  revisions: Array<{
+    revision: {
+      id: string;
+      contractId: string;
+      version: number;
+      sourceRecordId: string;
+      label: string | null;
+      createdAt: string;
+    };
+    auditCaseId: string | null;
+    caseStatus: string | null;
+    findingPins: Array<{
+      ruleCode: string;
+      findingType: string;
+      severity: string;
+    }>;
+  }>;
+  diffs: Array<{
+    fromVersion: number;
+    toVersion: number;
+    diff: {
+      introduced: ContractDetailView["revisions"][number]["findingPins"];
+      resolved: ContractDetailView["revisions"][number]["findingPins"];
+      persisting: ContractDetailView["revisions"][number]["findingPins"];
+    };
+  }>;
+}
+
+export async function listContracts(): Promise<ContractListItem[]> {
+  const { data, error } = await api.api.contracts.get();
+  if (error) throw new ApiRequestError("加载合同列表失败", error.status);
+  return data as ContractListItem[];
+}
+
+export async function getContract(id: string): Promise<ContractDetailView> {
+  const { data, error } = await api.api.contracts({ id }).get();
+  if (error) throw new ApiRequestError("加载合同详情失败", error.status);
+  return data as ContractDetailView;
 }
 
 export async function createAuditCase({
   contractText,
   policyLimitRatio,
   demoId,
+  contractId,
 }: CreateAuditCaseInput) {
   const { data, error } = await api.api["audit-cases"].post({
     source: "text",
     contractText,
     policyLimitRatio,
     ...(demoId === undefined ? {} : { demoId }),
+    ...(contractId === undefined ? {} : { contractId }),
   });
   if (error) throw new ApiRequestError("创建审计失败", error.status);
   return data;

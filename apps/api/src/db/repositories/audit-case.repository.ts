@@ -1,6 +1,7 @@
 import { AgentTraceRepository } from "./agent-trace.repository";
 import { AuditQueueRepository } from "./audit-queue.repository";
 import { AuditReadModelRepository } from "./audit-read-model.repository";
+import { ContractRepository } from "./contract.repository";
 import { FindingRepository } from "./finding.repository";
 import type { DrizzleDB } from "./types";
 
@@ -9,12 +10,14 @@ export class AuditCaseRepository {
   private readonly readModel: AuditReadModelRepository;
   private readonly findings: FindingRepository;
   private readonly traces: AgentTraceRepository;
+  private readonly contracts: ContractRepository;
 
   constructor(db: DrizzleDB) {
     this.queue = new AuditQueueRepository(db);
     this.readModel = new AuditReadModelRepository(db);
     this.findings = new FindingRepository(db, this.queue);
     this.traces = new AgentTraceRepository(db);
+    this.contracts = new ContractRepository(db);
   }
 
   async claimNextPendingCase(...args: Parameters<AuditQueueRepository["claimNextPendingCase"]>) {
@@ -318,5 +321,23 @@ export class AuditCaseRepository {
   /** Recent runs across every case, newest first. Powers the trace index page. */
   async getRecentRuns(...args: Parameters<AgentTraceRepository["getRecentRuns"]>) {
     return this.traces.getRecentRuns(...args);
+  }
+
+  async listContracts() {
+    return this.contracts.listContracts();
+  }
+
+  async getContract(...args: Parameters<ContractRepository["getContract"]>) {
+    return this.contracts.getContract(...args);
+  }
+
+  async refreshRemediationClosureHints(
+    ...args: Parameters<FindingRepository["refreshRemediationClosureHints"]>
+  ) {
+    return this.findings.refreshRemediationClosureHints(...args);
+  }
+
+  async contractIdForCase(...args: Parameters<ContractRepository["contractIdForCase"]>) {
+    return this.contracts.contractIdForCase(...args);
   }
 }

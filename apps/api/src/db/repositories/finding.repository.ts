@@ -1,3 +1,4 @@
+import { ruleCodeForAssessment } from "@contract-audit/audit/assessment-utils";
 import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type {
   EvidenceLocator,
@@ -5,15 +6,18 @@ import type {
   FindingRevision,
   HumanReview,
   RemediationStatus,
+  RuleCode,
   SubjectVerification,
 } from "@contract-audit/audit/model";
 import type { PartyHistoryRun, PriorPartyFinding } from "@contract-audit/audit/party-history-rule";
 import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
+import { closureHintFromDisposition } from "@contract-audit/audit/remediation-closure";
 import type { SubjectVerificationRun } from "@contract-audit/audit/subject-verification";
 import { and, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import {
   auditCases,
   auditSnapshots,
+  contractRevisions,
   findingRevisions,
   partyHistoryRecords,
   remediations,
@@ -36,9 +40,12 @@ export class FindingRepository {
     proposal: FindingProposal,
     supersedesId: string | null,
   ): Promise<string> {
+    const snapshot = await this.queue.getSnapshotByCase(auditCaseId);
+    const ruleCode =
+      snapshot === null ? null : ruleCodeForAssessment(snapshot, proposal.assessmentId);
     const [row] = await this.db
       .insert(findingRevisions)
-      .values({ auditCaseId, proposal, supersedesId })
+      .values({ auditCaseId, proposal, supersedesId, ruleCode })
       .returning({ id: findingRevisions.id });
     return row.id;
   }
@@ -88,6 +95,7 @@ export class FindingRepository {
           proposal: existing.proposal,
           supersedesId: findingId,
           review,
+          ruleCode: existing.ruleCode,
         })
         .returning({ id: findingRevisions.id });
 
@@ -320,18 +328,99 @@ export class FindingRepository {
       if (row.status !== "awaiting_review") {
         throw new Error(`REMEDIATION_NOT_AWAITING_REVIEW: ${row.status}`);
       }
-      if (row.owner !== null && row.owner === reviewer) {
+      if (row.owner === null) {
+        throw new Error(`REMEDIATION_OWNER_REQUIRED: ${id}`);
+      }
+      if (row.owner === reviewer) {
         throw new Error(`REMEDIATION_SELF_CLOSE: ${id}`);
       }
 
+      const [caseRow] = await tx
+        .select({ sourceRecordId: auditCases.sourceRecordId })
+        .from(auditCases)
+        .where(eq(auditCases.id, row.auditCaseId))
+        .limit(1);
       const now = new Date();
+      const closureEvidence: EvidenceLocator[] = [
+        {
+          id: crypto.randomUUID(),
+          sourceRecordId: caseRow?.sourceRecordId ?? row.auditCaseId,
+          location: {
+            kind: "EXTERNAL_RECORD",
+            provider: "remediation",
+            tool: "close",
+            subject: row.summary,
+            recordType: "REMEDIATION_CLOSURE",
+            capturedAt: now.toISOString(),
+            expiresAt: null,
+          },
+        },
+      ];
       const [updated] = await tx
         .update(remediations)
-        .set({ status: "closed", closedBy: reviewer, closedAt: now, updatedAt: now })
+        .set({
+          status: "closed",
+          closedBy: reviewer,
+          closedAt: now,
+          updatedAt: now,
+          closureEvidence,
+        })
         .where(eq(remediations.id, id))
         .returning();
       return toRemediation(updated);
     });
+  }
+
+  /**
+   * After a newer Contract Revision is audited, refresh closure hints on open
+   * remediations tied to earlier revisions of the same contract.
+   */
+  async refreshRemediationClosureHints(caseId: string): Promise<void> {
+    const snapshot = await this.queue.getSnapshotByCase(caseId);
+    if (!snapshot) return;
+
+    const [context] = await this.db
+      .select({
+        contractId: contractRevisions.contractId,
+        version: contractRevisions.version,
+      })
+      .from(auditCases)
+      .innerJoin(contractRevisions, eq(auditCases.contractRevisionId, contractRevisions.id))
+      .where(eq(auditCases.id, caseId))
+      .limit(1);
+    if (!context) return;
+
+    const openItems = await this.db
+      .select({
+        remediationId: remediations.id,
+        ruleCode: findingRevisions.ruleCode,
+      })
+      .from(remediations)
+      .innerJoin(findingRevisions, eq(remediations.findingRevisionId, findingRevisions.id))
+      .innerJoin(auditCases, eq(remediations.auditCaseId, auditCases.id))
+      .innerJoin(contractRevisions, eq(auditCases.contractRevisionId, contractRevisions.id))
+      .where(
+        and(
+          eq(contractRevisions.contractId, context.contractId),
+          lt(contractRevisions.version, context.version),
+          ne(remediations.status, "closed"),
+        ),
+      );
+
+    for (const item of openItems) {
+      const ruleCode = item.ruleCode as RuleCode | null;
+      if (!ruleCode) continue;
+      const assessment = snapshot.ruleAssessments.find(
+        (candidate) => candidate.ruleCode === ruleCode,
+      );
+      const closureHint = assessment
+        ? closureHintFromDisposition(assessment.disposition)
+        : "unknown";
+      await this.db
+        .update(remediations)
+        .set({ closureHint, updatedAt: new Date() })
+        .where(eq(remediations.id, item.remediationId));
+    }
   }
 
   /**

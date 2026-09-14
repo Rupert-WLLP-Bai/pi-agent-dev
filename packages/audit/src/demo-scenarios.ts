@@ -139,6 +139,8 @@ export interface ScenarioCase {
   remediationStatus?: RemediationStatus;
   remediationOwner?: string;
   remediationCloser?: string;
+  /** Cases sharing a lineage become revisions of one Contract when seeded. */
+  contractLineage?: string;
 }
 
 export interface DemoScenario {
@@ -255,6 +257,38 @@ export const demoScenarioCases: ScenarioCase[] = [
       amountNumber: "800,000.00",
       advancePercent: 20,
       signedAt: "2026年9月10日",
+    }),
+  },
+  {
+    id: "equipment-lease-v1",
+    scenarioId: "contract-version-diff",
+    contractLineage: "equipment-lease",
+    title: "设备采购合同（初版）",
+    summary: "预付款 70% 触发制度冲突，作为合同 v1 入库。",
+    verifies: "Contract Revision：v1 风险基线",
+    createdAt: "2026-08-01T10:00:00.000Z",
+    assignee: "王五",
+    text: clean({
+      title: "设备采购合同",
+      partyB: "深圳精工科技有限公司",
+      advancePercent: 70,
+      signedAt: "2026年7月28日",
+    }),
+  },
+  {
+    id: "equipment-lease-v2",
+    scenarioId: "contract-version-diff",
+    contractLineage: "equipment-lease",
+    title: "设备采购合同（修订版）",
+    summary: "预付款降至 20%，作为同一 Contract 的 v2 再审计。",
+    verifies: "版本 diff：预付款风险应显示为已消除",
+    createdAt: "2026-09-01T10:00:00.000Z",
+    assignee: "赵六",
+    text: clean({
+      title: "设备采购合同",
+      partyB: "深圳精工科技有限公司",
+      advancePercent: 20,
+      signedAt: "2026年8月30日",
     }),
   },
   {
@@ -507,6 +541,14 @@ export const demoScenarios: DemoScenario[] = [
     verifies: "相对方历史关联规则",
     featured: true,
     caseIds: ["history-old-advance", "history-new-clean-look"],
+  },
+  {
+    id: "contract-version-diff",
+    title: "合同多版本对比",
+    story: "同一设备采购合同先以 70% 预付款入库，修订为 20% 后再审；合同中心应展示版本 diff。",
+    verifies: "Contract Revision + finding diff",
+    featured: true,
+    caseIds: ["equipment-lease-v1", "equipment-lease-v2"],
   },
   {
     id: "subject-red-line",

@@ -10,7 +10,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json",
-    "test": "bun test packages apps",
+    "test": "bun --env-file=.env test packages apps",
     "acceptance": "playwright test",
     "verify": "bun run lint && bun run typecheck && bun run test",
     "dev": "bun --filter @contract-audit/api dev",

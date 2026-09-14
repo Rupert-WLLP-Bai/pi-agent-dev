@@ -206,6 +206,7 @@ export class AuditDispatcher {
         // publish that overtakes the write leaves the detail view on
         // "审计进行中" with no later event to correct it.
         await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "COMPLETED");
+        await this.repository.refreshRemediationClosureHints(auditCaseId);
         this.broker.publish({ type: "audit.completed", auditCaseId });
         return;
       }
@@ -215,6 +216,7 @@ export class AuditDispatcher {
         this.broker.publish({ type: "finding.proposed", auditCaseId, proposal });
       }
       await this.repository.updateCaseStatus(auditCaseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
+      await this.repository.refreshRemediationClosureHints(auditCaseId);
       this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
     } catch (error) {
       const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);

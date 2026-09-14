@@ -1,5 +1,6 @@
 import { FileTextOutlined, UploadOutlined } from "@ant-design/icons";
 import { demoContracts } from "@contract-audit/audit/demo-contracts";
+import { useQuery } from "@tanstack/react-query";
 import {
   App as AntApp,
   Button,
@@ -8,11 +9,13 @@ import {
   Input,
   InputNumber,
   Segmented,
+  Select,
   Space,
   Upload,
 } from "antd";
 import { useState } from "react";
 import type { CreateAuditCaseInput, UploadContractFileInput } from "../api";
+import { listContracts } from "../api";
 
 export interface NewAuditDrawerProps {
   open: boolean;
@@ -55,6 +58,12 @@ export function NewAuditDrawer({
   const [file, setFile] = useState<File | null>(null);
   /** Set while the textarea still holds an unedited built-in sample. */
   const [loadedSampleId, setLoadedSampleId] = useState<string | null>(null);
+  const [linkedContractId, setLinkedContractId] = useState<string | null>(null);
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["contracts"],
+    queryFn: listContracts,
+    enabled: open,
+  });
   const sample = demoContracts.find((item) => item.id === sampleId) ?? demoContracts[0];
 
   const handleSubmit = (values: NewAuditFormValues) => {
@@ -70,6 +79,7 @@ export function NewAuditDrawer({
       contractText: values.contractText.trim(),
       policyLimitRatio: values.policyLimitPercent / 100,
       ...(loadedSampleId === null ? {} : { demoId: loadedSampleId }),
+      ...(linkedContractId === null ? {} : { contractId: linkedContractId }),
     });
   };
 
@@ -105,6 +115,17 @@ export function NewAuditDrawer({
         initialValues={{ contractText: "", policyLimitPercent: 30 }}
         onFinish={handleSubmit}
       >
+        <Form.Item label="关联已有合同" extra="不选则本次审计会新建一份 Contract。">
+          <Select
+            allowClear
+            placeholder="新建合同"
+            disabled={submitting}
+            options={contracts.map((item) => ({ value: item.id, label: item.title }))}
+            value={linkedContractId ?? undefined}
+            onChange={(value) => setLinkedContractId(value ?? null)}
+          />
+        </Form.Item>
+
         <Form.Item label="输入方式">
           <Segmented<InputMode>
             value={mode}

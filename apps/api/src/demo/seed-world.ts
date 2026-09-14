@@ -35,6 +35,7 @@ type DemoWorldRepository = Pick<
   | "closeRemediation"
   | "deleteDemoSeededCases"
   | "listDemoSeededCases"
+  | "contractIdForCase"
 >;
 
 export interface SeedDemoWorldInput {
@@ -93,7 +94,11 @@ async function advanceRemediation(
   }
 }
 
-async function plantCase(repository: DemoWorldRepository, spec: ScenarioCase): Promise<string> {
+async function plantCase(
+  repository: DemoWorldRepository,
+  spec: ScenarioCase,
+  contractId?: string | null,
+): Promise<string> {
   const sourceRecordId = crypto.randomUUID();
   const snapshot = createAuditSnapshot({
     sourceRecordId,
@@ -106,6 +111,7 @@ async function plantCase(repository: DemoWorldRepository, spec: ScenarioCase): P
     {
       createdAt: new Date(spec.createdAt),
       assignee: spec.assignee ?? null,
+      contractId: contractId ?? null,
       metadata: {
         demoSeed: true,
         scenarioId: spec.scenarioId,
@@ -206,8 +212,16 @@ export async function seedDemoWorld(
   const specs = [...demoScenarioCases, ...generateFillerCases(rngSeed, fillerCount)].sort(
     (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
   );
+  const lineageContracts = new Map<string, string>();
   for (const spec of specs) {
-    await plantCase(repository, spec);
+    const contractId = spec.contractLineage
+      ? (lineageContracts.get(spec.contractLineage) ?? null)
+      : null;
+    const caseId = await plantCase(repository, spec, contractId);
+    if (spec.contractLineage && !lineageContracts.has(spec.contractLineage)) {
+      const linked = await repository.contractIdForCase(caseId);
+      if (linked) lineageContracts.set(spec.contractLineage, linked);
+    }
   }
   const view = await readDemoWorld(repository);
   return { ...view, planted: specs.length, removed, rngSeed, fillerCount };

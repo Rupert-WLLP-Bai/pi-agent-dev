@@ -23,6 +23,7 @@ const caseAt = (
   status,
   stage,
   sourceRecordId: `00000000-0000-4000-8000-0000000000${id.length}${id.charCodeAt(0) % 10}`,
+  contractRevisionId: null,
   createdAt: "2026-09-11T08:00:00.000Z",
   updatedAt,
   contractTitle,

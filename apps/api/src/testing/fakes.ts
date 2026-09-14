@@ -1,3 +1,4 @@
+import { ruleCodeForAssessment } from "@contract-audit/audit/assessment-utils";
 import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type {
   AgentTraceStep,
@@ -9,6 +10,7 @@ import type {
   FindingRevision,
   HumanReview,
   RemediationStatus,
+  RuleCode,
   Severity,
   SourceProvenance,
   SubjectVerification,
@@ -23,6 +25,7 @@ import type {
   ReviewPriority,
 } from "@contract-audit/audit/ports";
 import { nextRemediationStatus, remediationStatusOrder } from "@contract-audit/audit/remediation";
+import { diffAdjacentRevisionFindings } from "@contract-audit/audit/revision-finding-diff";
 import type {
   SubjectSourceRecord,
   SubjectVerificationRun,
@@ -85,6 +88,7 @@ interface FakeFindingState {
   proposal: FindingProposal;
   supersedesId: string | null;
   review: HumanReview | null;
+  ruleCode: string | null;
 }
 
 interface FakeSubjectVerificationRow {
@@ -106,6 +110,8 @@ interface FakeRemediationState {
   progressNote: string | null;
   closedBy: string | null;
   closedAt: string | null;
+  closureEvidence: EvidenceLocator[] | null;
+  closureHint: "implemented" | "open" | "unknown" | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +159,19 @@ export class InMemoryAuditCaseRepository {
   sourceMetadata = new Map<string, Record<string, unknown>>();
   /** Frozen party-history lookups, newest last, keyed by case id. */
   partyHistoryRows: Array<{ caseId: string; run: PartyHistoryRun }> = [];
+  contracts = new Map<string, { id: string; title: string; createdAt: string }>();
+  contractRevisions = new Map<
+    string,
+    {
+      id: string;
+      contractId: string;
+      version: number;
+      sourceRecordId: string;
+      label: string | null;
+      createdAt: string;
+    }
+  >();
+  contractRevisionByCase = new Map<string, string>();
 
   async createPendingCase(
     sourceRecordId: string,
@@ -162,6 +181,7 @@ export class InMemoryAuditCaseRepository {
       createdAt?: Date;
       metadata?: Record<string, unknown>;
       assignee?: string | null;
+      contractId?: string | null;
     } = {},
   ): Promise<{ caseId: string; snapshotId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
@@ -192,6 +212,12 @@ export class InMemoryAuditCaseRepository {
       sourceRecordId,
       snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
     );
+    const revisionId = this.attachContractRevision(
+      sourceRecordId,
+      titleForState(this.cases.get(caseId)),
+      options.contractId,
+    );
+    this.contractRevisionByCase.set(caseId, revisionId);
     return { caseId, snapshotId };
   }
 
@@ -203,6 +229,7 @@ export class InMemoryAuditCaseRepository {
       createdAt?: Date;
       metadata?: Record<string, unknown>;
       assignee?: string | null;
+      contractId?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
@@ -215,6 +242,13 @@ export class InMemoryAuditCaseRepository {
     if (provenance?.displayName != null) {
       this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
     }
+    const revisionId = this.attachContractRevision(
+      sourceRecordId,
+      contractTitleFromFirstBlock(sourceText.split("\n")[0]) ??
+        (provenance?.displayName?.replace(/\.(docx|pdf|txt|md)$/i, "").trim() || "未命名合同"),
+      options.contractId,
+    );
+    this.contractRevisionByCase.set(caseId, revisionId);
     this.cases.set(caseId, {
       status: "PENDING",
       stage: "QUEUED",
@@ -375,7 +409,10 @@ export class InMemoryAuditCaseRepository {
     const state = this.cases.get(auditCaseId);
     if (!state) throw new Error(`unknown case ${auditCaseId}`);
     const id = `finding-${auditCaseId}-${state.findings.length + 1}`;
-    state.findings.push({ id, auditCaseId, proposal, supersedesId, review: null });
+    const snapshot = latestSnapshot(state);
+    const ruleCode =
+      snapshot === null ? null : ruleCodeForAssessment(snapshot, proposal.assessmentId);
+    state.findings.push({ id, auditCaseId, proposal, supersedesId, review: null, ruleCode });
     return id;
   }
 
@@ -400,6 +437,7 @@ export class InMemoryAuditCaseRepository {
       proposal: existing.proposal,
       supersedesId: findingId,
       review,
+      ruleCode: existing.ruleCode,
     });
 
     // Accepting opens exactly one item, keyed by revision so a retry is a no-op.
@@ -420,6 +458,8 @@ export class InMemoryAuditCaseRepository {
       progressNote: null,
       closedBy: null,
       closedAt: null,
+      closureEvidence: null,
+      closureHint: null,
       createdAt: now,
       updatedAt: now,
     });
@@ -494,7 +534,10 @@ export class InMemoryAuditCaseRepository {
     if (item.status !== "awaiting_review") {
       throw new Error(`REMEDIATION_NOT_AWAITING_REVIEW: ${item.status}`);
     }
-    if (item.owner !== null && item.owner === reviewer) {
+    if (item.owner === null) {
+      throw new Error(`REMEDIATION_OWNER_REQUIRED: ${id}`);
+    }
+    if (item.owner === reviewer) {
       throw new Error(`REMEDIATION_SELF_CLOSE: ${id}`);
     }
     const now = new Date().toISOString();
@@ -502,7 +545,124 @@ export class InMemoryAuditCaseRepository {
     item.closedBy = reviewer;
     item.closedAt = now;
     item.updatedAt = now;
+    item.closureEvidence = [
+      {
+        id: crypto.randomUUID(),
+        sourceRecordId: this.sourceRecordIdsByCase.get(item.auditCaseId) ?? item.auditCaseId,
+        location: {
+          kind: "EXTERNAL_RECORD",
+          provider: "remediation",
+          tool: "close",
+          subject: item.summary,
+          recordType: "REMEDIATION_CLOSURE",
+          capturedAt: now,
+          expiresAt: null,
+        },
+      },
+    ];
     return { ...item };
+  }
+
+  async refreshRemediationClosureHints(_caseId: string): Promise<void> {}
+
+  async listContracts() {
+    return [...this.contracts.values()].map((contract) => {
+      const revisions = [...this.contractRevisions.values()].filter(
+        (revision) => revision.contractId === contract.id,
+      );
+      const latestVersion = revisions.reduce((max, revision) => Math.max(max, revision.version), 0);
+      return {
+        id: contract.id,
+        title: contract.title,
+        createdAt: contract.createdAt,
+        revisionCount: revisions.length,
+        latestVersion: revisions.length === 0 ? null : latestVersion,
+      };
+    });
+  }
+
+  async getContract(contractId: string) {
+    const contract = this.contracts.get(contractId);
+    if (!contract) return null;
+    const revisions = [...this.contractRevisions.values()]
+      .filter((revision) => revision.contractId === contractId)
+      .sort((left, right) => left.version - right.version);
+    const views = revisions.map((revision) => {
+      const caseEntry = [...this.contractRevisionByCase.entries()].find(
+        ([, revId]) => revId === revision.id,
+      );
+      const caseId = caseEntry?.[0] ?? null;
+      const state = caseId ? this.cases.get(caseId) : undefined;
+      const heads = state ? this.chainHeads(state) : [];
+      const findingPins = heads.flatMap((finding) =>
+        finding.ruleCode
+          ? [
+              {
+                ruleCode: finding.ruleCode as RuleCode,
+                findingType: finding.proposal.findingType,
+                severity: finding.proposal.severity,
+              },
+            ]
+          : [],
+      );
+      return {
+        revision,
+        auditCaseId: caseId,
+        caseStatus: state?.status ?? null,
+        findingPins,
+      };
+    });
+    const diffs = [];
+    for (let index = 1; index < views.length; index += 1) {
+      diffs.push({
+        fromVersion: views[index - 1].revision.version,
+        toVersion: views[index].revision.version,
+        diff: diffAdjacentRevisionFindings(views[index - 1].findingPins, views[index].findingPins),
+      });
+    }
+    return { contract, revisions: views, diffs };
+  }
+
+  async contractIdForCase(caseId: string): Promise<string | null> {
+    const revisionId = this.contractRevisionByCase.get(caseId);
+    if (!revisionId) return null;
+    return this.contractRevisions.get(revisionId)?.contractId ?? null;
+  }
+
+  private attachContractRevision(
+    sourceRecordId: string,
+    title: string,
+    contractId?: string | null,
+  ): string {
+    const now = new Date().toISOString();
+    if (contractId && this.contracts.has(contractId)) {
+      const siblings = [...this.contractRevisions.values()].filter(
+        (revision) => revision.contractId === contractId,
+      );
+      const version = siblings.reduce((max, revision) => Math.max(max, revision.version), 0) + 1;
+      const id = `rev-${this.contractRevisions.size + 1}`;
+      this.contractRevisions.set(id, {
+        id,
+        contractId,
+        version,
+        sourceRecordId,
+        label: `v${version}`,
+        createdAt: now,
+      });
+      return id;
+    }
+    const newContractId = `contract-${this.contracts.size + 1}`;
+    this.contracts.set(newContractId, { id: newContractId, title, createdAt: now });
+    const revisionId = `rev-${this.contractRevisions.size + 1}`;
+    this.contractRevisions.set(revisionId, {
+      id: revisionId,
+      contractId: newContractId,
+      version: 1,
+      sourceRecordId,
+      label: "v1",
+      createdAt: now,
+    });
+    return revisionId;
   }
 
   async markStaleRunsInterrupted(): Promise<number> {

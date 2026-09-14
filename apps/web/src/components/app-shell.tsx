@@ -107,6 +107,11 @@ const navGroups: MenuProps["items"] = [
         label: <Link to="/audit-cases">审计队列</Link>,
       },
       {
+        key: "/contracts",
+        icon: <FileTextOutlined />,
+        label: <Link to="/contracts">合同中心</Link>,
+      },
+      {
         key: "/audit-runs",
         icon: <NodeIndexOutlined />,
         label: <Link to="/audit-runs">运行轨迹</Link>,

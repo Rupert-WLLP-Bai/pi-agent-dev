@@ -8,6 +8,8 @@ import {
   agentTraceSteps,
   auditCases,
   auditSnapshots,
+  contractRevisions,
+  contracts,
   findingRevisions,
   partyHistoryRecords,
   remediations,
@@ -38,6 +40,7 @@ export class AuditReadModelRepository {
       status: string;
       stage: string;
       source_record_id: string;
+      contract_revision_id: string | null;
       source_type: string | null;
       source_display_name: string | null;
       original_path: string | null;
@@ -48,7 +51,7 @@ export class AuditReadModelRepository {
       highest_severity: string | null;
       subject_red_line_count: number;
     }>(sql`
-      SELECT c.id, c.status, c.stage, c.source_record_id, c.created_at, c.updated_at,
+      SELECT c.id, c.status, c.stage, c.source_record_id, c.contract_revision_id, c.created_at, c.updated_at,
              s.document->'blocks'->0->>'text' AS contract_title,
              src.metadata->>'sourceType' AS source_type,
              src.metadata->>'sourceDisplayName' AS source_display_name,
@@ -101,6 +104,7 @@ export class AuditReadModelRepository {
       status: row.status as AuditCase["status"],
       stage: row.stage as AuditCase["stage"],
       sourceRecordId: row.source_record_id,
+      contractRevisionId: row.contract_revision_id ?? null,
       createdAt: toDate(row.created_at),
       updatedAt: toDate(row.updated_at),
       contractTitle: contractTitleFromFirstBlock(row.contract_title),
@@ -438,6 +442,24 @@ export class AuditReadModelRepository {
         .where(inArray(subjectVerifications.auditCaseId, caseIds));
       await this.db.delete(auditSnapshots).where(inArray(auditSnapshots.auditCaseId, caseIds));
       await this.db.delete(auditCases).where(inArray(auditCases.id, caseIds));
+    }
+    const revisionRows = await this.db
+      .select({ contractId: contractRevisions.contractId })
+      .from(contractRevisions)
+      .where(inArray(contractRevisions.sourceRecordId, sourceIds));
+    const contractIds = [...new Set(revisionRows.map((row) => row.contractId))];
+    await this.db
+      .delete(contractRevisions)
+      .where(inArray(contractRevisions.sourceRecordId, sourceIds));
+    for (const contractId of contractIds) {
+      const remaining = await this.db
+        .select({ id: contractRevisions.id })
+        .from(contractRevisions)
+        .where(eq(contractRevisions.contractId, contractId))
+        .limit(1);
+      if (remaining.length === 0) {
+        await this.db.delete(contracts).where(eq(contracts.id, contractId));
+      }
     }
     await this.db.delete(sourceRecords).where(inArray(sourceRecords.id, sourceIds));
     return caseIds.length;

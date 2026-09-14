@@ -48,6 +48,8 @@ export const toRemediation = (row: typeof remediations.$inferSelect) => ({
   progressNote: row.progressNote,
   closedBy: row.closedBy,
   closedAt: row.closedAt === null ? null : row.closedAt.toISOString(),
+  closureEvidence: row.closureEvidence ?? null,
+  closureHint: row.closureHint ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });
@@ -70,6 +72,7 @@ export const toCase = (row: typeof auditCases.$inferSelect): AuditCase => ({
   status: row.status,
   stage: row.stage,
   sourceRecordId: row.sourceRecordId,
+  contractRevisionId: row.contractRevisionId ?? null,
   createdAt: row.createdAt.toISOString(),
   updatedAt: row.updatedAt.toISOString(),
 });

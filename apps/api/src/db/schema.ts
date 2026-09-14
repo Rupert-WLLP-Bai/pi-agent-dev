@@ -8,6 +8,7 @@ import type {
   FindingProposal,
   HumanReview,
   RemediationStatus,
+  RuleCode,
   Severity,
   SubjectMatchStatus,
   SubjectVerification,
@@ -64,6 +65,35 @@ export const sourceRecords = pgTable("source_records", {
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
 });
 
+/** A business agreement that may accumulate multiple Contract Revisions. */
+export const contracts = pgTable("contracts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
+/** One immutable version of a Contract; each Audit Case reviews exactly one revision. */
+export const contractRevisions = pgTable(
+  "contract_revisions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    contractId: uuid("contract_id")
+      .references(() => contracts.id, { onDelete: "cascade" })
+      .notNull(),
+    /** Monotonic within a contract, starting at 1. */
+    version: integer("version").notNull(),
+    sourceRecordId: uuid("source_record_id")
+      .references(() => sourceRecords.id)
+      .notNull(),
+    label: text("label"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("contract_revisions_contract_version_idx").on(table.contractId, table.version),
+    index("contract_revisions_contract_id_idx").on(table.contractId),
+  ],
+);
+
 export const auditCases = pgTable(
   "audit_cases",
   {
@@ -73,6 +103,7 @@ export const auditCases = pgTable(
     sourceRecordId: uuid("source_record_id")
       .references(() => sourceRecords.id)
       .notNull(),
+    contractRevisionId: uuid("contract_revision_id").references(() => contractRevisions.id),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
     /** Operator the case is assigned to for review; null when unassigned. */
@@ -211,6 +242,8 @@ export const findingRevisions = pgTable(
       .references(() => auditCases.id)
       .notNull(),
     proposal: jsonb("proposal").$type<FindingProposal>().notNull(),
+    /** Denormalized from the cited assessment for query efficiency. */
+    ruleCode: text("rule_code").$type<RuleCode | null>(),
     supersedesId: uuid("supersedes_id"),
     review: jsonb("review").$type<HumanReview | null>(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
@@ -218,6 +251,7 @@ export const findingRevisions = pgTable(
   (table) => [
     index("finding_revisions_audit_case_id_idx").on(table.auditCaseId),
     index("finding_revisions_supersedes_id_idx").on(table.supersedesId),
+    index("finding_revisions_rule_code_idx").on(table.ruleCode),
   ],
 );
 
@@ -409,6 +443,9 @@ export const remediations = pgTable(
     progressNote: text("progress_note"),
     closedBy: text("closed_by"),
     closedAt: timestamp("closed_at", { withTimezone: true, mode: "date" }),
+    /** Evidence written back to the originating audit case when closure is confirmed. */
+    closureEvidence: jsonb("closure_evidence").$type<EvidenceLocator[]>(),
+    closureHint: text("closure_hint", { enum: ["implemented", "open", "unknown"] }),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
   },
@@ -449,6 +486,8 @@ export const llmProviders = pgTable(
 
 export const schema = {
   sourceRecords,
+  contracts,
+  contractRevisions,
   auditCases,
   auditSnapshots,
   agentRuns,

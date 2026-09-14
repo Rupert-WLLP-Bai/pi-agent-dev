@@ -29,6 +29,8 @@ const createBody = t.Object({
   policyLimitRatio: t.Optional(t.Number()),
   /** Built-in sample the textarea still holds verbatim, when one was loaded. */
   demoId: t.Optional(t.String()),
+  /** When set, registers this audit as the next revision of an existing Contract. */
+  contractId: t.Optional(t.String()),
 });
 
 const AUDIT_CASE_TAGS = [openapiTags.auditCases];
@@ -91,6 +93,7 @@ const caseSummarySchema = t.Object(
     status: auditCaseStatusSchema,
     stage: auditStageSchema,
     sourceRecordId: t.String(),
+    contractRevisionId: t.Union([t.String(), t.Null()]),
     createdAt: t.String(),
     updatedAt: t.String(),
     contractTitle: t.Union([t.String(), t.Null()]),
@@ -203,6 +206,7 @@ export function auditCasesRoutes({
                 body.policyLimitRatio === undefined
                   ? undefined
                   : { policyLimitRatio: body.policyLimitRatio },
+              contractId: body.contractId ?? null,
             },
           );
           await dispatcher.enqueue(caseId);

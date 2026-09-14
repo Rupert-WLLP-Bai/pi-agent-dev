@@ -86,6 +86,13 @@ const remediationSchema = t.Object(
     progressNote: t.Union([t.String(), t.Null()]),
     closedBy: t.Union([t.String(), t.Null()]),
     closedAt: t.Union([t.String(), t.Null()]),
+    closureEvidence: t.Union([t.Array(t.Any()), t.Null()]),
+    closureHint: t.Union([
+      t.Literal("implemented"),
+      t.Literal("open"),
+      t.Literal("unknown"),
+      t.Null(),
+    ]),
     createdAt: t.String(),
     updatedAt: t.String(),
   },

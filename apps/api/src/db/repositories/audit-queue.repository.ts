@@ -7,6 +7,8 @@ import type {
 } from "@contract-audit/audit/model";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { auditCases, auditSnapshots, sourceRecords } from "../schema";
+import { ContractRepository, registerContractRevision } from "./contract.repository";
+import { contractTitleFromFirstBlock } from "./helpers";
 import { asDate, toCase, toSnapshot, toSourceProvenance } from "./mappers";
 import type { DrizzleDB, SourceRecordOriginal } from "./types";
 
@@ -78,6 +80,7 @@ export class AuditQueueRepository {
       createdAt?: Date;
       metadata?: Record<string, unknown>;
       assignee?: string | null;
+      contractId?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
     return this.db.transaction(async (tx) => {
@@ -95,11 +98,19 @@ export class AuditQueueRepository {
         })
         .onConflictDoNothing({ target: sourceRecords.id });
 
+      const title = ContractRepository.titleFromSource(sourceText, provenance?.displayName ?? null);
+      const contractRevisionId = await registerContractRevision(tx, {
+        sourceRecordId,
+        title,
+        contractId: options.contractId,
+      });
+
       const createdAt = options.createdAt;
       const [auditCase] = await tx
         .insert(auditCases)
         .values({
           sourceRecordId,
+          contractRevisionId,
           status: "PENDING",
           stage: "QUEUED",
           ...(createdAt === undefined ? {} : { createdAt, updatedAt: createdAt }),
@@ -157,14 +168,16 @@ export class AuditQueueRepository {
       createdAt?: Date;
       metadata?: Record<string, unknown>;
       assignee?: string | null;
+      contractId?: string | null;
     } = {},
   ): Promise<{ caseId: string; snapshotId: string }> {
     return this.db.transaction(async (tx) => {
+      const sourceText = snapshot.contractDocument.blocks.map((block) => block.text).join("\n");
       await tx
         .insert(sourceRecords)
         .values({
           id: sourceRecordId,
-          sourceText: snapshot.contractDocument.blocks.map((block) => block.text).join("\n"),
+          sourceText,
           metadata: {
             contractDocumentHash: snapshot.contractDocument.hash,
             ...(provenance === null
@@ -175,11 +188,21 @@ export class AuditQueueRepository {
         })
         .onConflictDoNothing({ target: sourceRecords.id });
 
+      const title =
+        contractTitleFromFirstBlock(snapshot.contractDocument.blocks[0]?.text) ??
+        ContractRepository.titleFromSource(sourceText, provenance?.displayName ?? null);
+      const contractRevisionId = await registerContractRevision(tx, {
+        sourceRecordId,
+        title,
+        contractId: options.contractId,
+      });
+
       const createdAt = options.createdAt;
       const [auditCase] = await tx
         .insert(auditCases)
         .values({
           sourceRecordId,
+          contractRevisionId,
           status: "PENDING",
           stage: "QUEUED",
           ...(createdAt === undefined ? {} : { createdAt, updatedAt: createdAt }),
