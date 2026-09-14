@@ -194,8 +194,10 @@ test("blocks publish with the failing case count when a draft regresses", async 
   await expect(activePanel(page).getByText("验证未通过：2 例失败")).toBeVisible();
 });
 
-// This test mutates a shared seeded rule (ADVANCE_PAYMENT_LIMIT), so it must
-// not run in parallel with specs that depend on that rule's findings.
+// This test mutates a shared seeded rule (ADVANCE_PAYMENT_LIMIT), so it must not
+// run in parallel with specs that depend on that rule's findings. `.serial` only
+// orders the tests inside this block; what actually holds the constraint is the
+// single worker configured in playwright.config.ts.
 test.describe
   .serial("rule disable flow", () => {
     test("disables a rule and omits it from new audits", async ({ page }) => {

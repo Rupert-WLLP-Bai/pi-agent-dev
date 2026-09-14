@@ -30,8 +30,14 @@ const config: Config = {
   // overrides this entirely, so CI must not pass one.
   reporter: [["line"], ["html", { open: "never" }]],
   expect: { timeout: 15_000 },
-  workers:
-    process.env.CI === "true" && process.env.PLAYWRIGHT_REUSE_SERVERS !== "1" ? 4 : undefined,
+  // One worker, because the specs share one database and one rule catalog. The
+  // rule-disable spec switches ADVANCE_PAYMENT_LIMIT off for the length of its
+  // test; anything auditing the demo contract in another worker during that
+  // window loses the finding it asserts on. `test.describe.serial` orders tests
+  // within a file and cannot express that constraint across files. The suite is
+  // ~1 minute either way, so the parallelism is not worth an intermittent
+  // failure that looks like a product bug.
+  workers: 1,
   webServer: [
     {
       // Run the API directly, not via the `--watch` dev script: a file watcher
