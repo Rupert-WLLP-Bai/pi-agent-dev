@@ -25,7 +25,7 @@
 
 ## 能力边界
 
-包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现为 macOS Vision，MinerU 列为其他平台备选）、PostgreSQL 留痕、合同原文对象存储（S3/MinIO + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现是视觉模型识别：`pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型，`OCR_VLM_ENDPOINT` 未配置时整体降级为关闭；MinerU 是留给其他部署的空槽位）、PostgreSQL 留痕、合同原文对象存储（S3/MinIO + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
 
 不包含（附原因）：
 
