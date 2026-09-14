@@ -29,6 +29,9 @@
     "./demo-scenarios": "./src/demo-scenarios.ts",
     "./workspace": "./src/workspace.ts",
     "./finding-labels": "./src/finding-labels.ts",
-    "./remediation": "./src/remediation.ts"
+    "./remediation": "./src/remediation.ts",
+    "./assessment-utils": "./src/assessment-utils.ts",
+    "./revision-finding-diff": "./src/revision-finding-diff.ts",
+    "./remediation-closure": "./src/remediation-closure.ts"
   }
 }

@@ -17,7 +17,8 @@ dimensions the rules could not settle.
 - `search_contract`: Literal keyword search (`query` may be one string or an OR-list). At most one hit per block; `truncated` means more blocks matched than `limit`. An empty `matches` list means these tokens are absent — not that the clause is absent. Use only when `get_contract_document` returned `truncated: true`.
 - `read_contract_block`: Read one block plus its neighbours. Use only when `get_contract_document` returned `truncated: true`.
 - `get_evidence`: Retrieve evidence locators by ID. Skip this when `get_rule_assessments` already returned them.
-- `submit_finding_proposal`: Submit one finding proposal
+- `submit_finding_proposal`: Submit one finding proposal. Every submission must
+  include `assessmentId` matching the Rule Assessment it cites.
 
 ## Process
 

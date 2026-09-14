@@ -325,11 +325,29 @@ export type AuditStage =
   | "CANCELLED"
   | "INTERRUPTED";
 
+/** A business agreement that may accumulate multiple Contract Revisions. */
+export interface Contract {
+  id: string;
+  title: string;
+  createdAt: string;
+}
+
+/** One immutable version of a Contract; each Audit Case reviews exactly one revision. */
+export interface ContractRevision {
+  id: string;
+  contractId: string;
+  version: number;
+  sourceRecordId: string;
+  label: string | null;
+  createdAt: string;
+}
+
 export interface AuditCase {
   id: string;
   status: AuditCaseStatus;
   stage: AuditStage;
   sourceRecordId: string;
+  contractRevisionId: string | null;
   createdAt: string;
   updatedAt: string;
 }
