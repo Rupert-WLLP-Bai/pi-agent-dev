@@ -13,7 +13,11 @@ playwright-report
 .agents/
 .claude/
 skills-lock.json
-# Uploaded contract originals, written at runtime by the API.
+# Uploaded contract originals, written at runtime by the API. UPLOAD_DIR defaults
+# to a path relative to the process's working directory, which is the repository
+# root for `bun run dev` and for the acceptance stack — not apps/api. Ignoring
+# only the latter let 14 uploads get committed.
+var/
 apps/api/var/
 compose.override.yaml
 .superpowers/
