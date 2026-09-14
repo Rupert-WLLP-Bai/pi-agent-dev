@@ -2,7 +2,8 @@ import { findDemoContract } from "@contract-audit/audit/demo-contracts";
 import type { AuditCaseStatus, SourceProvenance } from "@contract-audit/audit/model";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
 import { Elysia, t } from "elysia";
-import type { AuditCaseRepository } from "../db/repositories";
+import { buildAuditReportDocx } from "../audit/audit-report";
+import { type AuditCaseRepository, contractTitleFromFirstBlock } from "../db/repositories";
 import type { RuleRepository } from "../db/rule-repository";
 import type { AuditDispatcher } from "../dispatcher";
 import { validateMimeType } from "../document";
@@ -371,6 +372,43 @@ export function auditCasesRoutes({
         },
         response: { 200: t.Array(caseSummarySchema) },
       })
+      .get(
+        "/api/audit-cases/:id/report.docx",
+        async ({ params, set }) => {
+          const auditCase = await repository.getCase(params.id);
+          if (!auditCase) {
+            set.status = 404;
+            return { error: "Audit case not found" };
+          }
+          const snapshot = await repository.getSnapshotByCase(params.id);
+          const findings = await repository.getFindingsByCase(params.id);
+          const title =
+            contractTitleFromFirstBlock(snapshot?.contractDocument.blocks[0]?.text) ?? "未命名合同";
+          const buffer = await buildAuditReportDocx({
+            caseId: params.id,
+            contractTitle: title,
+            status: auditCase.status,
+            snapshot,
+            findings,
+          });
+          return new Response(new Uint8Array(buffer), {
+            headers: {
+              "content-type":
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "content-disposition": 'attachment; filename="audit-report.docx"',
+            },
+          });
+        },
+        {
+          params: t.Object({ id: t.String() }),
+          detail: {
+            summary: "导出审查报告（docx）",
+            description: "生成包含规则覆盖面、发现、证据原文与复核结论的 Word 报告。",
+            tags: AUDIT_CASE_TAGS,
+          },
+          response: { 404: notFoundSchema },
+        },
+      )
       .get(
         "/api/audit-cases/:id",
         async ({ params, set }) => {

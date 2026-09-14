@@ -20,6 +20,7 @@ import {
   createMemoryLlmProviderStore,
   type LlmProviderStore,
 } from "./llm/provider-repository";
+import { reencryptPlainLlmProviderKeys } from "./llm/reencrypt-provider-keys";
 import { seedProviderFromEnv } from "./llm/seed-from-env";
 import { apiHealthSchema, openapiOptions, openapiTags } from "./openapi";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
@@ -114,6 +115,17 @@ export function createApp(deps: AppDeps) {
   const providers = deps.llmProviders ?? createMemoryLlmProviderStore();
   const registry = deps.registry ?? new LlmProviderRegistry(providers);
   return new Elysia()
+    .onRequest(({ request, set }) => {
+      const incoming = request.headers.get("x-request-id")?.trim();
+      const requestId = incoming && incoming.length > 0 ? incoming : crypto.randomUUID();
+      set.headers["x-request-id"] = requestId;
+    })
+    .onError(({ set }) => {
+      if (set.status === 200 || set.status === undefined) set.status = 500;
+      const requestId = set.headers["x-request-id"] ?? crypto.randomUUID();
+      set.headers["x-request-id"] = requestId;
+      return { error: "internal_error", requestId };
+    })
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(contractsRoutes({ repository: deps.repository }))
@@ -188,6 +200,7 @@ if (import.meta.main) {
   const repository = createRepository(db);
   const rulesRepository = createRuleRepository(db);
   const providerRepository = createLlmProviderRepository(db);
+  await reencryptPlainLlmProviderKeys(db);
   // Import the environment configuration as the first provider so the console
   // shows the model service that audits are actually using.
   await seedProviderFromEnv(providerRepository);

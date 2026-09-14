@@ -85,7 +85,7 @@ export type AuditEvent =
   | { type: "agent.trace"; auditCaseId: string; step: AgentTraceStep }
   | { type: "finding.proposed"; auditCaseId: string; proposal: FindingProposal }
   | { type: "audit.awaiting_review"; auditCaseId: string }
-  | { type: "audit.failed"; auditCaseId: string; error: string }
+  | { type: "audit.failed"; auditCaseId: string; errorCode: string }
   | { type: "audit.completed"; auditCaseId: string }
   | { type: "audit.cancelled"; auditCaseId: string }
   | {

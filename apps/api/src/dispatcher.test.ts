@@ -378,7 +378,7 @@ test("marks a failed agent run as FAILED and records the error", async () => {
   expect(broker.events.at(-1)).toMatchObject({
     type: "audit.failed",
     auditCaseId: caseId,
-    error: "XYG_ENDPOINT_UNREACHABLE",
+    errorCode: "LLM_UNREACHABLE",
   });
 });
 

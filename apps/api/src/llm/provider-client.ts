@@ -1,3 +1,5 @@
+import { assertAllowedLlmEndpoint } from "./endpoint-allowlist";
+
 /**
  * The outbound OpenAI-compatible probe behind `POST /:id/test` and
  * `GET /:id/models`. Both read `{endpoint}/models`, so one implementation
@@ -23,6 +25,16 @@ export interface ProviderProbe {
  * console's own endpoint.
  */
 export async function probeProvider(endpoint: string, apiKey: string): Promise<ProviderProbe> {
+  try {
+    assertAllowedLlmEndpoint(endpoint);
+  } catch {
+    return {
+      ok: false,
+      error: "模型服务地址不在允许范围内",
+      latencyMs: 0,
+      models: [],
+    };
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
   const startedAt = Date.now();

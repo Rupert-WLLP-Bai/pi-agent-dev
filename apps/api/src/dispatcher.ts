@@ -13,6 +13,7 @@ import type {
 } from "@contract-audit/audit/ports";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { ensureRunSnapshot } from "./audit/assemble-run-snapshot";
+import { auditFailureCode } from "./audit/audit-failure-code";
 import type { AuditCaseRepository } from "./db/repositories";
 import type { RuleRepository } from "./db/rule-repository";
 import type { AuditEventBroker } from "./sse";
@@ -224,8 +225,11 @@ export class AuditDispatcher {
         this.broker.publish({ type: "audit.cancelled", auditCaseId });
         await this.repository.updateCaseStatus(auditCaseId, "CANCELLED", "CANCELLED");
       } else {
-        const message = error instanceof Error ? error.message : String(error);
-        this.broker.publish({ type: "audit.failed", auditCaseId, error: message });
+        this.broker.publish({
+          type: "audit.failed",
+          auditCaseId,
+          errorCode: auditFailureCode(error),
+        });
         await this.repository.updateCaseStatus(auditCaseId, "FAILED", "FAILED");
       }
     } finally {

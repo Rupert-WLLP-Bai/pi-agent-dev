@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { createDb, type DrizzleDB } from "../db/repositories";
 import { llmProviders } from "../db/schema";
+import { apiKeyHint, openApiKey, sealApiKey } from "./api-key-crypto";
+import { assertAllowedLlmEndpoint } from "./endpoint-allowlist";
 
 /**
  * Model-service persistence for the OpenAI-compatible providers an audit run
@@ -112,8 +114,7 @@ const toProvider = (row: ProviderRow): LlmProvider => ({
   enabled: row.enabled,
   isActive: row.isActive,
   apiKeyConfigured: row.apiKey.length > 0,
-  // Mask, never the key: the tail only, so a reader can tell two keys apart.
-  apiKeyHint: row.apiKey.length > 0 ? `…${row.apiKey.slice(-4)}` : null,
+  apiKeyHint: apiKeyHint(row.apiKey),
   lastCheckedAt: row.lastCheckedAt?.toISOString() ?? null,
   lastCheckOk: row.lastCheckOk,
   lastCheckError: row.lastCheckError,
@@ -164,6 +165,11 @@ export class LlmProviderRepository implements LlmProviderStore {
     if (apiKey.length === 0) {
       throw new LlmProviderRepositoryError(400, "API Key 不能为空");
     }
+    try {
+      assertAllowedLlmEndpoint(input.endpoint);
+    } catch {
+      throw new LlmProviderRepositoryError(400, "模型服务地址不在允许范围内");
+    }
     const [clash] = await this.db
       .select({ id: llmProviders.id })
       .from(llmProviders)
@@ -178,7 +184,7 @@ export class LlmProviderRepository implements LlmProviderStore {
         name: input.name,
         endpoint: input.endpoint,
         model: input.model,
-        apiKey,
+        apiKey: sealApiKey(apiKey),
         maxInput: input.maxInput ?? DEFAULT_MAX_INPUT,
         maxOutput: input.maxOutput ?? DEFAULT_MAX_OUTPUT,
         enabled: input.enabled ?? true,
@@ -195,6 +201,13 @@ export class LlmProviderRepository implements LlmProviderStore {
       .limit(1);
     if (!existing) {
       throw new LlmProviderRepositoryError(404, "模型服务不存在");
+    }
+    if (patch.endpoint !== undefined) {
+      try {
+        assertAllowedLlmEndpoint(patch.endpoint);
+      } catch {
+        throw new LlmProviderRepositoryError(400, "模型服务地址不在允许范围内");
+      }
     }
     if (patch.name !== undefined && patch.name !== existing.name) {
       const [clash] = await this.db
@@ -214,7 +227,7 @@ export class LlmProviderRepository implements LlmProviderStore {
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.endpoint !== undefined ? { endpoint: patch.endpoint } : {}),
         ...(patch.model !== undefined ? { model: patch.model } : {}),
-        ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey } : {}),
+        ...(apiKey !== undefined && apiKey.length > 0 ? { apiKey: sealApiKey(apiKey) } : {}),
         ...(patch.maxInput !== undefined ? { maxInput: patch.maxInput } : {}),
         ...(patch.maxOutput !== undefined ? { maxOutput: patch.maxOutput } : {}),
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
@@ -296,7 +309,7 @@ export class LlmProviderRepository implements LlmProviderStore {
     return {
       name: row.name,
       endpoint: row.endpoint,
-      apiKey: row.apiKey,
+      apiKey: openApiKey(row.apiKey),
       model: row.model,
       maxInput: row.maxInput,
       maxOutput: row.maxOutput,
@@ -313,7 +326,12 @@ export class LlmProviderRepository implements LlmProviderStore {
       .from(llmProviders)
       .where(eq(llmProviders.id, id))
       .limit(1);
-    return row ?? null;
+    if (!row) return null;
+    return {
+      endpoint: row.endpoint,
+      apiKey: openApiKey(row.apiKey),
+      model: row.model,
+    };
   }
 
   async recordCheck(id: string, ok: boolean, error: string | null): Promise<void> {
@@ -359,6 +377,11 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
     async create(input) {
       const apiKey = input.apiKey?.trim() ?? "";
       if (apiKey.length === 0) throw new LlmProviderRepositoryError(400, "API Key 不能为空");
+      try {
+        assertAllowedLlmEndpoint(input.endpoint);
+      } catch {
+        throw new LlmProviderRepositoryError(400, "模型服务地址不在允许范围内");
+      }
       if ([...rows.values()].some((row) => row.name === input.name)) {
         throw new LlmProviderRepositoryError(409, "已存在同名模型服务");
       }
@@ -368,7 +391,7 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
         name: input.name,
         endpoint: input.endpoint,
         model: input.model,
-        apiKey,
+        apiKey: sealApiKey(apiKey),
         maxInput: input.maxInput ?? DEFAULT_MAX_INPUT,
         maxOutput: input.maxOutput ?? DEFAULT_MAX_OUTPUT,
         enabled: input.enabled ?? true,
@@ -391,9 +414,16 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
       }
       const apiKey = patch.apiKey?.trim();
       if (patch.name !== undefined) row.name = patch.name;
-      if (patch.endpoint !== undefined) row.endpoint = patch.endpoint;
+      if (patch.endpoint !== undefined) {
+        try {
+          assertAllowedLlmEndpoint(patch.endpoint);
+        } catch {
+          throw new LlmProviderRepositoryError(400, "模型服务地址不在允许范围内");
+        }
+        row.endpoint = patch.endpoint;
+      }
       if (patch.model !== undefined) row.model = patch.model;
-      if (apiKey !== undefined && apiKey.length > 0) row.apiKey = apiKey;
+      if (apiKey !== undefined && apiKey.length > 0) row.apiKey = sealApiKey(apiKey);
       if (patch.maxInput !== undefined) row.maxInput = patch.maxInput;
       if (patch.maxOutput !== undefined) row.maxOutput = patch.maxOutput;
       if (patch.enabled !== undefined) row.enabled = patch.enabled;
@@ -433,7 +463,7 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
       return {
         name: row.name,
         endpoint: row.endpoint,
-        apiKey: row.apiKey,
+        apiKey: openApiKey(row.apiKey),
         model: row.model,
         maxInput: row.maxInput,
         maxOutput: row.maxOutput,
@@ -441,7 +471,9 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
     },
     async credentialsFor(id) {
       const row = rows.get(id);
-      return row ? { endpoint: row.endpoint, apiKey: row.apiKey, model: row.model } : null;
+      return row
+        ? { endpoint: row.endpoint, apiKey: openApiKey(row.apiKey), model: row.model }
+        : null;
     },
     async recordCheck(id, ok, error) {
       const row = rows.get(id);

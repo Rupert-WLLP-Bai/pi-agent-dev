@@ -1,5 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { extname, join, resolve } from "node:path";
 import {
   GetObjectCommand,
   HeadBucketCommand,
@@ -53,7 +53,12 @@ export function createLocalOriginalStore(dir?: string): OriginalStore {
       return path;
     },
     async read(locator) {
-      return readFile(locator);
+      const root = resolve(resolveDir());
+      const path = resolve(locator);
+      if (!path.startsWith(root)) {
+        throw new Error("ORIGINAL_PATH_OUTSIDE_UPLOAD_DIR");
+      }
+      return readFile(path);
     },
   };
 }
