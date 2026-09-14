@@ -96,6 +96,21 @@ test("our organization on both sides is not reduced to one direction", () => {
   expect(inferred.basis).toContain("立场不唯一");
 });
 
+test("the same party named 委托方 in one clause and 甲方 in another is one stance", () => {
+  // The real 天翼五期 procurement contract writes 委托方（甲方）and the extractor
+  // reports both mentions. Both mean the buyer, so the direction is not in doubt.
+  const inferred = inferContractStance({
+    parties: [
+      party("委托方", "中国移动通信集团重庆有限公司两江新区分公司"),
+      party("受托方", "北京元通数智科技有限公司"),
+      party("甲方", "中国移动通信集团重庆有限公司两江新区分公司"),
+    ],
+    ownOrganizationNames: OUR_NAMES,
+  });
+
+  expect(inferred.stance).toBe("procurement");
+});
+
 test("an unrecognised party label leaves the stance unjudged rather than guessing", () => {
   const inferred = inferContractStance({
     parties: [party("丙方", "重庆移动")],

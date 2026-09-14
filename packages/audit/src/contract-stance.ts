@@ -63,25 +63,34 @@ export function inferContractStance(input: {
       decidedByPartyId: null,
     };
   }
+
+  // A contract names the same entity under several labels — 委托方（甲方）appears
+  // once per section — so what matters is the direction those labels agree on,
+  // not how many of them there are. Counting the mentions instead would call an
+  // ordinary procurement contract ambiguous and silence every rule on it.
+  const revenueSide = ours.filter((party) => matchesLabel(party.label, SUPPLIER_LABELS));
+  const procurementSide = ours.filter((party) => matchesLabel(party.label, BUYER_LABELS));
+
   // Our organization on both sides is an internal contract, not a stance we can
   // reduce to one direction. Guessing here would silence rules on purpose.
-  if (ours.length > 1) {
+  if (revenueSide.length > 0 && procurementSide.length > 0) {
+    const labels = [...new Set(ours.map((party) => party.label))];
     return {
       stance: null,
-      basis: `本方主体同时出现在 ${ours.map((party) => party.label).join("、")}，立场不唯一`,
+      basis: `本方主体同时出现在 ${labels.join("、")}，立场不唯一`,
       decidedByPartyId: null,
     };
   }
-
-  const party = ours[0];
-  if (matchesLabel(party.label, SUPPLIER_LABELS)) {
+  if (revenueSide.length > 0) {
+    const party = revenueSide[0];
     return {
       stance: "revenue",
       basis: `本方为${party.label}（${party.name}），是收款方，立场为收入`,
       decidedByPartyId: party.id,
     };
   }
-  if (matchesLabel(party.label, BUYER_LABELS)) {
+  if (procurementSide.length > 0) {
+    const party = procurementSide[0];
     return {
       stance: "procurement",
       basis: `本方为${party.label}（${party.name}），是付款方，立场为采购`,
@@ -90,8 +99,8 @@ export function inferContractStance(input: {
   }
   return {
     stance: null,
-    basis: `本方主体标注为「${party.label}」，无法判定收付方向`,
-    decidedByPartyId: party.id,
+    basis: `本方主体标注为「${[...new Set(ours.map((party) => party.label))].join("、")}」，无法判定收付方向`,
+    decidedByPartyId: ours[0].id,
   };
 }
 
