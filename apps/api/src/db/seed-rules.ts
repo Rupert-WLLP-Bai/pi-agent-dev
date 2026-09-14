@@ -246,6 +246,20 @@ export const SEED_RULE_DEFINITIONS: readonly SeedRule[] = [
     },
   },
   {
+    code: "AMOUNT_IN_WORDS_MISMATCH",
+    name: "金额大小写一致性规则",
+    contractType: "全部",
+    description:
+      "合同价款同时以中文大写与阿拉伯数字载明时二者必须一致；不一致时按惯例以大写为准，双方对价款可各持一说（《民法典》第四百六十六条、第五百一十条）。",
+    params: {},
+    stances: {
+      preferred: "首选 大小写金额一致且与报价明细一致",
+      acceptableRetreat: "可退让 签署前出具书面更正并双方盖章确认",
+      unacceptable: "不可接受 带着不一致的价款签署",
+      exceptionApproval: "不适用（属签署前必须更正的形式缺陷）",
+    },
+  },
+  {
     code: "PARTY_HISTORY_ASSOCIATION",
     name: "相对方历史关联规则",
     contractType: "全部",

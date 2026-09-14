@@ -264,6 +264,10 @@ const ruleCodeIo: Record<string, RuleIo> = {
     input: "facts.liabilityCap",
     output: "POLICY_CONFLICT | COMPLIANT | NEEDS_HUMAN_REVIEW",
   },
+  AMOUNT_IN_WORDS_MISMATCH: {
+    input: "facts.amountInWords",
+    output: "POLICY_CONFLICT | COMPLIANT",
+  },
 };
 
 export function describeRuleIo(code: string): RuleIo {

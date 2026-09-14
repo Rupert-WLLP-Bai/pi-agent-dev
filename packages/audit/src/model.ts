@@ -30,7 +30,8 @@ export type RuleCode =
   | "CONFIDENTIALITY_PERIOD_MISSING"
   | "FORCE_MAJEURE_OVERBROAD"
   | "LIABILITY_CAP_MISSING"
-  | "PARTY_HISTORY_ASSOCIATION";
+  | "PARTY_HISTORY_ASSOCIATION"
+  | "AMOUNT_IN_WORDS_MISMATCH";
 
 /**
  * A Rule Version's parameter set, opaque to the engine until a rule reads it.
@@ -278,6 +279,7 @@ export type FindingType =
   | "FORCE_MAJEURE_OVERBROAD"
   | "LIABILITY_CAP_MISSING"
   | "PARTY_HISTORY_ASSOCIATION"
+  | "AMOUNT_IN_WORDS_MISMATCH"
   | "NEEDS_HUMAN_REVIEW";
 export type Severity = "LOW" | "MEDIUM" | "HIGH";
 

@@ -194,6 +194,11 @@ export const RULE_STANCE_APPLICABILITY: Record<RuleCode, RuleStanceApplicability
     stances: ["revenue", "procurement"],
     rationale: "同一对手方的历史问题在两侧都是有效信号。",
   },
+  AMOUNT_IN_WORDS_MISMATCH: {
+    stances: ["revenue", "procurement"],
+    rationale:
+      "大小写金额不一致是合同本身的缺陷，与本方收付方向无关；按惯例大写为准，两侧都可能因此少收或多付。",
+  },
 };
 
 /**

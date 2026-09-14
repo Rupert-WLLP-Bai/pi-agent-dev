@@ -30,6 +30,7 @@ const RULE_CODES = [
   "CONFIDENTIALITY_PERIOD_MISSING",
   "FORCE_MAJEURE_OVERBROAD",
   "LIABILITY_CAP_MISSING",
+  "AMOUNT_IN_WORDS_MISMATCH",
 ] as const;
 
 // One run per rule; its details carry every case that labels that rule.

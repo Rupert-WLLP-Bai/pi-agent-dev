@@ -37,6 +37,37 @@ test("preserves heading kind and tracks the section path", () => {
   expect(document.blocks[3].sectionPath).toEqual(["第二条 交付"]);
 });
 
+test("a paragraph that opens a clause carries the section, as a scan's lines must", () => {
+  // Only docx knows Word's heading styles. A pdf and an OCR'd scan hand every
+  // line over as a paragraph, so a signed contract would otherwise have no
+  // clause context at all.
+  const { document } = buildContractDocument([
+    { text: "第四条 乙方的权利和义务", kind: "paragraph", page: 5 },
+    { text: "乙方负责为甲方提供大数据服务。", kind: "paragraph", page: 5 },
+    { text: "四、 付款方式", kind: "paragraph", page: 6 },
+    { text: "甲方应于收到发票后20个工作日内付款。", kind: "paragraph", page: 6 },
+  ]);
+
+  // A style-declared heading contributes its whole text; a clause-opening
+  // paragraph contributes only its label, since the rest is the clause body.
+  expect(document.blocks[1].sectionPath).toEqual(["第四条"]);
+  expect(document.blocks[3].sectionPath).toEqual(["四、"]);
+  expect(document.blocks[3].page).toBe(6);
+});
+
+test("a paragraph that merely cites a clause does not open a section", () => {
+  const { document } = buildContractDocument([
+    { text: "第三条 付款方式", kind: "paragraph" },
+    { text: "第五条约定的违约金不适用于本条情形。", kind: "paragraph" },
+    { text: "甲方按月结算。", kind: "paragraph" },
+  ]);
+
+  // Without a boundary after the number the label is a cross-reference, not a
+  // heading, so the surrounding clause must still be 第三条.
+  expect(document.blocks[1].sectionPath).toEqual(["第三条"]);
+  expect(document.blocks[2].sectionPath).toEqual(["第三条"]);
+});
+
 test("drops empty blocks so they never become evidence anchors", () => {
   const { document } = buildContractDocument([
     { text: "有效段落", kind: "paragraph" },

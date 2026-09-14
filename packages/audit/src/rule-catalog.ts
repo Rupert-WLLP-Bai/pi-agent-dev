@@ -27,6 +27,7 @@ export const ENGINE_RULE_CODES = [
   "FORCE_MAJEURE_OVERBROAD",
   "LIABILITY_CAP_MISSING",
   "PARTY_HISTORY_ASSOCIATION",
+  "AMOUNT_IN_WORDS_MISMATCH",
 ] as const satisfies readonly RuleCode[];
 
 /** Compile-time proof the catalog covers every `RuleCode` — an unlisted code is a type error. */

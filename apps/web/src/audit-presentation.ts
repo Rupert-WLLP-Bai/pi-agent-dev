@@ -115,6 +115,7 @@ const ruleCodeLabels: Record<RuleCode, string> = {
   CONFIDENTIALITY_PERIOD_MISSING: "保密期限规则",
   FORCE_MAJEURE_OVERBROAD: "不可抗力范围规则",
   LIABILITY_CAP_MISSING: "赔偿责任上限规则",
+  AMOUNT_IN_WORDS_MISMATCH: "金额大小写一致性规则",
   PARTY_HISTORY_ASSOCIATION: "相对方历史关联规则",
 };
 

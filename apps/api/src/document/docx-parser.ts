@@ -20,11 +20,20 @@ const ENTITIES: Record<string, string> = {
   "&nbsp;": " ",
 };
 
-/** Strips inline markup and decodes the entities mammoth emits. */
+/**
+ * Strips inline markup and decodes the entities mammoth emits.
+ *
+ * The block-level tags are stripped too, because a table's captured content
+ * carries whatever its cells contain: mammoth emits
+ * `<table><tr><td><p>…</p></td></tr></table>`, and a cell holding a list adds
+ * `<ol><li>`. A top-level `p` or `li` block never contains its own tag, so
+ * stripping them is safe there. Leaving them in put literal markup into the
+ * canonical text and into every piece of evidence quoted out of a table.
+ */
 function toPlainText(html: string): string {
   const withoutTags = html
     .replace(/<\/?(?:strong|em|b|i|u|s|span|a|sup|sub|br)\b[^>]*>/giu, "")
-    .replace(/<\/?(?:tr|td|th)\b[^>]*>/giu, " ");
+    .replace(/<\/?(?:p|tr|td|th|ol|ul|li)\b[^>]*>/giu, " ");
   const decoded = withoutTags.replace(
     /&(?:amp|lt|gt|quot|#39|apos|nbsp);/gu,
     (entity) => ENTITIES[entity] ?? entity,

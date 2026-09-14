@@ -787,4 +787,38 @@ export const goldenSet: GoldenCase[] = [
       DISPUTE_JURISDICTION: "NEEDS_HUMAN_REVIEW",
     },
   },
+
+  // ── AMOUNT_IN_WORDS_MISMATCH ───────────────────────────────────────────
+  {
+    id: "bench-51",
+    description: "written total 198万 against a figure of 189万 — the price itself disagrees",
+    text: `第四条 合同价款
+本合同总价为人民币壹佰玖拾捌万元整（1890000元）。`,
+    policyLimitRatio: 0.3,
+    expected: { AMOUNT_IN_WORDS_MISMATCH: "POLICY_CONFLICT" },
+  },
+  {
+    id: "bench-52",
+    description: "the real 天翼五期 total, stated both ways and agreeing",
+    text: `第四条 结算与支付
+4.2 本协议项下最大发生金额（含税）为人民币壹佰玖拾捌万元整（1980000元）。`,
+    policyLimitRatio: 0.3,
+    expected: { AMOUNT_IN_WORDS_MISMATCH: "COMPLIANT" },
+  },
+  {
+    id: "bench-53",
+    description: "boundary · 万元 unit in the figure form — scaled before comparing",
+    text: `第四条 合同价款
+合同总价人民币壹佰玖拾捌万元整（198万元）。`,
+    policyLimitRatio: 0.3,
+    expected: { AMOUNT_IN_WORDS_MISMATCH: "COMPLIANT" },
+  },
+  {
+    id: "bench-54",
+    description: "boundary · total stated in figures only — nothing to cross-check",
+    text: `第四条 合同价款
+本合同总价为1980000元，甲方按月结算。`,
+    policyLimitRatio: 0.3,
+    expected: { AMOUNT_IN_WORDS_MISMATCH: "COMPLIANT" },
+  },
 ];

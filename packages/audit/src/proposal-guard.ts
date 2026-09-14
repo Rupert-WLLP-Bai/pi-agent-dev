@@ -163,6 +163,14 @@ export const RULE_FINDING_CONTRACTS = [
     needsHumanReview: [{ findingType: "PARTY_HISTORY_ASSOCIATION", severity: ["MEDIUM", "HIGH"] }],
     searchKeyword: "历史",
   },
+  {
+    ruleCode: "AMOUNT_IN_WORDS_MISMATCH",
+    // HIGH, and with no reviewer discretion: the two amounts either agree or
+    // they do not, and the gap is the contract price itself.
+    policyConflict: { findingType: "AMOUNT_IN_WORDS_MISMATCH", severity: "HIGH" },
+    needsHumanReview: [],
+    searchKeyword: "合同总价",
+  },
 ] as const satisfies readonly RuleFindingContract[];
 
 type ContractedRuleCode = (typeof RULE_FINDING_CONTRACTS)[number]["ruleCode"];

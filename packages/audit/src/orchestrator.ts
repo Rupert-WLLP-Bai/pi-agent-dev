@@ -1,3 +1,4 @@
+import { buildAmountInWordsFacts, evaluateAmountInWordsRule } from "./amount-words-rule";
 import { buildBackToBackFacts, evaluateBackToBackRule } from "./back-to-back-rule";
 import { buildBidBondFacts, evaluateBidBondRule } from "./bid-bond-rule";
 import {
@@ -181,6 +182,10 @@ export function createAuditSnapshot(input: {
   });
   const forceMajeure = buildForceMajeureFacts({ sourceRecordId: input.sourceRecordId, document });
   const liabilityCap = buildLiabilityCapFacts({ sourceRecordId: input.sourceRecordId, document });
+  const amountInWords = buildAmountInWordsFacts({
+    sourceRecordId: input.sourceRecordId,
+    document,
+  });
 
   const ruleAssessments: RuleAssessment[] = [
     evaluateAdvancePaymentRule(facts, hasAdvanceTerm),
@@ -205,6 +210,7 @@ export function createAuditSnapshot(input: {
     ),
     evaluateForceMajeureRule(forceMajeure.facts),
     evaluateLiabilityCapRule(liabilityCap.facts, ruleParams.LIABILITY_CAP_MISSING),
+    evaluateAmountInWordsRule(amountInWords.facts),
   ].map((assessment) => ({
     ...assessment,
     ruleVersion: input.ruleVersions?.[assessment.ruleCode] ?? null,
@@ -261,6 +267,7 @@ export function createAuditSnapshot(input: {
       ...confidentiality.evidence,
       ...forceMajeure.evidence,
       ...liabilityCap.evidence,
+      ...amountInWords.evidence,
     ],
     ruleAssessments: filteredAssessments,
     stance,

@@ -1,5 +1,14 @@
 import { expect, test } from "bun:test";
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import {
+  Document,
+  HeadingLevel,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+} from "docx";
 import { parseDocx } from "./docx-parser";
 
 /**
@@ -41,6 +50,36 @@ test("keeps body text intact, including the payment percentage", async () => {
   const payment = blocks.find((block) => block.text.includes("预付款"));
   expect(payment?.text).toContain("30%");
   expect(payment?.kind).toBe("paragraph");
+});
+
+test("a price table becomes readable text, not the markup its cells are wrapped in", async () => {
+  // Real dossier contracts put the amounts in a table, and mammoth wraps every
+  // cell's text in a paragraph. Leaving those tags in put literal markup into
+  // the canonical text and into any evidence quoted out of the table.
+  const cell = (text: string) =>
+    new TableCell({ children: [new Paragraph({ children: [new TextRun(text)] })] });
+  const doc = new Document({
+    sections: [
+      {
+        children: [
+          new Table({
+            rows: [
+              new TableRow({ children: [cell("服务内容"), cell("含税总价（元）")] }),
+              new TableRow({ children: [cell("软件升级改造服务"), cell("500320")] }),
+            ],
+          }),
+        ],
+      },
+    ],
+  });
+
+  const blocks = await parseDocx(new Uint8Array(await Packer.toBuffer(doc)));
+
+  const table = blocks.find((block) => block.kind === "table");
+  expect(table).toBeDefined();
+  expect(table?.text).not.toContain("<");
+  expect(table?.text).toContain("含税总价（元）");
+  expect(table?.text).toContain("500320");
 });
 
 test("emits no blocks for an empty document", async () => {

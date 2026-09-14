@@ -36,7 +36,7 @@ function proposal(
 
 test("the contract table covers every rule code", () => {
   expect(RULE_CONTRACT_TABLE_IS_COMPLETE).toBe(true);
-  expect(RULE_FINDING_CONTRACTS).toHaveLength(18);
+  expect(RULE_FINDING_CONTRACTS).toHaveLength(19);
   for (const contract of RULE_FINDING_CONTRACTS) {
     expect(ruleContractFor(contract.ruleCode)).toBe(contract);
     // A rule that can settle a conflict names at least one legal finding.

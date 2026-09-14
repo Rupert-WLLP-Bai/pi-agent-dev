@@ -26,6 +26,7 @@ const DERIVED_RULE_CODES = [
   "CONFIDENTIALITY_PERIOD_MISSING",
   "FORCE_MAJEURE_OVERBROAD",
   "LIABILITY_CAP_MISSING",
+  "AMOUNT_IN_WORDS_MISMATCH",
 ];
 
 test("materialises exactly the rules the golden set labels", () => {

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { ENGINE_RULE_CODES, isEngineRuleCode } from "./rule-catalog";
 
-test("catalog lists all 18 engine rule codes", () => {
-  expect(ENGINE_RULE_CODES).toHaveLength(18);
+test("catalog lists all 19 engine rule codes", () => {
+  expect(ENGINE_RULE_CODES).toHaveLength(19);
 });
 
 test("rejects a code outside the catalog", () => {
