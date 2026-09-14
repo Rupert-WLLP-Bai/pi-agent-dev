@@ -1,5 +1,5 @@
-import { goldenSet } from "@contract-audit/audit/golden-set";
-import type { RuleCode, RuleDisposition } from "@contract-audit/audit/model";
+import { type GoldenDisposition, goldenSet } from "@contract-audit/audit/golden-set";
+import type { RuleCode } from "@contract-audit/audit/model";
 import type { RuleRepository, SeedValidationCase } from "./rule-repository";
 import type { ValidationCaseType } from "./schema";
 
@@ -86,7 +86,7 @@ const BOUNDARY_CASE_IDS: Partial<Record<RuleCode, readonly string[]>> = {
 function caseTypeFor(
   ruleCode: RuleCode,
   goldenId: string,
-  expected: RuleDisposition,
+  expected: GoldenDisposition,
 ): ValidationCaseType {
   if (BOUNDARY_CASE_IDS[ruleCode]?.includes(goldenId) === true) return "boundary";
   switch (expected) {

@@ -235,7 +235,8 @@ export function assertProposalLegal(
 
   let conflictSeverityMismatch: string | null = null;
   let reviewRangeMismatch: string | null = null;
-  let sawCompliant = false;
+  /** The disposition that authorized nothing, kept so the refusal can name it. */
+  let unauthorizing: "COMPLIANT" | "NOT_APPLICABLE" | null = null;
 
   for (const contract of candidates) {
     if (contract.ruleCode !== cited.ruleCode) continue;
@@ -265,12 +266,19 @@ export function assertProposalLegal(
       continue;
     }
 
-    sawCompliant = true;
+    unauthorizing = assessment.disposition === "NOT_APPLICABLE" ? "NOT_APPLICABLE" : "COMPLIANT";
   }
 
   if (conflictSeverityMismatch) throw new ProposalGuardError(conflictSeverityMismatch);
   if (reviewRangeMismatch) throw new ProposalGuardError(reviewRangeMismatch);
-  if (sawCompliant) {
+  if (unauthorizing === "NOT_APPLICABLE") {
+    // Not "compliant": the rule never ran, so saying it passed would tell the
+    // operator the contract was checked and cleared when it was not.
+    throw new ProposalGuardError(
+      `发现类型「${label}」(${findingType}) 对应的规则在本合同立场下不适用，未做判定，不能提交。`,
+    );
+  }
+  if (unauthorizing === "COMPLIANT") {
     throw new ProposalGuardError(
       `发现类型「${label}」(${findingType}) 对应的规则评估为「合规」，不能提交；仅当规则判定为「制度冲突」或「需人工复核」时方可提交。`,
     );

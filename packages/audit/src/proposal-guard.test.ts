@@ -60,6 +60,21 @@ test("a settled conflict accepts exactly its locked severity", () => {
   ).toThrow(ProposalGuardError);
 });
 
+test("a proposal against a rule the stance scoped out is refused as unjudged, not as compliant", () => {
+  const assessments = [assessment("ADVANCE_PAYMENT_LIMIT", "NOT_APPLICABLE")];
+
+  const attempt = () =>
+    assertProposalLegal(
+      proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "HIGH", "assessment-ADVANCE_PAYMENT_LIMIT"),
+      assessments,
+    );
+
+  expect(attempt).toThrow(ProposalGuardError);
+  // Reporting this as "合规" would tell the operator the contract was checked
+  // and cleared, when the rule never ran at all.
+  expect(attempt).toThrow("不适用");
+});
+
 test("a proposal against a compliant dimension is rejected, not crashed", () => {
   const assessments = [assessment("ADVANCE_PAYMENT_LIMIT", "COMPLIANT")];
   let error: unknown;

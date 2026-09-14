@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./agent-trace": "./src/agent-trace.ts",
     "./contract-search": "./src/contract-search.ts",
+    "./contract-stance": "./src/contract-stance.ts",
     "./model": "./src/model.ts",
     "./proposal-guard": "./src/proposal-guard.ts",
     "./payment-rule": "./src/payment-rule.ts",

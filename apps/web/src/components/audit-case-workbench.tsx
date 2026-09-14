@@ -137,6 +137,8 @@ const dispositionColors: Record<RuleAssessment["disposition"], string> = {
   POLICY_CONFLICT: "red",
   COMPLIANT: "green",
   NEEDS_HUMAN_REVIEW: "orange",
+  // Grey, not green: nothing was judged, so it must not read as a pass.
+  NOT_APPLICABLE: "default",
 };
 
 /** Legacy snapshots stored the payment limit as a fake document span with this id. */

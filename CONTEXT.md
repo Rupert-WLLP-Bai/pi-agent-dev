@@ -16,6 +16,22 @@ _Avoid_: Contract Fixture, latest contract
 A natural or legal person named as a signatory of a Contract Revision. What is known about it comes from Facts extracted out of the Contract Document, or from Evidence anchored to a Source Record obtained elsewhere.
 _Avoid_: subject, counterparty, company, entity
 
+**Contract Stance**:
+Which side of the money our own organization is on in one Contract Revision — `revenue` when we are paid, `procurement` when we pay. Read off the Contract Party our organization matches, or declared by the caller. Each rule declares which Contract Stances its premise holds under; a rule evaluated outside them is `NOT_APPLICABLE`, never compliant. Always written in full: bare "stance" is ambiguous with a Rule Version's Negotiation Stance.
+_Avoid_: stance (unqualified), direction, contract type, buy/sell, 甲方/乙方 as a synonym for it
+
+**Project Dossier**:
+The full set of materials one ICT project accumulates across selection, approval, and signing — including the revenue contract, the procurement contracts signed to deliver it, and the spreadsheets the amounts were modelled in. The unit a cross-document consistency review is scoped to.
+_Avoid_: project, folder, package, case
+
+**Dossier Artifact**:
+One file within a Project Dossier, carrying which stage it belongs to and which template it instantiates. It becomes a Source Record when read.
+_Avoid_: attachment, document, file
+
+**Back-to-Back Pair**:
+The revenue Contract Revision and the procurement Contract Revision covering the same scope in one Project Dossier. The pair is what a term or amount mismatch is asserted between.
+_Avoid_: contract pair, upstream/downstream, 上下游
+
 **Source Record**:
 An immutable snapshot or stable reference to source information, including where it came from and when it was captured.
 _Avoid_: raw data, context
@@ -89,8 +105,12 @@ The tracked corrective work created from a Human Review that accepted a Finding 
 _Avoid_: task, ticket, work order
 
 **Rule Version**:
-An immutable published parameter set (thresholds, stances) of one rule. Deterministic rule logic lives in code; a version only carries the parameters it was run with. Publishing a version retires the previously published one; versions already referenced by an Audit Snapshot are never mutated.
+An immutable published parameter set (thresholds, Negotiation Stances) of one rule. Deterministic rule logic lives in code; a version only carries the parameters it was run with. Publishing a version retires the previously published one; versions already referenced by an Audit Snapshot are never mutated.
 _Avoid_: rule config, rule settings, rule override
+
+**Negotiation Stance**:
+What one rule instructs a negotiator to hold, retreat to, and refuse — the `preferred` / `acceptableRetreat` / `unacceptable` triple carried by a Rule Version. A drafting position, not a side of the money: it is a different concept from Contract Stance and the two must never be shortened to the same word.
+_Avoid_: stance (unqualified), Contract Stance, position
 
 **Validation Case**:
 A labelled contract fixture (正例 / 反例 / 边界例 / 历史误报 / 证据缺失) used to exercise one rule's logic deterministically. The code-level golden set remains the canonical source; persisted cases are its materialization for the product UI.

@@ -20,8 +20,18 @@ export interface GoldenCase {
    * Ground-truth disposition per rule code. Partial: a case labels only the
    * rules it exercises, and an unlabelled rule is simply not run against it.
    */
-  expected: Partial<Record<RuleCode, RuleDisposition>>;
+  expected: Partial<Record<RuleCode, GoldenDisposition>>;
 }
+
+/**
+ * The dispositions the bench can express.
+ *
+ * `NOT_APPLICABLE` is excluded because the bench runs stance-free: every case is
+ * a bare contract text with no side of the money declared, so no case can expect
+ * a rule to be scoped out. Narrowing it here keeps consumers' exhaustive
+ * switches honest instead of forcing them to invent a branch that never runs.
+ */
+export type GoldenDisposition = Exclude<RuleDisposition, "NOT_APPLICABLE">;
 
 export const goldenSet: GoldenCase[] = [
   {

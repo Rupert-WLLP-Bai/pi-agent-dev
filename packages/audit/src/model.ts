@@ -1,6 +1,16 @@
 // ── Rule Assessment ──────────────────────────────────────────────
 
-export type RuleDisposition = "POLICY_CONFLICT" | "COMPLIANT" | "NEEDS_HUMAN_REVIEW";
+/**
+ * `NOT_APPLICABLE` is distinct from `COMPLIANT` on purpose. A rule whose premise
+ * is false in this contract's stance was never checked, and recording it as
+ * compliant would inflate the coverage count and show a reviewer a green mark
+ * where no judgement happened.
+ */
+export type RuleDisposition =
+  | "POLICY_CONFLICT"
+  | "COMPLIANT"
+  | "NEEDS_HUMAN_REVIEW"
+  | "NOT_APPLICABLE";
 
 export type RuleCode =
   | "ADVANCE_PAYMENT_LIMIT"
@@ -66,6 +76,21 @@ export interface ContractParty {
   name: string;
   /** Locator covering the extracted name. */
   evidenceId: string;
+}
+
+// ── Contract Stance ──────────────────────────────────────────────
+
+/**
+ * Which side of the money our organization is on, as recorded on the snapshot.
+ * Absent on snapshots assembled before stance existed, and null when the
+ * contract gave no usable signal.
+ */
+export interface ContractStanceRecord {
+  stance: "revenue" | "procurement" | null;
+  /** How it was decided, shown next to any rule the stance filtered out. */
+  basis: string;
+  /** Whether a caller stated it, or the engine read it off the parties. */
+  source: "declared" | "inferred";
 }
 
 // ── Subject Verification ─────────────────────────────────────────
@@ -209,6 +234,12 @@ export interface AuditSnapshot {
   parties: ContractParty[];
   evidence: EvidenceLocator[];
   ruleAssessments: RuleAssessment[];
+  /**
+   * Which side of the money we are on, and how that was decided. Absent on
+   * snapshots persisted before stance existed; those read as unjudged, which
+   * applies every rule.
+   */
+  stance?: ContractStanceRecord;
   /**
    * The policy the snapshot was assembled under: which rules ran and which
    * published parameter sets fed them. Absent on snapshots that ran the full,

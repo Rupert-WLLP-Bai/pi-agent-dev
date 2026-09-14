@@ -4,6 +4,12 @@ import {
   buildConfidentialityFacts,
   evaluateConfidentialityPeriodRule,
 } from "./confidentiality-period-rule";
+import {
+  type ContractStance,
+  inferContractStance,
+  isRuleApplicableInStance,
+  RULE_STANCE_APPLICABILITY,
+} from "./contract-stance";
 import { buildDepositFacts, evaluateDepositRule } from "./deposit-rule";
 import {
   buildDisputeResolutionFacts,
@@ -18,6 +24,8 @@ import { buildLiabilityCapFacts, evaluateLiabilityCapRule } from "./liability-ca
 import type {
   AuditSnapshot,
   ContractDocument,
+  ContractParty,
+  ContractStanceRecord,
   RuleAssessment,
   RuleCode,
   RuleParamSet,
@@ -32,6 +40,26 @@ import {
   buildWarrantyRetentionFacts,
   evaluateWarrantyRetentionRule,
 } from "./warranty-retention-rule";
+
+/** Prefers a stated stance over a read one, and records which it was. */
+function resolveStance(input: {
+  declared: ContractStance | null | undefined;
+  parties: ContractParty[];
+  ownOrganizationNames: readonly string[];
+}): ContractStanceRecord {
+  if (input.declared !== undefined && input.declared !== null) {
+    return {
+      stance: input.declared,
+      basis: "立场由调用方声明（卷宗归档或人工指定）",
+      source: "declared",
+    };
+  }
+  const inferred = inferContractStance({
+    parties: input.parties,
+    ownOrganizationNames: input.ownOrganizationNames,
+  });
+  return { stance: inferred.stance, basis: inferred.basis, source: "inferred" };
+}
 
 /**
  * Assembles the document-derived half of an Audit Snapshot from a Contract
@@ -82,6 +110,17 @@ export function createAuditSnapshot(input: {
    * fact extraction still runs in full so the snapshot's Evidence is complete.
    */
   enabledRuleCodes?: readonly RuleCode[];
+  /**
+   * The stance, when the caller already knows it — a filename marked
+   * 【收入合同】, or an operator's choice. Overrides inference.
+   */
+  declaredStance?: ContractStance | null;
+  /**
+   * Name fragments identifying our own organization, used to read the stance
+   * off the party list. Omitted leaves the stance unjudged, which applies every
+   * rule rather than silently narrowing the audit.
+   */
+  ownOrganizationNames?: readonly string[];
 }): AuditSnapshot {
   const document = input.document;
   const ruleParams = input.ruleParams ?? {};
@@ -172,12 +211,32 @@ export function createAuditSnapshot(input: {
     ruleVersionId: input.ruleVersionIds?.[assessment.ruleCode] ?? null,
   }));
 
+  // The stance decides which rules have a premise here at all. A rule whose
+  // premise is false is rewritten to NOT_APPLICABLE rather than dropped: a
+  // reviewer has to be able to see that it was considered and why it was
+  // skipped, and the rationale is what they would argue with.
+  const stance = resolveStance({
+    declared: input.declaredStance,
+    parties,
+    ownOrganizationNames: input.ownOrganizationNames ?? [],
+  });
+  const stanceScoped = ruleAssessments.map((assessment) =>
+    isRuleApplicableInStance(assessment.ruleCode, stance.stance)
+      ? assessment
+      : {
+          ...assessment,
+          disposition: "NOT_APPLICABLE" as const,
+          evidenceIds: [],
+          basis: `${stance.basis}；本规则在该立场下不成立：${RULE_STANCE_APPLICABILITY[assessment.ruleCode].rationale}`,
+        },
+  );
+
   const enabledRuleCodes = input.enabledRuleCodes;
   const filteredAssessments = enabledRuleCodes
-    ? ruleAssessments.filter((assessment) =>
+    ? stanceScoped.filter((assessment) =>
         (enabledRuleCodes as readonly string[]).includes(assessment.ruleCode),
       )
-    : ruleAssessments;
+    : stanceScoped;
 
   return {
     sourceRecordId: input.sourceRecordId,
@@ -204,6 +263,7 @@ export function createAuditSnapshot(input: {
       ...liabilityCap.evidence,
     ],
     ruleAssessments: filteredAssessments,
+    stance,
     policy: enabledRuleCodes
       ? {
           enabledRuleCodes: [...enabledRuleCodes],

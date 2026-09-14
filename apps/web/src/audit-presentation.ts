@@ -130,13 +130,18 @@ export const getRuleDispositionLabel = (disposition: RuleDisposition): string =>
     POLICY_CONFLICT: "违反",
     COMPLIANT: "通过",
     NEEDS_HUMAN_REVIEW: "需人工复核",
+    NOT_APPLICABLE: "立场不适用",
   })[disposition];
 
 /** Worst disposition across every assessment, for the workbench coverage summary. */
 export const summarizeRuleOutcome = (assessments: RuleAssessment[]): string => {
   if (assessments.some((item) => item.disposition === "POLICY_CONFLICT")) return "违反";
   if (assessments.some((item) => item.disposition === "NEEDS_HUMAN_REVIEW")) return "需人工复核";
-  return assessments.length === 0 ? "无评估" : "通过";
+  if (assessments.length === 0) return "无评估";
+  // Every rule skipped by stance means nothing was judged; calling that 通过
+  // would claim a check that never ran.
+  if (assessments.every((item) => item.disposition === "NOT_APPLICABLE")) return "立场不适用";
+  return "通过";
 };
 
 export const getSubjectStatusLabel = (status: SubjectMatchStatus | null): string =>
