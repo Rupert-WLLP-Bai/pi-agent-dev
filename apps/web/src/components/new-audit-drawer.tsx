@@ -33,7 +33,7 @@ interface NewAuditFormValues {
 
 type InputMode = "paste" | "upload";
 
-const ACCEPTED_EXTENSIONS = [".docx", ".pdf", ".txt", ".md"];
+const ACCEPTED_EXTENSIONS = [".docx", ".pdf", ".xlsx", ".txt", ".md"];
 
 /** Mirrors the API's maxUploadBytes default so oversized files never upload. */
 const MAX_UPLOAD_BYTES = 10_485_760;
@@ -163,7 +163,7 @@ export function NewAuditDrawer({
         ) : (
           <Form.Item
             label="合同文件"
-            extra="支持 .docx、.pdf、.txt；文件解析为统一中间表示后进入同一套审计规则。"
+            extra="支持 .docx、.pdf、.xlsx、.txt；扫描件走 OCR 识别，表格保留单元格地址，全部解析为统一中间表示后进入同一套审计规则。"
             validateStatus={file === null ? undefined : "success"}
           >
             <Upload

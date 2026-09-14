@@ -2,6 +2,7 @@ import { afterAll, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import ExcelJS from "exceljs";
 import { type AuditApp, createApp } from "../app";
 import {
   FakeDispatcher,
@@ -121,6 +122,31 @@ test("a file outside the whitelist is refused with 422", async () => {
 
   expect(response.status).toBe(422);
   expect(await response.json()).toEqual({ error: "unsupported_file_type" });
+});
+
+test("a spreadsheet is accepted, so a dossier's price and benefit tables can be audited", async () => {
+  const { app, dispatcher } = setup();
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet("Sheet1").addRow(["客户侧含税总价", 1990000]);
+
+  const response = await upload(
+    app,
+    "价格明细.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    new Uint8Array(await workbook.xlsx.writeBuffer()),
+  );
+
+  expect(response.status).toBe(202);
+  expect(dispatcher.enqueued).toHaveLength(1);
+});
+
+test("a spreadsheet whose declared type contradicts its extension is refused with 422", async () => {
+  const { app } = setup();
+
+  const response = await upload(app, "价格明细.xlsx", "application/pdf", new Uint8Array(16));
+
+  expect(response.status).toBe(422);
+  expect(await response.json()).toEqual({ error: "mime_mismatch" });
 });
 
 test("a matching small PDF is accepted and queued", async () => {

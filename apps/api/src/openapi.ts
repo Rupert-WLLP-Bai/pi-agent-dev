@@ -51,7 +51,7 @@ export type OpenapiTag = (typeof openapiTags)[keyof typeof openapiTags];
 const DOMAIN_DESCRIPTION = [
   "合同智能审计智能体的 HTTP 接口。所有接口以 `/api` 为前缀，除健康检查外都返回 JSON。",
   "",
-  "**审计案件（Audit Case）** 是一次审计的主体。提交合同文本或上传合同文件（.docx/.pdf/.txt）都会创建一个案件：产生一份不可变的 **Source Record**（原件来源），" +
+  "**审计案件（Audit Case）** 是一次审计的主体。提交合同文本或上传合同文件（.docx/.pdf/.xlsx/.txt）都会创建一个案件：产生一份不可变的 **Source Record**（原件来源），" +
     "并以当时的已发布 **规则版本** 组装一份 **Audit Snapshot（审计快照）**，随后入队等待 Agent 运行。案件沿着 PENDING → RUNNING → AWAITING_REVIEW → COMPLETED 推进；" +
     "失败或中断的案件可以重试或重评估，但正在运行或已完成的案件不能重评估。",
   "",

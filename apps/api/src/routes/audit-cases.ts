@@ -231,10 +231,10 @@ export function auditCasesRoutes({
           response: { 202: queuedCaseSchema, 422: errorSchema },
         },
       )
-      // File upload: accepts multipart/form-data with a single contract file
-      // (.docx, .pdf, .txt). The file is parsed into the same Contract Document
-      // IR the text endpoint produces, so everything downstream — rules, party
-      // extraction, the agent — is format-agnostic.
+      // File upload: accepts multipart/form-data with a single dossier file
+      // (.docx, .pdf, .xlsx, .txt). The file is parsed into the same Contract
+      // Document IR the text endpoint produces, so everything downstream —
+      // rules, party extraction, the agent — is format-agnostic.
       .onRequest(async ({ request }) => {
         if (request.method !== "POST" || !request.url.endsWith("/api/audit-cases/upload")) return;
         const declared = await readDeclaredFileMime(request);
@@ -297,7 +297,7 @@ export function auditCasesRoutes({
         },
         {
           body: t.Object({
-            file: t.File({ description: "合同文件（.docx / .pdf / .txt）" }),
+            file: t.File({ description: "卷宗文件（.docx / .pdf / .xlsx / .txt）" }),
             policyLimitRatio: t.Optional(
               t.String({ description: '付款比例上限；0–1 为比例，>1 视为百分数（"30" → 0.3）' }),
             ),
@@ -305,8 +305,10 @@ export function auditCasesRoutes({
           detail: {
             summary: "上传合同文件发起审计",
             description:
-              "以 `multipart/form-data` 上传单个合同文件（.docx / .pdf / .txt）创建审计案件。文件被解析为与文本入口相同的 Contract Document IR，" +
+              "以 `multipart/form-data` 上传单个卷宗文件（.docx / .pdf / .xlsx / .txt）创建审计案件。文件被解析为与文本入口相同的 Contract Document IR，" +
               "因此下游的规则、主体抽取与 Agent 都与格式无关。\n\n" +
+              "- 解析在入队后异步进行：无文本层的扫描件 PDF 走 OCR 识别，OCR 未配置或识别不出内容时该案件失败并记录原因，而非当作空文件。\n" +
+              "- `.xlsx` 额外保留单元格地址、公式与数字格式，供跨文档金额核对引用。\n" +
               "- 大小上限由 `MAX_UPLOAD_BYTES` 控制，超过即返回 `413`，**在任何解析之前**拒绝。\n" +
               "- 类型校验以线上声明的 part MIME 为准（解析器会按扩展名改写 `file.type`，不可信），扩展名与声明类型不符返回 `422`。\n" +
               "- 副作用：写入 Source Record、保存原件（对象存储或本地）、入队并异步运行；`202` 只表示已受理。\n" +
@@ -335,7 +337,7 @@ export function auditCasesRoutes({
             return { error: "original_missing" };
           }
           const filename = record.name ?? "contract";
-          // RFC 6266: a byte-safe fallback plus a UTF-8 form, so non-ASCII 
+          // RFC 6266: a byte-safe fallback plus a UTF-8 form, so non-ASCII
           // upload names survive the round trip without an invalid header value.
           const asciiName = filename.replace(/[^\x20-\x7e]|["\\]/gu, "_");
           const disposition =

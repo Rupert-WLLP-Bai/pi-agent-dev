@@ -3,10 +3,11 @@ import { buildContractDocument } from "@contract-audit/audit/document-ir";
 import { parseDocx } from "./docx-parser";
 import { createOcrPort, type OcrPort } from "./ocr";
 import { parsePdf } from "./pdf-parser";
+import { type ParsedSpreadsheet, parseXlsx } from "./xlsx-parser";
 
 export class UnsupportedContractFormatError extends Error {
   constructor(filename: string) {
-    super(`不支持的合同格式：${filename}（仅支持 .docx、.pdf、.txt）`);
+    super(`不支持的合同格式：${filename}（仅支持 .docx、.pdf、.xlsx、.txt）`);
     this.name = "UnsupportedContractFormatError";
   }
 }
@@ -46,6 +47,12 @@ export interface ParsedContract {
   text: string;
   /** Present only when the blocks came from OCR rather than a text layer. */
   ocr?: OcrProvenance;
+  /**
+   * Present only for a spreadsheet. The blocks flatten it to prose so it
+   * travels the same IR; this keeps the cell addresses a cross-document amount
+   * check has to cite.
+   */
+  spreadsheet?: ParsedSpreadsheet;
 }
 
 const extensionOf = (filename: string): string => {
@@ -62,6 +69,7 @@ const extensionOf = (filename: string): string => {
 const ALLOWED_MIME: Record<string, string[]> = {
   ".pdf": ["application/pdf"],
   ".docx": ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ".xlsx": ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
   ".txt": ["text/plain"],
   ".md": ["text/markdown", "text/plain"],
 };
@@ -105,9 +113,14 @@ export async function parseContractFile(
   const extension = extensionOf(input.filename);
   let rawBlocks: RawBlock[];
   let provenance: OcrProvenance | undefined;
+  let spreadsheet: ParsedSpreadsheet | undefined;
 
   if (extension === ".docx") {
     rawBlocks = await parseDocx(input.data);
+  } else if (extension === ".xlsx") {
+    const parsed = await parseXlsx(input.data);
+    rawBlocks = parsed.blocks;
+    spreadsheet = parsed.spreadsheet;
   } else if (extension === ".pdf") {
     rawBlocks = await parsePdf(input.data);
     // Signed contracts arrive as scans with no text layer at all. Zero blocks
@@ -144,6 +157,9 @@ export async function parseContractFile(
     throw new EmptyContractError(input.filename);
   }
 
-  const parsed = buildContractDocument(rawBlocks);
-  return provenance === undefined ? parsed : { ...parsed, ocr: provenance };
+  return {
+    ...buildContractDocument(rawBlocks),
+    ...(provenance === undefined ? {} : { ocr: provenance }),
+    ...(spreadsheet === undefined ? {} : { spreadsheet }),
+  };
 }
