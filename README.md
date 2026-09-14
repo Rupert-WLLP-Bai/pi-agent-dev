@@ -8,6 +8,8 @@
 
 领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md) 和 [modern workbench plan](./docs/superpowers/plans/2026-09-11-modern-audit-workbench.md)。
 
+项目参加**第一届黄桷树 AI 智能体开发大赛**，赛道为**智创开发**——基于黄桷树 Panda 编程 IDE 开发解决实际业务问题的软件工具，并验证其可用性与推广价值。交付形态为独立系统，不做 Panda 技能插件。
+
 ## 运行时依赖
 
 | 组件 | 用途 |
@@ -23,7 +25,7 @@
 
 ## 能力边界
 
-包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf`）、文本规范化、内置 17 条确定性规则、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、PostgreSQL 留痕、合同原文对象存储（S3/MinIO + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现为 macOS Vision，MinerU 列为其他平台备选）、PostgreSQL 留痕、合同原文对象存储（S3/MinIO + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
 
 不包含（附原因）：
 
@@ -31,7 +33,7 @@
 - **独立消息队列**：审计队列暂由 PostgreSQL `SKIP LOCKED` 承担。重新评估的触发条件是 API 需要多个副本置于负载均衡之后——届时进程内调度器与内存队列不再成立。
 - **SSO、OpenTelemetry、WebSocket**：暂不需要。
 - **RAG、多 Agent 编排**：暂不需要。
-- **MinerU/OCR 扫描件与图片合同识别、合同中心、报告中心**：尚未实现。
+- **报告中心**：尚未实现。
 
 ## 目标工作区
 
