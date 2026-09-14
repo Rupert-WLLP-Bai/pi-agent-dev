@@ -1,15 +1,9 @@
-import {
-  type ContractSearchMatch,
-  readContractBlock,
-  SEARCH_DEFAULT_LIMIT,
-  searchContract,
-} from "@contract-audit/audit/contract-search";
+import { readContractDocument } from "@contract-audit/audit/contract-search";
 import type {
   AgentTraceObservation,
   AuditSnapshot,
   EvidenceLocator,
   FindingProposal,
-  RuleAssessment,
 } from "@contract-audit/audit/model";
 import { UnknownEvidenceError } from "@contract-audit/audit/model";
 import type {
@@ -18,7 +12,7 @@ import type {
   AgentTraceSink,
   AuditAgentPort,
 } from "@contract-audit/audit/ports";
-import { assertProposalLegal, searchKeywordFor } from "@contract-audit/audit/proposal-guard";
+import { assertProposalLegal } from "@contract-audit/audit/proposal-guard";
 
 /** Builds a step, defaulting the fields this agent never sets. */
 function step(
@@ -37,44 +31,14 @@ function step(
 }
 
 /**
- * The block the fake reads while reviewing an abstaining rule: the first search
- * hit when the clause exists under some wording, else the first block a cited
- * document span points at, else the document's first block. Resolving through
- * the search result first is the point — a reworded clause is found, not missed.
- */
-function reviewBlockId(
-  snapshot: AuditSnapshot,
-  assessment: RuleAssessment,
-  matches: ContractSearchMatch[],
-): string | null {
-  const fromSearch = matches[0]?.blockId;
-  if (
-    fromSearch !== undefined &&
-    snapshot.contractDocument.blocks.some((block) => block.blockId === fromSearch)
-  ) {
-    return fromSearch;
-  }
-  for (const id of assessment.evidenceIds) {
-    const evidence = snapshot.evidence.find((item) => item.id === id);
-    const location = evidence?.location;
-    if (location?.kind !== "DOCUMENT_SPAN") continue;
-    if (snapshot.contractDocument.blocks.some((block) => block.blockId === location.blockId)) {
-      return location.blockId;
-    }
-  }
-  return snapshot.contractDocument.blocks[0]?.blockId ?? null;
-}
-
-/**
  * The offline stand-in for the Pi agent, used by the acceptance suite and by
  * `AUDIT_AGENT_MODE=fake`.
  *
- * It reports the same trace shape the Pi agent reports, because it genuinely
- * performs the same work: consult the rule assessments, read the contract for
- * every dimension the rules could not settle, review the evidence each
- * violation cites, then submit one proposal per violation. A fake that skipped
- * those steps would make the trace view untestable, and a fake that invented
- * steps would make it dishonest.
+ * It reports the same trace shape the Pi agent is instructed to report:
+ * assessments (with locators inline), one full-document read when any rule
+ * abstained, then one submit per violation. A fake that skipped those steps
+ * would make the trace view untestable; a fake that invented extra searches
+ * would make it dishonest.
  */
 export class FakeAuditAgent implements AuditAgentPort {
   readonly identity: AgentRunIdentity = { provider: "fake", model: "fake-agent", version: "0" };
@@ -101,6 +65,8 @@ export class FakeAuditAgent implements AuditAgentPort {
       return evidence;
     };
 
+    const knownEvidenceIds = new Set(input.evidence.map((item) => item.id));
+
     trace(step({ kind: "STAGE", label: "RUN_STARTED" }));
 
     const assessmentCall = nextCallId();
@@ -113,66 +79,42 @@ export class FakeAuditAgent implements AuditAgentPort {
         output: {
           assessments: input.ruleAssessments,
           availableEvidenceIds: input.evidence.map((item) => item.id),
+          evidence: input.evidence,
         },
       }),
     );
 
-    // Review each abstaining rule by reading the contract: search for the
-    // rule's keyword, then read the block that answers it. The fake does not
-    // judge the result — a human does — but the reading is real and shows up
-    // in the trace, which is what makes the vision path testable offline.
-    for (const assessment of input.ruleAssessments) {
-      if (assessment.disposition !== "NEEDS_HUMAN_REVIEW") continue;
-
-      const query = searchKeywordFor(assessment.ruleCode);
-      const searchCall = nextCallId();
-      trace(
-        step({
-          kind: "TOOL_CALL",
-          label: "search_contract",
-          ref: searchCall,
-          input: { query, limit: SEARCH_DEFAULT_LIMIT },
-        }),
-      );
-      const matches = searchContract(input.contractDocument, query, SEARCH_DEFAULT_LIMIT);
-      trace(
-        step({ kind: "TOOL_RESULT", label: "search_contract", ref: searchCall, output: matches }),
-      );
-
-      const blockId = reviewBlockId(input, assessment, matches);
-      if (blockId === null) continue;
-      const readCall = nextCallId();
-      trace(
-        step({
-          kind: "TOOL_CALL",
-          label: "read_contract_block",
-          ref: readCall,
-          input: { blockId },
-        }),
-      );
+    const needsReview = input.ruleAssessments.some(
+      (assessment) => assessment.disposition === "NEEDS_HUMAN_REVIEW",
+    );
+    if (needsReview) {
+      const documentCall = nextCallId();
+      trace(step({ kind: "TOOL_CALL", label: "get_contract_document", ref: documentCall }));
       trace(
         step({
           kind: "TOOL_RESULT",
-          label: "read_contract_block",
-          ref: readCall,
-          output: readContractBlock(input.contractDocument, blockId),
+          label: "get_contract_document",
+          ref: documentCall,
+          output: readContractDocument(input.contractDocument),
         }),
       );
     }
 
-    for (const proposal of this.proposals) {
+    const missingIds = [
+      ...new Set(this.proposals.flatMap((proposal) => proposal.evidenceIds)),
+    ].filter((id) => !knownEvidenceIds.has(id));
+    if (missingIds.length > 0) {
       const evidenceCall = nextCallId();
       trace(
         step({
           kind: "TOOL_CALL",
           label: "get_evidence",
           ref: evidenceCall,
-          input: { evidenceIds: proposal.evidenceIds },
+          input: { evidenceIds: missingIds },
         }),
       );
-      let resolved: EvidenceLocator[];
       try {
-        resolved = proposal.evidenceIds.map(findEvidence);
+        missingIds.forEach(findEvidence);
       } catch (error) {
         // Show the failed call in the trace before failing the run — that is
         // what an operator needs to see when an audit dies mid-flight.
@@ -187,15 +129,9 @@ export class FakeAuditAgent implements AuditAgentPort {
         );
         throw error;
       }
-      trace(
-        step({
-          kind: "TOOL_RESULT",
-          label: "get_evidence",
-          ref: evidenceCall,
-          output: resolved,
-        }),
-      );
+    }
 
+    for (const proposal of this.proposals) {
       const submitCall = nextCallId();
       trace(
         step({
@@ -206,6 +142,7 @@ export class FakeAuditAgent implements AuditAgentPort {
         }),
       );
       try {
+        proposal.evidenceIds.forEach(findEvidence);
         assertProposalLegal(proposal, input.ruleAssessments);
       } catch (error) {
         // The submission boundary rejected the proposal: show the failed call

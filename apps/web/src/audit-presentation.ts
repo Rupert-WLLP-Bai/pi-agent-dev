@@ -27,7 +27,8 @@ export type AuditTone = "neutral" | "info" | "warning" | "danger" | "success";
 export type AuditDisplayKey = AuditCaseStatus | "AWAITING_REVIEW";
 
 export interface AuditDisplayState {
-  key: AuditDisplayKey;
+  /** The state that decided the badge, or `UNKNOWN` for a value this UI cannot map. */
+  key: AuditDisplayKey | "UNKNOWN";
   label: string;
   tone: AuditTone;
 }
@@ -49,10 +50,20 @@ const displayStates: Record<AuditDisplayKey, Omit<AuditDisplayState, "key">> = {
   INTERRUPTED: { label: "已中断", tone: "warning" },
 };
 
-export function getAuditDisplayState(auditCase: AuditCase): AuditDisplayState {
-  const key: AuditDisplayKey =
-    auditCase.stage === "AWAITING_REVIEW" ? "AWAITING_REVIEW" : auditCase.status;
-  return { key, ...displayStates[key] };
+/**
+ * Resolves the badge for a case-shaped value. `status` and `stage` reach this
+ * function as plain strings over the wire, so a value this UI cannot map yet
+ * still renders — as a neutral badge carrying the raw code — rather than
+ * blanking out.
+ */
+export function getAuditDisplayState(auditCase: {
+  status: string;
+  stage: string;
+}): AuditDisplayState {
+  const key = auditCase.stage === "AWAITING_REVIEW" ? "AWAITING_REVIEW" : auditCase.status;
+  const state = (displayStates as Record<string, Omit<AuditDisplayState, "key"> | undefined>)[key];
+  if (state) return { key: key as AuditDisplayKey, ...state };
+  return { key: "UNKNOWN", label: auditCase.stage || auditCase.status, tone: "neutral" };
 }
 
 export const getAuditStageLabel = (stage: AuditStage): string =>

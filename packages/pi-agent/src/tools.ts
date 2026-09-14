@@ -1,7 +1,8 @@
 import {
   readContractBlock,
+  readContractDocument,
   SEARCH_DEFAULT_LIMIT,
-  searchContract,
+  searchContractReport,
 } from "@contract-audit/audit/contract-search";
 import type {
   AuditSnapshot,
@@ -44,6 +45,8 @@ export const SUBMITTABLE_FINDING_TYPES = [
   "NEEDS_HUMAN_REVIEW",
 ] as const satisfies readonly FindingType[];
 
+const searchQuerySchema = Type.Union([Type.String(), Type.Array(Type.String())]);
+
 export function createAuditTools(
   snapshot: AuditSnapshot,
   onProposal: (proposal: FindingProposal) => void,
@@ -59,20 +62,25 @@ export function createAuditTools(
       name: "get_rule_assessments",
       label: "Get Rule Assessments",
       description:
-        "Returns every deterministic rule assessment for the current audit case. These cannot be overridden.",
+        "Returns every deterministic rule assessment for the current audit case, together with the evidence locators those assessments cite. These cannot be overridden. Do not call get_evidence for ids already in this payload.",
       parameters: Type.Object({}),
-      execute: async () => ({
-        content: [{ type: "text", text: JSON.stringify(snapshot.ruleAssessments) }],
-        details: {
+      execute: async () => {
+        const payload = {
           assessments: snapshot.ruleAssessments,
           availableEvidenceIds: snapshot.evidence.map((item) => item.id),
-        },
-      }),
+          evidence: snapshot.evidence,
+        };
+        return {
+          content: [{ type: "text", text: JSON.stringify(payload) }],
+          details: payload,
+        };
+      },
     }),
     defineTool({
       name: "get_evidence",
       label: "Get Evidence",
-      description: "Retrieves the cited evidence locators by ID.",
+      description:
+        "Retrieves the cited evidence locators by ID. Skip this when get_rule_assessments already returned the locators.",
       parameters: Type.Object({ evidenceIds: Type.Array(Type.String()) }),
       execute: async (_toolCallId, params) => ({
         content: [{ type: "text", text: JSON.stringify(params.evidenceIds.map(findEvidence)) }],
@@ -80,23 +88,37 @@ export function createAuditTools(
       }),
     }),
     defineTool({
+      name: "get_contract_document",
+      label: "Get Contract Document",
+      description:
+        "Returns every contract block's id and full text. Call at most once. When truncated is true, the payload is an outline of heading lines and you may search or read individual blocks.",
+      parameters: Type.Object({}),
+      execute: async () => {
+        const view = readContractDocument(snapshot.contractDocument);
+        return {
+          content: [{ type: "text", text: JSON.stringify(view) }],
+          details: view,
+        };
+      },
+    }),
+    defineTool({
       name: "search_contract",
       label: "Search Contract",
       description:
-        "Case-insensitive keyword search over the Contract Document. Returns each matching block's bounded snippet and offset; an empty list when nothing matches.",
+        "Case-insensitive literal search over the Contract Document. query may be one string or an OR-list. Returns at most one hit per block; truncated is true when more blocks matched than limit. An empty matches list means these tokens are absent, not that the clause is absent.",
       parameters: Type.Object({
-        query: Type.String(),
+        query: searchQuerySchema,
         limit: Type.Optional(Type.Number()),
       }),
       execute: async (_toolCallId, params) => {
-        const matches = searchContract(
+        const report = searchContractReport(
           snapshot.contractDocument,
           params.query,
           params.limit ?? SEARCH_DEFAULT_LIMIT,
         );
         return {
-          content: [{ type: "text", text: JSON.stringify(matches) }],
-          details: { matches },
+          content: [{ type: "text", text: JSON.stringify(report) }],
+          details: report,
         };
       },
     }),
@@ -104,7 +126,7 @@ export function createAuditTools(
       name: "read_contract_block",
       label: "Read Contract Block",
       description:
-        "Returns one block's full text together with its previous and next block (null at document edges).",
+        "Returns one block's full text together with its previous and next block (null at document edges). Use only when get_contract_document was truncated.",
       parameters: Type.Object({ blockId: Type.String() }),
       execute: async (_toolCallId, params) => {
         const view = readContractBlock(snapshot.contractDocument, params.blockId);

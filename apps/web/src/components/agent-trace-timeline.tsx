@@ -1,6 +1,8 @@
+import { DownOutlined, RightOutlined } from "@ant-design/icons";
+import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type { AgentTraceStep } from "@contract-audit/audit/model";
-import { Button, Tag } from "antd";
-import { useMemo, useState } from "react";
+import { Button, Tag, Tooltip } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import {
   formatDuration,
   formatTraceOffset,
@@ -16,7 +18,17 @@ export interface TraceEntry {
   result: AgentTraceStep | null;
 }
 
+/** Consecutive same-name tool calls that render as one foldable cluster. */
+export interface TraceGroup {
+  key: string;
+  entries: TraceEntry[];
+}
+
 const entryKey = (step: AgentTraceStep): string => `${step.runId}:${step.sequence}`;
+
+const groupExpandKey = (group: TraceGroup): string => `group:${group.key}`;
+
+const stepDomId = (key: string): string => `trace-step-${key}`;
 
 /**
  * Pairs each tool call with the result that answered it.
@@ -49,6 +61,48 @@ export function toTraceEntries(steps: AgentTraceStep[]): TraceEntry[] {
   return entries;
 }
 
+/**
+ * Collapse consecutive same-name tool calls into one group. A MESSAGE, STAGE,
+ * or a different tool name starts a new group. A lone call stays a group of one.
+ */
+export function groupTraceEntries(entries: TraceEntry[]): TraceGroup[] {
+  const groups: TraceGroup[] = [];
+  for (const entry of entries) {
+    const last = groups.at(-1);
+    if (
+      last !== undefined &&
+      last.entries[0]?.step.kind === "TOOL_CALL" &&
+      entry.step.kind === "TOOL_CALL" &&
+      last.entries[0].step.label === entry.step.label
+    ) {
+      last.entries.push(entry);
+      continue;
+    }
+    groups.push({ key: entry.key, entries: [entry] });
+  }
+  return groups;
+}
+
+/** The distinctive argument a collapsed row should show for a known tool. */
+export function summarizeToolInput(label: string, input: unknown): string | null {
+  if (input === null || input === undefined || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  if (label === "search_contract" && typeof record.query === "string") {
+    const query = record.query.trim();
+    return query === "" ? null : query;
+  }
+  if (label === "read_contract_block" && typeof record.blockId === "string") {
+    return record.blockId;
+  }
+  if (label === "get_evidence" && Array.isArray(record.evidenceIds)) {
+    return record.evidenceIds.length === 0 ? null : `${record.evidenceIds.length} 条证据`;
+  }
+  if (label === "submit_finding_proposal" && typeof record.findingType === "string") {
+    return getFindingTypeLabel(record.findingType);
+  }
+  return null;
+}
+
 /** Serialize a payload for display without truncation — the scrollable panel handles overflow. */
 function payloadText(value: unknown): string | null {
   return formatTracePayload(value, Number.POSITIVE_INFINITY);
@@ -67,7 +121,76 @@ function Payload({ label, text, tone }: { label: string; text: string; tone?: "e
   );
 }
 
+function ArgumentChips({ values }: { values: string[] }) {
+  if (values.length === 0) return null;
+  const visible = values.slice(0, 4);
+  const extra = values.length - visible.length;
+  return (
+    <span className="trace-step__chips">
+      {visible.map((value) => (
+        <span key={value} className="trace-step__chip">
+          「{value}」
+        </span>
+      ))}
+      {extra > 0 ? <span className="trace-step__chip trace-step__chip--more">+{extra}</span> : null}
+    </span>
+  );
+}
+
+function Chevron({ open }: { open: boolean }) {
+  const Icon = open ? DownOutlined : RightOutlined;
+  return (
+    <span className="trace-step__chevron" aria-hidden>
+      <Icon />
+    </span>
+  );
+}
+
+function groupDuration(entries: TraceEntry[]): string | null {
+  const durations = entries
+    .map((entry) => entry.result?.durationMs ?? entry.step.durationMs)
+    .filter((value): value is number => value !== null);
+  if (durations.length === 0) return null;
+  const min = Math.min(...durations);
+  const max = Math.max(...durations);
+  if (min === max) return formatDuration(min);
+  const minLabel = formatDuration(min);
+  const maxLabel = formatDuration(max);
+  if (minLabel === null || maxLabel === null) return null;
+  return `${minLabel}–${maxLabel}`;
+}
+
+function groupSummaries(entries: TraceEntry[]): string[] {
+  const seen = new Set<string>();
+  const values: string[] = [];
+  for (const entry of entries) {
+    const summary = summarizeToolInput(entry.step.label, entry.step.input);
+    if (summary === null || seen.has(summary)) continue;
+    seen.add(summary);
+    values.push(summary);
+  }
+  return values;
+}
+
 // ── Timing overview bar ───────────────────────────────────────────
+
+interface OverviewBar {
+  key: string;
+  /** Step the bar jumps to; a generation gap jumps to the step that follows it. */
+  entryKey: string;
+  memberKeys: string[];
+  leftPct: number;
+  widthPct: number;
+  color: string;
+  title: string;
+  kind: "gap" | "step";
+}
+
+interface OverviewLane {
+  id: string;
+  label: string;
+  bars: OverviewBar[];
+}
 
 /**
  * A horizontal swimlane chart showing where time was spent during a run.
@@ -88,12 +211,12 @@ function Payload({ label, text, tone }: { label: string; text: string; tone?: "e
  * - An in-flight call (no result yet) gets a zero-width marker at the right
  *   edge rather than disappearing.
  */
-function TimingOverview({ entries }: { entries: TraceEntry[] }) {
-  if (entries.length < 2) return null;
+function buildOverviewLanes(groups: TraceGroup[]): OverviewLane[] {
+  const entries = groups.flatMap((group) => group.entries);
+  if (entries.length < 2) return [];
 
   const firstAt = new Date(entries[0].step.at).getTime();
 
-  // Compute the span from the maximum known end time.
   let lastEnd = firstAt;
   for (const entry of entries) {
     const start = new Date(entry.step.at).getTime();
@@ -102,34 +225,20 @@ function TimingOverview({ entries }: { entries: TraceEntry[] }) {
   }
   const span = Math.max(lastEnd - firstAt, 1);
 
-  // Group entries into turns. A turn starts at RUN_STARTED and at each
-  // TOOL_CALL or MESSAGE that follows a STAGE or another turn's end. In
-  // practice the trace is sequential per turn, so we segment by detecting
-  // gaps: a new turn starts when the current step begins after the previous
-  // step's end plus a threshold. Since tool durations are ~0ms, any gap > 0
-  // is model generation time within a turn. We split turns at STAGE steps.
-  interface OverviewLane {
-    id: string;
-    label: string;
-    bars: OverviewBar[];
-  }
-  interface OverviewBar {
-    key: string;
-    leftPct: number;
-    widthPct: number;
-    color: string;
-    title: string;
-  }
-
   const lanes: OverviewLane[] = [];
   let currentLane: OverviewLane | null = null;
   let prevEnd = firstAt;
 
-  for (const entry of entries) {
+  for (const group of groups) {
+    const entry = group.entries[0];
     const { step, result } = entry;
     const start = new Date(step.at).getTime();
-    const dur = result?.durationMs ?? step.durationMs ?? 0;
-    const end = start + dur;
+    const groupEnd = Math.max(
+      ...group.entries.map((item) => {
+        const itemStart = new Date(item.step.at).getTime();
+        return itemStart + (item.result?.durationMs ?? item.step.durationMs ?? 0);
+      }),
+    );
 
     if (step.kind === "STAGE") {
       if (
@@ -137,12 +246,8 @@ function TimingOverview({ entries }: { entries: TraceEntry[] }) {
         step.label === "RUN_COMPLETED" ||
         step.label === "RUN_FAILED"
       ) {
-        // Don't create lanes for run-level stages; they are zero-width markers.
         continue;
       }
-      // Other stages start a new lane.
-      // The step's own key identifies the lane: a tool can run twice, so the
-      // label is not unique enough to be a React key.
       currentLane = { id: entry.key, label: getTraceStageLabel(step.label), bars: [] };
       lanes.push(currentLane);
       prevEnd = start;
@@ -154,67 +259,366 @@ function TimingOverview({ entries }: { entries: TraceEntry[] }) {
       lanes.push(currentLane);
     }
 
-    // Model-generation gap: the time between the previous step's end and
-    // this step's start. This is the LLM thinking time and is the dominant
-    // cost — showing it as a distinct bar is the key visual.
     const gap = start - prevEnd;
-    if (gap > 1) {
+    if (gap > 100) {
       const gapLeft = ((prevEnd - firstAt) / span) * 100;
       const gapWidth = (gap / span) * 100;
       currentLane.bars.push({
         key: `${entry.key}-gap`,
+        entryKey: entry.key,
+        memberKeys: [entry.key],
         leftPct: gapLeft,
         widthPct: Math.max(gapWidth, 0.5),
         color: "#fde68a",
         title: `模型生成 ${(gap / 1000).toFixed(1)}s`,
+        kind: "gap",
       });
     }
 
+    const dur = result?.durationMs ?? step.durationMs ?? groupEnd - start;
     const leftPct = ((start - firstAt) / span) * 100;
     const widthPct = Math.max((dur / span) * 100, dur > 0 ? 0.8 : 0);
+    const isError = group.entries.some(
+      (item) => item.result?.isError === true || item.step.isError,
+    );
     const color =
-      step.kind === "TOOL_CALL"
-        ? result?.isError
+      step.kind === "TOOL_CALL" || step.kind === "TOOL_RESULT"
+        ? isError
           ? "#ff4d4f"
           : "#722ed1"
-        : step.kind === "TOOL_RESULT"
-          ? result?.isError
-            ? "#ff4d4f"
-            : "#722ed1"
-          : step.kind === "MESSAGE"
-            ? "#13c2c2"
-            : "#d9d9d9";
+        : step.kind === "MESSAGE"
+          ? "#13c2c2"
+          : "#d9d9d9";
+    const summaries = groupSummaries(group.entries);
+    const durationLabel = groupDuration(group.entries) ?? formatDuration(dur) ?? "-";
+    const offsetLabel = `+${((start - firstAt) / 1000).toFixed(2)}s`;
+    const countLabel =
+      step.kind === "MESSAGE"
+        ? "模型输出"
+        : group.entries.length > 1
+          ? `${step.label} ×${group.entries.length}`
+          : step.label;
+    const summaryLabel = summaries.length === 0 ? null : summaries.join("、");
+    const title =
+      summaryLabel === null
+        ? `${countLabel} · ${durationLabel} · ${offsetLabel}`
+        : `${countLabel} · ${summaryLabel} · ${durationLabel} · ${offsetLabel}`;
 
     currentLane.bars.push({
       key: entry.key,
+      entryKey: entry.key,
+      memberKeys: group.entries.map((item) => item.key),
       leftPct,
       widthPct: widthPct > 0 ? widthPct : 0.5,
       color,
-      title: `${step.label} · ${formatDuration(dur) ?? "-"} · +${((start - firstAt) / 1000).toFixed(2)}s`,
+      title,
+      kind: "step",
     });
 
-    prevEnd = Math.max(prevEnd, end);
+    prevEnd = Math.max(prevEnd, groupEnd);
   }
 
+  return lanes;
+}
+
+function TimingOverview({
+  groups,
+  selectedKey,
+  onSelect,
+}: {
+  groups: TraceGroup[];
+  selectedKey: string | null;
+  onSelect: (entryKey: string) => void;
+}) {
+  const lanes = buildOverviewLanes(groups);
+  if (lanes.length === 0) return null;
+
   return (
-    <div className="trace-overview" aria-hidden>
+    <div className="trace-overview">
       {lanes.map((lane) => (
-        <div key={lane.id} className="trace-overview__lane" title={lane.label}>
-          {lane.bars.map((bar) => (
-            <div
-              key={bar.key}
-              className="trace-overview__bar"
-              style={{
-                left: `${bar.leftPct}%`,
-                width: `${bar.widthPct}%`,
-                background: bar.color,
-              }}
-              title={bar.title}
-            />
-          ))}
+        <div key={lane.id} className="trace-overview__lane">
+          {lane.bars.map((bar) => {
+            const tiny = bar.widthPct < 2;
+            const selected = selectedKey !== null && bar.memberKeys.includes(selectedKey);
+            return (
+              <Tooltip key={bar.key} title={bar.title} mouseEnterDelay={0.1}>
+                <button
+                  type="button"
+                  className={`trace-overview__hit${selected ? " trace-overview__hit--selected" : ""}${bar.kind === "gap" ? " trace-overview__hit--gap" : ""}`}
+                  style={{
+                    left: `${bar.leftPct}%`,
+                    width: tiny ? 24 : `${bar.widthPct}%`,
+                    marginLeft: tiny ? -12 : 0,
+                  }}
+                  aria-label={bar.title}
+                  aria-pressed={selected}
+                  onClick={() => onSelect(bar.entryKey)}
+                >
+                  <span
+                    className="trace-overview__bar"
+                    style={{
+                      width: tiny ? `${Math.max((bar.widthPct / 24) * 100, 12)}%` : "100%",
+                      background: bar.color,
+                    }}
+                  />
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
       ))}
     </div>
+  );
+}
+
+function StepPayloads({ entry, expanded }: { entry: TraceEntry; expanded: boolean }) {
+  const { step, result } = entry;
+  if (!expanded) return null;
+
+  if (step.kind === "MESSAGE") {
+    const text = payloadText(step.output);
+    return text === null ? null : (
+      <div id={`${entry.key}-panel`}>
+        <Payload label="内容" text={text} />
+      </div>
+    );
+  }
+
+  if (step.kind === "TOOL_RESULT" && result === null) {
+    const output = payloadText(step.output);
+    if (output === null) return null;
+    return (
+      <div id={`${entry.key}-panel`} className="trace-step__body">
+        <Payload
+          label={step.isError ? "错误" : "返回"}
+          text={output}
+          tone={step.isError ? "error" : undefined}
+        />
+      </div>
+    );
+  }
+
+  const input = payloadText(step.input);
+  const output = payloadText(result?.output);
+  if (input === null && output === null) return null;
+  return (
+    <div id={`${entry.key}-panel`} className="trace-step__body">
+      {input === null ? null : <Payload label="入参" text={input} />}
+      {output === null ? null : (
+        <Payload
+          label={result?.isError ? "错误" : "返回"}
+          text={output}
+          tone={result?.isError ? "error" : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
+function hasExpandablePayload(entry: TraceEntry): boolean {
+  const { step, result } = entry;
+  if (step.kind === "MESSAGE") return payloadText(step.output) !== null;
+  if (step.kind === "TOOL_RESULT" && result === null) return payloadText(step.output) !== null;
+  return payloadText(step.input) !== null || payloadText(result?.output) !== null;
+}
+
+function railClass(entry: TraceEntry): string {
+  if (entry.step.kind === "STAGE") {
+    return `trace-rail trace-rail--${entry.step.label.toLowerCase()}`;
+  }
+  if (entry.result?.isError === true || entry.step.isError) return "trace-rail trace-rail--error";
+  if (entry.step.kind === "MESSAGE") return "trace-rail trace-rail--message";
+  if (entry.step.kind === "TOOL_CALL" || entry.step.kind === "TOOL_RESULT") {
+    return "trace-rail trace-rail--tool";
+  }
+  return "trace-rail";
+}
+
+function StageRow({
+  entry,
+  origin,
+  selected,
+}: {
+  entry: TraceEntry;
+  origin: string;
+  selected: boolean;
+}) {
+  const duration = formatDuration(entry.step.durationMs);
+  return (
+    <li
+      id={stepDomId(entry.key)}
+      className={`trace-stage trace-stage--${entry.step.label.toLowerCase()}${selected ? " trace-row--selected" : ""}`}
+    >
+      <span className="trace-offset">{formatTraceOffset(origin, entry.step.at)}</span>
+      <span className={railClass(entry)} aria-hidden="true" />
+      <div className="trace-step__main">
+        <span className="trace-stage__label">{getTraceStageLabel(entry.step.label)}</span>
+        {duration === null ? null : <span className="trace-stage__duration">{duration}</span>}
+      </div>
+    </li>
+  );
+}
+
+function ToolOrMessageRow({
+  entry,
+  origin,
+  expanded,
+  selected,
+  nested,
+  onToggle,
+}: {
+  entry: TraceEntry;
+  origin: string;
+  expanded: boolean;
+  selected: boolean;
+  nested?: boolean;
+  onToggle: () => void;
+}) {
+  const { step, result } = entry;
+  const expandable = hasExpandablePayload(entry);
+  const isError = result?.isError === true || step.isError;
+  const duration = formatDuration(result?.durationMs ?? step.durationMs);
+  const summary = summarizeToolInput(step.label, step.input);
+  const kindLabel =
+    step.kind === "MESSAGE"
+      ? traceStepKindLabels.MESSAGE
+      : step.kind === "TOOL_RESULT"
+        ? traceStepKindLabels.TOOL_RESULT
+        : traceStepKindLabels.TOOL_CALL;
+  const tagColor = step.kind === "MESSAGE" ? "blue" : isError ? "red" : "geekblue";
+
+  const head = (
+    <>
+      {nested ? (
+        <span className="trace-offset trace-offset--inline">
+          {formatTraceOffset(origin, step.at)}
+        </span>
+      ) : null}
+      <Tag color={tagColor}>{kindLabel}</Tag>
+      {step.kind === "MESSAGE" ? null : <b className="trace-step__tool">{step.label}</b>}
+      {summary === null ? null : <ArgumentChips values={[summary]} />}
+      {step.kind === "MESSAGE" && step.tokens !== null ? (
+        <span className="trace-step__meta">
+          输入 {step.tokens.input.toLocaleString("en-US")} · 输出{" "}
+          {step.tokens.output.toLocaleString("en-US")}
+        </span>
+      ) : null}
+      {duration === null ? null : <span className="trace-step__meta">{duration}</span>}
+      {step.kind === "TOOL_CALL" && result === null ? (
+        <span className="trace-step__meta">等待返回…</span>
+      ) : null}
+      {expandable ? <Chevron open={expanded} /> : null}
+    </>
+  );
+
+  const body = <StepPayloads entry={entry} expanded={expanded} />;
+  const className = `trace-step ${step.kind === "MESSAGE" ? "trace-step--message" : "trace-step--tool"}${isError ? " trace-step--error" : ""}${selected ? " trace-row--selected" : ""}`;
+
+  if (nested) {
+    return (
+      <div id={stepDomId(entry.key)} className={`${className} trace-step--nested`}>
+        {expandable ? (
+          <button
+            type="button"
+            className="trace-step__head trace-step__head--toggle"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={`${entry.key}-panel`}
+          >
+            {head}
+          </button>
+        ) : (
+          <div className="trace-step__head">{head}</div>
+        )}
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <li id={stepDomId(entry.key)} className={className}>
+      <span className="trace-offset">{formatTraceOffset(origin, step.at)}</span>
+      <span className={railClass(entry)} aria-hidden="true" />
+      <div className="trace-step__main">
+        {expandable ? (
+          <button
+            type="button"
+            className="trace-step__head trace-step__head--toggle"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls={`${entry.key}-panel`}
+          >
+            {head}
+          </button>
+        ) : (
+          <div className="trace-step__head">{head}</div>
+        )}
+        {body}
+      </div>
+    </li>
+  );
+}
+
+function ToolGroupRow({
+  group,
+  origin,
+  groupExpanded,
+  expanded,
+  selectedKey,
+  onToggleGroup,
+  onToggleEntry,
+}: {
+  group: TraceGroup;
+  origin: string;
+  groupExpanded: boolean;
+  expanded: ReadonlySet<string>;
+  selectedKey: string | null;
+  onToggleGroup: () => void;
+  onToggleEntry: (key: string) => void;
+}) {
+  const first = group.entries[0];
+  const selected = group.entries.some((entry) => entry.key === selectedKey);
+  const duration = groupDuration(group.entries);
+  const summaries = groupSummaries(group.entries);
+  const waiting = group.entries.some((entry) => entry.result === null);
+  const isError = group.entries.some((entry) => entry.result?.isError === true);
+
+  return (
+    <li
+      className={`trace-step trace-step--tool trace-step--group${isError ? " trace-step--error" : ""}${selected ? " trace-row--selected" : ""}`}
+    >
+      <span className="trace-offset">{formatTraceOffset(origin, first.step.at)}</span>
+      <span className={railClass(first)} aria-hidden="true" />
+      <div className="trace-step__main">
+        <button
+          type="button"
+          className="trace-step__head trace-step__head--toggle"
+          onClick={onToggleGroup}
+          aria-expanded={groupExpanded}
+        >
+          <Tag color={isError ? "red" : "geekblue"}>{traceStepKindLabels.TOOL_CALL}</Tag>
+          <b className="trace-step__tool">{first.step.label}</b>
+          <span className="trace-step__count">×{group.entries.length}</span>
+          <ArgumentChips values={summaries} />
+          {duration === null ? null : <span className="trace-step__meta">{duration}</span>}
+          {waiting ? <span className="trace-step__meta">等待返回…</span> : null}
+          <Chevron open={groupExpanded} />
+        </button>
+        {groupExpanded
+          ? group.entries.map((entry) => (
+              <ToolOrMessageRow
+                key={entry.key}
+                entry={entry}
+                origin={origin}
+                expanded={expanded.has(entry.key)}
+                selected={selectedKey === entry.key}
+                nested
+                onToggle={() => onToggleEntry(entry.key)}
+              />
+            ))
+          : null}
+      </div>
+    </li>
   );
 }
 
@@ -226,36 +630,46 @@ export function AgentTraceTimeline({
   /** Start with every payload open — used when the trace is opened to inspect it. */
   defaultExpanded?: boolean;
 }) {
-  // Tool/message/result entries that have payloads worth expanding.
-  const collapsibleKeys = useMemo(
-    () =>
-      toTraceEntries(steps)
-        .filter(
-          (e) =>
-            e.step.kind === "TOOL_CALL" ||
-            e.step.kind === "TOOL_RESULT" ||
-            e.step.kind === "MESSAGE",
-        )
-        .map((e) => e.key),
-    [steps],
-  );
+  const entries = useMemo(() => toTraceEntries(steps), [steps]);
+  const groups = useMemo(() => groupTraceEntries(entries), [entries]);
 
-  // Store *expanded* keys (default empty = everything collapsed). This is
-  // the inverse of the old approach (which stored collapsed keys), and it
-  // means new steps that arrive during a live run start collapsed — matching
-  // the default — instead of appearing expanded.
+  const collapsibleKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const group of groups) {
+      if (group.entries.length > 1) keys.push(groupExpandKey(group));
+      for (const entry of group.entries) {
+        if (
+          entry.step.kind === "TOOL_CALL" ||
+          entry.step.kind === "TOOL_RESULT" ||
+          entry.step.kind === "MESSAGE"
+        ) {
+          keys.push(entry.key);
+        }
+      }
+    }
+    return keys;
+  }, [groups]);
+
   const [expanded, setExpanded] = useState<Set<string>>(
     () => new Set(defaultExpanded ? collapsibleKeys : []),
   );
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  // Nested group rows only exist after the group opens, so `expanded` is an
+  // intentional trigger — without it the first click on a grouped tool would
+  // try to scroll to a node that is not in the document yet.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: expanded is an intentional post-mount trigger, not a value the effect reads.
+  useEffect(() => {
+    if (selectedKey === null) return;
+    const node = document.getElementById(stepDomId(selectedKey));
+    node?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [selectedKey, expanded]);
 
   if (steps.length === 0) {
     return <p className="trace-empty">本次运行没有可展示的轨迹步骤。</p>;
   }
 
   const origin = steps[0].at;
-  const entries = toTraceEntries(steps);
-
-  const isExpanded = (key: string) => expanded.has(key);
   const allExpanded = collapsibleKeys.length > 0 && collapsibleKeys.every((k) => expanded.has(k));
 
   const toggleEntry = (key: string) => {
@@ -273,6 +687,21 @@ export function AgentTraceTimeline({
     } else {
       setExpanded(new Set(collapsibleKeys));
     }
+  };
+
+  const focusEntry = (entryKeyToFocus: string) => {
+    setSelectedKey(entryKeyToFocus);
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.add(entryKeyToFocus);
+      const group = groups.find((item) =>
+        item.entries.some((entry) => entry.key === entryKeyToFocus),
+      );
+      if (group !== undefined && group.entries.length > 1) {
+        next.add(groupExpandKey(group));
+      }
+      return next;
+    });
   };
 
   return (
@@ -299,170 +728,43 @@ export function AgentTraceTimeline({
           </Button>
         ) : null}
       </div>
-      <TimingOverview entries={entries} />
+      <TimingOverview groups={groups} selectedKey={selectedKey} onSelect={focusEntry} />
       <ol className="trace-timeline">
-        {entries.map((entry) => {
-          const { step, result } = entry;
-          const offset = formatTraceOffset(origin, step.at);
-          const entryExpanded = isExpanded(entry.key);
-
-          if (step.kind === "STAGE") {
-            const duration = formatDuration(step.durationMs);
+        {groups.map((group) => {
+          const [entry] = group.entries;
+          if (entry.step.kind === "STAGE") {
             return (
-              <li
-                key={entry.key}
-                className={`trace-stage trace-stage--${step.label.toLowerCase()}`}
-              >
-                <span className="trace-offset">{offset}</span>
-                <span className="trace-stage__label">{getTraceStageLabel(step.label)}</span>
-                {duration === null ? null : (
-                  <span className="trace-stage__duration">{duration}</span>
-                )}
-              </li>
+              <StageRow
+                key={group.key}
+                entry={entry}
+                origin={origin}
+                selected={selectedKey === entry.key}
+              />
             );
           }
-
-          if (step.kind === "MESSAGE") {
-            const text = payloadText(step.output);
+          if (group.entries.length > 1) {
             return (
-              <li key={entry.key} className="trace-step trace-step--message">
-                <button
-                  type="button"
-                  className="trace-step__head trace-step__head--toggle"
-                  onClick={() => toggleEntry(entry.key)}
-                  aria-expanded={entryExpanded}
-                  aria-controls={`${entry.key}-panel`}
-                >
-                  <span className="trace-offset">{offset}</span>
-                  <Tag color="blue">{traceStepKindLabels.MESSAGE}</Tag>
-                  {step.tokens === null ? null : (
-                    <span className="trace-step__meta">
-                      输入 {step.tokens.input.toLocaleString("en-US")} · 输出{" "}
-                      {step.tokens.output.toLocaleString("en-US")}
-                    </span>
-                  )}
-                  <span className="trace-step__chevron" aria-hidden>
-                    {entryExpanded ? "▾" : "▸"}
-                  </span>
-                </button>
-                {entryExpanded && text !== null ? (
-                  <div id={`${entry.key}-panel`}>
-                    <Payload label="内容" text={text} />
-                  </div>
-                ) : null}
-              </li>
+              <ToolGroupRow
+                key={group.key}
+                group={group}
+                origin={origin}
+                groupExpanded={expanded.has(groupExpandKey(group))}
+                expanded={expanded}
+                selectedKey={selectedKey}
+                onToggleGroup={() => toggleEntry(groupExpandKey(group))}
+                onToggleEntry={toggleEntry}
+              />
             );
           }
-
-          // Standalone TOOL_RESULT (call missing — trace started mid-run).
-          // Read from the step itself, not from `result`, which is null here.
-          if (step.kind === "TOOL_RESULT" && result === null) {
-            const output = payloadText(step.output);
-            const duration = formatDuration(step.durationMs);
-            const isError = step.isError;
-            const hasContent = output !== null;
-
-            return (
-              <li
-                key={entry.key}
-                className={`trace-step trace-step--tool${isError ? " trace-step--error" : ""}`}
-              >
-                {hasContent ? (
-                  <button
-                    type="button"
-                    className="trace-step__head trace-step__head--toggle"
-                    onClick={() => toggleEntry(entry.key)}
-                    aria-expanded={entryExpanded}
-                    aria-controls={`${entry.key}-panel`}
-                  >
-                    <span className="trace-offset">{offset}</span>
-                    <Tag color={isError ? "red" : "geekblue"}>
-                      {traceStepKindLabels.TOOL_RESULT}
-                    </Tag>
-                    <b className="trace-step__tool">{step.label}</b>
-                    {duration === null ? null : (
-                      <span className="trace-step__meta">{duration}</span>
-                    )}
-                    <span className="trace-step__chevron" aria-hidden>
-                      {entryExpanded ? "▾" : "▸"}
-                    </span>
-                  </button>
-                ) : (
-                  <div className="trace-step__head">
-                    <span className="trace-offset">{offset}</span>
-                    <Tag color={isError ? "red" : "geekblue"}>
-                      {traceStepKindLabels.TOOL_RESULT}
-                    </Tag>
-                    <b className="trace-step__tool">{step.label}</b>
-                    {duration === null ? null : (
-                      <span className="trace-step__meta">{duration}</span>
-                    )}
-                  </div>
-                )}
-                {hasContent && entryExpanded ? (
-                  <div id={`${entry.key}-panel`} className="trace-step__body">
-                    <Payload
-                      label={isError ? "错误" : "返回"}
-                      text={output}
-                      tone={isError ? "error" : undefined}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            );
-          }
-
-          // Paired TOOL_CALL + TOOL_RESULT.
-          const input = payloadText(step.input);
-          const output = payloadText(result?.output);
-          const duration = formatDuration(result?.durationMs ?? step.durationMs);
-          const isError = result?.isError === true;
-          const hasContent = input !== null || output !== null;
-
           return (
-            <li
-              key={entry.key}
-              className={`trace-step trace-step--tool${isError ? " trace-step--error" : ""}`}
-            >
-              {hasContent ? (
-                <button
-                  type="button"
-                  className="trace-step__head trace-step__head--toggle"
-                  onClick={() => toggleEntry(entry.key)}
-                  aria-expanded={entryExpanded}
-                  aria-controls={`${entry.key}-panel`}
-                >
-                  <span className="trace-offset">{offset}</span>
-                  <Tag color={isError ? "red" : "geekblue"}>{traceStepKindLabels.TOOL_CALL}</Tag>
-                  <b className="trace-step__tool">{step.label}</b>
-                  {duration === null ? null : <span className="trace-step__meta">{duration}</span>}
-                  {result === null ? <span className="trace-step__meta">等待返回…</span> : null}
-                  <span className="trace-step__chevron" aria-hidden>
-                    {entryExpanded ? "▾" : "▸"}
-                  </span>
-                </button>
-              ) : (
-                <div className="trace-step__head">
-                  <span className="trace-offset">{offset}</span>
-                  <Tag color={isError ? "red" : "geekblue"}>{traceStepKindLabels.TOOL_CALL}</Tag>
-                  <b className="trace-step__tool">{step.label}</b>
-                  {duration === null ? null : <span className="trace-step__meta">{duration}</span>}
-                  {result === null ? <span className="trace-step__meta">等待返回…</span> : null}
-                </div>
-              )}
-              {hasContent && entryExpanded ? (
-                <div id={`${entry.key}-panel`} className="trace-step__body">
-                  {input === null ? null : <Payload label="入参" text={input} />}
-                  {output === null ? null : (
-                    <Payload
-                      label={isError ? "错误" : "返回"}
-                      text={output}
-                      tone={isError ? "error" : undefined}
-                    />
-                  )}
-                </div>
-              ) : null}
-            </li>
+            <ToolOrMessageRow
+              key={group.key}
+              entry={entry}
+              origin={origin}
+              expanded={expanded.has(entry.key)}
+              selected={selectedKey === entry.key}
+              onToggle={() => toggleEntry(entry.key)}
+            />
           );
         })}
       </ol>

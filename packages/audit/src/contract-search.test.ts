@@ -1,8 +1,11 @@
 import { expect, test } from "bun:test";
 import {
+  DOCUMENT_CHAR_BUDGET,
   readContractBlock,
+  readContractDocument,
   SEARCH_SNIPPET_CONTEXT,
   searchContract,
+  searchContractReport,
   UnknownContractBlockError,
 } from "./contract-search";
 import type { ContractDocument } from "./model";
@@ -64,6 +67,53 @@ test("reads a block with its neighbours and nulls at the document edges", () => 
   const last = readContractBlock(document, "b3");
   expect(last.previous?.blockId).toBe("b2");
   expect(last.next).toBeNull();
+});
+
+test("searchContractReport keeps one hit per block and flags a truncated cap", () => {
+  const report = searchContractReport(document, "预付款", 1);
+  expect(report.matches.map((match) => match.blockId)).toEqual(["b1"]);
+  expect(report.truncated).toBe(true);
+
+  const uncut = searchContractReport(document, "预付款");
+  expect(uncut.matches.map((match) => match.blockId)).toEqual(["b1", "b2"]);
+  expect(uncut.truncated).toBe(false);
+});
+
+test("searchContractReport ORs several queries in document order", () => {
+  const report = searchContractReport(document, ["管辖", "预付款"]);
+  expect(report.matches.map((match) => match.blockId)).toEqual(["b1", "b2", "b3"]);
+  expect(report.matches[0]?.startOffset).toBe(document.blocks[0].text.indexOf("预付款"));
+  expect(report.truncated).toBe(false);
+});
+
+test("readContractDocument returns every block until the character budget", () => {
+  const view = readContractDocument(document);
+  expect(view.truncated).toBe(false);
+  expect(view.outline).toBeUndefined();
+  expect(view.blocks).toEqual(
+    document.blocks.map((block) => ({ blockId: block.blockId, text: block.text })),
+  );
+});
+
+test("readContractDocument falls back to an outline when the budget is exceeded", () => {
+  const long: ContractDocument = {
+    hash: "hash-long",
+    blocks: [
+      { blockId: "h1", text: `第一条 ${"甲".repeat(80)}`, startOffset: 0, endOffset: 90 },
+      { blockId: "h2", text: `第二条\n其余条款。`, startOffset: 90, endOffset: 110 },
+    ],
+  };
+  const view = readContractDocument(long, 20);
+  expect(view.truncated).toBe(true);
+  expect(view.blocks).toEqual([]);
+  expect(view.outline).toEqual([
+    { blockId: "h1", heading: `第一条 ${"甲".repeat(80)}`.slice(0, 80) },
+    { blockId: "h2", heading: "第二条" },
+  ]);
+});
+
+test("DOCUMENT_CHAR_BUDGET is the default cut-off for a full-document read", () => {
+  expect(DOCUMENT_CHAR_BUDGET).toBe(16_000);
 });
 
 test("an unknown block id errors with the available ids hinted", () => {

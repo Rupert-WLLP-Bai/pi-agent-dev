@@ -32,8 +32,8 @@ async function createDemoAudit(page: Page): Promise<string> {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
-  // The fake agent produces the advance-payment finding.
-  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible({ timeout: 15000 });
+  // The list shows finding-type labels; the inspector may be on another finding.
+  await expect(page.getByText("预付款比例超过制度上限").first()).toBeVisible({ timeout: 15000 });
 
   const url = page.url();
   const caseId = url.split("/").pop()!;
@@ -44,7 +44,7 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
   const caseId = await createDemoAudit(page);
 
   // ── 1. The workbench shows the finding and a trace button ──
-  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible();
+  await expect(page.getByText("预付款比例超过制度上限").first()).toBeVisible();
   await expect(page.getByRole("button", { name: "运行轨迹" })).toBeVisible();
 
   // ── 2. Open the trace page and verify the agent's tool calls ──
@@ -55,16 +55,18 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
   await expect(page.locator(".trace-card")).toBeVisible();
   await expect(page.getByText("Fake 0 · fake-agent")).toBeVisible();
 
-  // This sample has no abstaining dimension, so the timeline shows the run
-  // boundary and the three tools that path uses: assess, read evidence, submit.
+  // Locators arrive inline on get_rule_assessments, so a conflict-only path
+  // no longer needs get_evidence. The timeline still always shows assess then
+  // submit.
   await expect(page.getByText("开始运行")).toBeVisible();
   await expect(page.getByText("get_rule_assessments").first()).toBeVisible();
-  await expect(page.getByText("get_evidence").first()).toBeVisible();
   await expect(page.getByText("submit_finding_proposal").first()).toBeVisible();
   await expect(page.getByText("运行完成")).toBeVisible();
 
-  // Tool calls are collapsed by default. Click "全部展开" to reveal payloads.
-  await page.getByRole("button", { name: "全部展开" }).click();
+  // The workbench links here with ?expand=true, so payloads may already be
+  // open. Expand only when they are still collapsed.
+  const expandAll = page.getByRole("button", { name: "全部展开" });
+  if (await expandAll.isVisible()) await expandAll.click();
   // A tool result is visible — the trace is not just names, it shows payloads.
   const ruleResult = page
     .locator(".trace-step--tool")
@@ -83,20 +85,23 @@ test("full audit lifecycle: submit, trace, review, close", async ({ page }) => {
 
   // ── 4. Go back to the case and perform a human review ──
   await page.goto(`/audit-cases/${caseId}`);
-  await expect(page.getByText("预付款比例高于制度上限").first()).toBeVisible();
-  // The demo contract breaches two dimensions (advance payment and
-  // jurisdiction), so the case only closes once both findings are decided.
-  for (const label of ["预付款比例超过制度上限", "争议管辖地与我方不一致"]) {
-    await page.locator(".finding-list").getByText(label, { exact: true }).click();
+  await expect(page.getByText("预付款比例超过制度上限").first()).toBeVisible();
+  // The demo contract always breaches advance payment and jurisdiction. A
+  // seeded demo world may add a party-history finding on the same
+  // counterparty; every pending item must be decided before the case closes.
+  const titles = await page.locator(".finding-list .f-title").allTextContents();
+  for (const title of titles) {
+    await page.locator(".finding-list").getByText(title, { exact: true }).click();
     await page.locator(".inspector-actions").getByRole("button", { name: "确认风险" }).click();
     const dialog = page.getByRole("dialog", { name: "确认风险" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "确认风险" }).click();
-    await expect(page.getByText("复核已提交")).toBeVisible();
+    await expect(page.getByText("复核已提交").first()).toBeVisible();
   }
 
   // Reload to confirm the review persisted.
   await page.reload();
+  await page.getByRole("button", { name: /^全部 / }).click();
   await expect(page.getByText("已确认风险").first()).toBeVisible();
   // The status badge, not the step list, is what proves the case closed.
   await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
@@ -116,6 +121,7 @@ test("the trace page is reachable from the navigation menu", async ({ page }) =>
   await expect(page).toHaveURL(/\/audit-runs$/);
   await expect(page.getByRole("heading", { name: "运行轨迹" })).toBeVisible();
 });
+
 test("the trace page shows an empty state for a case with no runs", async ({ page }) => {
   await assertApiReachable(page);
   // Create a case and cancel it synchronously. The dispatcher enqueues the
@@ -153,7 +159,7 @@ test("the trace page shows an empty state for a case with no runs", async ({ pag
   await expect(emptyState.or(traceCard)).toBeVisible({ timeout: 15000 });
 });
 
-test("a needs-review case shows the agent searching and reading the contract", async ({ page }) => {
+test("a needs-review case shows the agent reading the contract once", async ({ page }) => {
   await assertApiReachable(page);
   await page.goto("/audit-cases");
   await page.getByRole("button", { name: "新建审计" }).click();
@@ -170,9 +176,8 @@ test("a needs-review case shows the agent searching and reading the contract", a
   await expect(page.getByText("缺少违约责任条款").first()).toBeVisible({ timeout: 15000 });
 
   await page.getByRole("button", { name: "运行轨迹" }).click();
-  await expect(page).toHaveURL(/\/trace$/);
-  // The abstaining dimension leaves a real reading trail: a keyword search,
-  // then a contextual read of the block that answers it.
-  await expect(page.getByText("search_contract").first()).toBeVisible();
-  await expect(page.getByText("read_contract_block").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/trace/);
+  // The abstaining dimension leaves a real reading trail: one full-document
+  // read, not a keyword survey plus per-block follow-ups.
+  await expect(page.getByText("get_contract_document").first()).toBeVisible();
 });

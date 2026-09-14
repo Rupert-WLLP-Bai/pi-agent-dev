@@ -21,6 +21,7 @@ import { createPiTraceReporter } from "./trace";
 const AUDIT_TOOL_NAMES = [
   "get_rule_assessments",
   "get_evidence",
+  "get_contract_document",
   "search_contract",
   "read_contract_block",
   "submit_finding_proposal",

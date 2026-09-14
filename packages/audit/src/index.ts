@@ -25,11 +25,17 @@ export {
 } from "./confidentiality-period-rule";
 export {
   type ContractBlockView,
+  type ContractDocumentOutlineEntry,
+  type ContractDocumentView,
   type ContractSearchMatch,
+  type ContractSearchReport,
+  DOCUMENT_CHAR_BUDGET,
   readContractBlock,
+  readContractDocument,
   SEARCH_DEFAULT_LIMIT,
   SEARCH_SNIPPET_CONTEXT,
   searchContract,
+  searchContractReport,
   UnknownContractBlockError,
 } from "./contract-search";
 export {

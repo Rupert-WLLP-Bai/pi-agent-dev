@@ -1644,42 +1644,24 @@ a.todo-item:focus-visible {
   gap: 0;
 }
 .trace-timeline > li {
+  display: grid;
+  grid-template-columns: 4.75rem 12px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
   position: relative;
-  padding: 10px 0 10px 68px;
-  border-left: 2px solid #e8e8e8;
-  margin-left: 16px;
+  padding: 4px 0;
+  margin: 0;
+  border-left: none;
 }
-.trace-timeline > li::before {
-  content: "";
-  position: absolute;
-  left: -7px;
-  top: 14px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #d9d9d9;
-  border: 2px solid #fff;
+.trace-timeline > li.trace-row--selected {
+  background: #f0f5ff;
+  border-radius: 6px;
 }
 
 /* Stage row */
 .trace-stage {
   font-size: 13px;
   color: #595959;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.trace-stage::before {
-  background: #1677ff;
-}
-.trace-stage--run_started::before {
-  background: #1677ff;
-}
-.trace-stage--run_completed::before {
-  background: #52c41a;
-}
-.trace-stage--run_failed::before {
-  background: #ff4d4f;
 }
 .trace-stage__label {
   font-weight: 600;
@@ -1698,23 +1680,18 @@ a.todo-item:focus-visible {
 .trace-step {
   font-size: 13px;
 }
-.trace-step::before {
-  background: #8c8c8c;
-}
-.trace-step--tool::before {
-  background: #722ed1;
-}
-.trace-step--error::before {
-  background: #ff4d4f;
-}
-.trace-step--message::before {
-  background: #13c2c2;
+.trace-step__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 2px 0;
 }
 .trace-step__head {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  min-height: 24px;
 }
 .trace-step__tool {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1724,16 +1701,108 @@ a.todo-item:focus-visible {
   font-size: 11px;
   color: #8c8c8c;
 }
+.trace-step__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+  font-variant-numeric: tabular-nums;
+}
+.trace-step__chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.trace-step__chip {
+  font-size: 11px;
+  color: #4e5969;
+  background: #f5f7fa;
+  border-radius: 4px;
+  padding: 0 6px;
+  line-height: 20px;
+}
+.trace-step__chip--more {
+  color: #8c8c8c;
+}
 .trace-offset {
-  position: absolute;
-  left: -68px;
-  top: 12px;
-  font-size: 10px;
+  position: static;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 11px;
   color: #8c8c8c;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-align: right;
-  width: 52px;
+}
+.trace-offset--inline {
+  min-height: 0;
+  font-size: 10px;
+}
+.trace-rail {
+  position: relative;
+  width: 12px;
+  min-height: 100%;
+  justify-self: center;
+  align-self: stretch;
+}
+.trace-rail::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e8e8e8;
+}
+.trace-rail::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #d9d9d9;
+  border: 2px solid #fff;
+  z-index: 1;
+}
+.trace-timeline > li:first-child .trace-rail::before {
+  top: 10px;
+}
+.trace-timeline > li:last-child .trace-rail::before {
+  bottom: auto;
+  height: 12px;
+}
+.trace-rail--run_started::after,
+.trace-rail--run_completed::after,
+.trace-stage .trace-rail::after {
+  background: #1677ff;
+}
+.trace-rail--run_completed::after {
+  background: #52c41a;
+}
+.trace-rail--run_failed::after {
+  background: #ff4d4f;
+}
+.trace-rail--tool::after {
+  background: #722ed1;
+}
+.trace-rail--error::after {
+  background: #ff4d4f;
+}
+.trace-rail--message::after {
+  background: #13c2c2;
+}
+.trace-step--nested {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+.trace-step--nested.trace-row--selected {
+  background: #e6f0ff;
 }
 
 /* Payload blocks */
@@ -1794,8 +1863,7 @@ a.todo-item:focus-visible {
   font-size: 13px;
 }
 .trace-finding__type {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: #595959;
 }
 
@@ -1840,27 +1908,56 @@ a.todo-item:focus-visible {
   background: #f5f7fa;
   border-radius: 4px;
   margin-bottom: 12px;
-  overflow: hidden;
+  overflow: visible;
+  padding: 2px 12px;
 }
 .trace-overview__lane {
   position: relative;
-  height: 22px;
+  height: 28px;
   border-bottom: 1px solid #ececec;
 }
 .trace-overview__lane:last-child {
   border-bottom: none;
 }
+.trace-overview__hit {
+  position: absolute;
+  top: 0;
+  height: 28px;
+  min-width: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
+}
+.trace-overview__hit--gap {
+  z-index: 1;
+}
+.trace-overview__hit:hover .trace-overview__bar,
+.trace-overview__hit:focus-visible .trace-overview__bar {
+  opacity: 1;
+}
+.trace-overview__hit:focus-visible {
+  outline: 2px solid #0b6bb5;
+  outline-offset: 1px;
+  z-index: 2;
+}
+.trace-overview__hit--selected {
+  z-index: 2;
+}
+.trace-overview__hit--selected .trace-overview__bar {
+  box-shadow: 0 0 0 2px #0b6bb5;
+  opacity: 1;
+}
 .trace-overview__bar {
   position: absolute;
-  top: 3px;
+  top: 6px;
+  left: 0;
   height: 16px;
   border-radius: 3px;
   min-width: 2px;
   opacity: 0.85;
-  transition: opacity 0.15s;
-}
-.trace-overview__bar:hover {
-  opacity: 1;
+  pointer-events: none;
 }
 
 /* Collapsible tool/message header */
@@ -1871,7 +1968,8 @@ a.todo-item:focus-visible {
   width: 100%;
   background: none;
   border: none;
-  padding: 2px 0;
+  padding: 4px 6px;
+  min-height: 24px;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -1880,14 +1978,26 @@ a.todo-item:focus-visible {
 .trace-step__head--toggle:hover {
   background: #f5f7fa;
 }
+.trace-step__head--toggle:focus-visible {
+  outline: 2px solid #0b6bb5;
+  outline-offset: 1px;
+}
 
 .trace-step__chevron {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10px;
   color: #8c8c8c;
+  display: inline-flex;
+  align-items: center;
 }
 .trace-step__body {
   margin-top: 6px;
+}
+.trace-stage .trace-step__main {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
 }
 
 /* Rule governance: the editor's five zones and the table's derived cells. */

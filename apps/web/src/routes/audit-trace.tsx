@@ -7,6 +7,7 @@ import { getAgentRunTraces, getAuditCase } from "../api";
 import {
   agentRunStateLabels,
   agentRunStateTagColors,
+  findingTypeLabels,
   formatDuration,
   formatModelIdentity,
   getAgentRunState,
@@ -24,7 +25,6 @@ const liveStages = new Set([
   "RULE_ASSESSMENT",
   "SUBJECT_VERIFICATION",
   "AGENT_RUNNING",
-  "AWAITING_REVIEW",
 ]);
 
 const formatTime = (iso: string): string =>
@@ -118,6 +118,10 @@ export default function AuditTracePage({
   }
 
   const contractTitle = detail.snapshot.document.blocks[0]?.text ?? "未命名合同";
+  const selectedIsLive =
+    selected !== null &&
+    getAgentRunState(selected.run, detail.case.status, traces[0]?.run.id === selected.run.id) ===
+      "RUNNING";
 
   return (
     <div className="page">
@@ -133,14 +137,20 @@ export default function AuditTracePage({
           <h2>{contractTitle}</h2>
           <div className="case-status">
             <AuditStateBadge auditCase={detail.case} />
-            <Tag
-              color={
-                connection === "connected" ? "blue" : connection === "closed" ? "default" : "orange"
-              }
-              style={{ fontSize: 11 }}
-            >
-              {connection === "connected" ? "实时更新" : "未连接"}
-            </Tag>
+            {selectedIsLive ? (
+              <Tag
+                color={
+                  connection === "connected"
+                    ? "blue"
+                    : connection === "closed"
+                      ? "default"
+                      : "orange"
+                }
+                style={{ fontSize: 11 }}
+              >
+                {connection === "connected" ? "实时更新" : "未连接"}
+              </Tag>
+            ) : null}
           </div>
         </div>
         <div className="case-meta">
@@ -264,12 +274,6 @@ function RunTraceSection({
       extra={
         <span className="trace-card__meta">
           {steps.length} 步 · {duration ?? "-"}
-          {run.usage === null ? null : (
-            <>
-              {" · "}
-              <TokenUsage usage={run.usage} />
-            </>
-          )}
         </span>
       }
     >
@@ -277,7 +281,13 @@ function RunTraceSection({
         <Alert type="error" showIcon title="本次运行以失败结束" description={run.error} />
       )}
       <div className="trace-card__meta trace-card__meta--block">
-        运行 ID <b className="mono">{run.id}</b> · 开始于 {formatTime(run.createdAt)}
+        运行 ID <b className="mono">{shortAuditId(run.id)}</b> · 开始于 {formatTime(run.createdAt)}
+        {run.usage === null ? null : (
+          <>
+            {" · "}
+            <TokenUsage usage={run.usage} />
+          </>
+        )}
       </div>
       <AgentTraceTimeline steps={steps} defaultExpanded={defaultExpanded} />
       {findings.length > 0 ? (
@@ -296,7 +306,9 @@ function RunTraceSection({
               >
                 {finding.proposal.severity}
               </Tag>
-              <span className="trace-finding__type">{finding.proposal.findingType}</span>
+              <span className="trace-finding__type">
+                {findingTypeLabels[finding.proposal.findingType]}
+              </span>
               {finding.review !== null ? (
                 <Tag color={finding.review.decision === "ACCEPTED" ? "success" : "error"}>
                   {finding.review.decision === "ACCEPTED" ? "已采纳" : "已驳回"}

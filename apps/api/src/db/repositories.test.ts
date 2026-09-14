@@ -3,7 +3,6 @@ import type { FindingProposal, HumanReview } from "@contract-audit/audit/model";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
-import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
@@ -69,20 +68,26 @@ const seedSnapshot = (sourceRecordId: string) =>
     policyLimitRatio: 0.3,
   });
 
-/** A contract that names its parties, which the clause-only seed does not. */
-const PARTY_CONTRACT = [
-  "甲方：重庆华盛贸易有限公司",
-  "乙方：成都建工集团有限公司",
-  "乙方签订后支付合同金额的70%作为预付款。",
-].join("\n");
+/**
+ * Build a party-bearing contract with a unique 乙方 so findPriorPartyCases
+ * assertions stay hermetic against a shared DB that may already hold demo
+ * cases for 成都建工 / other catalogue names.
+ */
+const uniquePartyName = (): string => `测试相对方-${crypto.randomUUID().slice(0, 8)}有限公司`;
 
-const seedPartySnapshot = (sourceRecordId: string) =>
+const partyContract = (partyName: string) =>
+  [
+    "甲方：重庆华盛贸易有限公司",
+    `乙方：${partyName}`,
+    "乙方签订后支付合同金额的70%作为预付款。",
+  ].join("\n");
+
+const seedPartySnapshot = (sourceRecordId: string, partyName: string = uniquePartyName()) =>
   createAuditSnapshot({
     sourceRecordId,
-    document: normalizeContractDocument(PARTY_CONTRACT),
+    document: normalizeContractDocument(partyContract(partyName)),
     policyLimitRatio: 0.3,
   });
-
 const seedProposal: FindingProposal = {
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
   severity: "HIGH",
@@ -477,7 +482,11 @@ dbTest("round-trips a trace run with ordered steps", async (repository) => {
 
 dbTest("getRecentRuns lists runs with step counts and contract titles", async (repository) => {
   const sourceId = uniqueSourceRecordId();
-  const { caseId } = await repository.createPendingCase(sourceId, seedPartySnapshot(sourceId));
+  const partyName = "成都建工集团有限公司";
+  const { caseId } = await repository.createPendingCase(
+    sourceId,
+    seedPartySnapshot(sourceId, partyName),
+  );
 
   const runId = await repository.beginAgentRun({
     auditCaseId: caseId,
@@ -514,7 +523,7 @@ dbTest("getRecentRuns lists runs with step counts and contract titles", async (r
   // The row has to say who the contract is between, not just what it is called.
   expect(found?.parties).toEqual([
     { id: "party-1", label: "甲方", name: "重庆华盛贸易有限公司", evidenceId: "party-1-name" },
-    { id: "party-2", label: "乙方", name: "成都建工集团有限公司", evidenceId: "party-2-name" },
+    { id: "party-2", label: "乙方", name: partyName, evidenceId: "party-2-name" },
   ]);
 });
 
@@ -544,11 +553,12 @@ dbTest("a pasted source record carries no original", async (repository) => {
 });
 
 dbTest("finds reviewed findings on an earlier case for the same 乙方", async (repository) => {
+  const partyName = uniquePartyName();
   const olderId = uniqueSourceRecordId();
   const newerId = uniqueSourceRecordId();
   const { caseId: priorId } = await repository.createPendingCase(
     olderId,
-    seedPartySnapshot(olderId),
+    seedPartySnapshot(olderId, partyName),
     null,
     { createdAt: new Date("2026-06-01T00:00:00.000Z") },
   );
@@ -561,7 +571,7 @@ dbTest("finds reviewed findings on an earlier case for the same 乙方", async (
 
   const { caseId: currentId } = await repository.createPendingCase(
     newerId,
-    seedPartySnapshot(newerId),
+    seedPartySnapshot(newerId, partyName),
     null,
     { createdAt: new Date("2026-09-14T00:00:00.000Z") },
   );
@@ -569,24 +579,25 @@ dbTest("finds reviewed findings on an earlier case for the same 乙方", async (
   const prior = await repository.findPriorPartyCases({
     excludeCaseId: currentId,
     createdBefore: new Date(current?.createdAt ?? Date.now()),
-    partyNames: ["成都建工集团有限公司"],
+    partyNames: [partyName],
     creditCodes: [],
   });
 
   expect(prior).toHaveLength(1);
-  expect(prior[0]?.partyName).toBe("成都建工集团有限公司");
+  expect(prior[0]?.partyName).toBe(partyName);
   expect(prior[0]?.decision).toBe("ACCEPTED");
   expect(prior[0]?.reviewerId).toBe("张三");
   expect(prior[0]?.priorCaseId).toBe(priorId);
 });
 
 dbTest("does not join a later case or the current case itself", async (repository) => {
+  const partyName = uniquePartyName();
   const olderId = uniqueSourceRecordId();
   const currentIdSource = uniqueSourceRecordId();
   const laterId = uniqueSourceRecordId();
   const { caseId: priorId } = await repository.createPendingCase(
     olderId,
-    seedPartySnapshot(olderId),
+    seedPartySnapshot(olderId, partyName),
     null,
     { createdAt: new Date("2026-06-01T00:00:00.000Z") },
   );
@@ -599,7 +610,7 @@ dbTest("does not join a later case or the current case itself", async (repositor
 
   const { caseId: currentId } = await repository.createPendingCase(
     currentIdSource,
-    seedPartySnapshot(currentIdSource),
+    seedPartySnapshot(currentIdSource, partyName),
     null,
     { createdAt: new Date("2026-09-14T00:00:00.000Z") },
   );
@@ -612,7 +623,7 @@ dbTest("does not join a later case or the current case itself", async (repositor
 
   const { caseId: laterCaseId } = await repository.createPendingCase(
     laterId,
-    seedPartySnapshot(laterId),
+    seedPartySnapshot(laterId, partyName),
     null,
     { createdAt: new Date("2026-10-01T00:00:00.000Z") },
   );
@@ -626,7 +637,7 @@ dbTest("does not join a later case or the current case itself", async (repositor
   const prior = await repository.findPriorPartyCases({
     excludeCaseId: currentId,
     createdBefore: new Date("2026-09-14T00:00:00.000Z"),
-    partyNames: ["成都建工集团有限公司"],
+    partyNames: [partyName],
     creditCodes: [],
   });
   expect(prior.map((item) => item.priorCaseId)).toEqual([priorId]);
@@ -635,11 +646,13 @@ dbTest("does not join a later case or the current case itself", async (repositor
 dbTest(
   "matches an earlier case by unified social credit code when names differ",
   async (repository) => {
+    const olderParty = uniquePartyName();
+    const creditCode = `91${crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
     const olderId = uniqueSourceRecordId();
     const newerId = uniqueSourceRecordId();
     const { caseId: priorId } = await repository.createPendingCase(
       olderId,
-      seedPartySnapshot(olderId),
+      seedPartySnapshot(olderId, olderParty),
       null,
       { createdAt: new Date("2026-06-01T00:00:00.000Z") },
     );
@@ -649,16 +662,35 @@ dbTest(
       reviewerId: "张三",
       reviewedAt: "2026-06-14T08:00:00.000Z",
     });
-    const priorSnapshot = seedPartySnapshot(olderId);
+    const priorSnapshot = seedPartySnapshot(olderId, olderParty);
     const verification = await runSubjectVerification({
       parties: priorSnapshot.parties,
-      port: createFixtureSubjectVerificationPort(),
+      port: {
+        provider: "fixture",
+        tool: "get_company_risk_scan",
+        async verify() {
+          return {
+            status: "RESOLVED",
+            candidates: [],
+            matched: {
+              name: olderParty,
+              unifiedSocialCreditCode: creditCode,
+              registrationStatus: "存续",
+            },
+            dimensions: [],
+            summary: "fixture match",
+            capturedAt: new Date("2026-06-01T00:00:00.000Z").toISOString(),
+            expiresAt: new Date("2026-06-08T00:00:00.000Z").toISOString(),
+            failureReason: null,
+          };
+        },
+      },
     });
     await repository.saveSubjectVerifications(priorId, verification);
 
     const { caseId: currentId } = await repository.createPendingCase(
       newerId,
-      seedPartySnapshot(newerId),
+      seedPartySnapshot(newerId, "名称已变更的相对方"),
       null,
       { createdAt: new Date("2026-09-14T00:00:00.000Z") },
     );
@@ -666,7 +698,7 @@ dbTest(
       excludeCaseId: currentId,
       createdBefore: new Date("2026-09-14T00:00:00.000Z"),
       partyNames: ["名称已变更的相对方"],
-      creditCodes: ["91510100MA6C2W9H4K"],
+      creditCodes: [creditCode],
     });
     expect(prior).toHaveLength(1);
     expect(prior[0]?.priorCaseId).toBe(priorId);
@@ -676,6 +708,8 @@ dbTest(
 dbTest("deleteDemoSeededCases removes only rows tagged demoSeed", async (repository) => {
   const demoId = uniqueSourceRecordId();
   const keepId = uniqueSourceRecordId();
+  // A shared DB may already hold demo-seeded rows; assert relative deletion.
+  const alreadySeeded = (await repository.listDemoSeededCases()).length;
   await repository.createPendingCase(demoId, seedSnapshot(demoId), null, {
     metadata: { demoSeed: true, scenarioId: "x", caseKey: "k" },
   });
@@ -684,7 +718,7 @@ dbTest("deleteDemoSeededCases removes only rows tagged demoSeed", async (reposit
     displayName: null,
   });
 
-  expect(await repository.deleteDemoSeededCases()).toBe(1);
+  expect(await repository.deleteDemoSeededCases()).toBe(alreadySeeded + 1);
   expect(await repository.listDemoSeededCases()).toEqual([]);
   expect(await repository.getCase(keepCaseId)).not.toBeNull();
 });

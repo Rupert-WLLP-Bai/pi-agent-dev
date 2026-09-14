@@ -3,15 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { App as AntApp, Button, Card, Col, Row, Space, Statistic, Tag, Typography } from "antd";
 import { getDemoWorld, listRules, seedDemoWorld } from "../api";
+import { AuditStateBadge } from "../components/audit-state-badge";
 import { RULE_MATRIX_LIMIT, summarizeRules } from "../demo-presentation";
 import { ruleRuntimeLabels } from "../rule-presentation";
-
-const stageLabels: Record<string, string> = {
-  AWAITING_REVIEW: "待复核",
-  COMPLETED: "已完成",
-  QUEUED: "排队中",
-  FAILED: "失败",
-};
 
 function ScenarioCard({ scenario }: { scenario: SeededScenarioView }) {
   return (
@@ -42,7 +36,7 @@ function ScenarioCard({ scenario }: { scenario: SeededScenarioView }) {
                   <Typography.Text type="secondary">{item.summary}</Typography.Text>
                 </div>
               </div>
-              <Tag>{stageLabels[item.stage] ?? item.stage}</Tag>
+              <AuditStateBadge auditCase={item} />
             </div>
           ))}
         </Space>
