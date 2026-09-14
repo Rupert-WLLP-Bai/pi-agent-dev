@@ -15,3 +15,5 @@ playwright-report
 skills-lock.json
 # Uploaded contract originals, written at runtime by the API.
 apps/api/var/
+compose.override.yaml
+.superpowers/
