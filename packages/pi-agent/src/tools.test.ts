@@ -35,6 +35,7 @@ test("the submit tool accepts a proposal of every finding type", () => {
   const rejected = SUBMITTABLE_FINDING_TYPES.filter(
     (findingType) =>
       !Value.Check(submit.parameters, {
+        assessmentId: "assessment-payment",
         findingType,
         severity: "HIGH",
         rationale: "理由",
@@ -54,6 +55,7 @@ test("the submit tool rejects a finding type outside the domain", () => {
 
   expect(
     Value.Check(submit.parameters, {
+      assessmentId: "assessment-payment",
       findingType: "MADE_UP_RISK",
       severity: "HIGH",
       rationale: "理由",

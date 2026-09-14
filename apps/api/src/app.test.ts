@@ -83,6 +83,7 @@ test("records a review as an append-only revision", async () => {
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -112,6 +113,7 @@ test("records the X-Operator header as the reviewer", async () => {
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -141,6 +143,7 @@ test("rejects a second review of the same finding", async () => {
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -163,6 +166,7 @@ test("completes a rejected human review", async () => {
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -199,6 +203,7 @@ test("publishes completion only after the case reaches its terminal state", asyn
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -226,6 +231,7 @@ test("returns case detail with snapshot and findings", async () => {
   await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "Advance payment exceeds the policy limit",
@@ -282,6 +288,7 @@ test("returns 404 for an unknown case", async () => {
 });
 
 const proposal = (findingType: FindingProposal["findingType"]): FindingProposal => ({
+  assessmentId: "assessment-payment",
   findingType,
   severity: "HIGH" as const,
   rationale: "Advance payment exceeds the policy limit",
@@ -301,7 +308,7 @@ test("keeps a case awaiting review until every finding is reviewed", async () =>
     proposal("DISPUTE_JURISDICTION_CONFLICT"),
     null,
   );
-  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
 
   expect(
     (await app.handle(json("POST", `/api/findings/${first}/reviews`, { decision: "ACCEPTED" })))
@@ -325,7 +332,7 @@ test("keeps a case awaiting review until every finding is reviewed", async () =>
 test("lists a chain-head finding per awaiting-review case and filters by assignee", async () => {
   const { caseId } = await repository.createPendingCase("source-queue", snapshotStub());
   await repository.appendFindingRevision(caseId, proposal("ADVANCE_PAYMENT_POLICY_CONFLICT"), null);
-  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
 
   const queued = await app.handle(json("GET", "/api/reviews/queue"));
   expect(queued.status).toBe(200);
@@ -408,6 +415,7 @@ function snapshotStub(parties: ContractParty[] = []): AuditSnapshot {
 // ── Remediation Item routes ──────────────────────────────────────
 
 const remediationProposal: FindingProposal = {
+  assessmentId: "assessment-payment",
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
   severity: "HIGH",
   rationale: "Advance payment exceeds the policy limit",

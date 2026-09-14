@@ -19,10 +19,11 @@ const snapshot = () =>
 test("GET /api/stats/overview returns dashboard aggregates", async () => {
   const repository = new InMemoryAuditCaseRepository();
   const { caseId } = await repository.createPendingCase("source-stats", snapshot());
-  await repository.updateCaseStatus(caseId, "COMPLETED", "AWAITING_REVIEW");
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
   const findingId = await repository.appendFindingRevision(
     caseId,
     {
+      assessmentId: "assessment-payment",
       findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
       severity: "HIGH",
       rationale: "超限",

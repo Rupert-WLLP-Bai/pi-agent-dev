@@ -147,10 +147,14 @@ export function createAuditTools(
         rationale: Type.String(),
         evidenceIds: Type.Array(Type.String()),
         remediation: Type.String(),
+        assessmentId: Type.String({
+          description: "The Rule Assessment id that justifies this proposal.",
+        }),
       }),
       execute: async (_toolCallId, params) => {
         params.evidenceIds.forEach(findEvidence);
         const proposal: FindingProposal = {
+          assessmentId: params.assessmentId,
           findingType: params.findingType,
           severity: params.severity,
           rationale: params.rationale,

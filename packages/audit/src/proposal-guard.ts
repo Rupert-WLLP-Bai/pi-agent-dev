@@ -211,8 +211,16 @@ export function assertProposalLegal(
   proposal: FindingProposal,
   assessments: readonly RuleAssessment[],
 ): void {
-  const { findingType, severity } = proposal;
+  const { findingType, severity, assessmentId } = proposal;
+  const cited = assessments.find((item) => item.id === assessmentId);
+  if (!cited) {
+    throw new ProposalGuardError(`找不到评估 id「${assessmentId}」，不能提交。`);
+  }
   const label = getFindingTypeLabel(findingType);
+  const contractForAssessment = ruleContractFor(cited.ruleCode);
+  if (!contractForAssessment) {
+    throw new ProposalGuardError(`规则 ${cited.ruleCode} 没有提交契约，不能引用其评估。`);
+  }
   const candidates = RULE_FINDING_CONTRACTS.filter(
     (contract) =>
       contract.policyConflict?.findingType === findingType ||
@@ -230,7 +238,8 @@ export function assertProposalLegal(
   let sawCompliant = false;
 
   for (const contract of candidates) {
-    const assessment = assessments.find((item) => item.ruleCode === contract.ruleCode);
+    if (contract.ruleCode !== cited.ruleCode) continue;
+    const assessment = cited;
     if (!assessment) continue;
 
     if (assessment.disposition === "POLICY_CONFLICT") {

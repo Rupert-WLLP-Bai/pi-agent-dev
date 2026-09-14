@@ -89,6 +89,7 @@ const seedPartySnapshot = (sourceRecordId: string, partyName: string = uniquePar
     policyLimitRatio: 0.3,
   });
 const seedProposal: FindingProposal = {
+  assessmentId: "assessment-payment",
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
   severity: "HIGH",
   rationale: "Advance payment exceeds the policy limit",
@@ -324,7 +325,8 @@ dbTest("appends a snapshot generation and reads the newest back", async (reposit
   // Claiming hands the runner the newest snapshot's row, not the original.
   const claimed = await repository.claimCase(caseId);
   if (claimed === null) throw new Error("expected the pending case to be claimable");
-  const claimedSnapshot = await repository.getSnapshot(claimed.snapshotId);
+  expect(claimed.snapshotId).not.toBeNull();
+  const claimedSnapshot = await repository.getSnapshot(claimed.snapshotId!);
   expect(claimedSnapshot?.facts).toEqual(rebuilt.facts);
 });
 

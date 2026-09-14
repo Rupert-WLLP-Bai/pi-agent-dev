@@ -6,6 +6,7 @@ import { AuditDispatcher } from "./dispatcher";
 import {
   ControlledAgent,
   InMemoryAuditCaseRepository,
+  InMemoryRuleRepository,
   RecordingEventBroker,
 } from "./testing/fakes";
 
@@ -48,6 +49,7 @@ const party = (id: string, name: string): ContractParty => ({
 });
 
 const proposal: FindingProposal = {
+  assessmentId: "assessment-payment",
   findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
   severity: "HIGH",
   rationale: "Advance payment exceeds the policy limit",
@@ -65,12 +67,14 @@ const drainAsync = async (): Promise<void> => {
 };
 
 let repository: InMemoryAuditCaseRepository;
+let rules: InMemoryRuleRepository;
 let agent: ControlledAgent;
 let broker: RecordingEventBroker;
 let dispatcher: AuditDispatcher;
 
 beforeEach(async () => {
   repository = new InMemoryAuditCaseRepository();
+  rules = new InMemoryRuleRepository();
   agent = new ControlledAgent();
   broker = new RecordingEventBroker();
   dispatcher = new AuditDispatcher(
@@ -79,6 +83,8 @@ beforeEach(async () => {
     broker.asBroker(),
     1,
     createFixtureSubjectVerificationPort(),
+    0,
+    rules.asRepository(),
   );
   await dispatcher.start();
 });
@@ -136,6 +142,8 @@ test("two dispatchers sharing a repository run the same case only once", async (
     otherBroker.asBroker(),
     1,
     createFixtureSubjectVerificationPort(),
+    0,
+    rules.asRepository(),
   );
   await otherDispatcher.start();
 
@@ -183,7 +191,7 @@ test("completes the audit for the enqueued case and records the run", async () =
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const auditCase = await repository.getCase(caseId);
-  expect(auditCase).toMatchObject({ status: "COMPLETED", stage: "AWAITING_REVIEW" });
+  expect(auditCase).toMatchObject({ status: "AWAITING_REVIEW", stage: "AWAITING_REVIEW" });
   expect(repository.recordedRuns).toHaveLength(1);
   expect(repository.recordedRuns[0]).toMatchObject({
     auditCaseId: caseId,
@@ -222,16 +230,15 @@ test("hands the agent a context that includes the subject verification evidence"
     snapshotFor("source-a", [party("party-1", "深圳精工科技有限公司")]),
   );
   await dispatcher.enqueue(caseId);
-
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await drainAsync();
   agent.resolveRun([proposal]);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await drainAsync();
 
-  const context = agent.receivedSnapshots[0];
-  expect(context.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(
+  const context = agent.receivedSnapshots.at(-1);
+  expect(context?.evidence.some((locator) => locator.location.kind === "EXTERNAL_RECORD")).toBe(
     true,
   );
-  expect(context.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(
+  expect(context?.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK")).toBe(
     true,
   );
 });
@@ -260,20 +267,21 @@ test("hands the agent prior-case evidence when the same counterparty was reviewe
     { createdAt: new Date("2026-09-14T00:00:00.000Z") },
   );
   await dispatcher.enqueue(caseId);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await drainAsync();
   agent.resolveRun([proposal]);
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await drainAsync();
 
-  const context = agent.receivedSnapshots[0];
+  const context = agent.receivedSnapshots.at(-1);
   expect(
-    context.ruleAssessments.some(
+    context?.ruleAssessments.some(
       (item) =>
         item.ruleCode === "PARTY_HISTORY_ASSOCIATION" && item.disposition === "POLICY_CONFLICT",
     ),
   ).toBe(true);
-  expect(context.evidence.some((locator) => locator.location.kind === "PRIOR_CASE_RECORD")).toBe(
+  expect(context?.evidence.some((locator) => locator.location.kind === "PRIOR_CASE_RECORD")).toBe(
     true,
   );
+  expect(context).toBeDefined();
 });
 
 test("records an unavailable subject verification without failing the case", async () => {
@@ -287,6 +295,8 @@ test("records an unavailable subject verification without failing the case", asy
     broker2.asBroker(),
     1,
     createFixtureSubjectVerificationPort({ unavailable: [disputed] }),
+    0,
+    new InMemoryRuleRepository().asRepository(),
   );
   await dispatcher2.start();
   const { caseId } = await repository2.createPendingCase(
@@ -300,7 +310,7 @@ test("records an unavailable subject verification without failing the case", asy
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   expect(await repository2.getCase(caseId)).toMatchObject({
-    status: "COMPLETED",
+    status: "AWAITING_REVIEW",
     stage: "AWAITING_REVIEW",
   });
   const { verifications } = await repository2.getSubjectDimension(caseId);
@@ -402,6 +412,8 @@ test("marks stale RUNNING cases interrupted and claims pending cases on start", 
     broker2.asBroker(),
     1,
     createFixtureSubjectVerificationPort(),
+    0,
+    new InMemoryRuleRepository().asRepository(),
   );
   await dispatcher2.start();
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -425,6 +437,7 @@ test("times out a stalled agent run and marks the case FAILED", async () => {
     1,
     createFixtureSubjectVerificationPort(),
     50, // 50 ms deadline
+    new InMemoryRuleRepository().asRepository(),
   );
   await timeoutDispatcher.start();
   await timeoutDispatcher.enqueue(caseId);
@@ -447,6 +460,10 @@ test("skips subject verification when SUBJECT_RED_LINE_RISK is not enabled", asy
   const repo = new InMemoryAuditCaseRepository();
   const disabledAgent = new ControlledAgent();
   const disabledBroker = new RecordingEventBroker();
+  const disabledRules = {
+    listEnabledCodes: async () => ["ADVANCE_PAYMENT_LIMIT"],
+    getPublishedVersions: async () => new Map(),
+  } as unknown as import("./db/rule-repository").RuleRepository;
   const disabledDispatcher = new AuditDispatcher(
     repo.asRepository(),
     () => disabledAgent,
@@ -454,7 +471,7 @@ test("skips subject verification when SUBJECT_RED_LINE_RISK is not enabled", asy
     1,
     createFixtureSubjectVerificationPort(),
     0,
-    { listEnabledCodes: async () => ["ADVANCE_PAYMENT_LIMIT"] },
+    disabledRules,
   );
   await disabledDispatcher.start();
   const originalSnapshot = snapshotFor("source-disabled", [
@@ -483,7 +500,7 @@ test("skips subject verification when SUBJECT_RED_LINE_RISK is not enabled", asy
   );
   expect((await repo.getSubjectDimension(caseId)).verifications).toHaveLength(0);
   expect(await repo.getCase(caseId)).toMatchObject({
-    status: "COMPLETED",
+    status: "AWAITING_REVIEW",
     stage: "AWAITING_REVIEW",
   });
 });

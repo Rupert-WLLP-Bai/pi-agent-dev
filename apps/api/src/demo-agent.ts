@@ -223,6 +223,7 @@ export function demoProposalsFor(snapshot: AuditSnapshot): FindingProposal[] {
     const assessment = assessmentBy(snapshot, entry.ruleCode);
     if (assessment?.disposition === "POLICY_CONFLICT") {
       proposals.push({
+        assessmentId: assessment.id,
         findingType: entry.findingType,
         severity: entry.severity,
         rationale: entry.rationale || assessment.basis,
@@ -236,6 +237,7 @@ export function demoProposalsFor(snapshot: AuditSnapshot): FindingProposal[] {
     const assessment = assessmentBy(snapshot, entry.ruleCode);
     if (assessment?.disposition === "NEEDS_HUMAN_REVIEW") {
       proposals.push({
+        assessmentId: assessment.id,
         findingType: entry.findingType,
         severity: entry.severity,
         rationale: assessment.basis,
@@ -248,6 +250,7 @@ export function demoProposalsFor(snapshot: AuditSnapshot): FindingProposal[] {
   const subject = assessmentBy(snapshot, "SUBJECT_RED_LINE_RISK");
   if (subject?.disposition === "NEEDS_HUMAN_REVIEW") {
     proposals.push({
+      assessmentId: subject.id,
       findingType: "NEEDS_HUMAN_REVIEW",
       severity: "MEDIUM",
       rationale: subject.basis,

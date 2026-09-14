@@ -13,6 +13,7 @@ test("creates and disposes a Pi session under Bun", async () => {
 
 test("rejects a proposal with an unknown evidence locator", async () => {
   const proposal: FindingProposal = {
+    assessmentId: "assessment-subject",
     findingType: "NEEDS_HUMAN_REVIEW",
     severity: "HIGH",
     rationale: "Insufficient evidence",
@@ -37,6 +38,7 @@ test("rejects a proposal with an unknown evidence locator", async () => {
 
 test("reports its identity and the proposals it produced", async () => {
   const proposal: FindingProposal = {
+    assessmentId: "assessment-payment",
     findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
     severity: "HIGH",
     rationale: "Advance payment exceeds the policy limit",
@@ -84,6 +86,7 @@ test("reports its identity and the proposals it produced", async () => {
 
 test("a needs-review case reads the contract once instead of surveying it", async () => {
   const proposal: FindingProposal = {
+    assessmentId: "assessment-penalty",
     findingType: "PENALTY_CLAUSE_MISSING",
     severity: "MEDIUM",
     rationale: "未读到违约金条款",

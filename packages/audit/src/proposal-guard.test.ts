@@ -22,8 +22,10 @@ function assessment(ruleCode: RuleCode, disposition: RuleDisposition): RuleAsses
 function proposal(
   findingType: FindingProposal["findingType"],
   severity: FindingProposal["severity"],
+  assessmentId: string,
 ): FindingProposal {
   return {
+    assessmentId,
     findingType,
     severity,
     rationale: "理由",
@@ -45,10 +47,16 @@ test("the contract table covers every rule code", () => {
 test("a settled conflict accepts exactly its locked severity", () => {
   const assessments = [assessment("ADVANCE_PAYMENT_LIMIT", "POLICY_CONFLICT")];
   expect(() =>
-    assertProposalLegal(proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "HIGH"), assessments),
+    assertProposalLegal(
+      proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "HIGH", "assessment-ADVANCE_PAYMENT_LIMIT"),
+      assessments,
+    ),
   ).not.toThrow();
   expect(() =>
-    assertProposalLegal(proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "MEDIUM"), assessments),
+    assertProposalLegal(
+      proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "MEDIUM", "assessment-ADVANCE_PAYMENT_LIMIT"),
+      assessments,
+    ),
   ).toThrow(ProposalGuardError);
 });
 
@@ -56,7 +64,10 @@ test("a proposal against a compliant dimension is rejected, not crashed", () => 
   const assessments = [assessment("ADVANCE_PAYMENT_LIMIT", "COMPLIANT")];
   let error: unknown;
   try {
-    assertProposalLegal(proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "HIGH"), assessments);
+    assertProposalLegal(
+      proposal("ADVANCE_PAYMENT_POLICY_CONFLICT", "HIGH", "assessment-ADVANCE_PAYMENT_LIMIT"),
+      assessments,
+    );
   } catch (caught) {
     error = caught;
   }
@@ -68,14 +79,23 @@ test("a needs-review dimension accepts severities inside the preset range inclus
   const assessments = [assessment("PERFORMANCE_BOND_RATIO_LIMIT", "NEEDS_HUMAN_REVIEW")];
   // The table opens LOW..MEDIUM for this rule; both bounds are legal.
   expect(() =>
-    assertProposalLegal(proposal("NEEDS_HUMAN_REVIEW", "LOW"), assessments),
+    assertProposalLegal(
+      proposal("NEEDS_HUMAN_REVIEW", "LOW", "assessment-PERFORMANCE_BOND_RATIO_LIMIT"),
+      assessments,
+    ),
   ).not.toThrow();
   expect(() =>
-    assertProposalLegal(proposal("NEEDS_HUMAN_REVIEW", "MEDIUM"), assessments),
+    assertProposalLegal(
+      proposal("NEEDS_HUMAN_REVIEW", "MEDIUM", "assessment-PERFORMANCE_BOND_RATIO_LIMIT"),
+      assessments,
+    ),
   ).not.toThrow();
   let error: unknown;
   try {
-    assertProposalLegal(proposal("NEEDS_HUMAN_REVIEW", "HIGH"), assessments);
+    assertProposalLegal(
+      proposal("NEEDS_HUMAN_REVIEW", "HIGH", "assessment-PERFORMANCE_BOND_RATIO_LIMIT"),
+      assessments,
+    );
   } catch (caught) {
     error = caught;
   }
@@ -87,7 +107,11 @@ test("a finding type no rule names is rejected", () => {
   const assessments = [assessment("ADVANCE_PAYMENT_LIMIT", "POLICY_CONFLICT")];
   expect(() =>
     assertProposalLegal(
-      proposal("MADE_UP_RISK" as FindingProposal["findingType"], "HIGH"),
+      proposal(
+        "MADE_UP_RISK" as FindingProposal["findingType"],
+        "HIGH",
+        "assessment-ADVANCE_PAYMENT_LIMIT",
+      ),
       assessments,
     ),
   ).toThrow(ProposalGuardError);
@@ -98,6 +122,9 @@ test("a settled conflict is not legal for a finding its rule does not open", () 
   // conflict one, so a conflict assessment must not authorize it.
   const assessments = [assessment("PENALTY_RATIO_LIMIT", "POLICY_CONFLICT")];
   expect(() =>
-    assertProposalLegal(proposal("PENALTY_CLAUSE_MISSING", "MEDIUM"), assessments),
+    assertProposalLegal(
+      proposal("PENALTY_CLAUSE_MISSING", "MEDIUM", "assessment-PENALTY_RATIO_LIMIT"),
+      assessments,
+    ),
   ).toThrow(ProposalGuardError);
 });
