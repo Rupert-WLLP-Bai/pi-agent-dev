@@ -198,6 +198,9 @@ function readOrigin(search: unknown): unknown {
 function selectedKeys(pathname: string, origin?: unknown): string[] {
   if (pathname === "/" || pathname === "/dashboard") return ["/dashboard"];
   if (pathname === "/demo") return ["/demo"];
+  // A contract's detail page is the same section as the contract list: the nav
+  // must keep 合同中心 highlighted while a detail is open.
+  if (pathname === "/contracts" || pathname.startsWith("/contracts/")) return ["/contracts"];
   // A case's detail page and its trace page are both the queue section: the
   // nav must keep highlighting where the operator came from.
   if (pathname.startsWith("/audit-cases")) {
@@ -236,6 +239,16 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
   if (pathname === "/reviews") return "复核中心";
   if (pathname === "/remediations") return "整改跟踪";
   if (pathname === "/demo") return "演示概览";
+  if (pathname === "/contracts") return "合同中心";
+  if (pathname.startsWith("/contracts/")) {
+    return (
+      <>
+        <Link to="/contracts">合同中心</Link>
+        <span className="app-breadcrumb-sep">/</span>
+        合同详情
+      </>
+    );
+  }
   if (pathname === "/audit-runs") return "运行轨迹";
   if (pathname === "/rules") return "规则管理";
   if (pathname.startsWith("/rules/")) {
@@ -372,7 +385,7 @@ export function AppShell() {
           placement="left"
           open={menuOpen}
           onClose={() => setMenuOpen(false)}
-          width={260}
+          size={260}
           className="app-menu-drawer"
           styles={{ body: { padding: 0, background: "#ffffff" } }}
         >

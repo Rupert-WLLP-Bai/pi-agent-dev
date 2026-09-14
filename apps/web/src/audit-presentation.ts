@@ -97,27 +97,33 @@ export function getAuditStep(auditCase: AuditCase): number {
 }
 
 /** Chinese label for a rule, keyed by its stable code. */
-export const getRuleCodeLabel = (code: RuleCode): string =>
-  ({
-    ADVANCE_PAYMENT_LIMIT: "预付款上限规则",
-    SUBJECT_RED_LINE_RISK: "主体红线规则",
-    TERMINATION_CLAUSE_PRESENT: "终止条款规则",
-    PENALTY_RATIO_LIMIT: "违约金上限规则",
-    DISPUTE_JURISDICTION: "争议管辖规则",
-    PERFORMANCE_BOND_RATIO_LIMIT: "履约保证金比例规则",
-    PAYMENT_TERM_LIMIT: "付款期限规则",
-    BACK_TO_BACK_PAYMENT_CLAUSE: "背靠背付款条款规则",
-    DEPOSIT_RATIO_LIMIT: "定金比例规则",
-    WARRANTY_RETENTION_RATIO_LIMIT: "质量保证金比例规则",
-    DISPUTE_RESOLUTION_CONFLICT: "或裁或诉规则",
-    BID_BOND_RATIO_LIMIT: "投标保证金比例规则",
-    IP_OWNERSHIP_MISSING: "知识产权归属规则",
-    GUARANTEE_MODE_AMBIGUOUS: "保证方式规则",
-    CONFIDENTIALITY_PERIOD_MISSING: "保密期限规则",
-    FORCE_MAJEURE_OVERBROAD: "不可抗力范围规则",
-    LIABILITY_CAP_MISSING: "赔偿责任上限规则",
-    PARTY_HISTORY_ASSOCIATION: "相对方历史关联规则",
-  })[code];
+const ruleCodeLabels: Record<RuleCode, string> = {
+  ADVANCE_PAYMENT_LIMIT: "预付款上限规则",
+  SUBJECT_RED_LINE_RISK: "主体红线规则",
+  TERMINATION_CLAUSE_PRESENT: "终止条款规则",
+  PENALTY_RATIO_LIMIT: "违约金上限规则",
+  DISPUTE_JURISDICTION: "争议管辖规则",
+  PERFORMANCE_BOND_RATIO_LIMIT: "履约保证金比例规则",
+  PAYMENT_TERM_LIMIT: "付款期限规则",
+  BACK_TO_BACK_PAYMENT_CLAUSE: "背靠背付款条款规则",
+  DEPOSIT_RATIO_LIMIT: "定金比例规则",
+  WARRANTY_RETENTION_RATIO_LIMIT: "质量保证金比例规则",
+  DISPUTE_RESOLUTION_CONFLICT: "或裁或诉规则",
+  BID_BOND_RATIO_LIMIT: "投标保证金比例规则",
+  IP_OWNERSHIP_MISSING: "知识产权归属规则",
+  GUARANTEE_MODE_AMBIGUOUS: "保证方式规则",
+  CONFIDENTIALITY_PERIOD_MISSING: "保密期限规则",
+  FORCE_MAJEURE_OVERBROAD: "不可抗力范围规则",
+  LIABILITY_CAP_MISSING: "赔偿责任上限规则",
+  PARTY_HISTORY_ASSOCIATION: "相对方历史关联规则",
+};
+
+/**
+ * Chinese label for a rule code. A code the catalog does not know — a rule
+ * retired from the engine, or one added after this build — falls back to the
+ * raw code rather than rendering an empty cell.
+ */
+export const getRuleCodeLabel = (code: string): string => ruleCodeLabels[code as RuleCode] ?? code;
 
 export const getRuleDispositionLabel = (disposition: RuleDisposition): string =>
   ({

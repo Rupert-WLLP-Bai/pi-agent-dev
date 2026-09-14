@@ -367,7 +367,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 22px;
+  padding: 0 var(--page-gutter);
   background: #fff !important;
   border-bottom: 1px solid var(--color-border-soft);
   height: var(--header-height) !important;
@@ -1564,13 +1564,6 @@ a.todo-item:focus-visible {
 }
 
 /* ── Mobile ─────────────────────────────────── */
-
-@media (max-width: 1023px) {
-  .app-sider {
-    position: fixed;
-    z-index: 100;
-  }
-}
 
 @media (max-width: 767px) {
   .review-workspace {

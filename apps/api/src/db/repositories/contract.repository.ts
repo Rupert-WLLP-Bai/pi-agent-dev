@@ -1,4 +1,10 @@
-import type { Contract, ContractRevision, RuleCode } from "@contract-audit/audit/model";
+import type {
+  AuditCaseStatus,
+  AuditStage,
+  Contract,
+  ContractRevision,
+  RuleCode,
+} from "@contract-audit/audit/model";
 import {
   diffAdjacentRevisionFindings,
   type RevisionFindingDiff,
@@ -20,7 +26,8 @@ export interface ContractListItem {
 export interface ContractRevisionView {
   revision: ContractRevision;
   auditCaseId: string | null;
-  caseStatus: string | null;
+  caseStatus: AuditCaseStatus | null;
+  caseStage: AuditStage | null;
   findingPins: RevisionFindingPin[];
 }
 
@@ -142,13 +149,17 @@ export class ContractRepository {
             .select({
               id: auditCases.id,
               status: auditCases.status,
+              stage: auditCases.stage,
               contractRevisionId: auditCases.contractRevisionId,
             })
             .from(auditCases)
             .where(inArray(auditCases.contractRevisionId, revisionIds));
 
     const caseByRevision = new Map(
-      caseRows.map((row) => [row.contractRevisionId ?? "", { id: row.id, status: row.status }]),
+      caseRows.map((row) => [
+        row.contractRevisionId ?? "",
+        { id: row.id, status: row.status, stage: row.stage },
+      ]),
     );
 
     const revisions: ContractRevisionView[] = [];
@@ -159,6 +170,7 @@ export class ContractRepository {
         revision: toRevision(row),
         auditCaseId: linked?.id ?? null,
         caseStatus: linked?.status ?? null,
+        caseStage: linked?.stage ?? null,
         findingPins,
       });
     }

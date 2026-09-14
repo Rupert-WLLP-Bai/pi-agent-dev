@@ -9,6 +9,7 @@ import {
   filterAndSortCases,
   getAuditDisplayState,
   getAvailableCaseActions,
+  getRuleCodeLabel,
   groupAssessmentsByDisposition,
   visibleFindings,
 } from "./audit-presentation";
@@ -156,4 +157,12 @@ test("file-upload provenance names object storage vs local disk", () => {
     primary: "文本粘贴",
     secondary: null,
   });
+});
+
+test("rule codes map to labels and an unknown code falls back to itself", () => {
+  // A known code keeps its Chinese label; a code the catalog does not know — a
+  // retired rule or one added after this build — stays visible as raw text
+  // instead of rendering an empty cell.
+  expect(getRuleCodeLabel("ADVANCE_PAYMENT_LIMIT")).toBe("预付款上限规则");
+  expect(getRuleCodeLabel("UNKNOWN_RULE")).toBe("UNKNOWN_RULE");
 });

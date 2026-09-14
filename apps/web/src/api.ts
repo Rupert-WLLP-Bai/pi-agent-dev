@@ -65,54 +65,22 @@ export interface CreateAuditCaseInput {
   contractId?: string;
 }
 
-export interface ContractListItem {
-  id: string;
-  title: string;
-  createdAt: string;
-  revisionCount: number;
-  latestVersion: number | null;
-}
-
-export interface ContractDetailView {
-  contract: { id: string; title: string; createdAt: string };
-  revisions: Array<{
-    revision: {
-      id: string;
-      contractId: string;
-      version: number;
-      sourceRecordId: string;
-      label: string | null;
-      createdAt: string;
-    };
-    auditCaseId: string | null;
-    caseStatus: string | null;
-    findingPins: Array<{
-      ruleCode: string;
-      findingType: string;
-      severity: string;
-    }>;
-  }>;
-  diffs: Array<{
-    fromVersion: number;
-    toVersion: number;
-    diff: {
-      introduced: ContractDetailView["revisions"][number]["findingPins"];
-      resolved: ContractDetailView["revisions"][number]["findingPins"];
-      persisting: ContractDetailView["revisions"][number]["findingPins"];
-    };
-  }>;
-}
-
-export async function listContracts(): Promise<ContractListItem[]> {
+export async function listContracts() {
   const { data, error } = await api.api.contracts.get();
   if (error) throw new ApiRequestError("加载合同列表失败", error.status);
-  return data as ContractListItem[];
+  // An absent body on a 2xx is a server fault, not an empty list: surface it
+  // rather than letting a missing value read as "no contracts".
+  if (!data) throw new ApiRequestError("加载合同列表失败", 500);
+  return data;
 }
 
-export async function getContract(id: string): Promise<ContractDetailView> {
+export async function getContract(id: string) {
   const { data, error } = await api.api.contracts({ id }).get();
   if (error) throw new ApiRequestError("加载合同详情失败", error.status);
-  return data as ContractDetailView;
+  // The detail endpoint declares a 404 body, so a not-found can arrive as data
+  // carrying `error` instead of a thrown error; both must read as a 404.
+  if (!data || "error" in data) throw new ApiRequestError("加载合同详情失败", 404);
+  return data;
 }
 
 export async function createAuditCase({
