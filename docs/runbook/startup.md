@@ -14,12 +14,12 @@
 ```bash
 cp .env.example .env          # 首次；本机已配好，见下
 bun install                   # 安装依赖（workspaces）
-docker compose up -d postgres minio redis   # 本地基础设施：PostgreSQL + MinIO + Redis
+docker compose up -d postgres rustfs redis rustfs-init   # 本地基础设施：PostgreSQL + RustFS + Redis
 cd apps/api && bun run migrate && cd ../..   # 应用迁移（13 张表）
 bunx playwright install       # 首次安装浏览器
 ```
 
-MinIO 与 Redis 都是可选的：`S3_ENDPOINT` / `REDIS_URL` 留空时原文落本地目录、核验不缓存，
+RustFS 与 Redis 都是可选的：`S3_ENDPOINT` / `REDIS_URL` 留空时原文落本地目录、核验不缓存，
 本地开发照常可用（见下表）。
 
 `.env` 关键变量（`git` 忽略，不入库）：
@@ -32,9 +32,10 @@ MinIO 与 Redis 都是可选的：`S3_ENDPOINT` / `REDIS_URL` 留空时原文落
 | `AGENT_TIMEOUT_MS` | `900000` | 单次 Agent 运行上限，`0` 表示不超时。实测无竞争时一次完整审计约 62 秒（约 20 次工具调用），所以 900000 只是上限；超时会记为失败的 Agent 运行且不会自动续跑，接口较慢时不要调低 |
 | `SUBJECT_VERIFICATION_MODE` | `fixture`（默认）| `qcc` 走企查查 MCP |
 | `MAX_CONCURRENT_AUDITS` | `1` | 并发审计数 |
-| `S3_ENDPOINT` | 空（默认）| 未配置时合同原文写本地 `UPLOAD_DIR`；这是正常的本地状态 |
+| `S3_ENDPOINT` | `http://localhost:9000` | 启用本机 RustFS；原文写入 `contract-originals` |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | `contract_audit` / `contract_audit` | 仅限本机 RustFS 开发凭据 |
 | `S3_BUCKET` / `S3_REGION` | `contract-originals` / `us-east-1` | 对象存储桶与区域默认值 |
-| `UPLOAD_DIR` | `var/uploads` | 对象存储未配置时的本地回退目录 |
+| `UPLOAD_DIR` | `var/uploads` | RustFS 未配置或上传失败时的本地回退目录 |
 | `REDIS_URL` | 空（默认）| 未配置即关闭企查查核验缓存，这是正常的本地状态 |
 
 LLM 也可以在「模型服务」页（`/settings/providers`，侧边栏「系统管理」）配置：新增
@@ -48,7 +49,7 @@ provider 会把 key 持久化到 PostgreSQL `llm_providers` 表；无论哪条�
 ### 开发（基础设施在容器，应用在宿主）
 
 ```bash
-docker compose up -d postgres minio redis   # 基础设施
+docker compose up -d postgres rustfs redis rustfs-init   # 基础设施
 # 终端 1 — API（读取根目录 .env）
 bun --filter @contract-audit/api dev
 # 终端 2 — Web（Vite，/api 代理到 3000）
@@ -71,7 +72,7 @@ docker compose up --build
 | 服务 | 端口 |
 |---|---|
 | postgres | 5432 |
-| minio | 9000（S3 API）/ 9001（控制台）|
+| rustfs | 9000（S3 API）/ 9001（控制台）|
 | redis | 6379 |
 | api | 3000 |
 | web | 8080 |
@@ -183,5 +184,5 @@ bun --filter @contract-audit/pi-agent run smoke
 
 - 前台两条命令：各自 `Ctrl-C`。
 - 后台/托管进程：结束 `bun --filter @contract-audit` 相关进程。
-- 本地基础设施：`docker compose stop postgres minio redis`（保留数据）；
+- 本地基础设施：`docker compose stop postgres rustfs redis`（保留数据）；
   `docker compose down`（移除容器，保留卷）。

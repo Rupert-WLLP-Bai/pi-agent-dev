@@ -20,7 +20,7 @@
                     └──┬───────────┬────────────┬─────────────────┘
                        │           │            │
               ┌────────▼──┐  ┌─────▼─────┐  ┌───▼──────────────┐
-              │PostgreSQL │  │ MinIO/S3  │  │ Redis（可选缓存）  │
+              │PostgreSQL │  │ RustFS/S3 │  │ Redis（可选缓存）  │
               │ 留痕/快照 │  │ 合同原文   │  │ 企查查核验结果     │
               └───────────┘  └─────┬─────┘  └──────────────────┘
                                    │ S3_ENDPOINT 未配置 → 本机 UPLOAD_DIR
@@ -33,7 +33,7 @@
 **development**（本地基础设施在容器里，应用在宿主上跑，改代码即时热更新）：
 
 ```bash
-docker compose up -d postgres minio redis
+docker compose up -d postgres rustfs redis rustfs-init
 bun --filter @contract-audit/api dev    # 宿主原生 API，:3000
 bun --filter @contract-audit/web dev    # Vite :5173，将 /api 代理到 :3000
 ```
@@ -51,7 +51,7 @@ docker compose exec api bun run seed:demo   # 演示种子不自动执行，需�
 | 服务 | 端口 |
 | --- | --- |
 | postgres | 5432 |
-| minio | 9000（S3 API）/ 9001（控制台）|
+| rustfs | 9000（S3 API）/ 9001（控制台）|
 | redis | 6379 |
 | api | 3000 |
 | web | 8080 |
@@ -68,10 +68,10 @@ API 容器启动时自动应用迁移。`AUDIT_AGENT_MODE` 在容器中默认为
 | Core | TypeScript | Contract Document、Facts、Rule Assessment、编排端口 |
 | Agent | `@earendil-works/pi-coding-agent@0.85.1` | 一个内存 Session 对应一个 Agent Run |
 | Data | PostgreSQL, Drizzle | 审计快照、运行记录、Finding revisions、规则参数、LLM provider |
-| Object storage | MinIO（S3 API）| 合同原文；未配置时回退本地目录 |
+| Object storage | RustFS（S3 API）| 合同原文；未配置时回退本地目录 |
 | Cache | Redis | 仅企查查主体核验结果（7 天 TTL）|
 | LLM providers | OpenAI-compatible | 运行时可配置的模型服务（`/settings/providers`）|
-| Dev infrastructure | Docker Compose | 开发启动 PostgreSQL + MinIO + Redis；演示启动整套栈 |
+| Dev infrastructure | Docker Compose | 开发启动 PostgreSQL + RustFS + Redis；演示启动整套栈 |
 | Later adapter | MinerU Python service | 将 PDF/OCR 输出转换为 Contract Document |
 
 Pi 的官方 SDK 允许嵌入应用、注册自定义 Tool、订阅 Session 事件以及使用内存 Session。本系统依赖这些能力，但不持久化 Pi transcript 或原始 runtime events。[Pi SDK](https://pi.dev/docs/latest/sdk)
@@ -80,7 +80,7 @@ Pi 的官方 SDK 允许嵌入应用、注册自定义 Tool、订阅 Session 事�
 
 ```text
 Text paste / `.docx` / `.pdf` upload
-  -> Original store (S3/MinIO, else UPLOAD_DIR) + SourceRecord locator
+  -> Original store (S3/RustFS, else UPLOAD_DIR) + SourceRecord locator
   -> Document parser (plain text / docx / pdf)
   -> Contract Document IR + SourceRecord
   -> Fact Builder
@@ -109,7 +109,7 @@ Implements the audit-agent port with Pi. It loads the `payment-terms-audit` Skil
 
 ### `apps/api`
 
-Owns Elysia routes, Drizzle schema/migrations, PostgreSQL repositories, the in-process dispatcher, active-session registry, SSE mapping, the original-store adapter (S3/MinIO with a local fallback), the QCC verification cache, LLM-provider resolution, and dependency composition. It translates Pi events into stable product events without exposing Pi event names or payloads.
+Owns Elysia routes, Drizzle schema/migrations, PostgreSQL repositories, the in-process dispatcher, active-session registry, SSE mapping, the original-store adapter (S3/RustFS with a local fallback), the QCC verification cache, LLM-provider resolution, and dependency composition. It translates Pi events into stable product events without exposing Pi event names or payloads.
 
 ### `apps/web`
 
@@ -142,7 +142,7 @@ JSONB is used inside snapshots for bounded document, Fact and policy payloads. T
 
 ### Object storage (contract originals)
 
-S3/MinIO is the primary store for uploaded contract originals. When `S3_ENDPOINT` is unset — or a Put fails — the adapter degrades to the `UPLOAD_DIR` local directory. The locator prefix on each Source Record records which backend wrote the row: `s3://bucket/key` for the object store, a filesystem path for the local directory. The same degradation path drives the health line: an unconfigured store reports the local directory with `ok: true` rather than failing.
+S3/RustFS is the primary store for uploaded contract originals. When `S3_ENDPOINT` is unset — or a Put fails — the adapter degrades to the `UPLOAD_DIR` local directory. The locator prefix on each Source Record records which backend wrote the row: `s3://bucket/key` for the object store, a filesystem path for the local directory. The same degradation path drives the health line: an unconfigured store reports the local directory with `ok: true` rather than failing.
 
 ### Redis (Qichacha verification cache only)
 

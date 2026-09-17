@@ -15,35 +15,40 @@ services:
       timeout: 3s
       retries: 5
 
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
+  rustfs:
+    image: rustfs/rustfs:1.0.0
+    command: ["/data"]
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      RUSTFS_ACCESS_KEY: contract_audit
+      RUSTFS_SECRET_KEY: contract_audit
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      - rustfs-data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 5s
       timeout: 3s
       retries: 5
 
-  # One-shot: create the originals bucket, then exit. The api container treats
-  # the bucket as existing, so this must finish before it is useful.
-  # minio/mc is a scratch image (ENTRYPOINT ["mc"], no shell), so commands run
-  # as mc arguments; MC_HOST_local defines the alias without a config file.
-  minio-init:
-    image: minio/mc
+  # One-shot: create the originals bucket, then exit. `aws s3api create-bucket`
+  # returns success when the configured account already owns the bucket, so it
+  # is safe to rerun after a local stack restart.
+  rustfs-init:
+    image: amazon/aws-cli:latest
     depends_on:
-      minio:
+      rustfs:
         condition: service_healthy
     environment:
-      MC_HOST_local: http://minioadmin:minioadmin@minio:9000
-    command: ["mb", "--ignore-existing", "local/contract-originals"]
+      AWS_ACCESS_KEY_ID: contract_audit
+      AWS_SECRET_ACCESS_KEY: contract_audit
+      AWS_DEFAULT_REGION: us-east-1
+    command:
+      ["--endpoint-url", "http://rustfs:9000", "s3api", "create-bucket", "--bucket", "contract-originals"]
 
   redis:
     image: redis:7-alpine
@@ -67,9 +72,9 @@ services:
       WEB_ORIGIN: http://localhost:8080
       AUDIT_AGENT_MODE: ${AUDIT_AGENT_MODE:-fake}
       REDIS_URL: redis://redis:6379
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: minioadmin
-      S3_SECRET_KEY: minioadmin
+      S3_ENDPOINT: http://rustfs:9000
+      S3_ACCESS_KEY: contract_audit
+      S3_SECRET_KEY: contract_audit
       S3_BUCKET: contract-originals
       S3_REGION: us-east-1
       SUBJECT_VERIFICATION_MODE: ${SUBJECT_VERIFICATION_MODE:-fixture}
@@ -109,5 +114,5 @@ services:
 
 volumes:
   pgdata:
-  minio-data:
+  rustfs-data:
   redis-data:

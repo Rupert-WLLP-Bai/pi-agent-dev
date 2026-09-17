@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、MinIO 合同原文对象存储、Redis 主体核验缓存、模型服务管理、React 工作台与 Playwright 验收流程均已实现并在 `main` 上落地。审计工作台（审计队列指挥中心与 decision-first 复核工作台）、规则治理（参数版本化、发布前案例验证、运行时启停）、复核中心（SLA 队列与批量转交）与整改跟踪也已上线。
+审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、RustFS 合同原文对象存储、Redis 主体核验缓存、模型服务管理、React 工作台与 Playwright 验收流程均已实现并在 `main` 上落地。审计工作台（审计队列指挥中心与 decision-first 复核工作台）、规则治理（参数版本化、发布前案例验证、运行时启停）、复核中心（SLA 队列与批量转交）与整改跟踪也已上线。
 
 领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md) 和 [modern workbench plan](./docs/superpowers/plans/2026-09-11-modern-audit-workbench.md)。
 
@@ -15,7 +15,7 @@
 | 组件 | 用途 |
 | --- | --- |
 | PostgreSQL | 审计快照、Facts、运行记录、Finding revisions、规则参数与留痕 |
-| MinIO（S3 兼容对象存储）| 合同原文（contract originals），可回退本地目录 |
+| RustFS（S3 兼容对象存储）| 合同原文（contract originals），可回退本地目录 |
 | Redis | 企查查主体核验结果的 7 天 TTL 缓存，key 为 `qcc:v1:{normalizedSubject}` |
 | Elysia API | REST / SSE / OpenAPI，进程内审计调度器 |
 | React 工作台 | Vite 单页应用 |
@@ -25,7 +25,7 @@
 
 ## 能力边界
 
-包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现是视觉模型识别：`pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型，`OCR_VLM_ENDPOINT` 未配置时整体降级为关闭；MinerU 是留给其他部署的空槽位）、PostgreSQL 留痕、合同原文对象存储（S3/MinIO + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现是视觉模型识别：`pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型，`OCR_VLM_ENDPOINT` 未配置时整体降级为关闭；MinerU 是留给其他部署的空槽位）、PostgreSQL 留痕、合同原文对象存储（S3/RustFS + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
 
 不包含（附原因）：
 
@@ -87,7 +87,7 @@ PLAYWRIGHT_DATABASE_URL=postgresql://contract_audit:contract_audit@localhost:543
 
 ```bash
 cp .env.example .env                   # 填写 LLM 配置（或留空走模型服务页）
-docker compose up -d postgres minio redis  # 本地基础设施
+docker compose up -d postgres rustfs redis rustfs-init  # 本地基础设施
 bun install                             # 安装依赖
 cd apps/api && bunx drizzle-kit generate && bunx drizzle-kit migrate && cd ../..
 bun run lint                            # lint + 格式检查

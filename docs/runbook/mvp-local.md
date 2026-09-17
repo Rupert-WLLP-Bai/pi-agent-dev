@@ -17,9 +17,9 @@
 
 2. Start local infrastructure:
    ```bash
-   docker compose up -d postgres minio redis
+   docker compose up -d postgres rustfs redis rustfs-init
    ```
-   MinIO and Redis are optional: with `S3_ENDPOINT` / `REDIS_URL` left empty,
+   RustFS and Redis are optional: with `S3_ENDPOINT` / `REDIS_URL` left empty,
    contract originals go to the local `UPLOAD_DIR` directory and subject
    verification is uncached. That is the normal local state, not an error.
 
@@ -68,7 +68,7 @@
 **development** — infrastructure in containers, application host-native (hot reload):
 
 ```bash
-docker compose up -d postgres minio redis
+docker compose up -d postgres rustfs redis rustfs-init
 bun --filter @contract-audit/api dev    # host-native API, :3000
 bun --filter @contract-audit/web dev    # Vite :5173, proxies /api to :3000
 ```
@@ -89,7 +89,7 @@ Service ports:
 | Service | Port |
 | --- | --- |
 | postgres | 5432 |
-| minio | 9000 (S3 API) / 9001 (console) |
+| rustfs | 9000 (S3 API) / 9001 (console) |
 | redis | 6379 |
 | api | 3000 |
 | web | 8080 |
