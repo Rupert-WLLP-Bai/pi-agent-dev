@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-14",
+  "capturedBy": "ChineseKnowledge (subagent)",
+  "scope": "中文 ICT 合同审计知识样本：官方法规正文/条文摘录 + 官方示范合同文本 + 开源 skill 候选（未下载，仅记录）",
+  "ownership": "本 manifest 只覆盖 knowledge/ 目录；父 agent 负责目录外文件。",
+  "files": [
+    {
+      "path": "knowledge/sme-payment-regulation-2025-fulltext.md",
+      "sourceUrl": "https://www.mee.gov.cn/zcwj/gwywj/202503/t20250325_1104643.shtml",
+      "capturedAt": "2026-10-14",
+      "title": "保障中小企业款项支付条例（中华人民共和国国务院令第802号）",
+      "publicationDate": "2025-03-17（国务院令第802号签署）；网页发布 2025-03-25",
+      "effectiveDate": "2025-06-01",
+      "jurisdiction": "中华人民共和国（全国性行政法规）",
+      "scope": "机关、事业单位和大型企业向中小企业采购货物、工程、服务的款项支付；不适用中小企业之间交易（第2、3、36条）",
+      "contentType": "法规正文",
+      "completeness": "full",
+      "license": "国家机关公布文本，公众可查阅引用；转载须注明来源与版本；未见专门授权条款，按政府公开信息处理，不作商用语料宣称",
+      "sha256": "7bad82e92b71cc90fcfc86a8076eedb995bf5c5220a750286794f6b09b0f20b6",
+      "notes": "来源页 meta-source=中国政府网（生态环境部转发）。5章37条全文；第九条规定机关/事业单位30日默认、约定最长60日，大型企业60日为默认期限，另有约定应依行业规范、交易习惯合理约定；并存在其他国家规定优先及不同起算点。第十七条规定逾期利息。不得推广成所有合同的60日法定上限。"
+    },
+    {
+      "path": "knowledge/spc-2024-11-back-to-back-reply-fulltext.md",
+      "sourceUrl": "https://www.court.gov.cn/zixun/xiangqing/441281.html",
+      "capturedAt": "2026-10-14",
+      "title": "最高人民法院关于大型企业与中小企业约定以第三方支付款项为付款前提条款效力问题的批复（法释〔2024〕11号）",
+      "publicationDate": "2024-08-27（公布）",
+      "effectiveDate": "2024-08-27",
+      "jurisdiction": "中华人民共和国（最高人民法院司法解释）",
+      "scope": "仅适用于大型企业与中小企业之间的合同纠纷；列举合同类型为建设工程施工、采购货物或者服务；机关/事业单位与中小企业的背靠背约定不适用本批复",
+      "contentType": "司法解释正文（公告+批复两条全文）",
+      "completeness": "full",
+      "license": "国家机关公布文本，公众可查阅引用；引用须完整注明法释编号与施行日期",
+      "sha256": "58dc6031b5d7952936750c1a0e3a2af775d67f21bf10d4bef7e35b6390d2f2fb",
+      "notes": "2024-06-03 最高法审判委员会第1921次会议通过。溯及力：2020-09-01（支付条例施行日）之后签订的条款适用本批复；之前签订的不直接适用。页面同文含官方解读（适用范围/效力/无效后果/溯及力），未写入本文件正文。"
+    },
+    {
+      "path": "knowledge/civil-code-contract-excerpt.md",
+      "sourceUrl": "https://sft.yn.gov.cn/pf/yunnan/PZhengCeFaGui/2020061631_2.shtml",
+      "sourceUrls": [
+        "https://sft.yn.gov.cn/pf/yunnan/PZhengCeFaGui/2020061631.shtml",
+        "https://sft.yn.gov.cn/pf/yunnan/PZhengCeFaGui/2020061631_2.shtml"
+      ],
+      "capturedAt": "2026-10-14",
+      "title": "《中华人民共和国民法典》合同编关键条文摘录（定金、保证、违约金、技术合同）",
+      "publicationDate": "2020-05-28（十三届全国人大三次会议通过）；来源页 2020-06-15 发布（新华社受权发布）",
+      "effectiveDate": "2021-01-01",
+      "jurisdiction": "中华人民共和国（全国性法律）",
+      "scope": "52条非连续摘录，每条保留全部款项：违约责任、价款支付、违约金调整、定金、保证合同、技术合同。非民法典全文；定金上限不等于预付款上限。",
+      "contentType": "法律条文摘录",
+      "completeness": "excerpt",
+      "license": "国家机关公布文本，公众可查阅引用；引用须注明条文号与施行日期",
+      "sha256": "b508eafb0671228106ace4107d00623fd014feac1ad1ac748ae9af5ed38db31a",
+      "notes": "来源为云南省司法厅普法网转载新华社受权发布的民法典全文。初次抽取遗漏部分条文后续款，已补齐，并将52条逐条与合同编所在官方分页全文比较（仅规范空白）。包含第586条定金20%上限与第686条未约定保证方式时的一般保证规则。"
+    },
+    {
+      "path": "knowledge/tech-dev-entrust-template.doc",
+      "sourceUrl": "https://stcsm.sh.gov.cn/cmsres/cc/cc921beccb8f401aac30d0719fffa9cc/0556d1535bb52676863d2def4dc5b16b.doc",
+      "capturedAt": "2026-10-14",
+      "title": "技术开发（委托）合同示范文本（工业和信息化部制定）",
+      "publicationDate": "页面发布日期 2026-05-21（上海市技术市场管理办公室模板下载栏目）；原件自述制定机关为工业和信息化部",
+      "effectiveDate": null,
+      "jurisdiction": "中华人民共和国（部门示范文本，经省级技术市场管理办公室提供下载）",
+      "scope": "一方委托另一方就新技术、新产品、新工艺、新品种或新材料及其系统进行研究开发的委托开发合同；民法典第八百五十一条项下",
+      "contentType": "官方示范合同原件（Word 97-2003 .doc）",
+      "completeness": "full",
+      "license": "政府示范文本，供参照使用；原文未附开源许可条款，参照使用者自行承担合同订立、履行的法律后果；转载引用须注明文本名称与制定机关",
+      "sha256": "1d5bd132890171130bb673d171050f03f7f17417af181baef21ecd0d1f7dcd87",
+      "notes": "二进制原件，未改动。原先UTF-16扫描生成的派生文本漏掉字段和条款子项，已移除；本轮read不能解析该.doc，antiword识别失败，隔离catdoc因字符映射配置失败。保留完整原件，未宣称有可入库的可靠抽取版。"
+    },
+    {
+      "path": "knowledge/data-provision-contract-GF-2025-2615.pdf",
+      "sourceUrl": "https://www.nda.gov.cn/sjj/zwgk/zcfb/0704/ff808081-96b466bd-0197-f79cc0e8-0e08.pdf",
+      "capturedAt": "2026-10-14",
+      "title": "数据提供合同（示范文本）GF-2025-2615",
+      "publicationDate": "2025-07-02（国数综政策〔2025〕78号成文）；官网发布 2025-07-04",
+      "effectiveDate": null,
+      "jurisdiction": "中华人民共和国（国家数据局、市场监管总局联合制定）",
+      "scope": "数据提供方通过转让、许可使用（含共享）等方式向数据接收方提供数据；支持 API、数据集等提供方式；含数据质量、交付、验收、安全、违约责任条款",
+      "contentType": "官方示范合同 PDF 原件",
+      "completeness": "full",
+      "license": "政府示范文本，推荐性使用；当事人参照订立合同自行承担合同订立、履行产生的法律后果（原文使用说明）",
+      "sha256": "364ab3292ccf9b53c656508b60ea19ccab9dc8d969b8366d6098b7a86bfcfed9",
+      "notes": "PDF原件，pdfinfo确认20页（含封面），未加密、无JavaScript。同通知另含GF-2025-2616/2617/2618（数据委托处理服务/数据融合开发/数据中介服务），本轮未下载。"
+    },
+    {
+      "path": "knowledge/data-provision-contract-GF-2025-2615-extracted.txt",
+      "sourceUrl": "https://www.nda.gov.cn/sjj/zwgk/zcfb/0704/ff808081-96b466bd-0197-f79cc0e8-0e08.pdf",
+      "capturedAt": "2026-10-14",
+      "title": "数据提供合同（示范文本）GF-2025-2615（抽取文本版）",
+      "publicationDate": "同上（2025-07-02 / 2025-07-04）",
+      "effectiveDate": null,
+      "jurisdiction": "中华人民共和国（国家数据局、市场监管总局联合制定）",
+      "scope": "同 GF-2025-2615 PDF 原件",
+      "contentType": "示范合同文本抽取版",
+      "completeness": "full-extracted",
+      "license": "同原件",
+      "sha256": "8a4021fdf640670fd12650e9e5258667c6ced13505431f623dd941569adb7d06",
+      "notes": "pdftotext -layout 抽取；覆盖使用说明+第一条至第十六条+附表；去除页码标记与零宽字符，条款文字未改动。"
+    }
+  ],
+  "skillAndDatasetCandidates": [
+    {
+      "name": "chinalaw-cli",
+      "url": "https://github.com/nh59yytyd5-dev/chinalaw-cli",
+      "type": "skill/CLI+MCP",
+      "license": "Apache-2.0（仓库 LICENSE，已核）",
+      "status": "候选（未下载）",
+      "fit": "本地 SQLite 法规库（2486 条法规/87956 条条文快照，数据截止 2026-09-30），条文级引用带 source URL/核查时间/效力状态/内容哈希；'缺失即报错'语义与项目 Rule Assessment 引用纪律契合",
+      "adaptationPoints": "可作为法规引用检索层；数据包权利说明见 data/public-release/NOTICE.md，需父 agent 拉取时确认",
+      "risk": "快照非全量、非实时；法规数据本身的权利与代码许可分离，需读 NOTICE"
+    },
+    {
+      "name": "contract-copilot.skill",
+      "url": "https://github.com/cat-xierluo/contract-copilot.skill",
+      "type": "skill",
+      "license": "CC BY-NC 4.0（LICENSE.txt，已核；商用需另行授权）",
+      "status": "候选（未下载）",
+      "fit": "三层分析（交易结构/合同形式/条款语言）+四步流程；12 类中文合同路由；DOCX 原生批注/修订交付",
+      "adaptationPoints": "审查框架与路由表可作参照；非商用限制与项目定位需父 agent 评估",
+      "risk": "NC 许可；skill 方法论不是法条来源"
+    },
+    {
+      "name": "awesome-legal-ai-zh（目录）",
+      "url": "https://github.com/lilialla/awesome-legal-ai-zh",
+      "type": "catalog",
+      "license": "仓库自身许可见 GitHub；收录项目的 License 只作陈述",
+      "status": "候选（未下载）",
+      "fit": "356 个中文法律 AI 仓库索引（CATALOG.md），含合同审查/红线、法规检索、RAG 平台分组的当前推荐与备选",
+      "adaptationPoints": "用于扩充 skill/RAG 候选池",
+      "risk": "索引元数据刷新于 2026-08-27，使用时需复核各项目现行许可"
+    }
+  ],
+  "notSaved": [
+    {
+      "item": "jxxy.net 转载 prompts.chat 的贸易合同评审 prompt",
+      "reason": "站方存在商业转载与批量抓取限制；上游 prompts.chat 原始仓库与 CC0 口径已在旧笔记 2.5 记录，不复制站方原创内容入产品知识库"
+    },
+    {
+      "item": "国家法律法规数据库 flk.npc.gov.cn 民法典全文直采",
+      "reason": "页面为 JS 应用，直取失败；改用省级司法行政机关官方转载页（见 civil-code-contract-excerpt.md），避免凭摘要编造"
+    },
+    {
+      "item": "GF-2025-2616/2617/2618 三份数据合同示范文本",
+      "reason": "本轮聚焦 ICT 相关的技术开发/数据提供两类；其余同通知文本可按需再取（原始 URL 已记录于 chinese-knowledge-research.md）"
+    },
+    {
+      "item": "最高人民法院公报 gongbao.court.gov.cn 批复页",
+      "reason": "HTTP 抓取失败（curl exit 47），改用最高法官网 www.court.gov.cn 发布页（同文）"
+    }
+  ]
+}

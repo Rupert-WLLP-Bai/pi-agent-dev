@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "scope": "Selected architecture documents only; relative Spanish translations are not bundled; no code or dependencies installed.",
+  "files": [
+    {
+      "path": "references/alder/docs/adr/0001-evidence-locators.md",
+      "sourceUrl": "https://raw.githubusercontent.com/alpastorvillar-design/alder-document-intelligence/e573d73e2b35d07dd96b4dfde09e915ebdd3a185/docs/adr/0001-evidence-locators.md",
+      "upstreamRepository": "https://github.com/alpastorvillar-design/alder-document-intelligence",
+      "upstreamRevision": "e573d73e2b35d07dd96b4dfde09e915ebdd3a185",
+      "capturedAt": "2026-10-14T07:16:45.687178+00:00",
+      "license": "MIT",
+      "purpose": "engineering-reference; not legal knowledge",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "c103c3402d7b8eabd760bc39ff1ebd78c7bbf01e6521e86bd55b123911eca6b5",
+      "bytes": 791
+    },
+    {
+      "path": "references/alder/docs/adr/0003-deterministic-rules-not-a-model.md",
+      "sourceUrl": "https://raw.githubusercontent.com/alpastorvillar-design/alder-document-intelligence/e573d73e2b35d07dd96b4dfde09e915ebdd3a185/docs/adr/0003-deterministic-rules-not-a-model.md",
+      "upstreamRepository": "https://github.com/alpastorvillar-design/alder-document-intelligence",
+      "upstreamRevision": "e573d73e2b35d07dd96b4dfde09e915ebdd3a185",
+      "capturedAt": "2026-10-14T07:16:45.687178+00:00",
+      "license": "MIT",
+      "purpose": "engineering-reference; not legal knowledge",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "827e314186cbcd6a655e6cb3e21cdc3107ad536bc908dfbef947489e5990adf3",
+      "bytes": 742
+    },
+    {
+      "path": "references/alder/docs/adr/0006-hybrid-retrieval-and-opt-in-rag.md",
+      "sourceUrl": "https://raw.githubusercontent.com/alpastorvillar-design/alder-document-intelligence/e573d73e2b35d07dd96b4dfde09e915ebdd3a185/docs/adr/0006-hybrid-retrieval-and-opt-in-rag.md",
+      "upstreamRepository": "https://github.com/alpastorvillar-design/alder-document-intelligence",
+      "upstreamRevision": "e573d73e2b35d07dd96b4dfde09e915ebdd3a185",
+      "capturedAt": "2026-10-14T07:16:45.687178+00:00",
+      "license": "MIT",
+      "purpose": "engineering-reference; not legal knowledge",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "74680e78a9aafc86b43942400989b5c6fd5ba8a55d959b9696eb01f6a423609f",
+      "bytes": 2238
+    },
+    {
+      "path": "references/alder/LICENSE",
+      "sourceUrl": "https://raw.githubusercontent.com/alpastorvillar-design/alder-document-intelligence/e573d73e2b35d07dd96b4dfde09e915ebdd3a185/LICENSE",
+      "upstreamRepository": "https://github.com/alpastorvillar-design/alder-document-intelligence",
+      "upstreamRevision": "e573d73e2b35d07dd96b4dfde09e915ebdd3a185",
+      "capturedAt": "2026-10-14T07:16:45.687178+00:00",
+      "license": "MIT",
+      "purpose": "engineering-reference; not legal knowledge",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "22053194a5432988ebcabd036779cef0cab07219864637a63426cc4562ddc91d",
+      "bytes": 1080
+    }
+  ]
+}

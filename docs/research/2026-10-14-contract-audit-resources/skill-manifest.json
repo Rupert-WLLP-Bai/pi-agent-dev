@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "scope": "Upstream text references; no plugin installed or skill activated; legal baselines require China ICT localization.",
+  "files": [
+    {
+      "path": "skills/anthropic-legal/legal/skills/review-contract/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/skills/review-contract/SKILL.md",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "3a6413475f51adedbff130f4d5aabbeeacfb2abd323e0338bc91c21937fbfb76",
+      "bytes": 16708
+    },
+    {
+      "path": "skills/anthropic-legal/legal/skills/triage-nda/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/skills/triage-nda/SKILL.md",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "767a8f6759268e003ee882af8dfb56579aca2121b9dc49a2c65c4e77de93f768",
+      "bytes": 14583
+    },
+    {
+      "path": "skills/anthropic-legal/legal/skills/compliance-check/SKILL.md",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/skills/compliance-check/SKILL.md",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "8dff8ebe7eda9ad5e38f3faf1016a7fc1eeba65bcdb7f5ae45ea507824bbc1c2",
+      "bytes": 14694
+    },
+    {
+      "path": "skills/anthropic-legal/legal/LICENSE",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/LICENSE",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "50e6751797c50dedd75ef1b8a0d9e42f5f8472e9fbce91f34718e9f97b0c780a",
+      "bytes": 11324
+    },
+    {
+      "path": "skills/anthropic-legal/legal/README.md",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/README.md",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "8fb3696cc0a641d18213318dc503fed6086b3ea4aab5a2484b9cee3508ed5429",
+      "bytes": 9773
+    },
+    {
+      "path": "skills/anthropic-legal/legal/CONNECTORS.md",
+      "sourceUrl": "https://raw.githubusercontent.com/anthropics/knowledge-work-plugins/02ffa99ff00ce4d3046ccebabb8357cb39f3ab06/legal/CONNECTORS.md",
+      "upstreamRepository": "https://github.com/anthropics/knowledge-work-plugins",
+      "upstreamRevision": "02ffa99ff00ce4d3046ccebabb8357cb39f3ab06",
+      "capturedAt": "2026-10-14T07:15:32.827377+00:00",
+      "license": "Apache-2.0",
+      "purpose": "workflow-reference",
+      "activation": "inactive",
+      "captureMethod": "read :raw; UTF-8 text with trailing newline normalized",
+      "sha256": "1f420b2dada7768a536bf9668939ed67b193a0466af1d4617db0e80370e70dc4",
+      "bytes": 1204
+    }
+  ]
+}
