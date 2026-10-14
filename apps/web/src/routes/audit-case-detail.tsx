@@ -12,6 +12,7 @@ import {
   submitReview,
 } from "../api";
 import type { AuditCaseOrigin } from "../app";
+import { rerunAuditCase } from "../audit-rerun-api";
 import { AuditCaseWorkbench } from "../components/audit-case-workbench";
 import { ReviewDrawer } from "../components/review-drawer";
 import { useAuditEvents } from "../hooks/use-audit-events";
@@ -101,6 +102,22 @@ export default function AuditCaseDetail({
     onError: (error: Error) => message.error(error.message),
   });
 
+  // A rerun produces a NEW case: the operator is moved to it so they watch the
+  // new audit, and the old case keeps its reviewed findings and remediations.
+  const rerunMutation = useMutation({
+    mutationFn: () => rerunAuditCase(id),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["audit-cases"] });
+      message.success("已重新审计，原案件的结果保留不变");
+      void navigate({
+        to: "/audit-cases/$id",
+        params: { id: result.id },
+        ...(origin === null ? {} : { search: { origin } }),
+      });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
   const reviewMutation = useMutation({
     mutationFn: (input: {
       findingId: string;
@@ -170,7 +187,9 @@ export default function AuditCaseDetail({
               ? { type: "REASSESS" }
               : retryMutation.isPending
                 ? { type: "RETRY" }
-                : null
+                : rerunMutation.isPending
+                  ? { type: "RERUN" }
+                  : null
         }
         onOpenReview={(decision, finding) =>
           setReview({
@@ -181,6 +200,7 @@ export default function AuditCaseDetail({
         onCancel={() => cancelMutation.mutate()}
         onRetry={() => retryMutation.mutate()}
         onReassess={() => reassessMutation.mutate()}
+        onRerun={() => rerunMutation.mutate()}
         backLabel={origin === null ? undefined : originHome[origin].label}
         onBack={() =>
           void navigate({ to: origin === null ? "/audit-cases" : originHome[origin].to })

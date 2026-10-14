@@ -19,6 +19,7 @@ import type { InferSelectModel } from "drizzle-orm";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -29,6 +30,15 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
+
+/**
+ * The recognizer names OCR settings can select. Declared here rather than
+ * imported so the schema module stays independent of the document layer — the
+ * column type and the `OcrProviderName` union in `document/ocr` must stay in
+ * step by hand, which is why both are commented at their definition.
+ */
+export const ocrProviderNames = ["off", "vlm", "mineru"] as const;
+export type OcrProviderName = (typeof ocrProviderNames)[number];
 
 const auditStatuses = [
   "PENDING",
@@ -484,6 +494,50 @@ export const llmProviders = pgTable(
   ],
 );
 
+/**
+ * The scanned-contract recognition wiring, one row for the whole deployment.
+ *
+ * The row is written only when an operator saves from the OCR settings page:
+ * while the table is empty the recognizer is built from the `OCR_*` environment
+ * variables, so an existing deployment keeps working untouched. Once a row
+ * exists it is the configuration in force, and it survives a restart — which is
+ * the whole point of moving OCR out of the environment.
+ *
+ * `singleton_key` carries a constant with a unique index so the single-row
+ * invariant is enforced by the database rather than by convention. The key is
+ * sealed with the same `LLM_KEY_ENCRYPTION_SECRET` the model-service keys use,
+ * and the DTO reports presence plus a masked hint only — never the key.
+ */
+export const ocrSettings = pgTable(
+  "ocr_settings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    /** Constant `singleton`; the unique index on it keeps exactly one row. */
+    singletonKey: text("singleton_key").notNull().default("singleton"),
+    /** `off` leaves scans unreadable; `vlm` and `mineru` name a recognizer. */
+    provider: text("provider").$type<OcrProviderName>().notNull().default("off"),
+    vlmEndpoint: text("vlm_endpoint").notNull().default(""),
+    /** Sealed at rest; empty means the endpoint is called unauthenticated. */
+    vlmApiKey: text("vlm_api_key").notNull().default(""),
+    vlmModel: text("vlm_model").notNull().default(""),
+    /** Retried with when the primary model truncates a dense page. */
+    vlmFallbackModel: text("vlm_fallback_model"),
+    /** MinerU base URL; configured ahead of the adapter being implemented. */
+    mineruEndpoint: text("mineru_endpoint").notNull().default(""),
+    maxPages: integer("max_pages").notNull().default(40),
+    scale: doublePrecision("scale").notNull().default(2),
+    jpegQuality: integer("jpeg_quality").notNull().default(85),
+    concurrency: integer("concurrency").notNull().default(3),
+    requestTimeoutMs: integer("request_timeout_ms").notNull().default(120000),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true, mode: "date" }),
+    lastCheckOk: boolean("last_check_ok"),
+    lastCheckError: text("last_check_error"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("ocr_settings_singleton_idx").on(table.singletonKey)],
+);
+
 export const schema = {
   sourceRecords,
   contracts,
@@ -502,6 +556,7 @@ export const schema = {
   validationCases,
   auditActionLogs,
   llmProviders,
+  ocrSettings,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -519,6 +574,7 @@ export type ValidationRunRow = InferSelectModel<typeof validationRuns>;
 export type ValidationCaseRow = InferSelectModel<typeof validationCases>;
 export type AuditActionLogRow = InferSelectModel<typeof auditActionLogs>;
 export type LlmProviderRow = InferSelectModel<typeof llmProviders>;
+export type OcrSettingsRow = InferSelectModel<typeof ocrSettings>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),

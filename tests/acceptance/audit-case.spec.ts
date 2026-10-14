@@ -1,4 +1,7 @@
+import type { AgentRun } from "@contract-audit/audit/model";
 import { expect, type Page, test } from "@playwright/test";
+import type { RemediationBoard } from "../../apps/api/src/db/repositories";
+import type { AuditCaseDetailData } from "../../apps/web/src/components/audit-case-workbench";
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -183,6 +186,83 @@ test("records a confirmed risk and retains the business wording", async ({ page 
   await expect(page.getByText("已确认风险").first()).toBeVisible();
   // The status badge is the case's state; the step list always shows 已完成.
   await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
+});
+
+test("reruns completed and awaiting-review cases without replacing reviews or remediation", async ({
+  page,
+}) => {
+  await createDemoAudit(page);
+  const caseId = page.url().split("/").pop()!;
+  await confirmPendingFindings(page);
+  await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
+
+  const readDetail = async (): Promise<AuditCaseDetailData> =>
+    (await page.request.get(`/api/audit-cases/${caseId}`)).json();
+  const readRuns = async (): Promise<Array<{ run: AgentRun }>> =>
+    (await page.request.get(`/api/audit-cases/${caseId}/trace`)).json();
+  const before = await readDetail();
+  const originalRuns = await readRuns();
+  const beforeBoard: RemediationBoard = await (await page.request.get("/api/remediations")).json();
+  const originalRemediations = beforeBoard.columns.flatMap((column) =>
+    column.items.filter((item) => item.caseId === caseId),
+  );
+
+  // Dismissing confirmation must leave the completed case and its run intact.
+  const rerun = page.getByRole("button", { name: "重新运行 Agent", exact: true });
+  await rerun.click();
+  await page
+    .locator(".ant-popconfirm")
+    .getByRole("button", { name: /返\s*回/ })
+    .click();
+  expect(await readRuns()).toEqual(originalRuns);
+  expect((await readDetail()).case.status).toBe("COMPLETED");
+
+  await rerun.click();
+  const detailResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/audit-cases/${caseId}/retry`) &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "确认重新运行" }).click();
+  expect((await detailResponse).status()).toBe(202);
+  await expect(page.locator(".audit-state-badge", { hasText: "待复核" })).toBeVisible();
+  const afterDetail = await readDetail();
+  const afterDetailRuns = await readRuns();
+  expect(afterDetailRuns.map(({ run }) => run.id)).toEqual([
+    expect.any(String),
+    ...originalRuns.map(({ run }) => run.id),
+  ]);
+  expect(afterDetailRuns[0].run.id).not.toBe(originalRuns[0].run.id);
+  expect(afterDetailRuns[0].run.error).toBeNull();
+  for (const finding of before.findings) {
+    expect(afterDetail.findings.find((item) => item.id === finding.id)).toEqual(finding);
+  }
+
+  // The queue also reruns cases still awaiting review; pending findings survive.
+  await page.goto("/audit-cases");
+  await page.getByPlaceholder("搜索合同名称 / 审计 ID / 来源记录 ID").fill(caseId);
+  await page.getByRole("row").getByRole("button", { name: "重新运行 Agent", exact: true }).click();
+  const queueResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/audit-cases/${caseId}/retry`) &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "确认重新运行" }).click();
+  expect((await queueResponse).status()).toBe(202);
+  await expect
+    .poll(async () => (await readRuns()).map(({ run }) => run.id))
+    .toEqual([expect.any(String), ...afterDetailRuns.map(({ run }) => run.id)]);
+  await expect.poll(async () => (await readDetail()).case.status).toBe("AWAITING_REVIEW");
+  const afterQueue = await readDetail();
+  expect(afterQueue.snapshot).toEqual(before.snapshot);
+  expect(afterQueue.ruleAssessments).toEqual(before.ruleAssessments);
+  for (const finding of afterDetail.findings) {
+    expect(afterQueue.findings.find((item) => item.id === finding.id)).toEqual(finding);
+  }
+  const afterBoard: RemediationBoard = await (await page.request.get("/api/remediations")).json();
+  expect(
+    afterBoard.columns.flatMap((column) => column.items.filter((item) => item.caseId === caseId)),
+  ).toEqual(originalRemediations);
 });
 
 test("requires a reason for a false positive and retains the decision", async ({ page }) => {

@@ -2,6 +2,8 @@
 
 This context describes the product language for a minimal, traceable contract-audit workflow. It is independent from the benchmark and evaluation objects in the sibling `agent-comp` repository.
 
+See [GLOSSARY.md](./GLOSSARY.md) for the distinction between Agent Rerun and Audit Reassessment.
+
 ## Language
 
 **Contract**:

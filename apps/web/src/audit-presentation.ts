@@ -22,7 +22,7 @@ export type AuditLifecycleFilter =
   | "COMPLETED"
   | "CANCELLED"
   | "ABNORMAL";
-export type AuditCaseAction = "VIEW" | "CANCEL" | "RETRY";
+export type AuditCaseAction = "VIEW" | "CANCEL" | "RETRY" | "RERUN";
 export type AuditTone = "neutral" | "info" | "warning" | "danger" | "success";
 export type AuditDisplayKey = AuditCaseStatus | "AWAITING_REVIEW";
 
@@ -379,17 +379,30 @@ export const evidenceSourceGroupOrder: EvidenceSourceGroup[] = [
   "HISTORY",
 ];
 
-const retryableStatuses = new Set<AuditCaseStatus>(["FAILED", "CANCELLED", "INTERRUPTED"]);
+const retryableStatuses: Record<AuditCaseStatus, boolean> = {
+  PENDING: false,
+  RUNNING: false,
+  FAILED: true,
+  CANCELLED: true,
+  INTERRUPTED: true,
+  AWAITING_REVIEW: true,
+  COMPLETED: true,
+};
 
 export function getAvailableCaseActions(auditCase: AuditCase): AuditCaseAction[] {
+  // A case a human already reviewed must not offer retry: retrying reuses the
+  // case, so a fresh agent run would append new findings into reviewed work.
+  // It is offered rerun instead, which opens a new case.
   if (
     auditCase.status === "AWAITING_REVIEW" ||
     auditCase.stage === "AWAITING_REVIEW" ||
+    auditCase.status === "COMPLETED" ||
     auditCase.stage === "COMPLETED"
-  )
-    return ["VIEW"];
+  ) {
+    return ["VIEW", "RERUN"];
+  }
   if (auditCase.status === "PENDING" || auditCase.status === "RUNNING") return ["VIEW", "CANCEL"];
-  if (retryableStatuses.has(auditCase.status)) return ["VIEW", "RETRY"];
+  if (retryableStatuses[auditCase.status]) return ["VIEW", "RETRY", "RERUN"];
   return ["VIEW"];
 }
 

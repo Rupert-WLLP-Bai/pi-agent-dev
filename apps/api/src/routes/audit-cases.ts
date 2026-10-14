@@ -133,6 +133,22 @@ const REASSESSABLE_STATUSES: Record<AuditCaseStatus, boolean> = {
 };
 
 /**
+ * A case may only be retried while it has not yet reached human review.
+ * Retrying reuses the case, so a case whose findings were already reviewed
+ * would have a new agent run append its proposals into reviewed work. Those
+ * cases are re-run instead, which opens a new case.
+ */
+const RETRYABLE_STATUSES: Record<AuditCaseStatus, boolean> = {
+  PENDING: false,
+  RUNNING: false,
+  AWAITING_REVIEW: false,
+  COMPLETED: false,
+  FAILED: true,
+  CANCELLED: true,
+  INTERRUPTED: true,
+};
+
+/**
  * Provenance of a pasted submission. The catalog decides what counts as a
  * built-in sample, and the text must still match it: once an operator edits a
  * loaded sample the submission is an ordinary paste again, and recording it as
@@ -579,6 +595,20 @@ export function auditCasesRoutes({
       .post(
         "/api/audit-cases/:id/retry",
         async ({ params, set }) => {
+          // An explicit guard rather than trusting the dispatcher's requeue:
+          // retrying reuses this case, so allowing it on a case a human has
+          // already reviewed would let a fresh agent run append new findings
+          // into reviewed work. A stopped-but-unreviewed failure may be
+          // retried; an audited case must be re-run as a new case instead.
+          const existing = await repository.getCase(params.id);
+          if (!existing) {
+            set.status = 404;
+            return { error: "audit_case_not_found" };
+          }
+          if (!RETRYABLE_STATUSES[existing.status]) {
+            set.status = 409;
+            return { error: "case_not_retryable" };
+          }
           await dispatcher.retry(params.id);
           set.status = 202;
           return { id: params.id, status: "PENDING" as const };
@@ -588,13 +618,74 @@ export function auditCasesRoutes({
           detail: {
             summary: "重试审计案件",
             description:
-              "把一个失败或中断的案件重新入队：状态回到 PENDING，沿用**当前已有**的快照（不重建规则参数）。\n\n" +
+              "重新运行 Agent：把一个失败、取消或中断的案件重新入队，沿用**当前已有**的快照（不重建规则参数）。\n\n" +
               "- 与重评估的区别：重试沿用旧快照，重评估会用最新已发布规则重建快照。\n" +
-              "- 副作用：案件被提升为 PENDING 并交给调度器；不会重置已完成的人工复核决策。\n\n" +
-              "状态码：`202` 已重新入队；`422` 路径参数不合法。",
+              "- 只适用于尚未进入人工复核的案件。已完成或待复核的案件必须改用「重新审计」，让新发现进入一个新案件，而不是追加进已复核的旧案件。\n" +
+              "- 仍在排队或审计中的案件返回 `409`。\n\n" +
+              "状态码：`202` 已重新入队；`404` 案件不存在；`409` 案件当前不可重试；`422` 路径参数不合法。",
             tags: AUDIT_CASE_TAGS,
           },
-          response: { 202: queuedCaseSchema, 422: errorSchema },
+          response: {
+            202: queuedCaseSchema,
+            404: notFoundSchema,
+            409: errorSchema,
+            422: errorSchema,
+          },
+        },
+      )
+      // A rerun re-audits a stopped case as a NEW case: same Source Record,
+      // same Contract Revision, fresh snapshot and fresh Agent Run. It exists
+      // because retry and reassess both reuse the case they are called on, so
+      // their new findings land in the very case a human already reviewed —
+      // mixing machine output into reviewed work. Rerunning instead opens a
+      // clean case and leaves the old one immutable.
+      .post(
+        "/api/audit-cases/:id/rerun",
+        async ({ params, set }) => {
+          const result = await repository.createRerunCase(params.id);
+          if (result.status === "not_found") {
+            set.status = 404;
+            return { error: "audit_case_not_found" };
+          }
+          if (result.status === "case_active") {
+            set.status = 409;
+            return { error: "case_active" };
+          }
+          if (result.status === "rerun_active") {
+            set.status = 409;
+            return { error: "rerun_already_active" };
+          }
+          await dispatcher.enqueue(result.caseId);
+          set.status = 202;
+          return {
+            id: result.caseId,
+            status: "PENDING" as const,
+            sourceCaseId: result.sourceCaseId,
+          };
+        },
+        {
+          params: t.Object({ id: t.String({ description: "作为来源的审计案件 id" }) }),
+          detail: {
+            summary: "重新审计案件",
+            description:
+              "对一个已停止的案件（已完成 / 待复核 / 失败 / 取消 / 中断）发起一次**全新**审计：新建案件，" +
+              "沿用同一 Source Record 与同一 Contract Revision，重新解析原件并按当前规则、当前设置组装新快照，" +
+              "再跑一次 Agent。\n\n" +
+              "- 原案件及其状态、快照、发现、人工复核与整改记录**完全不变**，新的发现只会写进新案件；" +
+              "这就是它与「重试 / 重评估」的区别——后两者复用同一案件，新发现会落入已复核的旧案件。\n\n" +
+              "- 沿用同一 Contract Revision 而不是新建版本：重新读取的是同一份字节，没有发生文档变更。\n\n" +
+              "- 前置条件：案件必须已停止。仍在排队或审计中的案件返回 `409`；" +
+              "同一修订上已有排队或审计中的案件时返回 `409`，避免同一版本并行审计。\n\n" +
+              "- 副作用：插入新案件（PENDING/QUEUED）并入队，调度器异步运行，进度通过新案件的事件流（SSE）推送。\n\n" +
+              "状态码：`202` 已受理（返回新案件 id 与来源案件 id）；`404` 案件不存在；`409` 案件仍在运行或该修订已有进行中的审计；`422` 路径参数不合法。",
+            tags: AUDIT_CASE_TAGS,
+          },
+          response: {
+            202: queuedCaseSchema,
+            404: notFoundSchema,
+            409: errorSchema,
+            422: errorSchema,
+          },
         },
       )
       // Reassessment rebuilds the snapshot from the current published Rule

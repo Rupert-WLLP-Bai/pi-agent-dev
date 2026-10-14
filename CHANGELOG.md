@@ -5,10 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-09-13
+## [Unreleased] - 2026-10-14
+
+### Fixed
+
+- OCR settings repository imports now resolve from `document/ocr/`, allowing
+  the API to start after the OCR module move.
+- Docker build contexts exclude `node_modules` at every workspace depth, preventing
+  dependency-link transfer failures when building from WSL through Docker Desktop.
+- Tool durations now use Pi's monotonic execution timing, rounded to integer
+  milliseconds for persistence, instead of wall-clock event delivery gaps.
+- Model service settings can discover models from the current unsaved endpoint,
+  create providers without credentials, and use advertised input/output limits.
+  Unknown limits leave the operator's manually configured values in place; an
+  empty API key remains empty even when at-rest encryption is enabled.
 
 ### Added
 
+- Completed and awaiting-review audit cases now offer **重新运行 Agent** in
+  both the audit queue and case detail. Confirmation explains that reruns reuse
+  the existing snapshot, append findings, and retain reviews and remediation;
+  the same issue can produce another finding awaiting review.
 - **Agent Run traces**: every Pi Agent run now leaves a persistent, ordered
   trace of what it did — stage boundaries, tool calls with arguments, tool
   results, assistant messages, and token counts — stored in a new
@@ -42,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Embedded Pi SDK and Pi AI upgraded from 0.85.1 to pinned 1.2.0, with matching
+  TypeBox 1.3.27 schemas. Audit sessions explicitly isolate resource discovery,
+  use in-memory settings and history, declare thinking level `off`, and expose
+  the six audit tools. New runs record version 1.2.0; historical identities remain
+  intact. Release evidence and compatibility details are recorded in
+  `docs/research/2026-10-14-pi-1.2-upgrade.md`.
 - `AuditAgentPort.run` now takes an `AgentTraceSink` and exposes a readonly
   `identity: AgentRunIdentity`; `AgentRunResult.telemetry` replaced by
   `usage: Record<string, number> | null` (identity moved to the port).

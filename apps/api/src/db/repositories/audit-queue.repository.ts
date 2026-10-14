@@ -12,6 +12,19 @@ import { contractTitleFromFirstBlock } from "./helpers";
 import { asDate, toCase, toSnapshot, toSourceProvenance } from "./mappers";
 import type { DrizzleDB, SourceRecordOriginal } from "./types";
 
+/**
+ * Outcome of opening a rerun. `created` carries the new case id and the case
+ * it was opened from; every other outcome is a refusal the route maps to a
+ * status code, so the caller never has to guess why no case was created.
+ */
+export type CreateRerunCaseResult =
+  | { status: "created"; caseId: string; sourceCaseId: string }
+  | { status: "not_found" }
+  /** The case is still queued or being audited, so there is no stopped run to repeat. */
+  | { status: "case_active" }
+  /** Another case on the same Contract Revision is already queued or running. */
+  | { status: "rerun_active" };
+
 export class AuditQueueRepository {
   constructor(private readonly db: DrizzleDB) {}
 
@@ -119,6 +132,81 @@ export class AuditQueueRepository {
         .returning({ id: auditCases.id });
 
       return { caseId: auditCase.id };
+    });
+  }
+
+  /**
+   * Re-audits a stopped case by opening a *new* Audit Case over the same Source
+   * Record and the same Contract Revision. The old case keeps its status,
+   * snapshot, findings, reviews and remediations untouched — nothing about it is
+   * rewritten — while the new case gets a fresh snapshot and a fresh Agent Run
+   * under the rules, settings and OCR in force now.
+   *
+   * Reusing the existing `contractRevisionId` is what makes this a rerun rather
+   * than a resubmission: a Contract Revision is one immutable version of a
+   * Contract, and re-reading identical bytes is not a new version. Registering
+   * another revision here would invent a document change that never happened.
+   *
+   * The Source Record is reused too, so the new case re-reads the *original*
+   * bytes — the pasted text or the stored upload — rather than a re-serialised
+   * copy. That is what lets a changed OCR configuration change what the new
+   * case parses, while the source of truth stays one row.
+   *
+   * The row is locked for the duration of the transaction, and both guards are
+   * checked while it is held:
+   *   - the source case must have stopped (PENDING/RUNNING still has live work);
+   *   - no other case on the same revision may already be queued or running,
+   *     so two operators cannot start overlapping audits of one revision.
+   *
+   * A refusal is returned as a reason rather than thrown, because it is an
+   * expected outcome the HTTP layer answers with a status code.
+   */
+  async createRerunCase(sourceCaseId: string): Promise<CreateRerunCaseResult> {
+    return this.db.transaction(async (tx) => {
+      // Lock the source row first: a concurrent rerun of the same case then
+      // waits here instead of interleaving its own checks with ours.
+      const source = await tx.execute<{
+        source_record_id: string;
+        contract_revision_id: string | null;
+        status: string;
+      }>(sql`
+        SELECT c.source_record_id, c.contract_revision_id, c.status
+        FROM audit_cases c
+        WHERE c.id = ${sourceCaseId}
+        LIMIT 1
+        FOR UPDATE
+      `);
+      const locked = source[0];
+      if (!locked) return { status: "not_found" };
+      if (locked.status === "PENDING" || locked.status === "RUNNING") {
+        return { status: "case_active" };
+      }
+      if (locked.contract_revision_id === null) return { status: "not_found" };
+
+      const active = await tx.execute<{ id: string }>(sql`
+        SELECT c.id
+        FROM audit_cases c
+        WHERE c.contract_revision_id = ${locked.contract_revision_id}
+          AND c.status IN ('PENDING', 'RUNNING')
+          AND c.id <> ${sourceCaseId}
+        LIMIT 1
+      `);
+      if (active.length > 0) return { status: "rerun_active" };
+
+      const [auditCase] = await tx
+        .insert(auditCases)
+        .values({
+          // The original Source Record: the bytes to re-read stay one row.
+          sourceRecordId: locked.source_record_id,
+          // The exact revision the source case reviewed. No new revision is
+          // registered: the bytes being re-read have not changed.
+          contractRevisionId: locked.contract_revision_id,
+          status: "PENDING",
+          stage: "QUEUED",
+        })
+        .returning({ id: auditCases.id });
+
+      return { status: "created", caseId: auditCase.id, sourceCaseId };
     });
   }
 

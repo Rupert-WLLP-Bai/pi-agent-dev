@@ -22,7 +22,7 @@ import type {
 } from "@contract-audit/api";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
 import type { ReviewPriority } from "@contract-audit/audit/ports";
-import { treaty } from "@elysiajs/eden";
+import { type Treaty, treaty } from "@elysiajs/eden";
 import { readOperator } from "./operator";
 import type { RuleParams } from "./rule-presentation";
 
@@ -41,7 +41,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? window.location.origin;
 // still accepts a body actor as a fallback.
 const operatorHeader = () => ({ "X-Operator": encodeURIComponent(readOperator()) });
 
-const api = treaty<AuditApp>(API_BASE_URL, { headers: operatorHeader });
+export const api: Treaty.Create<AuditApp> = treaty<AuditApp>(API_BASE_URL, {
+  headers: operatorHeader,
+});
 
 export class ApiRequestError extends Error {
   constructor(
@@ -646,16 +648,12 @@ export interface LlmProvider {
   updatedAt: string;
 }
 
-/**
- * Create payload. `name`, `endpoint`, `model` and `apiKey` are required; the
- * rest fall back to server defaults. The API refuses to open a provider
- * without a key, so the create type makes one mandatory.
- */
+/** Create payload for a provider; credentials are optional for local endpoints. */
 export interface LlmProviderCreateInput {
   name: string;
   endpoint: string;
   model: string;
-  apiKey: string;
+  apiKey?: string;
   maxInput?: number;
   maxOutput?: number;
   enabled?: boolean;
@@ -733,13 +731,21 @@ export async function testLlmProvider(id: string): Promise<LlmProviderTestResult
   return data;
 }
 
-/**
- * The model ids the saved endpoint advertises (`GET /models`), so the operator
- * can pick one instead of typing it. A saved provider is required because the
- * probe uses the stored key; there is no draft-probe endpoint.
- */
-export async function listLlmProviderModels(id: string): Promise<string[]> {
-  const { data, error } = await api.api["llm-providers"]({ id }).models.get();
+export interface ProviderModel {
+  id: string;
+  maxInput: number | null;
+  maxOutput: number | null;
+}
+
+export interface LlmModelDiscoveryInput {
+  endpoint: string;
+  apiKey?: string;
+  providerId?: string;
+}
+
+/** Fetches model ids and limits from the current unsaved settings. */
+export async function fetchLlmModels(input: LlmModelDiscoveryInput): Promise<ProviderModel[]> {
+  const { data, error } = await api.api["llm-providers"].models.post(input);
   if (error)
     throw new ApiRequestError(serverReason(error, "获取模型列表失败"), Number(error.status));
   if (!data || "error" in data) throw new ApiRequestError("获取模型列表失败", 500);

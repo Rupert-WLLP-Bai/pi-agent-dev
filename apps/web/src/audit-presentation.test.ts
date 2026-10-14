@@ -35,7 +35,29 @@ test("awaiting review wins over the completed machine status", () => {
     key: "AWAITING_REVIEW",
     label: "待复核",
   });
-  expect(getAvailableCaseActions(auditCase)).toEqual(["VIEW"]);
+  expect(getAvailableCaseActions(auditCase)).toEqual(["VIEW", "RERUN"]);
+});
+
+/**
+ * A case a human already reviewed must not offer retry: retrying reuses the
+ * case, so a fresh agent run would append new findings into reviewed work.
+ * Rerunning is offered instead, because it opens a new case.
+ */
+test("an audited case can be re-run as a new case but not retried in place", () => {
+  const awaiting = caseAt(
+    "awaiting",
+    "AWAITING_REVIEW",
+    "AWAITING_REVIEW",
+    "2026-09-11T09:00:00.000Z",
+  );
+  const completed = caseAt("done", "COMPLETED", "COMPLETED", "2026-09-11T09:40:00.000Z");
+  expect(getAvailableCaseActions(awaiting)).toEqual(["VIEW", "RERUN"]);
+  expect(getAvailableCaseActions(completed)).toEqual(["VIEW", "RERUN"]);
+});
+
+test("a stopped unreviewed case can be retried and re-run", () => {
+  const failed = caseAt("failed", "FAILED", "FAILED", "2026-09-11T09:30:00.000Z");
+  expect(getAvailableCaseActions(failed)).toEqual(["VIEW", "RETRY", "RERUN"]);
 });
 
 test("derives only statistics available from case rows", () => {

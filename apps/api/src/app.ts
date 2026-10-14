@@ -12,7 +12,12 @@ import { seedRules } from "./db/seed-rules";
 import { seedValidationCases } from "./db/seed-validation-cases";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
-import { createOcrPort, type OcrPort } from "./document/ocr";
+import { createLiveOcrPort, loadOcrConfig, type OcrPort } from "./document/ocr";
+import {
+  createMemoryOcrSettingsStore,
+  createOcrSettingsRepository,
+  type OcrSettingsStore,
+} from "./document/ocr/ocr-settings-repository";
 import { loadObjectStoreConfig } from "./document/original-store";
 import { type ApiHealth, buildHealthSnapshot } from "./health";
 import { LlmProviderRegistry } from "./llm/provider-registry";
@@ -37,6 +42,7 @@ import { demoWorldRoutes } from "./routes/demo-world";
 import { dossiersRoutes } from "./routes/dossiers";
 import { findingsRoutes } from "./routes/findings";
 import { llmProvidersRoutes } from "./routes/llm-providers";
+import { ocrSettingsRoutes } from "./routes/ocr-settings";
 import { remediationsRoutes } from "./routes/remediations";
 import { reviewsRoutes } from "./routes/reviews";
 import { rulesRoutes } from "./routes/rules";
@@ -54,6 +60,8 @@ export type AppDeps = AuditRouteDeps & {
   redisCache?: VerificationCache | null;
   /** The scanned-document recognizer; absent reads the wiring from the environment. */
   ocr?: OcrPort;
+  /** Persisted OCR configuration; absent falls back to the in-memory store (tests). */
+  ocrSettings?: OcrSettingsStore;
 };
 export type {
   AgentRunSummary,
@@ -120,25 +128,53 @@ export function createApp(deps: AppDeps) {
   const config = loadApiConfig();
   const providers = deps.llmProviders ?? createMemoryLlmProviderStore();
   const registry = deps.registry ?? new LlmProviderRegistry(providers);
-  // Built once per app: the health route probes it, and `parseContractFile`
-  // reaches for the same configuration when a scanned PDF turns up.
-  const ocrPort = deps.ocr ?? createOcrPort();
+  // Persisted OCR configuration. Absent (tests) falls back to the in-memory
+  // store, so the settings routes behave identically without a database.
+  const ocrSettings = deps.ocrSettings ?? createMemoryOcrSettingsStore();
+  // The recognizer the whole app shares: the health route probes it and every
+  // parse reaches through it. It is a *live* port — it resolves its
+  // configuration per operation, so a settings save changes what the next PDF
+  // is read under without rebuilding this one or restarting the process. With
+  // no stored row it resolves to the `OCR_*` environment configuration, which
+  // is the existing behaviour kept intact as the bootstrap.
+  const ocrPort: OcrPort =
+    deps.ocr ??
+    createLiveOcrPort(async () => {
+      const stored = await ocrSettings.rawConfig();
+      return stored ?? loadOcrConfig();
+    });
   return new Elysia()
     .onRequest(({ request, set }) => {
       const incoming = request.headers.get("x-request-id")?.trim();
       const requestId = incoming && incoming.length > 0 ? incoming : crypto.randomUUID();
       set.headers["x-request-id"] = requestId;
     })
-    .onError(({ set }) => {
-      if (set.status === 200 || set.status === undefined) set.status = 500;
+    .onError(({ code, set }) => {
       const requestId = set.headers["x-request-id"] ?? crypto.randomUUID();
       set.headers["x-request-id"] = requestId;
-      return { error: "internal_error", requestId };
+      // A route that failed may already have declared its own status; that
+      // judgement outranks this fallback. Elysia's own classifications arrive
+      // with the status left at 200, so they must be mapped here: an unmatched
+      // path or an unsupported method is NOT_FOUND, and reporting it as 500
+      // tells the caller their mistake was a server fault. Only an
+      // unclassified error — or one whose handler promised 5xx — is ours.
+      if (set.status === undefined || set.status === 200) {
+        set.status =
+          code === "NOT_FOUND"
+            ? 404
+            : code === "VALIDATION"
+              ? 422
+              : code === "PARSE"
+                ? 400
+                : 500;
+      }
+      if (set.status >= 500) return { error: "internal_error", requestId };
+      return { error: code.toLowerCase(), requestId };
     })
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(contractsRoutes({ repository: deps.repository }))
-    .use(dossiersRoutes({ maxUploadBytes }))
+    .use(dossiersRoutes({ maxUploadBytes, ocr: ocrPort }))
     .use(demoWorldRoutes({ repository: deps.repository }))
     .use(rulesRoutes({ rules: deps.rules }))
     .use(validationRoutes({ rules: deps.rules }))
@@ -160,6 +196,14 @@ export function createApp(deps: AppDeps) {
         // Every mutation re-reads the active row so the next audit run picks up
         // the change without a restart.
         onChanged: () => registry.refresh(),
+      }),
+    )
+    .use(
+      ocrSettingsRoutes({
+        settings: ocrSettings,
+        // A save changes what the live recognizer resolves next; the port
+        // itself is not rebuilt, so nothing in flight is disturbed.
+        onChanged: async () => {},
       }),
     )
     .get(
@@ -223,6 +267,17 @@ if (import.meta.main) {
   await seedValidationCases(rulesRepository);
   const redisCache = await connectRedis(process.env.REDIS_URL);
   const broker = new AuditEventBroker();
+  // Persisted OCR configuration: the single row an operator saves from the
+  // settings page. Absent (no migration applied yet) the recognizer falls back
+  // to the `OCR_*` environment variables, which is the existing behaviour.
+  const ocrSettingsRepository = createOcrSettingsRepository(db);
+  // Live for the process's lifetime: it re-resolves its configuration on every
+  // operation, so a settings save lands on the next parse — and the next audit
+  // run — without a restart.
+  const ocrPort = createLiveOcrPort(async () => {
+    const stored = await ocrSettingsRepository.rawConfig();
+    return stored ?? loadOcrConfig();
+  });
   const dispatcher = new AuditDispatcher(
     repository,
     agentFactoryFor(config.agentMode, providerRegistry),
@@ -231,6 +286,7 @@ if (import.meta.main) {
     subjectVerificationPortFor(config, redisCache),
     config.agentTimeoutMs,
     rulesRepository,
+    ocrPort,
   );
   app = createApp({
     repository,
@@ -240,6 +296,8 @@ if (import.meta.main) {
     llmProviders: providerRepository,
     registry: providerRegistry,
     redisCache,
+    ocrSettings: ocrSettingsRepository,
+    ocr: ocrPort,
   });
   await dispatcher.start();
   app.listen(config.apiPort);

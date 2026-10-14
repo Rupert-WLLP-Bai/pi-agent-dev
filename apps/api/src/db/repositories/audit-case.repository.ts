@@ -55,6 +55,16 @@ export class AuditCaseRepository {
     return this.queue.createQueuedCase(...args);
   }
 
+  /**
+   * Opens a fresh Audit Case for a stopped one, reusing the same Source Record
+   * and the exact Contract Revision. Returns a refusal reason instead of
+   * throwing when the case is still active or another case on that revision is
+   * already queued or running; see `CreateRerunCaseResult`.
+   */
+  async createRerunCase(...args: Parameters<AuditQueueRepository["createRerunCase"]>) {
+    return this.queue.createRerunCase(...args);
+  }
+
   async getSourceRecordContent(
     ...args: Parameters<AuditQueueRepository["getSourceRecordContent"]>
   ) {

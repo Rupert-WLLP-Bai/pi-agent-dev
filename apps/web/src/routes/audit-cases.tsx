@@ -10,6 +10,7 @@ import {
   retryAuditCase,
 } from "../api";
 import type { AuditLifecycleFilter } from "../audit-presentation";
+import { rerunAuditCase } from "../audit-rerun-api";
 import { AuditQueue } from "../components/audit-queue";
 import { NewAuditDrawer } from "../components/new-audit-drawer";
 
@@ -73,12 +74,26 @@ export default function AuditCasesList({
     onError: (error: Error) => message.error(error.message),
   });
 
+  // A rerun opens a NEW case, so the operator is taken to it: watching the old
+  // case would show unchanged, already-reviewed work.
+  const rerunMutation = useMutation({
+    mutationFn: rerunAuditCase,
+    onSuccess: async (result) => {
+      await settle();
+      message.success("已按当前规则重新审计，原案件的结果保留不变");
+      void navigate({ to: "/audit-cases/$id", params: { id: result.id } });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+
   const action =
     cancelMutation.isPending && cancelMutation.variables
       ? { id: cancelMutation.variables, type: "CANCEL" as const }
       : retryMutation.isPending && retryMutation.variables
         ? { id: retryMutation.variables, type: "RETRY" as const }
-        : null;
+        : rerunMutation.isPending && rerunMutation.variables
+          ? { id: rerunMutation.variables, type: "RERUN" as const }
+          : null;
 
   return (
     <>
@@ -93,6 +108,7 @@ export default function AuditCasesList({
         onRefresh={() => void casesQuery.refetch()}
         onCancel={(id) => cancelMutation.mutate(id)}
         onRetry={(id) => retryMutation.mutate(id)}
+        onRerun={(id) => rerunMutation.mutate(id)}
         onCreate={() => setCreateOpen(true)}
       />
       <NewAuditDrawer

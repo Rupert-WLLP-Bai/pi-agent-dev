@@ -122,6 +122,80 @@ test("fake repository covers overview and recent runs", async () => {
   expect(result.acceptedFindings).toBe(1);
 });
 
+/**
+ * Shared rerun scenario: an audited case gains a new case over the same Source
+ * Record and Contract Revision, the old case is left exactly as it was, and the
+ * guards refuse an active source case and a duplicate in-flight rerun. Drift
+ * between the fake and the real repository fails this file.
+ */
+async function exerciseRerun(repository: {
+  createPendingCase: AuditCaseRepository["createPendingCase"];
+  updateCaseStatus: AuditCaseRepository["updateCaseStatus"];
+  appendFindingRevision: AuditCaseRepository["appendFindingRevision"];
+  appendReviewRevision: AuditCaseRepository["appendReviewRevision"];
+  createRerunCase: AuditCaseRepository["createRerunCase"];
+  getCase: AuditCaseRepository["getCase"];
+  getSnapshotByCase: AuditCaseRepository["getSnapshotByCase"];
+}): Promise<{ rerunCaseId: string; sourceCaseId: string }> {
+  const sourceId = crypto.randomUUID();
+  const { caseId } = await repository.createPendingCase(sourceId, snapshot(sourceId));
+  await repository.updateCaseStatus(caseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
+  const findingId = await repository.appendFindingRevision(caseId, proposal, null);
+  await repository.appendReviewRevision(findingId, review);
+
+  // The old case's snapshot and reviewed finding are what history must keep.
+  const snapshotBefore = await repository.getSnapshotByCase(caseId);
+
+  const created = await repository.createRerunCase(caseId);
+  expect(created.status).toBe("created");
+  if (created.status !== "created") throw new Error("unreachable");
+
+  const { caseId: rerunCaseId, sourceCaseId } = created;
+  const sourceBefore = await repository.getCase(caseId);
+
+  // The new case is queued and has no snapshot of its own yet.
+  const rerunCase = await repository.getCase(rerunCaseId);
+  expect(rerunCase).toMatchObject({ status: "PENDING", stage: "QUEUED" });
+  expect(await repository.getSnapshotByCase(rerunCaseId)).toBeNull();
+  // Same Source Record: the original bytes are re-read, not copied.
+  expect(rerunCase?.sourceRecordId).toBe(sourceBefore?.sourceRecordId);
+
+  // The source case keeps its snapshot and its status; nothing was rewritten.
+  expect(await repository.getCase(sourceCaseId)).toEqual(sourceBefore);
+  expect(await repository.getSnapshotByCase(sourceCaseId)).toEqual(snapshotBefore);
+
+  // A source case that never stopped cannot be rerun.
+  const pending = await repository.createPendingCase(crypto.randomUUID(), snapshot(sourceId));
+  expect(await repository.createRerunCase(pending.caseId)).toEqual({ status: "case_active" });
+
+  // A case that does not exist is reported as such rather than created.
+  expect(await repository.createRerunCase(crypto.randomUUID())).toEqual({ status: "not_found" });
+
+  return { rerunCaseId, sourceCaseId };
+}
+
+test("fake repository reruns an audited case as a new case", async () => {
+  const fake = new InMemoryAuditCaseRepository();
+  const { rerunCaseId, sourceCaseId } = await exerciseRerun(fake);
+  expect(rerunCaseId).not.toBe(sourceCaseId);
+  // The fake tracks the revision per case; the rerun reuses the source's.
+  expect(fake.contractRevisionByCase.get(rerunCaseId)).toBe(
+    fake.contractRevisionByCase.get(sourceCaseId),
+  );
+  expect(fake.contractRevisions.size).toBe(2);
+  // Still only one case in flight for that revision, so a second rerun refuses.
+  expect(await fake.createRerunCase(sourceCaseId)).toEqual({ status: "rerun_active" });
+});
+
+maybeTest("real repository reruns an audited case as a new case", async () => {
+  await withReal(async (repository) => {
+    const { rerunCaseId, sourceCaseId } = await exerciseRerun(repository);
+    expect(rerunCaseId).not.toBe(sourceCaseId);
+    // A second rerun is refused while the first is still queued.
+    expect(await repository.createRerunCase(sourceCaseId)).toEqual({ status: "rerun_active" });
+  });
+});
+
 maybeTest("real repository matches fake overview and recent-run semantics", async () => {
   await withReal(async (repository) => {
     const result = await exerciseOverviewAndRuns(repository);

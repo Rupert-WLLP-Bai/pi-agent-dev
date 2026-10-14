@@ -55,11 +55,13 @@ export interface AuditQueueProps {
   loading: boolean;
   refreshing: boolean;
   error: Error | null;
-  action: { id: string; type: "CANCEL" | "RETRY" } | null;
+  action: { id: string; type: "CANCEL" | "RETRY" | "RERUN" } | null;
   onOpen: (id: string) => void;
   onRefresh: () => void;
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
+  /** Audits the case again as a new case; the old one is left untouched. */
+  onRerun: (id: string) => void;
   onCreate: () => void;
 }
 
@@ -89,16 +91,20 @@ function RecordActions({
   onOpen,
   onCancel,
   onRetry,
+  onRerun,
 }: {
   auditCase: AuditQueueCase;
   action: AuditQueueProps["action"];
   onOpen: (id: string) => void;
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
+  onRerun: (id: string) => void;
 }) {
   const allowed = getAvailableCaseActions(auditCase);
   const cancelling = action?.id === auditCase.id && action.type === "CANCEL";
   const retrying = action?.id === auditCase.id && action.type === "RETRY";
+  const rerunning = action?.id === auditCase.id && action.type === "RERUN";
+  const audited = auditCase.status === "AWAITING_REVIEW" || auditCase.status === "COMPLETED";
   return (
     <Space size="small">
       <Button size="small" onClick={() => onOpen(auditCase.id)}>
@@ -120,14 +126,37 @@ function RecordActions({
       )}
       {allowed.includes("RETRY") && (
         <Popconfirm
-          title="重试该审计案件？"
-          description="将重新排队并从头执行审计。"
-          okText="确认重试"
+          title={audited ? "重新运行 Agent？" : "重试该审计案件？"}
+          description={
+            <div style={{ maxWidth: 320 }}>
+              沿用现有审查快照重新运行 Agent。新发现会追加；已有发现、复核及整改记录保留。
+              相同问题可能再次产生待复核发现。
+            </div>
+          }
+          okText={audited ? "确认重新运行" : "确认重试"}
           cancelText="返回"
           onConfirm={() => onRetry(auditCase.id)}
         >
           <Button size="small" loading={retrying}>
-            重试
+            {audited ? "重新运行 Agent" : "重试"}
+          </Button>
+        </Popconfirm>
+      )}
+      {allowed.includes("RERUN") && (
+        <Popconfirm
+          title="重新审计该案件？"
+          description={
+            <div style={{ maxWidth: 320 }}>
+              将新建一个审计案件，重新审查同一份合同并按当前规则与设置运行 Agent。
+              原案件的发现、人工复核与整改记录全部保留，不会被修改。
+            </div>
+          }
+          okText="确认重新审计"
+          cancelText="返回"
+          onConfirm={() => onRerun(auditCase.id)}
+        >
+          <Button size="small" type="primary" ghost loading={rerunning}>
+            重新审计
           </Button>
         </Popconfirm>
       )}
@@ -153,6 +182,7 @@ export function AuditQueue({
   onRefresh,
   onCancel,
   onRetry,
+  onRerun,
   onCreate,
 }: AuditQueueProps) {
   const [search, setSearch] = useState("");
@@ -411,6 +441,7 @@ export function AuditQueue({
                       onOpen={onOpen}
                       onCancel={onCancel}
                       onRetry={onRetry}
+                      onRerun={onRerun}
                     />
                   ),
                 },

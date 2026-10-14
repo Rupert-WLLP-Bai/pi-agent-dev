@@ -16,6 +16,7 @@ import { ensureRunSnapshot } from "./audit/assemble-run-snapshot";
 import { auditFailureCode } from "./audit/audit-failure-code";
 import type { AuditCaseRepository } from "./db/repositories";
 import type { RuleRepository } from "./db/rule-repository";
+import { isLiveOcrPort, type OcrPort } from "./document/ocr";
 import type { AuditEventBroker } from "./sse";
 
 const isAbortError = (error: unknown): boolean =>
@@ -40,6 +41,13 @@ export class AuditDispatcher {
      * Absent means "no overlay": every rule is treated as enabled.
      */
     private readonly rules?: RuleRepository,
+    /**
+     * The recognizer a scanned upload is parsed through. Resolved once per
+     * run, so a settings save lands on the *next* case while an in-flight run
+     * keeps the configuration it captured. Absent falls back to the
+     * environment configuration.
+     */
+    private readonly ocr?: OcrPort,
   ) {}
 
   get isStarted(): boolean {
@@ -86,7 +94,19 @@ export class AuditDispatcher {
     const auditCaseId = claimed.caseId;
     try {
       if (!this.rules) throw new Error("RULE_REPOSITORY_REQUIRED");
-      const snapshot = await ensureRunSnapshot(this.repository, auditCaseId, this.rules);
+      // One recognizer for the whole run: a mid-document config change must not
+      // flip the endpoint half a scanned contract is being read under. A live
+      // port captures the configuration now; a plain port is already frozen.
+      const port = this.ocr;
+      const ocr =
+        port === undefined ? undefined : isLiveOcrPort(port) ? await port.capture() : port;
+      const snapshot = await ensureRunSnapshot(
+        this.repository,
+        auditCaseId,
+        this.rules,
+        undefined,
+        ocr,
+      );
 
       this.broker.publish({ type: "audit.started", auditCaseId });
       // Rules already ran while the snapshot was assembled, so the first stage

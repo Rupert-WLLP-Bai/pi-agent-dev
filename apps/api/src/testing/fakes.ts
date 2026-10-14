@@ -34,6 +34,7 @@ import {
   type AgentRunSummary,
   type AuditCaseRepository,
   type AuditOverview,
+  type CreateRerunCaseResult,
   compareReviewQueueItems,
   contractTitleFromFirstBlock,
   type Remediation,
@@ -267,6 +268,49 @@ export class InMemoryAuditCaseRepository {
     return { caseId };
   }
 
+  /**
+   * Opens a fresh case over the same Source Record and Contract Revision,
+   * mirroring the SQL guards: the source case must have stopped, and no other
+   * case on that revision may still be queued or running. The source case's
+   * snapshots, findings, reviews and remediations are left exactly as they were.
+   */
+  async createRerunCase(sourceCaseId: string): Promise<CreateRerunCaseResult> {
+    const source = this.cases.get(sourceCaseId);
+    if (!source) return { status: "not_found" };
+    if (source.status === "PENDING" || source.status === "RUNNING") {
+      return { status: "case_active" };
+    }
+    const sourceRevisionId = this.contractRevisionByCase.get(sourceCaseId);
+    if (!sourceRevisionId) return { status: "not_found" };
+    for (const [caseId, state] of this.cases) {
+      if (caseId === sourceCaseId) continue;
+      if (this.contractRevisionByCase.get(caseId) !== sourceRevisionId) continue;
+      if (state.status === "PENDING" || state.status === "RUNNING") {
+        return { status: "rerun_active" };
+      }
+    }
+    const caseId = `case-${this.cases.size + 1}`;
+    const createdAt = new Date().toISOString();
+    this.sourceRecordIdsByCase.set(caseId, this.sourceRecordIdsByCase.get(sourceCaseId) ?? "");
+    this.contractRevisionByCase.set(caseId, sourceRevisionId);
+    this.cases.set(caseId, {
+      status: "PENDING",
+      stage: "QUEUED",
+      // Deliberately empty: the dispatcher assembles a new snapshot from the
+      // current rules and re-parses the original bytes through the OCR in force.
+      snapshots: [],
+      findings: [],
+      assignee: null,
+      reviewPriority: null,
+      createdAt,
+      updatedAt: createdAt,
+      scenarioId: null,
+      caseKey: null,
+      demoSeed: false,
+    });
+    return { status: "created", caseId, sourceCaseId };
+  }
+
   async getSourceRecordContent(sourceRecordId: string): Promise<{
     sourceText: string;
     originalPath: string | null;
@@ -330,9 +374,10 @@ export class InMemoryAuditCaseRepository {
     if (!state) return null;
     return {
       id: caseId,
-      status: state.status,
-      stage: state.stage,
+      status: state.status as AuditCaseStatus,
+      stage: state.stage as AuditStage,
       sourceRecordId: this.sourceRecordIdsByCase.get(caseId) ?? `source-${caseId}`,
+      contractRevisionId: this.contractRevisionByCase.get(caseId) ?? null,
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
     };

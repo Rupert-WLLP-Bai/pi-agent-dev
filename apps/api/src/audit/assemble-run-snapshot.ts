@@ -5,6 +5,7 @@ import { loadApiConfig } from "../config";
 import type { AuditCaseRepository } from "../db/repositories";
 import type { RuleRepository } from "../db/rule-repository";
 import { parseContractFile } from "../document";
+import type { OcrPort } from "../document/ocr";
 import { readOriginal } from "../document/original-store";
 import { buildRuleInputs } from "./build-rule-inputs";
 
@@ -20,17 +21,23 @@ const readUploadFilename = (metadata: Record<string, unknown> | null): string | 
   return metadata.uploadFileName;
 };
 
-async function resolveContractDocument(input: {
-  sourceText: string;
-  originalPath: string | null;
-  uploadFileName: string | null;
-}): Promise<ContractDocument> {
+async function resolveContractDocument(
+  input: {
+    sourceText: string;
+    originalPath: string | null;
+    uploadFileName: string | null;
+  },
+  ocr?: OcrPort,
+): Promise<ContractDocument> {
   if (input.originalPath) {
     const bytes = new Uint8Array(await readOriginal(input.originalPath));
-    const parsed = await parseContractFile({
-      filename: input.uploadFileName ?? "contract.docx",
-      data: bytes,
-    });
+    const parsed = await parseContractFile(
+      {
+        filename: input.uploadFileName ?? "contract.docx",
+        data: bytes,
+      },
+      ocr,
+    );
     return parsed.document;
   }
   return normalizeContractDocument(input.sourceText);
@@ -39,12 +46,21 @@ async function resolveContractDocument(input: {
 /**
  * Returns the snapshot the dispatcher should run against. Retries reuse the
  * latest generation; first runs and reassessments build (and persist) a new one.
+ *
+ * `ocr` is the recognizer a *parse* uses, resolved once by the dispatcher when
+ * the run starts. A first run — including a rerun's fresh case over the same
+ * source record — parses the uploaded file under whatever configuration is in
+ * force then, so a settings save between two runs over the same file is picked
+ * up by the later one. A retry reuses the snapshot it already has, and a
+ * reassessment deliberately reuses the stored `contractDocument`, so neither
+ * re-reads a recognizer at all.
  */
 export async function ensureRunSnapshot(
   repository: AuditCaseRepository,
   auditCaseId: string,
   rules: RuleRepository,
   ownOrganizationNames: readonly string[] = loadApiConfig().ownOrganizationNames,
+  ocr?: OcrPort,
 ): Promise<AuditSnapshot> {
   const auditCase = await repository.getCase(auditCaseId);
   if (!auditCase) throw new Error(`Audit case not found: ${auditCaseId}`);
@@ -68,11 +84,14 @@ export async function ensureRunSnapshot(
     }
     document = existing.contractDocument;
   } else {
-    document = await resolveContractDocument({
-      sourceText: source.sourceText,
-      originalPath: source.originalPath,
-      uploadFileName: readUploadFilename(metadata),
-    });
+    document = await resolveContractDocument(
+      {
+        sourceText: source.sourceText,
+        originalPath: source.originalPath,
+        uploadFileName: readUploadFilename(metadata),
+      },
+      ocr,
+    );
   }
 
   await repository.updateCaseStatus(auditCaseId, "RUNNING", "RULE_ASSESSMENT");

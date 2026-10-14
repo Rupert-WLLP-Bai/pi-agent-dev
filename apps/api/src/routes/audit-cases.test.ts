@@ -226,3 +226,178 @@ test("reassessing a case that does not exist is a 404", async () => {
   const body: { error: string } = await response.json();
   expect(body).toEqual({ error: "audit_case_not_found" });
 });
+
+/**
+ * A rerun is a new audit of the same contract, not a re-run of the old one.
+ * Retry and reassess both act on the case they are called on, so their new
+ * findings land in the case a human already reviewed — which is the loophole
+ * the rerun closes by opening a fresh case instead.
+ */
+
+const rerun = (app: AuditApp, id: string): Promise<Response> =>
+  app.handle(
+    new Request(`http://localhost/api/audit-cases/${encodeURIComponent(id)}/rerun`, {
+      method: "POST",
+    }),
+  );
+
+const retry = (app: AuditApp, id: string): Promise<Response> =>
+  app.handle(
+    new Request(`http://localhost/api/audit-cases/${encodeURIComponent(id)}/retry`, {
+      method: "POST",
+    }),
+  );
+
+/** A stopped case that has been audited, so a rerun is allowed. */
+const auditedCase = async (
+  app: AuditApp,
+  repository: InMemoryAuditCaseRepository,
+  rules: InMemoryRuleRepository,
+  status: "AWAITING_REVIEW" | "COMPLETED" | "FAILED" | "CANCELLED" | "INTERRUPTED",
+): Promise<string> => {
+  const id = await createCase(app);
+  await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
+  await repository.updateCaseStatus(id, status, status);
+  return id;
+};
+
+test("re-running an awaiting-review case opens a new case over the same revision", async () => {
+  const { repository, rules, dispatcher, app } = setup();
+  const id = await auditedCase(app, repository, rules, "AWAITING_REVIEW");
+  const originalRevisionId = repository.contractRevisionByCase.get(id);
+  const originalSnapshots = repository.cases.get(id)?.snapshots.length;
+  const enqueuedBefore = dispatcher.enqueued.length;
+
+  const response = await rerun(app, id);
+
+  expect(response.status).toBe(202);
+  const body: { id: string; status: string; sourceCaseId: string } = await response.json();
+  expect(body.status).toBe("PENDING");
+  // The new case is a different case id, so the old one keeps its own state.
+  expect(body.id).not.toBe(id);
+  expect(body.sourceCaseId).toBe(id);
+  // Same Contract Revision: re-reading identical bytes is not a new version.
+  expect(repository.contractRevisionByCase.get(body.id)).toBe(originalRevisionId);
+  expect(repository.contractRevisions.size).toBe(1);
+  // Same Source Record, so the original bytes are re-parsed.
+  expect(repository.sourceRecordIdsByCase.get(body.id)).toBe(
+    repository.sourceRecordIdsByCase.get(id),
+  );
+  // The old case is untouched: same snapshots, same status, no new findings.
+  expect(repository.cases.get(id)?.snapshots.length).toBe(originalSnapshots);
+  expect(await repository.getCase(id)).toMatchObject({ status: "AWAITING_REVIEW" });
+  // The new case starts with no snapshot of its own.
+  expect(repository.cases.get(body.id)?.snapshots.length).toBe(0);
+  expect(dispatcher.enqueued.at(-1)).toBe(body.id);
+  expect(dispatcher.enqueued).toHaveLength(enqueuedBefore + 1);
+});
+
+test("the new case runs against the rules in force now, not the old snapshot", async () => {
+  const { repository, rules, app } = setup();
+  const id = await auditedCase(app, repository, rules, "COMPLETED");
+  const originalFindings = repository.cases.get(id)?.findings.length ?? 0;
+  await repository.appendFindingRevision(
+    id,
+    {
+      assessmentId: "assessment-payment",
+      findingType: "ADVANCE_PAYMENT_POLICY_CONFLICT",
+      severity: "HIGH",
+      rationale: "Advance payment exceeds the policy limit",
+      evidenceIds: ["contract-payment"],
+      remediation: "Reduce the advance payment ratio",
+    },
+    null,
+  );
+  await repository.appendReviewRevision(repository.cases.get(id)?.findings[0]?.id ?? "", {
+    decision: "ACCEPTED",
+    reviewerId: "reviewer-1",
+    reviewedAt: new Date().toISOString(),
+  });
+
+  const response = await rerun(app, id);
+  const body: { id: string } = await response.json();
+
+  // The new case carries no findings and no reviews of its own: the audit it is
+  // about to run is the only source of its output.
+  expect(repository.cases.get(body.id)?.findings.length).toBe(0);
+  // The old case keeps the finding and the human decision recorded on it: a
+  // review is itself a revision, so the count grows by two.
+  const oldFindings = repository.cases.get(id)?.findings ?? [];
+  expect(oldFindings.length).toBe(originalFindings + 2);
+  expect(oldFindings.some((finding) => finding.review !== null)).toBe(true);
+});
+
+test("re-running a case that is still queued or running is refused", async () => {
+  for (const status of ["PENDING", "RUNNING"] as const) {
+    const { repository, rules, dispatcher, app } = setup();
+    const id = await createCase(app);
+    await ensureRunSnapshot(repository.asRepository(), id, rules.asRepository());
+    await repository.updateCaseStatus(id, status, status);
+    const casesBefore = repository.cases.size;
+
+    const response = await rerun(app, id);
+
+    expect(response.status).toBe(409);
+    const body: { error: string } = await response.json();
+    expect(body).toEqual({ error: "case_active" });
+    // No new case was opened and no rerun was enqueued: the create call already
+    // enqueues the paste's own case once, which is the baseline.
+    expect(repository.cases.size).toBe(casesBefore);
+    expect(dispatcher.enqueued).toHaveLength(1);
+  }
+});
+
+test("a second rerun is refused while the first is still queued or running", async () => {
+  const { repository, rules, dispatcher, app } = setup();
+  const id = await auditedCase(app, repository, rules, "COMPLETED");
+
+  const first = await rerun(app, id);
+  expect(first.status).toBe(202);
+  const { id: firstCaseId } = (await first.json()) as { id: string };
+  const enqueuedBefore = dispatcher.enqueued.length;
+
+  const second = await rerun(app, id);
+
+  expect(second.status).toBe(409);
+  const body: { error: string } = await second.json();
+  expect(body).toEqual({ error: "rerun_already_active" });
+  // The first rerun is untouched, and no duplicate work was scheduled.
+  expect(await repository.getCase(firstCaseId)).toMatchObject({ status: "PENDING" });
+  expect(dispatcher.enqueued).toHaveLength(enqueuedBefore);
+  expect(repository.cases.size).toBe(2);
+});
+
+test("re-running a case that does not exist is a 404", async () => {
+  const { app } = setup();
+
+  const response = await rerun(app, "no-such-case");
+
+  expect(response.status).toBe(404);
+  const body: { error: string } = await response.json();
+  expect(body).toEqual({ error: "audit_case_not_found" });
+});
+
+test("retrying an audited case is refused instead of appending into reviewed work", async () => {
+  const { repository, rules, dispatcher, app } = setup();
+  const id = await auditedCase(app, repository, rules, "AWAITING_REVIEW");
+  const enqueuedBefore = dispatcher.enqueued.length;
+
+  const response = await retry(app, id);
+
+  expect(response.status).toBe(409);
+  const body: { error: string } = await response.json();
+  expect(body).toEqual({ error: "case_not_retryable" });
+  expect(dispatcher.enqueued).toHaveLength(enqueuedBefore);
+});
+
+test("retrying a failed case is still accepted", async () => {
+  const { repository, rules, dispatcher, app } = setup();
+  const id = await auditedCase(app, repository, rules, "FAILED");
+
+  const response = await retry(app, id);
+
+  expect(response.status).toBe(202);
+  const body: { id: string; status: string } = await response.json();
+  expect(body).toEqual({ id, status: "PENDING" });
+  expect(dispatcher.retried.at(-1)).toBe(id);
+});

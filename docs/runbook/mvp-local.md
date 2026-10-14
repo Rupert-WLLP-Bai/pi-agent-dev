@@ -119,6 +119,21 @@ PostgreSQL is not reachable on `127.0.0.1:5432`.
 
 Open http://localhost:5173/audit-cases to use the workbench.
 
+## Rerun Agent Analysis
+
+For an audit case marked **已完成** or **待复核**, click **重新运行 Agent** in
+the audit queue row or the case detail banner, then confirm **确认重新运行**.
+The case is queued for a new Agent Run against its existing Audit Snapshot.
+
+New findings are appended. Existing findings, human reviews, remediation items,
+and earlier run traces remain available. The same issue may create another
+finding awaiting review; rerunning does not automatically review that finding.
+The action is unavailable while the case is queued or running.
+
+This differs from **按当前规则重评**, which rebuilds the snapshot using current
+published rules and is offered for failed, cancelled, or interrupted cases.
+See [GLOSSARY.md](../../GLOSSARY.md) for the domain terms.
+
 ## Pages
 
 Entry points in the workbench:

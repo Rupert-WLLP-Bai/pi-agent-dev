@@ -46,6 +46,7 @@ import {
   findingTypeLabels,
   getAuditStageLabel,
   getAuditStep,
+  getAvailableCaseActions,
   getRuleCodeLabel,
   getRuleDispositionLabel,
   getSubjectDimensionSeverityLabel,
@@ -82,13 +83,20 @@ export interface AuditCaseDetailData {
 export interface AuditCaseWorkbenchProps {
   detail: AuditCaseDetailData & { snapshot: AuditCaseSnapshotView };
   connection: AuditConnectionState;
-  action: { type: "CANCEL" | "RETRY" | "REASSESS" } | null;
+  action: { type: "CANCEL" | "RETRY" | "REASSESS" | "RERUN" } | null;
   onOpenReview: (decision: "ACCEPTED" | "REJECTED", finding: FindingRevision) => void;
   onCancel: () => void;
   /** Reruns the agent against the snapshot the case already holds. */
   onRetry: () => void;
   /** Rebuilds the snapshot from the current published rules, then reruns. */
   onReassess: () => void;
+  /**
+   * Audits the case again as a NEW case, leaving this one — including its
+   * findings, reviews and remediations — untouched. This is what a successful
+   * or awaiting-review case offers, because retry and reassess would append
+   * new findings into work already reviewed.
+   */
+  onRerun: () => void;
   onBack: () => void;
   /** Text on the back control; follows the entry point (review centre vs queue). */
   backLabel?: string;
@@ -608,6 +616,7 @@ export function AuditCaseWorkbench({
   onCancel,
   onRetry,
   onReassess,
+  onRerun,
   onBack,
   backLabel = "返回审计队列",
   onOpenTrace,
@@ -771,6 +780,25 @@ export function AuditCaseWorkbench({
                 审查报告
               </Button>
             )}
+            {(awaitingReview || completed) &&
+              getAvailableCaseActions(auditCase).includes("RETRY") && (
+                <Popconfirm
+                  title="重新运行 Agent？"
+                  description={
+                    <div style={{ maxWidth: 320 }}>
+                      沿用现有审查快照重新运行 Agent。新发现会追加；已有发现、复核及整改记录保留。
+                      相同问题可能再次产生待复核发现。
+                    </div>
+                  }
+                  okText="确认重新运行"
+                  cancelText="返回"
+                  onConfirm={onRetry}
+                >
+                  <Button size="small" loading={action?.type === "RETRY"}>
+                    重新运行 Agent
+                  </Button>
+                </Popconfirm>
+              )}
           </div>
         </div>
         <div className="case-meta">
@@ -868,9 +896,41 @@ export function AuditCaseWorkbench({
                 >
                   <Button loading={action?.type === "RETRY"}>仅重试智能体</Button>
                 </Popconfirm>
+                <Popconfirm
+                  title="重新审计该案件？"
+                  description="将新建一个审计案件重新审查同一份合同；本案件的结果保留不变。"
+                  okText="确认重新审计"
+                  cancelText="返回"
+                  onConfirm={onRerun}
+                >
+                  <Button loading={action?.type === "RERUN"}>重新审计</Button>
+                </Popconfirm>
               </Space>
             }
           />
+        </div>
+      )}
+
+      {showReview && (
+        <div className="workbench-panel">
+          <Alert
+            type="info"
+            showIcon
+            message="需要重新审查？"
+            description="将以当前规则、当前设置重新审计同一份合同，并新建一个案件；本案件的风险发现、人工复核与整改记录全部保留，不会被修改。"
+            style={{ flex: 1 }}
+          />
+          <Popconfirm
+            title="重新审计该案件？"
+            description="将新建一个审计案件并重新运行 Agent；原案件的结果保留不变。"
+            okText="确认重新审计"
+            cancelText="返回"
+            onConfirm={onRerun}
+          >
+            <Button type="primary" loading={action?.type === "RERUN"}>
+              重新审计
+            </Button>
+          </Popconfirm>
         </div>
       )}
 

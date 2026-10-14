@@ -1,4 +1,5 @@
 export { AuditCaseRepository } from "./audit-case.repository";
+export type { CreateRerunCaseResult } from "./audit-queue.repository";
 export { createDb, createRepository, type DbHandle } from "./create-db";
 export { compareReviewQueueItems, contractTitleFromFirstBlock } from "./helpers";
 export type {
