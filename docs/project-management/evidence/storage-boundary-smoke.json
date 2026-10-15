@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-15T05:50:40.621Z",
+  "status": "SUCCEEDED",
+  "target": "http://127.0.0.1:9000",
+  "scope": "Existing RustFS1.0.0 with synthetic uniquely-owned object; new pinned1.0.1 deployment not covered by this run",
+  "strictDemoDespiteFalseEnv": true,
+  "roundTripHash": "139f6edcfeca34003704bbc2b28585bbb150440814ee073a0b4fabb98088e65a",
+  "roundTripBytes": 61,
+  "mismatch": "original_integrity_mismatch",
+  "foreign": "original_bucket_not_allowed",
+  "missing": "original_missing",
+  "historicalLocalBytesMatch": true,
+  "regression": {
+    "command": "bun test apps/api/src/document/original-store.test.ts",
+    "passed": 10,
+    "failed": 0,
+    "assertions": 21
+  },
+  "managedEnvironment": {
+    "before": {
+      "secretLogRedaction": false
+    },
+    "after": {
+      "createdFileMode": "600",
+      "reloadedSameCredential": true,
+      "secretLogRedaction": true,
+      "rootEnvRejected": true,
+      "distinctPorts": 6
+    },
+    "exitCode": 0
+  }
+}
