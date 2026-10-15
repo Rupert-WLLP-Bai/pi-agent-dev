@@ -12,10 +12,7 @@
     "settled": true,
     "result": null,
     "exitCode": 0,
-    "safeLogs": [
-      "REDIS_CLIENT_ERROR",
-      "REDIS_CONNECT_FAILED_QCC_CACHE_DISABLED"
-    ]
+    "safeLogs": ["REDIS_CLIENT_ERROR", "REDIS_CONNECT_FAILED_QCC_CACHE_DISABLED"]
   },
   "privacyRegressions": {
     "traceBefore": "FAILED: synthetic contract text and credential leaked in raw error",

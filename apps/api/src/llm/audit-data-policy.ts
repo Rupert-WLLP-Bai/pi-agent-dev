@@ -35,6 +35,9 @@ export function assertAuditDataDestination(
   const actualHash = createHash("sha256").update(canonicalText).digest("hex");
   const synthetic =
     syntheticDocumentHashes.has(actualHash) &&
+    (snapshot.subjectVerificationProvider === "qcc-fixture" ||
+      (snapshot.subjectVerificationProvider === undefined &&
+        !snapshot.ruleAssessments.some((item) => item.ruleCode === "SUBJECT_RED_LINE_RISK"))) &&
     snapshot.evidence.every(
       (evidence) =>
         evidence.location.kind !== "PRIOR_CASE_RECORD" &&

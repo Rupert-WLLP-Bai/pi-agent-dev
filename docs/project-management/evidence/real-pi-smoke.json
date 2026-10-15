@@ -1,12 +1,12 @@
 {
   "status": "SUCCEEDED",
-  "recordedAt": "2026-10-15T05:03:46.936Z",
+  "recordedAt": "2026-10-15T05:25:37.042Z",
   "endpoint": "http://127.0.0.1:3425/v1",
   "model": "panda-local/cqmoma/cqcm/deepseek-v4-flash",
   "source": "real Pi Agent; standard synthetic contract",
   "syntheticSampleId": "equipment-lease",
   "providerConfigSource": "requested endpoint/model with environment credential",
-  "elapsedMs": 29727,
+  "elapsedMs": 30365,
   "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
   "assessments": [
     {
@@ -173,7 +173,7 @@
   "evidence": [
     {
       "id": "contract-payment",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -185,7 +185,7 @@
     },
     {
       "id": "policy-limit",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "POLICY_PARAMETER",
         "ruleCode": "ADVANCE_PAYMENT_LIMIT",
@@ -196,7 +196,7 @@
     },
     {
       "id": "party-1-name",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -208,7 +208,7 @@
     },
     {
       "id": "party-2-name",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -220,7 +220,7 @@
     },
     {
       "id": "contract-penalty",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -232,7 +232,7 @@
     },
     {
       "id": "policy-penalty-limit",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -244,7 +244,7 @@
     },
     {
       "id": "contract-termination",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -256,7 +256,7 @@
     },
     {
       "id": "contract-dispute",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -268,7 +268,7 @@
     },
     {
       "id": "contract-payment-term",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -280,7 +280,7 @@
     },
     {
       "id": "contract-liability-cap",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -292,7 +292,7 @@
     },
     {
       "id": "contract-amount-in-words",
-      "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+      "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
       "location": {
         "kind": "DOCUMENT_SPAN",
         "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -304,28 +304,28 @@
     },
     {
       "id": "party-2-裁判文书",
-      "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+      "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
       "location": {
         "kind": "EXTERNAL_RECORD",
         "provider": "qcc-fixture",
         "tool": "get_company_risk_scan",
         "subject": "成都建工集团有限公司",
         "recordType": "裁判文书",
-        "capturedAt": "2026-10-15T05:03:17.199Z",
-        "expiresAt": "2026-10-22T05:03:17.199Z"
+        "capturedAt": "2026-10-15T05:25:06.677Z",
+        "expiresAt": "2026-10-22T05:25:06.677Z"
       }
     },
     {
       "id": "party-2-开庭公告",
-      "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+      "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
       "location": {
         "kind": "EXTERNAL_RECORD",
         "provider": "qcc-fixture",
         "tool": "get_company_risk_scan",
         "subject": "成都建工集团有限公司",
         "recordType": "开庭公告",
-        "capturedAt": "2026-10-15T05:03:17.199Z",
-        "expiresAt": "2026-10-22T05:03:17.199Z"
+        "capturedAt": "2026-10-15T05:25:06.677Z",
+        "expiresAt": "2026-10-22T05:25:06.677Z"
       }
     }
   ],
@@ -334,30 +334,30 @@
       "assessmentId": "assessment-payment",
       "findingType": "ADVANCE_PAYMENT_POLICY_CONFLICT",
       "severity": "HIGH",
-      "rationale": "合同第三条约定甲方在合同签订后五日内支付合同总价50%（证据 contract-payment 引用文本“50%”），而制度对预付款比例的上限为 30%（policy-limit：limitRatio=0.3）。本合同预付款比例超出制度上限 20 个百分点，构成预付款比例政策冲突。",
+      "rationale": "合同第三条约定甲方在合同签订后五日内支付合同总价 50% 的预付款（blockId p-5，quotedText \"50%\"），而制度上限为 30%（policy-limit，limitRatio=0.3）。预付款比例超出制度上限 20 个百分点，构成预付款比例政策冲突，风险等级高。",
       "evidenceIds": ["contract-payment", "policy-limit"],
-      "remediation": "将预付款比例下调至合同总价的 30%（含）以内，或将超出部分改为按进度款/验收合格后支付，确保不突破制度对预付款比例的上限。"
+      "remediation": "建议将预付款比例下调至制度上限 30% 以内（如 30%），或就超出部分与业务/法务确认豁免审批流程后再签署；同时将付款安排与验收、交付节点挂钩，降低预付款资金风险。"
     },
     {
       "assessmentId": "assessment-dispute",
       "findingType": "DISPUTE_JURISDICTION_CONFLICT",
       "severity": "MEDIUM",
-      "rationale": "合同第八条约定了争议解决方式为向成都人民法院提起诉讼（证据 contract-dispute 引用文本“向成都人民法院提起诉讼”）。我方当事人为重庆华盛贸易有限公司，约定管辖地为成都，属异地诉讼，将迫使我方赴外地进行诉讼，增加维权成本与不确定性，构成争议管辖冲突。",
+      "rationale": "合同第八条约定\"协商不成的，向成都人民法院提起诉讼\"（blockId p-10），争议管辖地为成都，与我方所在地重庆不一致。我方为重庆华盛贸易有限公司（party-1-name），异地诉讼将增加我方维权成本与诉讼不确定性，构成争议管辖冲突。",
       "evidenceIds": ["contract-dispute"],
-      "remediation": "将争议管辖法院修改为我方所在地（重庆）有管辖权的人民法院，或约定为合同签订地、合同履行地等便于我方应诉/起诉的管辖法院。"
+      "remediation": "建议将争议管辖地修改为我方所在地重庆市有管辖权的人民法院，或至少约定为对双方相对公平的管辖地（如合同签订地/履行地中的我方所在地），并同步复核\"成都人民法院\"表述的准确性（应明确至具体区级法院）。"
     }
   ],
   "usage": {
-    "input": 20114,
-    "output": 1832,
+    "input": 20199,
+    "output": 1943,
     "cacheRead": 0,
     "cacheWrite": 0,
-    "total": 21946
+    "total": 22142
   },
   "trace": [
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:17.243Z",
+      "at": "2026-10-15T05:25:06.718Z",
       "label": "RUN_STARTED",
       "ref": null,
       "parentRef": null,
@@ -366,12 +366,12 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 0
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:17.244Z",
+      "at": "2026-10-15T05:25:06.719Z",
       "label": "TURN_STARTED",
       "ref": null,
       "parentRef": null,
@@ -382,29 +382,29 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 1
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.573Z",
+      "at": "2026-10-15T05:25:08.230Z",
       "label": "get_rule_assessments",
-      "ref": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c",
       "parentRef": null,
       "input": {},
       "output": null,
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 2
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.576Z",
+      "at": "2026-10-15T05:25:08.233Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/1",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/1",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-payment"]
       },
@@ -412,27 +412,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 3
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.578Z",
+      "at": "2026-10-15T05:25:08.235Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/1",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/1",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-payment\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":27,\"endOffset\":30,\"quotedText\":\"50%\"}}]"
+            "text": "[{\"id\":\"contract-payment\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":27,\"endOffset\":30,\"quotedText\":\"50%\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-payment",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -447,15 +447,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 4
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.578Z",
+      "at": "2026-10-15T05:25:08.235Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/2",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/2",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["policy-limit"]
       },
@@ -463,27 +463,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 5
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.578Z",
+      "at": "2026-10-15T05:25:08.235Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/2",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/2",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"policy-limit\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"POLICY_PARAMETER\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"ruleVersionId\":null,\"parameterKey\":\"limitRatio\",\"quotedValue\":\"30%（limitRatio = 0.3）\"}}]"
+            "text": "[{\"id\":\"policy-limit\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"POLICY_PARAMETER\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"ruleVersionId\":null,\"parameterKey\":\"limitRatio\",\"quotedValue\":\"30%（limitRatio = 0.3）\"}}]"
           }
         ],
         "details": [
           {
             "id": "policy-limit",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "POLICY_PARAMETER",
               "ruleCode": "ADVANCE_PAYMENT_LIMIT",
@@ -497,15 +497,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 6
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.578Z",
+      "at": "2026-10-15T05:25:08.235Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/3",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/3",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-penalty"]
       },
@@ -513,27 +513,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 7
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.236Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/3",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/3",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-penalty\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-7\",\"startOffset\":32,\"endOffset\":34,\"quotedText\":\"5%\"}}]"
+            "text": "[{\"id\":\"contract-penalty\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-7\",\"startOffset\":32,\"endOffset\":34,\"quotedText\":\"5%\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-penalty",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -548,15 +548,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 8
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.236Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/4",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/4",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["policy-penalty-limit"]
       },
@@ -564,27 +564,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 9
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.236Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/4",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/4",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"policy-penalty-limit\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"policy-penalty-limit\",\"startOffset\":0,\"endOffset\":23,\"quotedText\":\"policyPenaltyLimit: 0.3\"}}]"
+            "text": "[{\"id\":\"policy-penalty-limit\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"policy-penalty-limit\",\"startOffset\":0,\"endOffset\":23,\"quotedText\":\"policyPenaltyLimit: 0.3\"}}]"
           }
         ],
         "details": [
           {
             "id": "policy-penalty-limit",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -599,15 +599,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 10
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.236Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/5",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/5",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-termination"]
       },
@@ -615,27 +615,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 11
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/5",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/5",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-termination\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-9\",\"startOffset\":0,\"endOffset\":41,\"quotedText\":\"第七条 合同终止\\n任一方严重违约且经书面催告后十五日内未纠正的，守约方有权终止本…\"}}]"
+            "text": "[{\"id\":\"contract-termination\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-9\",\"startOffset\":0,\"endOffset\":41,\"quotedText\":\"第七条 合同终止\\n任一方严重违约且经书面催告后十五日内未纠正的，守约方有权终止本…\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-termination",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -650,15 +650,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 12
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/6",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/6",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-dispute"]
       },
@@ -666,27 +666,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 13
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/6",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/6",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-dispute\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-10\",\"startOffset\":0,\"endOffset\":47,\"quotedText\":\"第八条 争议解决\\n因本合同引起的争议，双方应友好协商解决；协商不成的，向成都人民法院提起诉讼。\"}}]"
+            "text": "[{\"id\":\"contract-dispute\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-10\",\"startOffset\":0,\"endOffset\":47,\"quotedText\":\"第八条 争议解决\\n因本合同引起的争议，双方应友好协商解决；协商不成的，向成都人民法院提起诉讼。\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-dispute",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -701,15 +701,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 14
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/7",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/7",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-payment-term"]
       },
@@ -717,27 +717,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 15
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/7",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/7",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-payment-term\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":0,\"endOffset\":30,\"quotedText\":\"第三条 支付方式\\n甲方应在合同签订后五日内支付合同总价50%\"}}]"
+            "text": "[{\"id\":\"contract-payment-term\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":0,\"endOffset\":30,\"quotedText\":\"第三条 支付方式\\n甲方应在合同签订后五日内支付合同总价50%\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-payment-term",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -752,15 +752,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 16
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.579Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/8",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/8",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-liability-cap"]
       },
@@ -768,27 +768,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 17
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.237Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/8",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/8",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-liability-cap\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-8\",\"startOffset\":0,\"endOffset\":44,\"quotedText\":\"第六条 赔偿责任\\n因乙方原因造成甲方损失的，乙方赔偿金额以合同金额为限，不承担间接损失。\"}}]"
+            "text": "[{\"id\":\"contract-liability-cap\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-8\",\"startOffset\":0,\"endOffset\":44,\"quotedText\":\"第六条 赔偿责任\\n因乙方原因造成甲方损失的，乙方赔偿金额以合同金额为限，不承担间接损失。\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-liability-cap",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -803,15 +803,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 18
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/9",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/9",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["contract-amount-in-words"]
       },
@@ -819,27 +819,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 19
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/9",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/9",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"contract-amount-in-words\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-4\",\"startOffset\":0,\"endOffset\":48,\"quotedText\":\"第二条 合同价款\\n合同总价为人民币壹佰伍拾万元整（小写：1,500,000.00元），含增值税。\"}}]"
+            "text": "[{\"id\":\"contract-amount-in-words\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-4\",\"startOffset\":0,\"endOffset\":48,\"quotedText\":\"第二条 合同价款\\n合同总价为人民币壹佰伍拾万元整（小写：1,500,000.00元），含增值税。\"}}]"
           }
         ],
         "details": [
           {
             "id": "contract-amount-in-words",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -854,15 +854,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 20
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/10",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/10",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["party-1-name"]
       },
@@ -870,27 +870,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 21
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/10",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/10",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"party-1-name\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":3,\"endOffset\":13,\"quotedText\":\"重庆华盛贸易有限公司\"}}]"
+            "text": "[{\"id\":\"party-1-name\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":3,\"endOffset\":13,\"quotedText\":\"重庆华盛贸易有限公司\"}}]"
           }
         ],
         "details": [
           {
             "id": "party-1-name",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -905,15 +905,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 22
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/11",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/11",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["party-2-name"]
       },
@@ -921,27 +921,27 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 23
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/11",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/11",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"party-2-name\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":22,\"endOffset\":32,\"quotedText\":\"成都建工集团有限公司\"}}]"
+            "text": "[{\"id\":\"party-2-name\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":22,\"endOffset\":32,\"quotedText\":\"成都建工集团有限公司\"}}]"
           }
         ],
         "details": [
           {
             "id": "party-2-name",
-            "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+            "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
             "location": {
               "kind": "DOCUMENT_SPAN",
               "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -956,15 +956,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 24
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.580Z",
+      "at": "2026-10-15T05:25:08.238Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/12",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/12",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["party-2-裁判文书"]
       },
@@ -972,35 +972,35 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 25
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.581Z",
+      "at": "2026-10-15T05:25:08.239Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/12",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/12",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"party-2-裁判文书\",\"sourceRecordId\":\"63a80576-5f04-4691-93bf-cf11f81f15da\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"裁判文书\",\"capturedAt\":\"2026-10-15T05:03:17.199Z\",\"expiresAt\":\"2026-10-22T05:03:17.199Z\"}}]"
+            "text": "[{\"id\":\"party-2-裁判文书\",\"sourceRecordId\":\"ae62ce92-cb67-443b-b261-11fba96a6b01\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"裁判文书\",\"capturedAt\":\"2026-10-15T05:25:06.677Z\",\"expiresAt\":\"2026-10-22T05:25:06.677Z\"}}]"
           }
         ],
         "details": [
           {
             "id": "party-2-裁判文书",
-            "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+            "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
             "location": {
               "kind": "EXTERNAL_RECORD",
               "provider": "qcc-fixture",
               "tool": "get_company_risk_scan",
               "subject": "成都建工集团有限公司",
               "recordType": "裁判文书",
-              "capturedAt": "2026-10-15T05:03:17.199Z",
-              "expiresAt": "2026-10-22T05:03:17.199Z"
+              "capturedAt": "2026-10-15T05:25:06.677Z",
+              "expiresAt": "2026-10-22T05:25:06.677Z"
             }
           }
         ]
@@ -1008,15 +1008,15 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 26
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:18.581Z",
+      "at": "2026-10-15T05:25:08.239Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/13",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/13",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": {
         "evidenceIds": ["party-2-开庭公告"]
       },
@@ -1024,35 +1024,35 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 27
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.581Z",
+      "at": "2026-10-15T05:25:08.239Z",
       "label": "get_evidence",
-      "ref": "chatcmpl-tool-9335789eff51060e/13",
-      "parentRef": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c/13",
+      "parentRef": "chatcmpl-tool-9dd9b0582fccc34c",
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "[{\"id\":\"party-2-开庭公告\",\"sourceRecordId\":\"63a80576-5f04-4691-93bf-cf11f81f15da\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"开庭公告\",\"capturedAt\":\"2026-10-15T05:03:17.199Z\",\"expiresAt\":\"2026-10-22T05:03:17.199Z\"}}]"
+            "text": "[{\"id\":\"party-2-开庭公告\",\"sourceRecordId\":\"ae62ce92-cb67-443b-b261-11fba96a6b01\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"开庭公告\",\"capturedAt\":\"2026-10-15T05:25:06.677Z\",\"expiresAt\":\"2026-10-22T05:25:06.677Z\"}}]"
           }
         ],
         "details": [
           {
             "id": "party-2-开庭公告",
-            "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+            "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
             "location": {
               "kind": "EXTERNAL_RECORD",
               "provider": "qcc-fixture",
               "tool": "get_company_risk_scan",
               "subject": "成都建工集团有限公司",
               "recordType": "开庭公告",
-              "capturedAt": "2026-10-15T05:03:17.199Z",
-              "expiresAt": "2026-10-22T05:03:17.199Z"
+              "capturedAt": "2026-10-15T05:25:06.677Z",
+              "expiresAt": "2026-10-22T05:25:06.677Z"
             }
           }
         ]
@@ -1060,21 +1060,21 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 28
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:18.581Z",
+      "at": "2026-10-15T05:25:08.240Z",
       "label": "get_rule_assessments",
-      "ref": "chatcmpl-tool-9335789eff51060e",
+      "ref": "chatcmpl-tool-9dd9b0582fccc34c",
       "parentRef": null,
       "input": null,
       "output": {
         "content": [
           {
             "type": "text",
-            "text": "{\"assessments\":[{\"id\":\"assessment-payment\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"disposition\":\"POLICY_CONFLICT\",\"evidenceIds\":[\"contract-payment\",\"policy-limit\"],\"basis\":\"预付款比例 50% 高于制度上限 30%（超出 20 个百分点）。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-penalty\",\"ruleCode\":\"PENALTY_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-penalty\",\"policy-penalty-limit\"],\"basis\":\"违约金比例 5% 未超过制度上限 30%。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-termination\",\"ruleCode\":\"TERMINATION_CLAUSE_PRESENT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-termination\"],\"basis\":\"合同文本中包含终止/解除条款。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-dispute\",\"ruleCode\":\"DISPUTE_JURISDICTION\",\"disposition\":\"POLICY_CONFLICT\",\"evidenceIds\":[\"contract-dispute\"],\"basis\":\"争议管辖地为「成都」，与我方所在地「重庆」不一致，存在异地诉讼风险。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-performance-bond\",\"ruleCode\":\"PERFORMANCE_BOND_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定履约保证金，不涉及 10% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-payment-term\",\"ruleCode\":\"PAYMENT_TERM_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-payment-term\"],\"basis\":\"约定付款期限约 5 日，未超过法定最长 60 日。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-back-to-back\",\"ruleCode\":\"BACK_TO_BACK_PAYMENT_CLAUSE\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定以第三方付款为付款前提的背靠背条款。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-deposit\",\"ruleCode\":\"DEPOSIT_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定定金，不涉及 20% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-warranty-retention\",\"ruleCode\":\"WARRANTY_RETENTION_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未预留质量保证金，且缺陷责任期未超过 24 个月，不涉及 3% 上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-dispute-conflict\",\"ruleCode\":\"DISPUTE_RESOLUTION_CONFLICT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定可同时选择仲裁或诉讼的争议解决方式。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-bid-bond\",\"ruleCode\":\"BID_BOND_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定投标保证金，不涉及 2% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-ip-ownership\",\"ruleCode\":\"IP_OWNERSHIP_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同不含开发/定制等产生新成果的交付物，不涉及知识产权归属。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-guarantee-mode\",\"ruleCode\":\"GUARANTEE_MODE_AMBIGUOUS\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定保证担保，不涉及保证方式。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-confidentiality\",\"ruleCode\":\"CONFIDENTIALITY_PERIOD_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定保密条款，不涉及保密期限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-force-majeure\",\"ruleCode\":\"FORCE_MAJEURE_OVERBROAD\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定不可抗力条款，不涉及范围过宽。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-liability-cap\",\"ruleCode\":\"LIABILITY_CAP_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-liability-cap\"],\"basis\":\"合同约定了赔偿责任限额。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-amount-in-words\",\"ruleCode\":\"AMOUNT_IN_WORDS_MISMATCH\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-amount-in-words\"],\"basis\":\"大写金额「人民币壹佰伍拾万元整」与小写金额「1,500,000.00元」一致，均为 1500000 元。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-subject\",\"ruleCode\":\"SUBJECT_RED_LINE_RISK\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"party-1-name\",\"party-2-name\",\"party-2-裁判文书\",\"party-2-开庭公告\"],\"basis\":\"已核验 2 个当事人，未命中红线风险因子。\"}],\"availableEvidenceIds\":[\"contract-payment\",\"policy-limit\",\"party-1-name\",\"party-2-name\",\"contract-penalty\",\"policy-penalty-limit\",\"contract-termination\",\"contract-dispute\",\"contract-payment-term\",\"contract-liability-cap\",\"contract-amount-in-words\",\"party-2-裁判文书\",\"party-2-开庭公告\"],\"evidence\":[{\"id\":\"contract-payment\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":27,\"endOffset\":30,\"quotedText\":\"50%\"}},{\"id\":\"policy-limit\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"POLICY_PARAMETER\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"ruleVersionId\":null,\"parameterKey\":\"limitRatio\",\"quotedValue\":\"30%（limitRatio = 0.3）\"}},{\"id\":\"party-1-name\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":3,\"endOffset\":13,\"quotedText\":\"重庆华盛贸易有限公司\"}},{\"id\":\"party-2-name\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":22,\"endOffset\":32,\"quotedText\":\"成都建工集团有限公司\"}},{\"id\":\"contract-penalty\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-7\",\"startOffset\":32,\"endOffset\":34,\"quotedText\":\"5%\"}},{\"id\":\"policy-penalty-limit\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"policy-penalty-limit\",\"startOffset\":0,\"endOffset\":23,\"quotedText\":\"policyPenaltyLimit: 0.3\"}},{\"id\":\"contract-termination\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-9\",\"startOffset\":0,\"endOffset\":41,\"quotedText\":\"第七条 合同终止\\n任一方严重违约且经书面催告后十五日内未纠正的，守约方有权终止本…\"}},{\"id\":\"contract-dispute\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-10\",\"startOffset\":0,\"endOffset\":47,\"quotedText\":\"第八条 争议解决\\n因本合同引起的争议，双方应友好协商解决；协商不成的，向成都人民法院提起诉讼。\"}},{\"id\":\"contract-payment-term\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":0,\"endOffset\":30,\"quotedText\":\"第三条 支付方式\\n甲方应在合同签订后五日内支付合同总价50%\"}},{\"id\":\"contract-liability-cap\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-8\",\"startOffset\":0,\"endOffset\":44,\"quotedText\":\"第六条 赔偿责任\\n因乙方原因造成甲方损失的，乙方赔偿金额以合同金额为限，不承担间接损失。\"}},{\"id\":\"contract-amount-in-words\",\"sourceRecordId\":\"5aa95c60-03dd-4f80-8d15-a9ee2f773cee\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-4\",\"startOffset\":0,\"endOffset\":48,\"quotedText\":\"第二条 合同价款\\n合同总价为人民币壹佰伍拾万元整（小写：1,500,000.00元），含增值税。\"}},{\"id\":\"party-2-裁判文书\",\"sourceRecordId\":\"63a80576-5f04-4691-93bf-cf11f81f15da\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"裁判文书\",\"capturedAt\":\"2026-10-15T05:03:17.199Z\",\"expiresAt\":\"2026-10-22T05:03:17.199Z\"}},{\"id\":\"party-2-开庭公告\",\"sourceRecordId\":\"63a80576-5f04-4691-93bf-cf11f81f15da\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"开庭公告\",\"capturedAt\":\"2026-10-15T05:03:17.199Z\",\"expiresAt\":\"2026-10-22T05:03:17.199Z\"}}]}"
+            "text": "{\"assessments\":[{\"id\":\"assessment-payment\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"disposition\":\"POLICY_CONFLICT\",\"evidenceIds\":[\"contract-payment\",\"policy-limit\"],\"basis\":\"预付款比例 50% 高于制度上限 30%（超出 20 个百分点）。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-penalty\",\"ruleCode\":\"PENALTY_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-penalty\",\"policy-penalty-limit\"],\"basis\":\"违约金比例 5% 未超过制度上限 30%。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-termination\",\"ruleCode\":\"TERMINATION_CLAUSE_PRESENT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-termination\"],\"basis\":\"合同文本中包含终止/解除条款。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-dispute\",\"ruleCode\":\"DISPUTE_JURISDICTION\",\"disposition\":\"POLICY_CONFLICT\",\"evidenceIds\":[\"contract-dispute\"],\"basis\":\"争议管辖地为「成都」，与我方所在地「重庆」不一致，存在异地诉讼风险。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-performance-bond\",\"ruleCode\":\"PERFORMANCE_BOND_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定履约保证金，不涉及 10% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-payment-term\",\"ruleCode\":\"PAYMENT_TERM_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-payment-term\"],\"basis\":\"约定付款期限约 5 日，未超过法定最长 60 日。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-back-to-back\",\"ruleCode\":\"BACK_TO_BACK_PAYMENT_CLAUSE\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定以第三方付款为付款前提的背靠背条款。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-deposit\",\"ruleCode\":\"DEPOSIT_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定定金，不涉及 20% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-warranty-retention\",\"ruleCode\":\"WARRANTY_RETENTION_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未预留质量保证金，且缺陷责任期未超过 24 个月，不涉及 3% 上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-dispute-conflict\",\"ruleCode\":\"DISPUTE_RESOLUTION_CONFLICT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定可同时选择仲裁或诉讼的争议解决方式。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-bid-bond\",\"ruleCode\":\"BID_BOND_RATIO_LIMIT\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定投标保证金，不涉及 2% 法定上限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-ip-ownership\",\"ruleCode\":\"IP_OWNERSHIP_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同不含开发/定制等产生新成果的交付物，不涉及知识产权归属。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-guarantee-mode\",\"ruleCode\":\"GUARANTEE_MODE_AMBIGUOUS\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定保证担保，不涉及保证方式。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-confidentiality\",\"ruleCode\":\"CONFIDENTIALITY_PERIOD_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定保密条款，不涉及保密期限。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-force-majeure\",\"ruleCode\":\"FORCE_MAJEURE_OVERBROAD\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[],\"basis\":\"合同未约定不可抗力条款，不涉及范围过宽。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-liability-cap\",\"ruleCode\":\"LIABILITY_CAP_MISSING\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-liability-cap\"],\"basis\":\"合同约定了赔偿责任限额。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-amount-in-words\",\"ruleCode\":\"AMOUNT_IN_WORDS_MISMATCH\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"contract-amount-in-words\"],\"basis\":\"大写金额「人民币壹佰伍拾万元整」与小写金额「1,500,000.00元」一致，均为 1500000 元。\",\"ruleVersion\":null,\"ruleVersionId\":null},{\"id\":\"assessment-subject\",\"ruleCode\":\"SUBJECT_RED_LINE_RISK\",\"disposition\":\"COMPLIANT\",\"evidenceIds\":[\"party-1-name\",\"party-2-name\",\"party-2-裁判文书\",\"party-2-开庭公告\"],\"basis\":\"已核验 2 个当事人，未命中红线风险因子。\"}],\"availableEvidenceIds\":[\"contract-payment\",\"policy-limit\",\"party-1-name\",\"party-2-name\",\"contract-penalty\",\"policy-penalty-limit\",\"contract-termination\",\"contract-dispute\",\"contract-payment-term\",\"contract-liability-cap\",\"contract-amount-in-words\",\"party-2-裁判文书\",\"party-2-开庭公告\"],\"evidence\":[{\"id\":\"contract-payment\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":27,\"endOffset\":30,\"quotedText\":\"50%\"}},{\"id\":\"policy-limit\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"POLICY_PARAMETER\",\"ruleCode\":\"ADVANCE_PAYMENT_LIMIT\",\"ruleVersionId\":null,\"parameterKey\":\"limitRatio\",\"quotedValue\":\"30%（limitRatio = 0.3）\"}},{\"id\":\"party-1-name\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":3,\"endOffset\":13,\"quotedText\":\"重庆华盛贸易有限公司\"}},{\"id\":\"party-2-name\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-2\",\"startOffset\":22,\"endOffset\":32,\"quotedText\":\"成都建工集团有限公司\"}},{\"id\":\"contract-penalty\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-7\",\"startOffset\":32,\"endOffset\":34,\"quotedText\":\"5%\"}},{\"id\":\"policy-penalty-limit\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"policy-penalty-limit\",\"startOffset\":0,\"endOffset\":23,\"quotedText\":\"policyPenaltyLimit: 0.3\"}},{\"id\":\"contract-termination\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-9\",\"startOffset\":0,\"endOffset\":41,\"quotedText\":\"第七条 合同终止\\n任一方严重违约且经书面催告后十五日内未纠正的，守约方有权终止本…\"}},{\"id\":\"contract-dispute\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-10\",\"startOffset\":0,\"endOffset\":47,\"quotedText\":\"第八条 争议解决\\n因本合同引起的争议，双方应友好协商解决；协商不成的，向成都人民法院提起诉讼。\"}},{\"id\":\"contract-payment-term\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-5\",\"startOffset\":0,\"endOffset\":30,\"quotedText\":\"第三条 支付方式\\n甲方应在合同签订后五日内支付合同总价50%\"}},{\"id\":\"contract-liability-cap\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-8\",\"startOffset\":0,\"endOffset\":44,\"quotedText\":\"第六条 赔偿责任\\n因乙方原因造成甲方损失的，乙方赔偿金额以合同金额为限，不承担间接损失。\"}},{\"id\":\"contract-amount-in-words\",\"sourceRecordId\":\"cbded1b5-f747-4f79-be8d-f62e83d37b49\",\"location\":{\"kind\":\"DOCUMENT_SPAN\",\"contractDocumentHash\":\"097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279\",\"blockId\":\"p-4\",\"startOffset\":0,\"endOffset\":48,\"quotedText\":\"第二条 合同价款\\n合同总价为人民币壹佰伍拾万元整（小写：1,500,000.00元），含增值税。\"}},{\"id\":\"party-2-裁判文书\",\"sourceRecordId\":\"ae62ce92-cb67-443b-b261-11fba96a6b01\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"裁判文书\",\"capturedAt\":\"2026-10-15T05:25:06.677Z\",\"expiresAt\":\"2026-10-22T05:25:06.677Z\"}},{\"id\":\"party-2-开庭公告\",\"sourceRecordId\":\"ae62ce92-cb67-443b-b261-11fba96a6b01\",\"location\":{\"kind\":\"EXTERNAL_RECORD\",\"provider\":\"qcc-fixture\",\"tool\":\"get_company_risk_scan\",\"subject\":\"成都建工集团有限公司\",\"recordType\":\"开庭公告\",\"capturedAt\":\"2026-10-15T05:25:06.677Z\",\"expiresAt\":\"2026-10-22T05:25:06.677Z\"}}]}"
           }
         ],
         "details": {
@@ -1263,7 +1263,7 @@
           "evidence": [
             {
               "id": "contract-payment",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1275,7 +1275,7 @@
             },
             {
               "id": "policy-limit",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "POLICY_PARAMETER",
                 "ruleCode": "ADVANCE_PAYMENT_LIMIT",
@@ -1286,7 +1286,7 @@
             },
             {
               "id": "party-1-name",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1298,7 +1298,7 @@
             },
             {
               "id": "party-2-name",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1310,7 +1310,7 @@
             },
             {
               "id": "contract-penalty",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1322,7 +1322,7 @@
             },
             {
               "id": "policy-penalty-limit",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1334,7 +1334,7 @@
             },
             {
               "id": "contract-termination",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1346,7 +1346,7 @@
             },
             {
               "id": "contract-dispute",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1358,7 +1358,7 @@
             },
             {
               "id": "contract-payment-term",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1370,7 +1370,7 @@
             },
             {
               "id": "contract-liability-cap",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1382,7 +1382,7 @@
             },
             {
               "id": "contract-amount-in-words",
-              "sourceRecordId": "5aa95c60-03dd-4f80-8d15-a9ee2f773cee",
+              "sourceRecordId": "cbded1b5-f747-4f79-be8d-f62e83d37b49",
               "location": {
                 "kind": "DOCUMENT_SPAN",
                 "contractDocumentHash": "097ab23475737bb8e15a96a209938ae4b46f612c3368bc6b95da94173ea26279",
@@ -1394,42 +1394,42 @@
             },
             {
               "id": "party-2-裁判文书",
-              "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+              "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
               "location": {
                 "kind": "EXTERNAL_RECORD",
                 "provider": "qcc-fixture",
                 "tool": "get_company_risk_scan",
                 "subject": "成都建工集团有限公司",
                 "recordType": "裁判文书",
-                "capturedAt": "2026-10-15T05:03:17.199Z",
-                "expiresAt": "2026-10-22T05:03:17.199Z"
+                "capturedAt": "2026-10-15T05:25:06.677Z",
+                "expiresAt": "2026-10-22T05:25:06.677Z"
               }
             },
             {
               "id": "party-2-开庭公告",
-              "sourceRecordId": "63a80576-5f04-4691-93bf-cf11f81f15da",
+              "sourceRecordId": "ae62ce92-cb67-443b-b261-11fba96a6b01",
               "location": {
                 "kind": "EXTERNAL_RECORD",
                 "provider": "qcc-fixture",
                 "tool": "get_company_risk_scan",
                 "subject": "成都建工集团有限公司",
                 "recordType": "开庭公告",
-                "capturedAt": "2026-10-15T05:03:17.199Z",
-                "expiresAt": "2026-10-22T05:03:17.199Z"
+                "capturedAt": "2026-10-15T05:25:06.677Z",
+                "expiresAt": "2026-10-22T05:25:06.677Z"
               }
             }
           ]
         }
       },
       "isError": false,
-      "durationMs": 6,
+      "durationMs": 8,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 29
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:18.582Z",
+      "at": "2026-10-15T05:25:08.241Z",
       "label": "TURN_COMPLETED",
       "ref": null,
       "parentRef": null,
@@ -1440,7 +1440,7 @@
         "toolResults": 1
       },
       "isError": false,
-      "durationMs": 1338,
+      "durationMs": 1522,
       "tokens": {
         "input": 4341,
         "output": 42,
@@ -1449,12 +1449,12 @@
         "reasoning": 0,
         "total": 4383
       },
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 30
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:18.583Z",
+      "at": "2026-10-15T05:25:08.242Z",
       "label": "TURN_STARTED",
       "ref": null,
       "parentRef": null,
@@ -1465,77 +1465,77 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 31
     },
     {
       "kind": "MESSAGE",
-      "at": "2026-10-15T05:03:37.193Z",
+      "at": "2026-10-15T05:25:27.510Z",
       "label": "assistant",
       "ref": null,
       "parentRef": null,
       "input": null,
-      "output": "我已获取全部确定性规则评估。评估结果如下：\n\n- **预付款比例（ADVANCE_PAYMENT_LIMIT）→ POLICY_CONFLICT**：预付款 50%，超过制度上限 30%（超 20 个百分点），须机械提交 `ADVANCE_PAYMENT_POLICY_CONFLICT`（HIGH）。\n- **争议管辖（DISPUTE_JURISDICTION）→ POLICY_CONFLICT**：管辖地为「成都」，与我方所在地「重庆」不一致，须机械提交 `DISPUTE_JURISDICTION_CONFLICT`（MEDIUM）。\n- 其余维度（违约金、终止条款、履约保证金、付款期限、背靠背、定金、质量保证金、仲裁冲突、投标保证金、知识产权、保证方式、保密、不可抗力、赔偿限额、大小写金额、主体红线）均为 COMPLIANT，无需提交。\n- 无 `NEEDS_HUMAN_REVIEW` 维度，也无需读取合同全文或进一步取证；证据定位符已全部包含在评估载荷中。\n\n现在提交两项已由规则定性的冲突发现：",
+      "output": "已获取全部确定性评估结果。分析如下：\n\n- **`ADVANCE_PAYMENT_LIMIT`（预付款上限）→ `POLICY_CONFLICT`**：预付款比例 50%，超过制度上限 30%，须机械提交 `ADVANCE_PAYMENT_POLICY_CONFLICT`，严重程度固定为 HIGH。\n- **`DISPUTE_JURISDICTION`（争议管辖）→ `POLICY_CONFLICT`**：约定管辖地为「成都」，与我方所在地「重庆」不一致，须机械提交 `DISPUTE_JURISDICTION_CONFLICT`，严重程度固定为 MEDIUM。\n- 其余维度（违约金、终止条款、履约保证金、付款期限、背靠背、定金、质量保证金、仲裁冲突、投标保证金、知识产权、保证方式、保密、不可抗力、赔偿上限、金额大小写、主体红线）均为 `COMPLIANT`，不产生发现。\n\n无 `NEEDS_HUMAN_REVIEW` 维度，无需读取合同全文。证据已在评估载荷中，直接引用。现在提交两项发现：",
       "isError": false,
       "durationMs": null,
       "tokens": {
-        "input": 7211,
-        "output": 1321,
+        "input": 7187,
+        "output": 1454,
         "cacheRead": 0,
         "cacheWrite": 0,
         "reasoning": 0,
-        "total": 8532
+        "total": 8641
       },
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 32
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:37.193Z",
+      "at": "2026-10-15T05:25:27.510Z",
       "label": "submit_finding_proposal",
-      "ref": "chatcmpl-tool-baf1b2c2d883b006",
+      "ref": "chatcmpl-tool-9b3a6bdc018fb5e9",
       "parentRef": null,
       "input": {
         "assessmentId": "assessment-payment",
         "findingType": "ADVANCE_PAYMENT_POLICY_CONFLICT",
         "severity": "HIGH",
-        "evidenceIds": ["contract-payment", "policy-limit"],
-        "rationale": "合同第三条约定甲方在合同签订后五日内支付合同总价50%（证据 contract-payment 引用文本“50%”），而制度对预付款比例的上限为 30%（policy-limit：limitRatio=0.3）。本合同预付款比例超出制度上限 20 个百分点，构成预付款比例政策冲突。",
-        "remediation": "将预付款比例下调至合同总价的 30%（含）以内，或将超出部分改为按进度款/验收合格后支付，确保不突破制度对预付款比例的上限。"
+        "rationale": "合同第三条约定甲方在合同签订后五日内支付合同总价 50% 的预付款（blockId p-5，quotedText \"50%\"），而制度上限为 30%（policy-limit，limitRatio=0.3）。预付款比例超出制度上限 20 个百分点，构成预付款比例政策冲突，风险等级高。",
+        "remediation": "建议将预付款比例下调至制度上限 30% 以内（如 30%），或就超出部分与业务/法务确认豁免审批流程后再签署；同时将付款安排与验收、交付节点挂钩，降低预付款资金风险。",
+        "evidenceIds": ["contract-payment", "policy-limit"]
       },
       "output": null,
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 33
     },
     {
       "kind": "TOOL_CALL",
-      "at": "2026-10-15T05:03:37.196Z",
+      "at": "2026-10-15T05:25:27.513Z",
       "label": "submit_finding_proposal",
-      "ref": "chatcmpl-tool-b97e355fbb3b4441",
+      "ref": "chatcmpl-tool-80f2f110f3bf7367",
       "parentRef": null,
       "input": {
         "assessmentId": "assessment-dispute",
         "findingType": "DISPUTE_JURISDICTION_CONFLICT",
         "severity": "MEDIUM",
-        "evidenceIds": ["contract-dispute"],
-        "rationale": "合同第八条约定了争议解决方式为向成都人民法院提起诉讼（证据 contract-dispute 引用文本“向成都人民法院提起诉讼”）。我方当事人为重庆华盛贸易有限公司，约定管辖地为成都，属异地诉讼，将迫使我方赴外地进行诉讼，增加维权成本与不确定性，构成争议管辖冲突。",
-        "remediation": "将争议管辖法院修改为我方所在地（重庆）有管辖权的人民法院，或约定为合同签订地、合同履行地等便于我方应诉/起诉的管辖法院。"
+        "rationale": "合同第八条约定\"协商不成的，向成都人民法院提起诉讼\"（blockId p-10），争议管辖地为成都，与我方所在地重庆不一致。我方为重庆华盛贸易有限公司（party-1-name），异地诉讼将增加我方维权成本与诉讼不确定性，构成争议管辖冲突。",
+        "remediation": "建议将争议管辖地修改为我方所在地重庆市有管辖权的人民法院，或至少约定为对双方相对公平的管辖地（如合同签订地/履行地中的我方所在地），并同步复核\"成都人民法院\"表述的准确性（应明确至具体区级法院）。",
+        "evidenceIds": ["contract-dispute"]
       },
       "output": null,
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 34
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:37.197Z",
+      "at": "2026-10-15T05:25:27.515Z",
       "label": "submit_finding_proposal",
-      "ref": "chatcmpl-tool-baf1b2c2d883b006",
+      "ref": "chatcmpl-tool-9b3a6bdc018fb5e9",
       "parentRef": null,
       "input": null,
       "output": {
@@ -1550,16 +1550,16 @@
         }
       },
       "isError": false,
-      "durationMs": 0,
+      "durationMs": 1,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 35
     },
     {
       "kind": "TOOL_RESULT",
-      "at": "2026-10-15T05:03:37.197Z",
+      "at": "2026-10-15T05:25:27.515Z",
       "label": "submit_finding_proposal",
-      "ref": "chatcmpl-tool-b97e355fbb3b4441",
+      "ref": "chatcmpl-tool-80f2f110f3bf7367",
       "parentRef": null,
       "input": null,
       "output": {
@@ -1576,12 +1576,12 @@
       "isError": false,
       "durationMs": 0,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 36
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:37.197Z",
+      "at": "2026-10-15T05:25:27.515Z",
       "label": "TURN_COMPLETED",
       "ref": null,
       "parentRef": null,
@@ -1592,21 +1592,21 @@
         "toolResults": 2
       },
       "isError": false,
-      "durationMs": 18614,
+      "durationMs": 19273,
       "tokens": {
-        "input": 7211,
-        "output": 1321,
+        "input": 7187,
+        "output": 1454,
         "cacheRead": 0,
         "cacheWrite": 0,
         "reasoning": 0,
-        "total": 8532
+        "total": 8641
       },
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 37
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:37.198Z",
+      "at": "2026-10-15T05:25:27.515Z",
       "label": "TURN_STARTED",
       "ref": null,
       "parentRef": null,
@@ -1617,33 +1617,33 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 38
     },
     {
       "kind": "MESSAGE",
-      "at": "2026-10-15T05:03:46.933Z",
+      "at": "2026-10-15T05:25:37.039Z",
       "label": "assistant",
       "ref": null,
       "parentRef": null,
       "input": null,
-      "output": "两项发现均已提交并被接受。审查结果汇总如下：\n\n## 审查结论\n\n### 已提交的风险发现（2 项，规则已定性的政策冲突）\n\n| # | 发现类型 | 严重级别 | 依据 | 说明 |\n|---|---|---|---|---|\n| 1 | `ADVANCE_PAYMENT_POLICY_CONFLICT` | HIGH | `contract-payment`、`policy-limit` | 预付款比例为 **50%**，超过制度上限 **30%**（超出 20 个百分点），构成预付款比例政策冲突。整改建议：预付款降至 30% 以内，超出部分转为进度款/验收后支付。 |\n| 2 | `DISPUTE_JURISDICTION_CONFLICT` | MEDIUM | `contract-dispute` | 约定管辖地为**成都**人民法院，而我方当事人（重庆华盛贸易有限公司）所在地为**重庆**，属异地诉讼，构成争议管辖冲突。整改建议：改为我方所在地或便于我方的法院管辖。 |\n\n### 合规维度（不产生发现）\n\n- 违约金比例 5% ≤ 上限 30% — COMPLIANT\n- 终止/解除条款存在 — COMPLIANT\n- 履约保证金：未约定 — COMPLIANT\n- 付款期限约 5 日 ≤ 60 日 — COMPLIANT\n- 背靠背条款：未约定 — COMPLIANT\n- 定金、质量保证金、投标保证金：未约定 — COMPLIANT\n- 仲裁/诉讼并用冲突：无 — COMPLIANT\n- 知识产权归属、保证方式、保密期限、不可抗力：未涉及 — COMPLIANT\n- 赔偿责任已设限额 — COMPLIANT\n- 大写「壹佰伍拾万元整」与小写 1,500,000.00 元一致 — COMPLIANT\n- 主体红线核验（成都建工集团有限公司）：未命中红线因子 — COMPLIANT\n- 无 `NEEDS_HUMAN_REVIEW` 维度，也未发现需要人工复核的开放维度。\n\n两项发现均依据评估载荷中的既有证据定位符提交，未额外调用取证接口。",
+      "output": "两项提案均已提交成功。审查结论如下：\n\n## 审查结论\n\n对当前合同共执行了 18 项确定性规则评估，其中 **2 项触发政策冲突**，其余维度均合规。\n\n### 发现的风险（已提交）\n\n**1. 预付款比例超限 — 高（HIGH）**\n- **规则**：`ADVANCE_PAYMENT_LIMIT`（确定性 `POLICY_CONFLICT`）\n- **依据**：合同第三条约定签订后五日内支付合同总价 **50%** 的预付款，超出制度上限 **30%** 共 20 个百分点。\n- **处理**：已提交 `ADVANCE_PAYMENT_POLICY_CONFLICT`，严重程度锁定 HIGH。建议将预付款调至 30% 以内或走超额豁免审批。\n\n**2. 争议管辖异地化 — 中（MEDIUM）**\n- **规则**：`DISPUTE_JURISDICTION`（确定性 `POLICY_CONFLICT`）\n- **依据**：合同第八条约定向「成都人民法院」提起诉讼，但我方（重庆华盛贸易有限公司）所在地为重庆，属异地诉讼。\n- **处理**：已提交 `DISPUTE_JURISDICTION_CONFLICT`，严重程度锁定 MEDIUM。建议将管辖地改至我方所在地或相对公平的管辖法院。\n\n### 合规项（不产生发现）\n\n违约金比例（5% ≤ 30%）、终止/解除条款齐备、无履约保证金、付款期限约 5 日（≤ 60 日）、无背靠背付款、无定金、质量保证金与缺陷责任期合规、无仲裁/诉讼并存条款、无投标保证金、无知识产权归属问题、无保证担保、无保密/不可抗力条款问题、赔偿责任限额已约定、大小写金额一致（150 万元）、双方主体均未命中红线风险因子，均判定 `COMPLIANT`。\n\n无 `NEEDS_HUMAN_REVIEW` 维度，故无需人工复核合同全文；全部证据均取自评估载荷，未额外调取证据。",
       "isError": false,
       "durationMs": null,
       "tokens": {
-        "input": 8562,
-        "output": 469,
+        "input": 8671,
+        "output": 447,
         "cacheRead": 0,
         "cacheWrite": 0,
         "reasoning": 0,
-        "total": 9031
+        "total": 9118
       },
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 39
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:46.933Z",
+      "at": "2026-10-15T05:25:37.039Z",
       "label": "TURN_COMPLETED",
       "ref": null,
       "parentRef": null,
@@ -1654,21 +1654,21 @@
         "toolResults": 0
       },
       "isError": false,
-      "durationMs": 9735,
+      "durationMs": 9524,
       "tokens": {
-        "input": 8562,
-        "output": 469,
+        "input": 8671,
+        "output": 447,
         "cacheRead": 0,
         "cacheWrite": 0,
         "reasoning": 0,
-        "total": 9031
+        "total": 9118
       },
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 40
     },
     {
       "kind": "STAGE",
-      "at": "2026-10-15T05:03:46.936Z",
+      "at": "2026-10-15T05:25:37.041Z",
       "label": "RUN_COMPLETED",
       "ref": null,
       "parentRef": null,
@@ -1677,7 +1677,7 @@
       "isError": false,
       "durationMs": null,
       "tokens": null,
-      "runId": "c1116931-35f3-4dbe-9cec-41fdc16563af",
+      "runId": "f1d65d7f-b737-4501-8eb0-2acfe362672b",
       "sequence": 41
     }
   ],

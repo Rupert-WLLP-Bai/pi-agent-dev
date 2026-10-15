@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, vi } from "bun:test";
 import { Elysia } from "elysia";
 import { type AccessEvent, createAccessControl } from "./access-control";
 import { operatorFrom } from "./operator-header";
+import { AuditEventBroker, sseResponse } from "./sse";
 
 const TOKEN = "workspace-access-test-secret-32-characters";
 
@@ -109,6 +110,71 @@ describe("workspace access control", () => {
         new Request("http://localhost/api/decisions/private", { headers: { cookie: supplied } }),
       );
       expect(response.status).toBe(401);
+    }
+  });
+
+  test("logout closes an existing session stream before later private events", async () => {
+    const broker = new AuditEventBroker();
+    const app = protectedApp().get("/api/events", ({ request }) =>
+      sseResponse(broker, "private-case", async () => null, request.signal),
+    );
+    const login = await app.handle(
+      new Request("http://localhost/api/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: TOKEN }),
+      }),
+    );
+    const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+    const response = await app.handle(
+      new Request("http://localhost/api/events", { headers: { cookie } }),
+    );
+    const reader = response.body!.getReader();
+    await reader.read();
+    await app.handle(
+      new Request("http://localhost/api/session", { method: "DELETE", headers: { cookie } }),
+    );
+    broker.publish({ type: "agent.started", auditCaseId: "private-case" });
+    const next = await reader.read().then(
+      (value) => (value.done ? "closed" : "private-event"),
+      () => "closed",
+    );
+    await reader.cancel().catch(() => {});
+    expect(next).toBe("closed");
+  });
+
+  test("a session stream expires without another client request", async () => {
+    vi.useFakeTimers();
+    try {
+      let now = 0;
+      const broker = new AuditEventBroker();
+      const app = protectedApp({ now: () => now }).get("/api/events", ({ request }) =>
+        sseResponse(broker, "private-case", async () => null, request.signal),
+      );
+      const login = await app.handle(
+        new Request("http://localhost/api/session", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: TOKEN }),
+        }),
+      );
+      const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0];
+      now = 8 * 60 * 60 * 1000 - 10;
+      const response = await app.handle(
+        new Request("http://localhost/api/events", { headers: { cookie } }),
+      );
+      const reader = response.body!.getReader();
+      await reader.read();
+      vi.advanceTimersByTime(10);
+      broker.publish({ type: "agent.started", auditCaseId: "private-case" });
+      const next = await reader.read().then(
+        (value) => (value.done ? "closed" : "private-event"),
+        () => "closed",
+      );
+      await reader.cancel().catch(() => {});
+      expect(next).toBe("closed");
+    } finally {
+      vi.useRealTimers();
     }
   });
 

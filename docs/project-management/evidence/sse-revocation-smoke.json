@@ -1,0 +1,12 @@
+{
+  "recordedAt": "2026-10-15T05:30:04.811Z",
+  "transport": "Actual loopback Bun HTTP; synthetic token and case only",
+  "sourceState": "Main working tree after 2d63f15, review fixes pending commit",
+  "initialStreamStatus": 200,
+  "initialSnapshotReceived": true,
+  "logoutStatus": 204,
+  "afterLogout": "closed",
+  "capturedCookieReplayStatus": 401,
+  "afterExpiry": "closed",
+  "expiryElapsedMs": 249
+}

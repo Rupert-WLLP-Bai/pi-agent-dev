@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raw internal contract processing requires an explicitly authorized model origin;
   standard synthetic documents are identified from recomputed content hashes.
   Pi refuses HTTP redirects for both keyed and keyless model requests.
+- Active session SSE streams close on logout/expiry and cancel their subscriptions.
+  Synthetic model exemptions now require trusted subject-verification provenance,
+  including failed checks without external evidence; upstream diagnostics stay out of model basis.
 - Atomic model/OCR encryption-key rotation with database identity confirmation,
   a dry-run default, corrupt-row rollback and no credential logging. Startup seals
   legacy plaintext keys in both stores and requires an encryption secret for demo/production.

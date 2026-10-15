@@ -149,5 +149,5 @@ function describeInconclusive(verification: SubjectVerification, parties: Contra
   if (verification.status === "UNRESOLVED") {
     return `${who} 在外部来源中未匹配到主体，需人工确认`;
   }
-  return `${who} 主体核验来源不可用（${verification.failureReason ?? "原因未知"}），需人工复核`;
+  return `${who} 主体核验来源不可用，需人工复核`;
 }

@@ -40,11 +40,16 @@ export function createAccessControl(options: AccessControlOptions = {}) {
   const onAccess =
     options.onAccess ??
     ((event) => console.info(JSON.stringify({ event: "api_access", ...event })));
-  const sessions = new Map<string, number>();
+  const sessions = new Map<string, { expiresAt: number; controller: AbortController }>();
   const requests = new WeakMap<
     Request,
     { requestId: string; started: number; authenticated: boolean; sessionHash: string | null }
   >();
+  const revokeSession = (hash: string) => {
+    const session = sessions.get(hash);
+    sessions.delete(hash);
+    session?.controller.abort();
+  };
 
   return new Elysia({ name: "workspace-access" })
     .onRequest(({ request, set }) => {
@@ -66,9 +71,9 @@ export function createAccessControl(options: AccessControlOptions = {}) {
       const session = cookie?.trim().slice(SESSION_COOKIE.length + 1);
       if (required && session && /^[a-f0-9]{64}$/u.test(session)) {
         sessionHash = createHash("sha256").update(session).digest("hex");
-        const expiresAt = sessions.get(sessionHash);
-        if (expiresAt !== undefined && expiresAt > now()) authenticated = true;
-        else sessions.delete(sessionHash);
+        const activeSession = sessions.get(sessionHash);
+        if (activeSession !== undefined && activeSession.expiresAt > now()) authenticated = true;
+        else revokeSession(sessionHash);
       }
       requests.set(request, { requestId, started: performance.now(), authenticated, sessionHash });
 
@@ -96,6 +101,66 @@ export function createAccessControl(options: AccessControlOptions = {}) {
         set.headers["cache-control"] = "no-store";
         return { schemaVersion: 1, error: "authentication_required", requestId };
       }
+    })
+    .onAfterHandle({ as: "global" }, ({ request, responseValue }) => {
+      if (
+        !(responseValue instanceof Response) ||
+        !responseValue.body ||
+        responseValue.headers.get("content-type")?.split(";")[0]?.trim() !== "text/event-stream"
+      )
+        return;
+      const hash = requests.get(request)?.sessionHash;
+      const session = hash ? sessions.get(hash) : undefined;
+      if (!hash || !session) return;
+      const expiration = setTimeout(
+        () => revokeSession(hash),
+        Math.max(0, session.expiresAt - now()),
+      );
+      expiration.unref();
+      const reader = responseValue.body.getReader();
+      let closed = false;
+      let release = () => {};
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const close = () => {
+            if (closed) return;
+            closed = true;
+            release();
+            controller.close();
+          };
+          release = () => {
+            clearTimeout(expiration);
+            session.controller.signal.removeEventListener("abort", close);
+            void reader.cancel().catch(() => {});
+          };
+          session.controller.signal.addEventListener("abort", close, { once: true });
+          if (session.controller.signal.aborted) close();
+        },
+        async pull(controller) {
+          try {
+            const next = await reader.read();
+            if (closed) return;
+            if (next.done) {
+              closed = true;
+              release();
+              controller.close();
+            } else {
+              controller.enqueue(next.value);
+            }
+          } catch (error) {
+            if (closed) return;
+            closed = true;
+            release();
+            controller.error(error);
+          }
+        },
+        cancel() {
+          if (closed) return;
+          closed = true;
+          release();
+        },
+      });
+      return new Response(stream, responseValue);
     })
     .onAfterResponse({ as: "global" }, ({ request, responseValue, route, set }) => {
       const observation = requests.get(request);
@@ -142,8 +207,8 @@ export function createAccessControl(options: AccessControlOptions = {}) {
           };
         }
         const timestamp = now();
-        for (const [key, expiresAt] of sessions) {
-          if (expiresAt <= timestamp) sessions.delete(key);
+        for (const [key, session] of sessions) {
+          if (session.expiresAt <= timestamp) revokeSession(key);
         }
         if (sessions.size >= MAX_SESSIONS) {
           set.status = 429;
@@ -154,10 +219,10 @@ export function createAccessControl(options: AccessControlOptions = {}) {
           };
         }
         const session = randomBytes(32).toString("hex");
-        sessions.set(
-          createHash("sha256").update(session).digest("hex"),
-          timestamp + SESSION_SECONDS * 1000,
-        );
+        sessions.set(createHash("sha256").update(session).digest("hex"), {
+          expiresAt: timestamp + SESSION_SECONDS * 1000,
+          controller: new AbortController(),
+        });
         set.headers["set-cookie"] =
           `${SESSION_COOKIE}=${session}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_SECONDS}${secureCookies ? "; Secure" : ""}`;
         const observation = requests.get(request);
@@ -168,7 +233,7 @@ export function createAccessControl(options: AccessControlOptions = {}) {
     )
     .delete("/api/session", ({ request, set }) => {
       const sessionHash = requests.get(request)?.sessionHash;
-      if (sessionHash) sessions.delete(sessionHash);
+      if (sessionHash) revokeSession(sessionHash);
       set.headers["set-cookie"] =
         `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secureCookies ? "; Secure" : ""}`;
       set.headers["cache-control"] = "no-store";

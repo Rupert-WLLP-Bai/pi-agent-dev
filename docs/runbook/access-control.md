@@ -8,7 +8,7 @@
 
 - `GET /api/session`返回`{authenticationRequired,authenticated}`。健康检查与会话入口无需凭证。
 - `POST /api/session`提交`{token}`，成功创建8小时HttpOnly、SameSite=Strict Cookie `audit_session`。production设置Secure，须使用HTTPS。错误口令返回401。
-- `DELETE /api/session`返回204，服务端撤销该会话并清除Cookie。捕获旧Cookie也不能在登出后再次访问。
+- `DELETE /api/session`返回204，服务端撤销该会话并清除Cookie；立即结束该会话已建立的SSE并取消上游订阅。8小时到期也会主动结束SSE，无需另一客户端请求。捕获旧Cookie不能在登出后再次访问。
 - 自动化客户端可通过`Authorization: Bearer <token>`访问。不要把口令放入查询参数。`X-Operator`只用于操作归属记录，不能授权。
 
 Cookie中是随机会话标识，服务端仅保存其SHA-256摘要。应用重启会撤销全部会话；同时最多256个有效会话。该实现仍要求单应用实例，不能声称跨副本会话一致。替换`API_ACCESS_TOKEN`后重启API可轮换访问凭证并撤销旧会话。浏览器不在localStorage保存口令。
@@ -27,8 +27,10 @@ Cookie中是随机会话标识，服务端仅保存其SHA-256摘要。应用重�
 
 loopback网关本身可能再转发到外部，因此`http://127.0.0.1:3425`不会自动取得处理真实合同的权限。默认仅放行内容hash与内置合成合同目录匹配的文档；服务端重新计算规范文本hash，不接受调用者伪报的DEMO标记或hash。附带真实外部核验或历史人工复核数据时，不享有合成文档豁免。被拒绝时返回稳定执行错误`MODEL_DATA_OUTBOUND_FORBIDDEN`，不发送模型请求。
 
+服务端在运行上下文写入`subjectVerificationProvider`，包括未成功核验且没有外部Evidence Locator的情况。带主体评估的上下文只有明确来自`qcc-fixture`才享有合成豁免；真实来源和缺少该字段的旧上下文都需显式内部origin授权。已持久化快照不回写。面向模型的主体basis只说明不可用状态，不拼接上游失败详情；MCP传输错误只返回固定码。
+
 真实Pi演示使用指定网关`http://127.0.0.1:3425/v1`与模型`panda-local/cqmoma/cqcm/deepseek-v4-flash`，只发送未修改的标准合成合同。Pi模型HTTP请求禁止重定向；配置的模型地址不能把合同和工具输出带往另一origin。Laya使用独立本地origin允许列表、最小脱敏输入、明确来源和未校准标记，规则与正式发现的权限保持独立。
 
 ## 已执行验证
 
-S2门禁切片已执行7项行为测试，涵盖匿名读取拒绝、Bearer、登录、Cookie保护属性、过期/伪造、登出撤销、跨站写入拒绝和日志字段。另使用真实HTTP监听与独立已迁移PostgreSQL验证：匿名案件列表401，会话发现200，登录200，授权案件列表200，登出204，撤销Cookie重放401。完整集成、浏览器及部署验收由S3报告提供；这里不把共享口令描述成生产身份治理完成。
+S2门禁切片已执行9项行为测试，涵盖匿名读取拒绝、Bearer、登录、Cookie保护属性、过期/伪造、登出撤销、已建立SSE的撤销/到期、跨站写入拒绝和日志字段。另使用真实HTTP监听与独立已迁移PostgreSQL验证：匿名案件列表401，会话发现200，登录200，授权案件列表200，登出204，撤销Cookie重放401。后续真实HTTP流smoke证明登出即关闭、250毫秒剩余会话在观测249毫秒后结束、重放返回401；见[SSE证据](../project-management/evidence/sse-revocation-smoke.json)及[审查与回归](../project-management/evidence/security-review.json)。完整集成、浏览器及部署验收由S3报告提供；这里不把共享口令描述成生产身份治理完成。

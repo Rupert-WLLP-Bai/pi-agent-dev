@@ -43,6 +43,8 @@
 
 `X-Operator`不是认证。Main统一实现服务端访问口令门禁：`API_ACCESS_TOKEN`启用时，除健康与登录外所有API（包括SSE、原件及影子详情）要求Bearer或HttpOnly会话；`GET /api/session`报告是否需要登录，`POST /api/session`接收`{token}`，`DELETE /api/session`登出。demo/production非测试启动要求口令；development/test可显式不配置，仅限可信本机。UX实现“访问口令”入口；QA分别证明匿名拒绝与授权访问。口令不进入URL、日志、公开health或localStorage。该单工作区门禁不等于SSO/RBAC/租户隔离；actor仍须校验空值与最大128字符。
 
+已建立的Cookie会话SSE也受撤销和到期约束：登出/到期主动结束流并取消上游订阅，不能只拦后续HTTP请求。Bearer连接的有效期随进程与访问口令轮换处理。
+
 ## 4. 持久化、恢复与正式链路
 
 Main是迁移执行与最终集成Owner；AI是`schema.ts`唯一编辑Owner，统一收集其他Agent的表/字段需求后交给Main生成并执行一个增量迁移批次。
@@ -64,6 +66,7 @@ DTO不返回内部租约、凭据或原始request。公开status/fallbackReason�
 - Laya优先受控本地CPU服务。固定代码SHA `432312b36714d8889eba405507b37eda25257d9c`与多语权重revision `1720e3e3357cfe1e281542e223f8273b0890ca34`；启动与模型可推理分别检查。
 - Endpoint来自服务端配置，校验origin、协议、凭据/fragment/redirect及私网策略；本地/容器Laya明确列入允许origin，不能通过放开全局LLM策略隐式允许任意地址。
 - Laya仅接受服务端配置的loopback或明确允许的容器origin；禁止重定向、userinfo、fragment和不受管地址。SYNTHETIC只由受管fixture/内容指纹证明，不接受调用者自报。原始合同默认不发往外部模型；真实Pi验证使用已配置的`http://127.0.0.1:3425/v1`与`panda-local/cqmoma/cqcm/deepseek-v4-flash`，仅发送合成合同。Main负责Pi出网策略，AI负责Laya最小输入和脱敏。
+- 正式Pi的合成豁免同时校验运行上下文来源。`AuditSnapshot.subjectVerificationProvider`由dispatcher从实际port捕获；有主体评估时必须明确为`qcc-fixture`，真实/缺失来源均需内部origin授权。核验失败无外部locator也不例外；模型basis不拼接上游错误。该字段是附加运行元数据，不改写已持久化快照。
 - Adapter必须构造最小provider state，不能`JSON.stringify(request)`后整体发出。身份、比较答案、gold标签、原文坐标映射及敏感规则basis不进入模型state。
 - 片段脱敏覆盖已提取当事人、代码/账号/电话/邮箱等；此机制不是匿名化保证。原文Unicode码点offset与hash保持不变，脱敏长度改变时不拿新字符串下标当原文坐标。
 - 冲突仅针对同一命题的互斥判断。类型不同、范围不同或仅概率不同不是规则冲突；`comparison`只做本地比较，不泄漏参考答案给模型。

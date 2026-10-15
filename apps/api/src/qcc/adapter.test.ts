@@ -120,16 +120,15 @@ test("returns UNRESOLVED when the provider reports no match", async () => {
   expect(outcome.summary).toContain("未发现");
 });
 
-test("downgrades a provider failure to UNAVAILABLE with the failure reason", async () => {
+test("a provider transport failure stays unavailable without exposing upstream credentials", async () => {
+  const sensitive = "SYNTHETIC_UPSTREAM_CREDENTIAL_6349";
   const failing: McpFetch = async () => {
-    throw new Error("connection reset");
+    throw new Error(`connection reset for ${sensitive}`);
   };
   const port = createQccSubjectVerificationPort({ ...CONFIG, fetchImpl: failing });
-
   const outcome = await port.verify("任意公司");
-
   expect(outcome.status).toBe("UNAVAILABLE");
-  expect(outcome.failureReason).toContain("connection reset");
+  expect(Bun.inspect(outcome)).not.toContain(sensitive);
 });
 
 test("returns UNRESOLVED when the risk scan misses after a unique query", async () => {
@@ -145,4 +144,15 @@ test("returns UNRESOLVED when the risk scan misses after a unique query", async 
 
   expect(outcome.status).toBe("UNRESOLVED");
   expect(outcome.summary).toContain("风险扫描未匹配");
+});
+
+test("an HTTP failure excludes an upstream body that echoes private credentials", async () => {
+  const sensitive = "SYNTHETIC_UPSTREAM_BODY_SECRET_7723";
+  const port = createQccSubjectVerificationPort({
+    ...CONFIG,
+    fetchImpl: async () => ({ ok: false, status: 503, text: async () => sensitive }),
+  });
+  const outcome = await port.verify("任意公司");
+  expect(outcome.status).toBe("UNAVAILABLE");
+  expect(Bun.inspect(outcome)).not.toContain(sensitive);
 });

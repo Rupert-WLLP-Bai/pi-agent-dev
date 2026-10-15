@@ -1,0 +1,40 @@
+{
+  "reviewedRange": "6a59906...cd24aac",
+  "axes": {
+    "standards": {
+      "findings": 0,
+      "scope": "15 changed security files; source inspection only"
+    },
+    "spec": {
+      "findings": 2,
+      "scope": "workspace gate, outbound policy and credential maintenance; source inspection only"
+    }
+  },
+  "findings": [
+    {
+      "priority": "P1",
+      "issue": "Synthetic text could exempt real QCC failed-verification diagnostics without external locators",
+      "fix": "Server run context captures subjectVerificationProvider; real and unclassified appended subject assessments require an explicit internal model origin. Model-facing basis omits raw failureReason; QCC transport returns fixed codes."
+    },
+    {
+      "priority": "P2",
+      "issue": "Existing SSE connections remained live after logout or expiry",
+      "fix": "Session controllers close all owned stream wrappers, cancel upstream subscriptions and clear timers on logout or expiry."
+    }
+  ],
+  "regression": {
+    "before": {
+      "passed": 16,
+      "failed": 3,
+      "command": "bun test apps/api/src/access-control.test.ts apps/api/src/llm/audit-data-policy.test.ts"
+    },
+    "after": {
+      "passed": 33,
+      "failed": 0,
+      "assertions": 88,
+      "command": "bun test apps/api/src/access-control.test.ts apps/api/src/llm/audit-data-policy.test.ts apps/api/src/qcc/adapter.test.ts packages/audit/src/subject-rule.test.ts"
+    }
+  },
+  "runtimeEvidence": ["sse-revocation-smoke.json", "real-pi-smoke.json"],
+  "limits": "Review applies to the fixed committed range. Main exercised the fixes; reviewers did not run checks or independently re-review those subsequent edits. This is not a full repository security verdict."
+}

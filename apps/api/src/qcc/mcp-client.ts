@@ -48,35 +48,43 @@ export class McpStreamClient {
       },
       body,
       signal,
+    }).catch(() => {
+      throw new Error("MCP_REQUEST_FAILED");
     });
 
     if (!response.ok) {
-      throw new Error(
-        `MCP HTTP ${response.status}: ${await response.text().catch(() => "unreadable")}`,
-      );
+      throw new Error(`MCP_HTTP_${response.status}`);
     }
 
     const text = await response.text();
     const data = this.parseSseMessage(text);
     const content = data?.result?.content;
     if (!Array.isArray(content) || content.length === 0) {
-      throw new Error(`MCP response missing content: ${text.slice(0, 200)}`);
+      throw new Error("MCP_RESPONSE_MISSING_CONTENT");
     }
 
     const first = content[0] as { type: string; text?: string };
     if (first.type !== "text" || typeof first.text !== "string") {
-      throw new Error(`MCP response not text: ${JSON.stringify(first).slice(0, 200)}`);
+      throw new Error("MCP_RESPONSE_NOT_TEXT");
     }
 
-    return { content: JSON.parse(first.text) };
+    try {
+      return { content: JSON.parse(first.text) };
+    } catch {
+      throw new Error("MCP_CONTENT_INVALID_JSON");
+    }
   }
 
   /** Extracts the JSON-RPC result from an SSE `event: message` body. */
   private parseSseMessage(raw: string): { result?: { content?: unknown[] } } {
     for (const line of raw.split("\n")) {
       if (!line.startsWith("data: ")) continue;
-      return JSON.parse(line.slice(6));
+      try {
+        return JSON.parse(line.slice(6));
+      } catch {
+        throw new Error("MCP_SSE_INVALID_JSON");
+      }
     }
-    throw new Error(`No SSE data line in response: ${raw.slice(0, 200)}`);
+    throw new Error("MCP_RESPONSE_MISSING_SSE_DATA");
   }
 }

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { demoContracts } from "@contract-audit/audit/demo-contracts";
 import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { assertAuditDataDestination } from "./audit-data-policy";
 
 const endpoint = "http://127.0.0.1:3425/v1";
@@ -105,6 +106,34 @@ describe("audit model data destination policy", () => {
       },
     };
     expect(() => assertAuditDataDestination(snapshot, endpoint, "")).not.toThrow();
+  });
+
+  test("a real verification failure without external locators cannot use the synthetic exemption", async () => {
+    const privateDiagnostic = "SYNTHETIC_PRIVATE_UPSTREAM_DIAGNOSTIC_2281";
+    const verification = await runSubjectVerification({
+      parties: synthetic.parties,
+      port: {
+        provider: "qcc",
+        tool: "get_company_risk_scan",
+        verify: async () => {
+          throw new Error(privateDiagnostic);
+        },
+      },
+    });
+    const context = {
+      ...synthetic,
+      subjectVerificationProvider: "qcc",
+      evidence: [...synthetic.evidence, ...verification.evidence],
+      ruleAssessments: [...synthetic.ruleAssessments, verification.ruleAssessment],
+    };
+    expect(() => assertAuditDataDestination(context, endpoint, "")).toThrow(
+      "MODEL_DATA_OUTBOUND_FORBIDDEN",
+    );
+    expect(verification.ruleAssessment.basis).not.toContain(privateDiagnostic);
+    const unclassified = { ...context, subjectVerificationProvider: undefined };
+    expect(() => assertAuditDataDestination(unclassified, endpoint, "")).toThrow(
+      "MODEL_DATA_OUTBOUND_FORBIDDEN",
+    );
   });
 
   test.each([
