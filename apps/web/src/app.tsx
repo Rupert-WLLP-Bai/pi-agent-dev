@@ -14,6 +14,7 @@ import AuditRunsPage from "./routes/audit-runs";
 import AuditTracePage from "./routes/audit-trace";
 import ContractsListPage, { ContractDetailPage } from "./routes/contracts";
 import DashboardPage from "./routes/dashboard";
+import DecisionAdvicePage from "./routes/decision-advice";
 import DemoPage from "./routes/demo";
 import DossierReviewPage from "./routes/dossier-review";
 import IntegrationsPage from "./routes/integrations";
@@ -120,6 +121,17 @@ const traceRoute = createRoute({
   component: AuditTraceRoute,
 });
 
+function DecisionAdviceRoute() {
+  const { id } = decisionAdviceRoute.useParams();
+  return <DecisionAdvicePage auditCaseId={id} />;
+}
+
+const decisionAdviceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/audit-cases/$id/decisions",
+  component: DecisionAdviceRoute,
+});
+
 const reviewsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/reviews",
@@ -210,6 +222,7 @@ const routeTree = rootRoute.addChildren([
   listRoute,
   detailRoute,
   traceRoute,
+  decisionAdviceRoute,
   reviewsRoute,
   remediationsRoute,
   rulesRoute,

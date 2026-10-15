@@ -467,6 +467,33 @@ export function filterAndSortCases(
 
 // ── Agent Run traces ─────────────────────────────────────────────
 
+/**
+ * A failed run's error as an operator reads it.
+ *
+ * Stable codes carry a Chinese explanation and, where the operator can act on
+ * it, what to do. An unknown code is passed through verbatim rather than
+ * collapsed into a generic failure: the raw code is the only evidence of what
+ * the server actually refused.
+ */
+export function describeRunError(error: string | null): string | null {
+  if (error === null) return null;
+  const code = error.split(":").at(0)?.trim() ?? error;
+  const detail = error.slice(code.length).replace(/^[:\\s]+/, "");
+  const explanations: Record<string, string> = {
+    AGENT_TIMEOUT: "智能体运行超过时间上限，未产出结论。",
+    AGENT_RUN_FAILED: "智能体运行未返回有效结果。",
+    LLM_UNREACHABLE: "模型服务不可达，请检查模型服务设置后重试。",
+    FINDING_REJECTED: "智能体提交的建议未通过提案校验，未写入发现。",
+    AUDIT_FAILED: "审计未完成，可重试或按当前规则重评。",
+    MODEL_DATA_OUTBOUND_FORBIDDEN:
+      "该模型地址尚未获准处理内部合同，请联系管理员配置受信处理域，或使用未修改的标准合成合同演示。",
+    MODEL_DATA_DESTINATION_INVALID: "模型地址配置无效，请联系管理员检查模型服务地址后重试。",
+  };
+  const explanation = explanations[code];
+  if (explanation === undefined) return error;
+  return detail === "" ? explanation : `${explanation}（${detail}）`;
+}
+
 export const traceStepKindLabels: Record<AgentTraceStepKind, string> = {
   STAGE: "阶段",
   TOOL_CALL: "调用",
