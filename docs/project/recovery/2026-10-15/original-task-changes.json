@@ -1,0 +1,477 @@
+{
+  "schemaVersion": 1,
+  "sourceSession": "01a13d0f-1cf6-7481-89c7-34fbbdbd9183",
+  "records": [
+    {
+      "sourceEntryId": "dde12204",
+      "timestamp": "2026-10-15T03:47:57.615Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Completing runtime baseline capture",
+        "items": [],
+        "list": [],
+        "op": "done",
+        "phase": "",
+        "reason": "",
+        "task": "S0.1 记录基线 SHA、Git 历史与 Bun/Node/Docker 版本"
+      }
+    },
+    {
+      "sourceEntryId": "cddb009c",
+      "timestamp": "2026-10-15T03:48:23.681Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Advancing while audits run",
+        "items": [],
+        "list": [],
+        "op": "block",
+        "phase": "",
+        "reason": "五个只读 Subagent 正在分别收集证据；主 Agent 同步验证运行环境。",
+        "task": "S0.2 五个 Subagent 只读审计现有代码、文档、测试与未完成事项"
+      }
+    },
+    {
+      "sourceEntryId": "6d628462",
+      "timestamp": "2026-10-15T03:55:30.902Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "for task_change in [\n    {'op':'block','task':'S0.3 验证依赖、Compose、迁移及现有自动化验收','reason':'依赖、迁移、652项单元/数据库测试和构建均已通过；等待安装浏览器后的完整Playwright结果。'},\n    {'op':'done','task':'S0.4 启动独立演示前后端并验证 health 与真实请求'},\n]:\n    await tool.todo({'i':'Recording baseline runtime evidence', **task_change})\nprint('S0.4 complete: managed API3302/web5302, health ok, database+dispatcher true, actual 1440x900 browser capture. S0.3 awaits browser acceptance.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Updating completed baseline smoke proof"
+      }
+    },
+    {
+      "sourceEntryId": "c6fa2748",
+      "timestamp": "2026-10-15T03:56:23.290Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "await tool.todo({'i':'Recording completed baseline verification','op':'unblock','task':'S0.3 验证依赖、Compose、迁移及现有自动化验收'})\nawait tool.todo({'i':'Recording completed baseline verification','op':'done','task':'S0.3 验证依赖、Compose、迁移及现有自动化验收'})\nprint('S0.3 completed with recorded outcomes: verify652/0/0, build PASS, acceptance37 PASS/1 FAIL, initial missing browser resolved.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Recording baseline acceptance results"
+      }
+    },
+    {
+      "sourceEntryId": "e1e4db62",
+      "timestamp": "2026-10-15T04:04:32.266Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "for change in [\n  {'op':'unblock','task':'S0.2 五个 Subagent 只读审计现有代码、文档、测试与未完成事项'},\n  {'op':'done','task':'S0.2 五个 Subagent 只读审计现有代码、文档、测试与未完成事项'},\n  {'op':'done','task':'S0.5 建立 BASELINE、TASK-MATRIX 和 RISKS 证据文档'},\n]:\n    await tool.todo({'i':'Closing collected S0 evidence', **change})\nprint('Five read-only audits collected. Baseline, full task matrix, risks, machine evidence and screenshots complete; S0 commit next.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Closing baseline investigation tasks"
+      }
+    },
+    {
+      "sourceEntryId": "21c6d915",
+      "timestamp": "2026-10-15T04:06:15.292Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Completing verified S0 checkpoint",
+        "items": [],
+        "list": [],
+        "op": "done",
+        "phase": "",
+        "reason": "",
+        "task": "S0.6 完成安全检查并提交 S0"
+      }
+    },
+    {
+      "sourceEntryId": "252d86a3",
+      "timestamp": "2026-10-15T04:20:07.824Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "await tool.todo({'i':'Strengthening S1 architecture gate','op':'rm','task':'S1.3 发布 INTEGRATION-CONTRACT 并提交 S1'})\nawait tool.todo({'i':'Tracking seven architecture gate checks','op':'append','phase':'S1 公共接口与所有权','items':[\n 'G1 为跨 Agent DTO 增加 Schema 版本、错误模型与契约测试',\n 'G2 明确 Shadow 只读边界及正式 Finding 不变量',\n 'G3 明确脱敏、服务端授权、留存和删除策略',\n 'G4 明确唯一迁移负责人、兼容和回滚方案',\n 'G5 明确 Laya CPU 中文实测与失败降级路径',\n 'G6 为每项任务标注优先级、Owner、依赖、工作量和验收证据',\n 'G7 建立五个独立 worktree 及持续合并回归机制',\n 'S1.3 发布 INTEGRATION-CONTRACT 并提交 S1'\n]})\nawait tool.todo({'i':'Separating V1 and optional AI work','op':'rm','task':'A2 实现 Disabled/Fake、LayaCpu 与默认禁用的可选 Jev Adapter'})\nawait tool.todo({'i':'Prioritizing incremental integration checkpoints','op':'rm','task':'S2 集成五个 Agent 实现、执行 smoke 并提交 S2'})\nawait tool.todo({'i':'Tracking explicit security acceptance work','op':'append','phase':'S2 独立实施','items':[\n 'A2-P0 实现 Disabled/Fake 与 LayaCpu Adapter',\n 'SEC1 落实可替换凭据、加密密钥轮换与部署访问保护',\n 'SEC2 验证大小、类型、路径、恶意文件及异常 PDF/DOCX',\n 'SEC3 为审计记录、原件及决策详情实施服务端授权',\n 'SEC4 验证模型脱敏及外部真实合同出网默认禁止',\n 'SEC5 实施脱敏访问日志、权限、留存和密钥不落日志',\n 'SEC6 明确并记录对象存储降级与敏感数据存储边界',\n '真实 Pi 验证使用指定本地网关与 deepseek-v4-flash，仅发送合成合同',\n 'P2 可延期：Jev 远程 Adapter',\n 'P2 可延期：完整置信度校准研究',\n 'P2 可延期：高级决策反馈分析',\n 'P2 可延期：多版本模型实验',\n 'S2 按独立纵向切片持续合并与回归，完成后提交阶段验收'\n]})\nfor deferred in ['P2 可延期：Jev 远程 Adapter','P2 可延期：完整置信度校准研究','P2 可延期：高级决策反馈分析','P2 可延期：多版本模型实验']:\n    await tool.todo({'i':'Recording user-authorized V1 deferrals','op':'block','task':deferred,'reason':'用户最新要求明确列为可延期P2；不作为V1交付阻塞，保留在11月10日后路线图。'})\nprint('Existing S0 progress preserved. Added seven S1 gates, SEC1–SEC6, real Pi verification, continuous integration, and explicitly deferred optional P2 work.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Applying revised V1 scope and gates"
+      }
+    },
+    {
+      "sourceEntryId": "5b5ba2cc",
+      "timestamp": "2026-10-15T04:20:41.085Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "await tool.todo({'i':'Removing cancelled Jev integration','op':'rm','task':'P2 可延期：Jev 远程 Adapter'})\nawait tool.todo({'i':'Recording local Laya-only scope','op':'append','phase':'S1 公共接口与所有权','items':['移除 Jev 接入范围，仅保留 Disabled/Fake 与本地 Laya']})\nprint('Jev integration cancelled by user; local Laya scope retained.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Applying local Laya scope correction"
+      }
+    },
+    {
+      "sourceEntryId": "82aa632b",
+      "timestamp": "2026-10-15T04:25:00.905Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Restoring active delivery task state",
+        "items": [],
+        "list": [],
+        "op": "view",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "bb49a195",
+      "timestamp": "2026-10-15T04:32:56.437Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "completed_s1 = [\n'S1.1 锁定 DecisionRequest、DecisionAdvice、反馈与查询公共契约',\n'S1.2 锁定默认关闭、影子隔离、隐私、迁移与文件所有权',\n'G1 为跨 Agent DTO 增加 Schema 版本、错误模型与契约测试',\n'G2 明确 Shadow 只读边界及正式 Finding 不变量',\n'G3 明确脱敏、服务端授权、留存和删除策略',\n'G4 明确唯一迁移负责人、兼容和回滚方案',\n'G5 明确 Laya CPU 中文实测与失败降级路径',\n'G6 为每项任务标注优先级、Owner、依赖、工作量和验收证据',\n'G7 建立五个独立 worktree 及持续合并回归机制',\n'移除 Jev 接入范围，仅保留 Disabled/Fake 与本地 Laya']\nfor completed_item in completed_s1:\n    await tool.todo({'i':'Completing verified S1 contract gates','op':'done','task':completed_item})\nawait tool.todo({'i':'Removing cancelled remote research scope','op':'rm','task':'A0 核实 Laya/Jev 并实际验证本地 CPU 中文推理条件'})\nawait tool.todo({'i':'Tracking local model CPU verification','op':'append','phase':'S2 独立实施','items':['A0 核实本地 Laya 并实际验证 CPU 中文推理条件']})\nprint('S1.1/S1.2 and G1–G7 complete; Jev removed. S1.3 commit is active. Local Laya CPU remains an S2 runtime acceptance item.')\n",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Completing architecture gate before the S1 commit"
+      }
+    },
+    {
+      "sourceEntryId": "05ce5fa4",
+      "timestamp": "2026-10-15T04:34:23.684Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "import os\nrepo_root = '/home/pejoy/cqyd/hjs/pi-agent-dev'\ns2_worktrees = {name: f'/tmp/contract-audit-omp-s2-{name}' for name in ['qa','infra','ai','ux','docs']}\nlinked_dependencies = 0\nfor tree in s2_worktrees.values():\n    for workspace in ['', 'apps/api', 'apps/web', 'packages/audit', 'packages/pi-agent']:\n        source = os.path.join(repo_root,workspace,'node_modules')\n        destination = os.path.join(tree,workspace,'node_modules')\n        if os.path.isdir(source) and not os.path.lexists(destination):\n            os.symlink(source,destination,target_is_directory=True)\n            linked_dependencies += 1\nawait tool.todo({'i':'Completing committed S1 architecture gate','op':'done','task':'S1.3 发布 INTEGRATION-CONTRACT 并提交 S1'})\nprint(f'S1 commit 6a59906. Five worktrees now aligned to S1; {linked_dependencies} dependency links created. No .env copied, no migrations or services started in child worktrees.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Preparing isolated implementation worktrees for five agents"
+      }
+    },
+    {
+      "sourceEntryId": "9bca0ccf",
+      "timestamp": "2026-10-15T05:02:17.196Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Tracking integrated security maintenance deliverables",
+        "items": [
+          "Main 完成共享口令会话门禁与模型出网策略并实测提交",
+          "Main 完成模型/OCR密钥原子轮换与安全启动验证"
+        ],
+        "list": [],
+        "op": "append",
+        "phase": "S2 独立实施",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "c8bc1fc4",
+      "timestamp": "2026-10-15T05:02:34.529Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "await tool.todo({'i':'Completing verified integrated security slice','op':'done','task':'Main 完成共享口令会话门禁与模型出网策略并实测提交'})\nprint('Security access/data slice complete at 1f33d99; continuing key rotation smoke and real Pi verification.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Recording the completed security slice and continuing verification"
+      }
+    },
+    {
+      "sourceEntryId": "bf74b1f1",
+      "timestamp": "2026-10-15T05:11:54.660Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "for item in ['Main 完成模型/OCR密钥原子轮换与安全启动验证','A0 核实本地 Laya 并实际验证 CPU 中文推理条件','真实 Pi 验证使用指定本地网关与 deepseek-v4-flash，仅发送合成合同']:\n    await tool.todo({'i':'Completing exercised security and model tasks','op':'done','task':item})\nprint('cd24aac committed: credential maintenance, startup rejection proofs, actual offline Laya CPU primitives and real requested DeepSeek Pi synthetic audit. Full verify689/0.')\n",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Recording completed local model and credential acceptance tasks"
+      }
+    },
+    {
+      "sourceEntryId": "9bf72ddf",
+      "timestamp": "2026-10-15T05:18:01.531Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Tracking actionable security review fixes",
+        "items": [
+          "修复真实主体核验失败绕过合成合同出网限制并验证",
+          "修复登出或过期后已建立 SSE 连接继续推送并验证"
+        ],
+        "list": [],
+        "op": "append",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "fb426716",
+      "timestamp": "2026-10-15T05:18:17.371Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Tracking actionable security review fixes",
+        "items": [
+          "修复真实主体核验失败绕过合成合同出网限制并验证",
+          "修复登出或过期后已建立 SSE 连接继续推送并验证"
+        ],
+        "list": [],
+        "op": "append",
+        "phase": "S2 独立实施",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "5302180a",
+      "timestamp": "2026-10-15T05:31:28.179Z",
+      "tool": "eval",
+      "arguments": {
+        "code": "for item in ['修复真实主体核验失败绕过合成合同出网限制并验证','修复登出或过期后已建立 SSE 连接继续推送并验证']:\n await tool.todo({'i':'Completing verified security review fixes','op':'done','task':item})\nprint('b2033e1; full verify693/0; real HTTP stream closure and repeated real Pi pass.')",
+        "language": "py",
+        "reset": false,
+        "timeout": 30,
+        "title": "Completing both security review findings with current full verification"
+      }
+    },
+    {
+      "sourceEntryId": "42798cc5",
+      "timestamp": "2026-10-15T06:02:09.488Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Recovering active delivery checklist",
+        "items": [],
+        "list": [],
+        "op": "view",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "733dabc9",
+      "timestamp": "2026-10-15T06:08:50.630Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Recording integrated milestones",
+        "items": [
+          "Q1 建立需求—设计—代码—测试—证据 RTM",
+          "Q4 提供规范测试入口与可追溯机器报告",
+          "I1 核对并改进 Compose、版本、端口、健康检查与持久化",
+          "I3 实现限定 demo 归属的安全、可重试、幂等重置",
+          "A1 实现独立、受约束的 DecisionProvider Interface",
+          "A2-P0 实现 Disabled/Fake 与 LayaCpu Adapter",
+          "A3 实现 DECISION_MODE=off|shadow 与主结论零副作用",
+          "A4 建立至少 60 条中文合成条款及可追溯标签说明",
+          "A6 持久化影子差异、冲突和模型版本，支持独立恢复与关闭",
+          "A7 提供脱敏只读决策详情与保留/权限策略",
+          "A8 实现独立人工反馈事件及原规则/Guard 不变回归",
+          "R1 以真实 Git 历史生成 WBS、里程碑与未来计划甘特图",
+          "R2 完成 SRS-lite、架构、流程、ADR 与非功能需求证据",
+          "R4 以官方来源完成竞品与开源对照",
+          "R7 完成有证据的评委 FAQ",
+          "F1 实测上传至整改的操作路径、问题和对照截图"
+        ],
+        "list": [],
+        "op": "rm",
+        "phase": "S2 独立实施",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "8c61714a",
+      "timestamp": "2026-10-15T06:35:04.553Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Restoring delivery and redesign tasks",
+        "items": [],
+        "list": [
+          {
+            "items": [
+              "恢复决策子任务，完成路由契约、SQL 持久化与正式链路集成",
+              "恢复前端子任务，完成 typed API、会话与工作流联调",
+              "恢复基础设施子任务，完成受管演示入口和备份恢复",
+              "恢复 QA 子任务，完成分层报告、故障与浏览器验收",
+              "恢复文档子任务，更新任务矩阵和实际交付证据",
+              "新增视觉 Agent，按 ui-ux-pro-max 重设计网站样式",
+              "保持 API/Web 热更新运行，完成集成验证并交付可用网站"
+            ],
+            "phase": "继续集成与网站改版"
+          }
+        ],
+        "op": "init",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "67a608b1",
+      "timestamp": "2026-10-15T06:53:32.663Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Checking retained delivery task progress",
+        "items": [],
+        "list": [],
+        "op": "view",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    },
+    {
+      "sourceEntryId": "e168e455",
+      "timestamp": "2026-10-15T06:54:59.540Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Recording external decision integration handoff",
+        "items": [],
+        "list": [],
+        "op": "block",
+        "phase": "",
+        "reason": "DecisionIntegrationResume 正在完成 snapshot/run 身份及 SQL 测试；主进程已挂载路由，真实 PostgreSQL HTTP smoke 已准备。",
+        "task": "恢复决策子任务，完成路由契约、SQL 持久化与正式链路集成"
+      }
+    },
+    {
+      "sourceEntryId": "7e71d7fc",
+      "timestamp": "2026-10-15T07:02:45.986Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Tracking frontend handoff dependency",
+        "items": [],
+        "list": [],
+        "op": "block",
+        "phase": "",
+        "reason": "等待 FrontendIntegrationResume 冻结 typed API、会话与决策面板；主进程继续验证已交付的演示入口。",
+        "task": "恢复前端子任务，完成 typed API、会话与工作流联调"
+      }
+    },
+    {
+      "sourceEntryId": "30491b02",
+      "timestamp": "2026-10-15T07:07:11.189Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Resuming completed decision implementation acceptance",
+        "items": [],
+        "list": [],
+        "op": "unblock",
+        "phase": "",
+        "reason": "",
+        "task": "恢复决策子任务，完成路由契约、SQL 持久化与正式链路集成"
+      }
+    },
+    {
+      "sourceEntryId": "f3b59eb3",
+      "timestamp": "2026-10-15T07:07:21.046Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Running final decision acceptance proofs",
+        "items": [],
+        "list": [],
+        "op": "start",
+        "phase": "",
+        "reason": "",
+        "task": "恢复决策子任务，完成路由契约、SQL 持久化与正式链路集成"
+      }
+    },
+    {
+      "sourceEntryId": "ca545daa",
+      "timestamp": "2026-10-15T07:08:16.187Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Completing persisted decision integration acceptance",
+        "items": [],
+        "list": [],
+        "op": "done",
+        "phase": "",
+        "reason": "",
+        "task": "恢复决策子任务，完成路由契约、SQL 持久化与正式链路集成"
+      }
+    },
+    {
+      "sourceEntryId": "c2134df4",
+      "timestamp": "2026-10-15T07:34:11.444Z",
+      "tool": "todo",
+      "arguments": {
+        "i": "Replacing retired tasks with milestone sequence",
+        "items": [],
+        "list": [
+          {
+            "items": [
+              "M1 A · 检查 Git、本地修改、现有 Tags，非破坏性保存当前工作",
+              "M1 A · 阅读 S0/S1、现有契约及实现证据，分类现有能力",
+              "M1 A · 验证开发环境与依赖配置",
+              "M1 A · 启动并核验前后端、PostgreSQL、RustFS、Redis",
+              "M1 A · 执行已有自动化测试，保留真实基线结果",
+              "M1 A · 验证标准 Demo 数据及 DEV/TEST/DEMO 隔离",
+              "M1 A · 识别 M1 发布实际缺口并登记风险",
+              "M1 A · 建立唯一 TASK-BOARD 与 HANDOFF，迁移旧任务状态",
+              "M1 A · 固定 A/B/C 三个 Subagent 的文件所有权及公共契约",
+              "M1 A · 实现并集成 M1 必要修复，复用既有能力"
+            ],
+            "phase": "M1 v0.7.0 · Phase A 设计与实现"
+          },
+          {
+            "items": [
+              "M1 B · 完成真实浏览器核心审计、复核、整改、存储与轨迹闭环",
+              "M1 B · 执行 verify、集成/E2E、构建、迁移、安全及 Demo 发布闸门",
+              "M1 B · 输出 Release Summary、已知问题及交接，提交并创建不冲突的 v0.7.0 Tag"
+            ],
+            "phase": "M1 v0.7.0 · Phase B 集成验收与发布"
+          },
+          {
+            "items": [
+              "M2 A1 · 在 M1 发布后建立默认暗色及完整浅色的设计系统",
+              "M2 A2 · 统一信息架构、面包屑、导航及旧路由兼容",
+              "M2 A3 · 完成 Dashboard、审计工作台与证据联动详情体验"
+            ],
+            "phase": "M2 v0.8.0 · Phase A 设计与实现"
+          },
+          {
+            "items": [
+              "M2 B1 · 统一剩余业务、AI 运行与配置页面",
+              "M2 B2 · 完成主题切换、键盘、状态记忆、空错状态及五尺寸适配",
+              "M2 B3 · 完成双主题浏览器验收、截图、发布闸门及 v0.8.0 发布"
+            ],
+            "phase": "M2 v0.8.0 · Phase B 集成验收与发布"
+          },
+          {
+            "items": [
+              "M3 A1 · 固定复用 DecisionProvider、请求、建议、反馈、查询及安全契约",
+              "M3 A2 · 完成 Laya CPU、中文样本、资源和错误处理的可行性验证",
+              "M3 A3 · 完成默认关闭、隔离且无正式裁定权的 Shadow Mode"
+            ],
+            "phase": "M3 v0.9.0 · Phase A 设计与实现"
+          },
+          {
+            "items": [
+              "M3 B1 · 完成规则/Pi/Laya 对照、人工标签及分层评测",
+              "M3 B2 · 完成真实决策来源、版本、概率、冲突和耗时可视化",
+              "M3 B3 · 验证关闭、历史读取与版本兼容，通过闸门后发布 v0.9.0"
+            ],
+            "phase": "M3 v0.9.0 · Phase B 集成验收与发布"
+          },
+          {
+            "items": [
+              "M4 A1 · 输出分层测试及行/分支覆盖率，明确 N/A 与高风险缺口",
+              "M4 A2 · 在独立 TEST 环境完成完整 E2E，并分报 Fake 与真实模型",
+              "M4 A3 · 完成安全、可靠性、依赖与基础性能验收",
+              "M4 A4 · 完成部署、复制、升级、备份恢复和降级验收"
+            ],
+            "phase": "M4 v1.0.0 · Phase A 质量工程"
+          },
+          {
+            "items": [
+              "M4 B1 · 完成 5–8 分钟标准演示及失败恢复",
+              "M4 B2 · 完成技术、使用、运维、竞品与推广文档",
+              "M4 B3 · 以真实 Git 和验收时间形成软件工程过程证明",
+              "M4 B4 · 执行完整发布闸门，输出六份交付文件并发布 v1.0.0"
+            ],
+            "phase": "M4 v1.0.0 · Phase B 比赛交付与发布"
+          }
+        ],
+        "op": "init",
+        "phase": "",
+        "reason": "",
+        "task": ""
+      }
+    }
+  ]
+}

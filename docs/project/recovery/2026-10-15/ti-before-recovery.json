@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-15T08:48:37.807Z",
+  "source": "OMP todo.view before recovery; recent init retained in current Main conversation",
+  "sourceCommit": "a1e6191",
+  "counts": {
+    "DONE": 1,
+    "IN_PROGRESS": 1,
+    "TODO": 27
+  },
+  "groups": [
+    {
+      "group": "TI准备",
+      "tasks": [
+        {
+          "name": "TI准备 · 检查Git、保存既有改动并确认当前启动和测试命令",
+          "status": "DONE"
+        },
+        {
+          "name": "TI准备 · 审计前端、Run API、Pi事件、持久化、SSE、指标及Harness参考",
+          "status": "IN_PROGRESS"
+        },
+        {
+          "name": "TI准备 · 冻结TraceEvent契约、三Agent文件所有权与简短设计说明",
+          "status": "TODO"
+        }
+      ]
+    },
+    {
+      "group": "TI-M1",
+      "tasks": [
+        {
+          "name": "TI-M1 1.2A · 展示真实运行概况与缺失指标状态",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.2B · 实现对话与轨迹双视图",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.2C · 实现输入/模型/工具三泳道、真实时间与等宽模式、缩放定位及异常降级",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.2D · 实现紧凑事件列表、工具配对、输入输出折叠与定位",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.3 · 完成浅色开发者工具视觉、中文排版及紧凑行高",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.4 · 实现稳定排序、原始事件映射、时间可信度与脱敏适配",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M1 1.5 · 验证历史Run、空状态、真实API及审计回归并提交基础轨迹版本",
+          "status": "TODO"
+        }
+      ]
+    },
+    {
+      "group": "TI-M2",
+      "tasks": [
+        {
+          "name": "TI-M2 2.1 · 实现可调宽Inspector、四页签、安全复制与键盘操作",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M2 2.2 · 完善工具请求/结果分组并区分工具状态与Guard结果",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M2 2.3 · 实现搜索、类型/状态/时间筛选、可靠分组及双向联动",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M2 2.4 · 验证真实SSE追加、更新、去重、乱序、重连与刷新恢复",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M2 2.5 · 关联规则、提案、发现、证据、人工复核及可用影子决策",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M2 2.6 · 验证交互、关联及脱敏并提交交互式检查器版本",
+          "status": "TODO"
+        }
+      ]
+    },
+    {
+      "group": "TI-M3",
+      "tasks": [
+        {
+          "name": "TI-M3 3.1 · 完成规范化/排序/时序/配对/错误/筛选/降级单元测试",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.1 · 完成历史Run、持久化、结果/发现关联及SSE集成测试",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.1 · 完成双视图、时间轴、展开、面板、筛选、刷新、空错状态E2E",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.2 · 记录500事件性能与2000事件压力验证并评估虚拟滚动",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.3 · 复用演示体系覆盖正常、高风险、提案、工具异常及人工复核",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.4 · 验收1440、1280、窄屏、长文本、大量事件及键盘/控制台",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付Agent Trace重构设计说明",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付TraceEvent数据映射说明",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付兼容性、接口变更与回滚记录",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付测试报告、覆盖率与实测条件",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付演示操作说明",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 3.5 · 交付已知限制与后续优化建议",
+          "status": "TODO"
+        },
+        {
+          "name": "TI-M3 最终 · 启动最新前后端、完成真实Pi Agent Run并验收后提交最终版本",
+          "status": "TODO"
+        }
+      ]
+    }
+  ]
+}

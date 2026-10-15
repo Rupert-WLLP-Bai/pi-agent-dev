@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-15",
+  "purpose": "Recovered historical evidence; no verification rerun during task recovery",
+  "candidate": {
+    "baseCommit": "a849b29",
+    "workingTreeAtExecution": true,
+    "laterCheckpoints": ["880ff97", "a1e6191"],
+    "limitation": "A checkpoint is not a release tag or proof that every build used identical source bytes."
+  },
+  "verify": {
+    "command": "bun --env-file=/tmp/contract-audit-m1-gate.env run verify",
+    "completedAt": "2026-10-15T08:28:37.180Z",
+    "sessionEntryId": "23f7b0a7",
+    "jobId": "bg_30",
+    "jobStatus": "completed",
+    "observedExitCode": null,
+    "result": "PASS",
+    "durationMs": 44551,
+    "testDurationSeconds": 31.76,
+    "testFiles": 87,
+    "passed": 841,
+    "failed": 0,
+    "expectCalls": 2729,
+    "lint": "Checked 357 files; no fixes applied",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.tests.json; chain reached tests",
+    "artifact": "artifact://1698",
+    "limitation": "The delivered job record states completed and contains the successful chained commands; it has no separate numeric exit-code field."
+  },
+  "docker": {
+    "command": "docker compose --file compose.yaml --env-file .demo.env --project-name contract-audit-demo build api web",
+    "completedAt": "2026-10-15T08:24:15.983Z",
+    "sessionEntryId": "5c192f5d",
+    "jobId": "bg_28",
+    "jobStatus": "completed",
+    "observedExitCode": null,
+    "result": "PASS",
+    "durationMs": 79905,
+    "bunVersion": "1.4.0",
+    "imagesBuilt": ["contract-audit-demo-api", "contract-audit-demo-web"],
+    "webBuildExitCode": 0,
+    "webBundleKilobytes": 1618,
+    "webBundleWarning": true,
+    "artifact": "artifact://1695"
+  },
+  "fullReleaseGate": {
+    "command": "bun --env-file=/tmp/contract-audit-m1-gate.env run test:all",
+    "status": "NOT_RUN_IN_AVAILABLE_RECORD",
+    "requiredLayers": ["unit", "integration", "e2e", "coverage"],
+    "currentTaskState": "IN_PROGRESS"
+  },
+  "source": {
+    "sessionId": "01a13d0f-1cf6-7481-89c7-34fbbdbd9183",
+    "format": "Original async-result custom_message records in local session JSONL; referenced artifacts remain local."
+  }
+}

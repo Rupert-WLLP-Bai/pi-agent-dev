@@ -23,6 +23,10 @@ Before classifying or relabelling issues, read `docs/agents/triage-labels.md`.
 Single-context: shared root glossary and `docs/adr/`.
 Before exploring domain code or proposing domain changes, read `docs/agents/domain.md`.
 
+### Task management
+
+Before adding a work package, changing task status, or rebuilding OMP TODO, read [TASK-BOARD](docs/project/TASK-BOARD.md), [task management](docs/project/task-management.md), and the current [HANDOFF](docs/project/HANDOFF.md). Persist every task and work-package mapping before switching the OMP execution view; the repository roadmap retains the full project scope.
+
 ## Architecture & Data Flow
 
 Bun modular monolith: `packages/audit` owns transport-independent domain logic and ports; `packages/pi-agent` implements the agent port; `apps/api` composes HTTP, persistence, integrations, and execution; `apps/web` consumes the typed API.

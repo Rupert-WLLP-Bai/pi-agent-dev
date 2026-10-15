@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-15T09:14:22.843Z",
+  "check": "Executed throwaway JavaScript consistency check against current Markdown tables and preserved source records",
+  "counts": {
+    "original53": 53,
+    "originalStage": 17,
+    "originalBacklog": 36,
+    "supplementalLegacy": 8,
+    "globalMilestoneTasks": 33,
+    "inspectorTasks": 29,
+    "mainRecords": 123,
+    "historicalGatesAndAlias": 8,
+    "uniqueStableIds": 131
+  },
+  "states": {
+    "mainRecords": {
+      "DONE": 23,
+      "IN_PROGRESS": 49,
+      "TODO": 51
+    },
+    "global": {
+      "DONE": 11,
+      "IN_PROGRESS": 1,
+      "TODO": 21
+    },
+    "original53": {
+      "IN_PROGRESS": 40,
+      "DONE": 10,
+      "TODO": 3
+    },
+    "inspector": {
+      "DONE": 1,
+      "IN_PROGRESS": 1,
+      "TODO": 27
+    }
+  },
+  "checks": {
+    "originalNamesExact": true,
+    "allOriginalIdsPresent": true,
+    "allInspectorStatesPreserved": true,
+    "allFieldsPresent": true,
+    "allMilestoneMappingsPresent": true,
+    "noDuplicateIds": true,
+    "legacyMatrixUnchanged": true,
+    "currentDocumentLinksResolve": true
+  },
+  "snapshotChecks": [
+    {
+      "sourceCommit": "a849b29",
+      "path": "docs/project-management/TASK-MATRIX.md",
+      "snapshot": "task-matrix.a849b29.md",
+      "sha256": "7b11c2acc00e00c540c43a86eeb64afb9afe632127a3c6f7531ac9f6d652ab77",
+      "matches": true
+    },
+    {
+      "sourceCommit": "a1e6191",
+      "path": "docs/project-management/TASK-MATRIX.md",
+      "snapshot": "task-matrix.a1e6191.md",
+      "sha256": "77bc03021ddd2f5ae1fc2dbb2ad41c8485fc949460568f32d88d8b9d0d97f9aa",
+      "matches": true
+    },
+    {
+      "sourceCommit": "a1e6191",
+      "path": "docs/project/TASK-BOARD.md",
+      "snapshot": "task-board.a1e6191.md",
+      "sha256": "bd7cfc8cb587dbed669f8af7f6c80f2073b7753779386d7759d172c142e613c3",
+      "matches": true
+    }
+  ],
+  "missingOriginalDefinitions": [],
+  "limitations": [
+    "Original init did not record per-task priority or dependency fields; current mappings are explicitly labelled.",
+    "Hierarchical and related records overlap; counts are not a product completion percentage.",
+    "No application code, database, environment or service mutation in this recovery."
+  ],
+  "documentLinksChecked": 110
+}
