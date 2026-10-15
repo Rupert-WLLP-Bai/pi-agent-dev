@@ -6,6 +6,8 @@ export type {
   AgentRunSummary,
   AuditOverview,
   CaseSummary,
+  DemoResetOrphans,
+  DemoResetOutcome,
   DrizzleDB,
   Remediation,
   RemediationBoard,

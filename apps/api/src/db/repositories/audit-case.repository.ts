@@ -166,16 +166,44 @@ export class AuditCaseRepository {
     return this.readModel.listDemoSeededCases(...args);
   }
 
-  /**
-   * Removes audit cases whose source record was planted by the demo seeder.
-   * Operator pastes and uploads are left untouched.
-   */
-  async deleteDemoSeededCases(
-    ...args: Parameters<AuditReadModelRepository["deleteDemoSeededCases"]>
-  ) {
-    return this.readModel.deleteDemoSeededCases(...args);
+  async resetDemoWorld(...args: Parameters<AuditReadModelRepository["resetDemoWorld"]>) {
+    return this.readModel.resetDemoWorld(...args);
   }
 
+  async rebuildDemoWorld(
+    ...args: Parameters<AuditReadModelRepository["rebuildDemoWorld"]>
+  ) {
+    return this.readModel.rebuildDemoWorld(...args);
+  }
+
+  async currentDatabaseName(...args: Parameters<AuditReadModelRepository["currentDatabaseName"]>) {
+    return this.readModel.currentDatabaseName(...args);
+  }
+
+  async hasDemoEnvironmentTable(
+    ...args: Parameters<AuditReadModelRepository["hasDemoEnvironmentTable"]>
+  ) {
+    return this.readModel.hasDemoEnvironmentTable(...args);
+  }
+
+  async registerDemoEnvironment(
+    ...args: Parameters<AuditReadModelRepository["registerDemoEnvironment"]>
+  ) {
+    return this.readModel.registerDemoEnvironment(...args);
+  }
+
+  async countDemoResetOrphans(
+    ...args: Parameters<AuditReadModelRepository["countDemoResetOrphans"]>
+  ) {
+    return this.readModel.countDemoResetOrphans(...args);
+  }
+
+  /**
+   * Removes audit cases whose source record was planted by the demo seeder.
+   * The guarded path (`resetDemoWorld`) is the only entry; there is no unguarded
+   * delete, because a delete that skips the identity and activity checks is
+   * exactly the operation a production deployment must not be able to perform.
+   */
   async ping(...args: Parameters<AuditReadModelRepository["ping"]>) {
     return this.readModel.ping(...args);
   }

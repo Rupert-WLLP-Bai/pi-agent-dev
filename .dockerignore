@@ -4,3 +4,17 @@ dist
 .git
 .drizzle
 .pi
+# The protected local environment the demo CLI generates: a build context must
+# never capture a credential file, and the image must not depend on one.
+.demo.env
+.demo.env.*
+.demo/
+# Local run state and scratch: logs, PIDs and throwaway smoke scripts carry no
+# image value and can carry local paths.
+.dev/
+apps/api/src/tmp-smoke/
+var/
+apps/api/var/
+test-results
+playwright-report
+.worktrees

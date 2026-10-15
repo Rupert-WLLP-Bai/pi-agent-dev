@@ -232,6 +232,8 @@ export class InMemoryAuditCaseRepository {
       metadata?: Record<string, unknown>;
       assignee?: string | null;
       contractId?: string | null;
+      /** The locator registered with the source record in this same step. */
+      originalPath?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
@@ -240,6 +242,12 @@ export class InMemoryAuditCaseRepository {
     this.sourceRecordIdsByCase.set(caseId, sourceRecordId);
     this.sourceProvenanceByRecord.set(sourceRecordId, provenance);
     this.sourceTexts.set(sourceRecordId, sourceText);
+    // Mirrors the SQL repository: the locator is registered with the case, in
+    // the same step, so an in-memory caller cannot produce a case whose source
+    // row points at bytes that were never written.
+    if (options.originalPath !== undefined && options.originalPath !== null) {
+      this.sourceOriginalPaths.set(sourceRecordId, options.originalPath);
+    }
     if (options.metadata) this.sourceMetadata.set(sourceRecordId, { ...options.metadata });
     if (provenance?.displayName != null) {
       this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
@@ -396,11 +404,13 @@ export class InMemoryAuditCaseRepository {
 
   async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
     if (!this.sourceRecordIds.has(sourceRecordId)) return null;
+    const metadata = this.sourceMetadata.get(sourceRecordId);
     return {
       id: sourceRecordId,
       originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,
       name: this.sourceDisplayNames.get(sourceRecordId) ?? null,
       provenance: this.sourceProvenanceByRecord.get(sourceRecordId) ?? null,
+      metadata: metadata === undefined ? null : { ...metadata },
     };
   }
 

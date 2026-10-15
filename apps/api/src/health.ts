@@ -174,13 +174,17 @@ const redisConnection = async (inputs: HealthInputs): Promise<HealthConnection> 
 
 const objectStoreConnection = async (config: ObjectStoreConfig): Promise<HealthConnection> => {
   if (config.endpoint) {
-    const target = `s3://${config.bucket} @ ${config.endpoint}`;
+    // The target states the effective failure policy: `strict` writes fail the
+    // upload, `fallback` writes continue on local disk. An operator reading the
+    // health line must be able to tell which policy a given deployment uses.
+    const target = `s3://${config.bucket} @ ${config.endpoint}（${config.strict ? "严格模式" : "本地回退"}）`;
     try {
       const client = createAwsS3Client({
         endpoint: config.endpoint,
         accessKey: config.accessKey,
         secretKey: config.secretKey,
         region: config.region,
+        ...(config.timeoutMs === undefined ? {} : { timeoutMs: config.timeoutMs }),
       });
       if (!client.headBucket) return connection(true, target);
       const ok = await withTimeout(client.headBucket(config.bucket), PROBE_TIMEOUT_MS);

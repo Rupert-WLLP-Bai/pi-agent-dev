@@ -502,6 +502,7 @@ export class AuditQueueRepository {
       originalPath: row.originalPath,
       name,
       provenance: toSourceProvenance(sourceType, name),
+      metadata: metadata !== null && typeof metadata === "object" ? (metadata as Record<string, unknown>) : null,
     };
   }
 }

@@ -2,7 +2,10 @@ import { getFindingTypeLabel } from "@contract-audit/audit/finding-labels";
 import type { AuditCase, AuditCaseStatus, AuditStage } from "@contract-audit/audit/model";
 import type { ReviewPriority } from "@contract-audit/audit/ports";
 import { desc, eq, inArray, sql } from "drizzle-orm";
+import type { DemoWorldOperationResult } from "../../demo/demo-world-operation";
+import { plantDemoCases } from "../../demo/seed-world";
 import { originalStorageOf } from "../../document/original-store";
+import { AuditCaseRepository } from "./audit-case.repository";
 import {
   agentRuns,
   agentTraceSteps,
@@ -21,10 +24,25 @@ import { asDate, toCase, toReviewPriority, toSeverity, toSourceProvenance } from
 import type {
   AuditOverview,
   CaseSummary,
+  DemoResetOrphans,
+  DemoResetOutcome,
   DrizzleDB,
   ReviewQueueItem,
   SubjectVerificationListItem,
 } from "./types";
+
+/**
+ * The advisory-lock key every demo-world operation serializes on.
+ *
+ * DecisionEngineer's queue slice defines the same literal in
+ * `audit-queue.repository.ts` — the claims take it SHARED, the reset takes it
+ * EXCLUSIVE. The value is duplicated here with a comment naming that file so a
+ * change to one side fails loudly in review rather than silently stopping to
+ * exclude the other. A fixed constant, not `hashtext(<string>)`: a literal
+ * cannot drift when a string is edited, and the value must never change, or an
+ * old lock holder and a new one would stop excluding each other.
+ */
+export const DEMO_WORLD_LOCK_KEY = 748291001;
 
 export class AuditReadModelRepository {
   constructor(private readonly db: DrizzleDB) {}
@@ -415,54 +433,352 @@ export class AuditReadModelRepository {
    */
 
   /**
-   * Removes audit cases whose source record was planted by the demo seeder.
-   * Operator pastes and uploads are left untouched.
+   * The server's own answer for this connection. Used by tests and the CLI to
+   * ask for the name the guard expects, so a test never hard-codes a database
+   * name the shared suite database may not carry.
    */
-  async deleteDemoSeededCases(): Promise<number> {
-    const seeded = await this.db.execute<{ id: string }>(sql`
+  async currentDatabaseName(): Promise<string> {
+    const rows = await this.db.execute<{ current_database: string }>(
+      sql`SELECT current_database() AS current_database`,
+    );
+    return rows[0]?.current_database ?? "";
+  }
+
+  /**
+   * Whether `demo_environments` exists on this database. A test uses it to
+   * skip (not fake) a reset on a database the registration migration has not
+   * reached yet; production code never calls it — there, the absence of the
+   * table makes the reset refuse, which is the correct outcome.
+   */
+  async hasDemoEnvironmentTable(): Promise<boolean> {
+    const rows = await this.db.execute<{ present: number }>(
+      sql`SELECT COUNT(*)::int AS present FROM information_schema.tables
+          WHERE table_schema = current_schema() AND table_name = 'demo_environments'`,
+    );
+    return (rows[0]?.present ?? 0) > 0;
+  }
+
+  /**
+   * Registers a demo environment, or repairs its stored database name. Only
+   * the reset's caller supplies this: the migration never inserts a row, and a
+   * deployment that never calls it keeps every database unregistered.
+   */
+  async registerDemoEnvironment(input: { environmentId: string; databaseName: string }): Promise<void> {
+    await this.db.execute(sql`
+      INSERT INTO demo_environments (id, database_name)
+      VALUES (${input.environmentId}, ${input.databaseName})
+      ON CONFLICT (id) DO UPDATE SET database_name = EXCLUDED.database_name
+    `);
+  }
+
+  /**
+   * Runs one atomic demo-world operation: the guarded reset and, when seed is
+   * requested, the rebuild — inside a single transaction on a single
+   * connection.
+   *
+   * The transaction holds the demo-world advisory lock exclusively for the
+   * whole operation, so a claim/retry/rerun (shared lock) cannot start a demo
+   * case between the delete and the seed, and a second operation cannot
+   * interleave with this one. Seeding runs through a repository bound to this
+   * transaction, so every insert joins the same commit: either the world ends
+   * up rebuilt, or nothing changed.
+   */
+  async rebuildDemoWorld(input: {
+    environmentId: string;
+    databaseName: string;
+    seed: { fillerCount?: number; rngSeed?: number } | null;
+  }): Promise<DemoWorldOperationResult> {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${DEMO_WORLD_LOCK_KEY})`);
+
+      // Identity is read inside this transaction, on this connection.
+      const identityRows = await tx.execute<{
+        current_database: string;
+        registered_database: string | null;
+      }>(sql`
+        SELECT current_database() AS current_database,
+               (SELECT database_name FROM demo_environments WHERE id = ${input.environmentId}) AS registered_database
+      `);
+      const currentDatabase = identityRows[0]?.current_database ?? "";
+      const registeredDatabase = identityRows[0]?.registered_database ?? null;
+      if (currentDatabase !== input.databaseName) {
+        return {
+          outcome: {
+            ok: false,
+            code: "database_identity_mismatch",
+            reason: `目标库不匹配：当前连接的是 ${currentDatabase}，而 DEMO_DATABASE_NAME 指向 ${input.databaseName}。拒绝重置。`,
+          },
+          view: null,
+          planted: 0,
+        };
+      }
+      if (registeredDatabase !== input.databaseName) {
+        return {
+          outcome: {
+            ok: false,
+            code: "registration_mismatch",
+            reason:
+              registeredDatabase === null
+                ? `环境 ${input.environmentId} 未注册（demo_environments 无该行）；生产库不会自动获得演示身份。`
+                : `环境 ${input.environmentId} 注册的库是 ${registeredDatabase}，与 DEMO_DATABASE_NAME（${input.databaseName}）不符。拒绝重置。`,
+          },
+          view: null,
+          planted: 0,
+        };
+      }
+
+      const active = await tx.execute<{ case_key: string | null; case_id: string }>(sql`
+        SELECT c.id AS case_id, src.metadata->>'caseKey' AS case_key
+        FROM audit_cases c
+        INNER JOIN source_records src ON src.id = c.source_record_id
+        WHERE src.metadata->>'demoSeed' = 'true'
+          AND c.status IN ('PENDING', 'RUNNING')
+      `);
+      if (active.length > 0) {
+        const keys = active.map((row) => row.case_key ?? row.case_id);
+        return {
+          outcome: {
+            ok: false,
+            code: "demo_run_active",
+            reason:
+              `有 ${active.length} 个演示案件仍在排队或运行中（${keys.slice(0, 3).join("、")}${keys.length > 3 ? " 等" : ""}）；` +
+              "等活动结束或取消后再重置。",
+          },
+          view: null,
+          planted: 0,
+        };
+      }
+
+      const removed = await this.deleteDemoWorldIn(tx);
+      if (input.seed === null) return { outcome: { ok: true, removed }, view: null, planted: 0 };
+
+      // Seeding joins this transaction through a repository bound to it, so
+      // every insert commits — or rolls back — with the delete above.
+      const seedRepository = new AuditCaseRepository(tx as unknown as DrizzleDB);
+      const seeded = await plantDemoCases(seedRepository, input.seed);
+      return {
+        outcome: { ok: true, removed },
+        view: { ...seeded, removed },
+        planted: seeded.planted,
+      };
+    });
+  }
+
+  /**
+   * Removes the demo world, or refuses, in ONE transaction.
+   *
+   * Everything that decides whether the delete may happen — the database
+   * identity, the registration row, the active-run check — is read on the SAME
+   * connection and inside the SAME transaction that performs the delete. That
+   * is the point: checking `current_database()` over one connection and then
+   * deleting over another would let a pooled connection land on a different
+   * database between the two statements, which is exactly how a reset deletes
+   * the wrong data while reporting success.
+   *
+   * Ordering inside the transaction:
+   *   1. take the demo-world advisory lock exclusively, so no claim/retry/rerun
+   *      can start while the delete is in flight and no second reset can
+   *      interleave with this one;
+   *   2. read `current_database()` and the registration row, and refuse unless
+   *      both equal the expected name;
+   *   3. refuse while any demo case is queued or running — checked under the
+   *      lock, so the answer cannot go stale before the delete;
+   *   4. collect the source records exclusively owned by the demo seeder, then
+   *      delete the chain, removing verification rows only for those source
+   *      records that nothing else references;
+   *   5. delete the source records last, and only those with no remaining
+   *      reference from a surviving row.
+   *
+   * A refusal returns a reason; the caller maps it to an HTTP status or an exit
+   * code. Nothing is deleted when a refusal is returned.
+   */
+  async resetDemoWorld(input: {
+    environmentId: string;
+    databaseName: string;
+  }): Promise<DemoResetOutcome> {
+    return this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${DEMO_WORLD_LOCK_KEY})`);
+
+      // Identity is read inside this transaction, on this connection.
+      const identityRows = await tx.execute<{
+        current_database: string;
+        registered_database: string | null;
+      }>(sql`
+        SELECT current_database() AS current_database,
+               (SELECT database_name FROM demo_environments WHERE id = ${input.environmentId}) AS registered_database
+      `);
+      const currentDatabase = identityRows[0]?.current_database ?? "";
+      const registeredDatabase = identityRows[0]?.registered_database ?? null;
+      if (currentDatabase !== input.databaseName) {
+        return {
+          ok: false,
+          code: "database_identity_mismatch",
+          reason: `目标库不匹配：当前连接的是 ${currentDatabase}，而 DEMO_DATABASE_NAME 指向 ${input.databaseName}。拒绝重置。`,
+        };
+      }
+      if (registeredDatabase !== input.databaseName) {
+        return {
+          ok: false,
+          code: "registration_mismatch",
+          reason:
+            registeredDatabase === null
+              ? `环境 ${input.environmentId} 未注册（demo_environments 无该行）；生产库不会自动获得演示身份。`
+              : `环境 ${input.environmentId} 注册的库是 ${registeredDatabase}，与 DEMO_DATABASE_NAME（${input.databaseName}）不符。拒绝重置。`,
+        };
+      }
+
+      // Active runs, under the lock: a claim would have needed the shared lock
+      // we now hold exclusively, so this reading cannot be invalidated before
+      // the delete below.
+      const active = await tx.execute<{ case_key: string | null; case_id: string }>(sql`
+        SELECT c.id AS case_id, src.metadata->>'caseKey' AS case_key
+        FROM audit_cases c
+        INNER JOIN source_records src ON src.id = c.source_record_id
+        WHERE src.metadata->>'demoSeed' = 'true'
+          AND c.status IN ('PENDING', 'RUNNING')
+      `);
+      if (active.length > 0) {
+        const keys = active.map((row) => row.case_key ?? row.case_id);
+        return {
+          ok: false,
+          code: "demo_run_active",
+          reason:
+            `有 ${active.length} 个演示案件仍在排队或运行中（${keys.slice(0, 3).join("、")}${keys.length > 3 ? " 等" : ""}）；` +
+            "等活动结束或取消后再重置。",
+        };
+      }
+
+      const removed = await this.deleteDemoWorldIn(tx);
+      return { ok: true, removed };
+    });
+  }
+
+  /**
+   * The delete itself, on a caller-supplied transaction that already holds the
+   * demo-world lock. Split out so `resetDemoWorld` can run it after the guards
+   * and so a seeding path can call it inside its own transaction.
+   */
+  async deleteDemoWorldIn(tx: DrizzleDB): Promise<number> {
+    const seeded = await tx.execute<{ id: string }>(sql`
       SELECT id FROM source_records WHERE metadata->>'demoSeed' = 'true'
     `);
     if (seeded.length === 0) return 0;
     const sourceIds = seeded.map((row) => row.id);
-    const caseRows = await this.db
+    const caseRows = await tx
       .select({ id: auditCases.id })
       .from(auditCases)
       .where(inArray(auditCases.sourceRecordId, sourceIds));
     const caseIds = caseRows.map((row) => row.id);
+
+    // Verification rows name their own source record. A row is demo-owned only
+    // when it belongs to a demo case AND points at a demo source record;
+    // deleting every verification of a demo case would take a shared record's
+    // row with it.
+    const verificationSources = await tx.execute<{ id: string }>(sql`
+      SELECT DISTINCT v.id
+      FROM subject_verifications v
+      WHERE v.audit_case_id = ANY(${caseIds})
+        AND v.source_record_id = ANY(${sourceIds})
+    `);
+    const verificationIds = verificationSources.map((row) => row.id);
+
     if (caseIds.length > 0) {
-      await this.db.delete(agentTraceSteps).where(inArray(agentTraceSteps.auditCaseId, caseIds));
-      await this.db.delete(agentRuns).where(inArray(agentRuns.auditCaseId, caseIds));
-      await this.db.delete(remediations).where(inArray(remediations.auditCaseId, caseIds));
-      await this.db.delete(findingRevisions).where(inArray(findingRevisions.auditCaseId, caseIds));
-      await this.db
-        .delete(partyHistoryRecords)
-        .where(inArray(partyHistoryRecords.auditCaseId, caseIds));
-      await this.db
-        .delete(subjectVerifications)
-        .where(inArray(subjectVerifications.auditCaseId, caseIds));
-      await this.db.delete(auditSnapshots).where(inArray(auditSnapshots.auditCaseId, caseIds));
-      await this.db.delete(auditCases).where(inArray(auditCases.id, caseIds));
+      // Shadow rows are removed explicitly (feedback before jobs) even though
+      // the FK cascades: the order documents the reset's reach.
+      const jobs = await tx.execute<{ decision_id: string }>(sql`
+        SELECT decision_id FROM shadow_jobs WHERE audit_case_id = ANY(${caseIds})
+      `);
+      const decisionIds = jobs.map((row) => row.decision_id);
+      if (decisionIds.length > 0) {
+        await tx.execute(sql`DELETE FROM shadow_feedback WHERE decision_id = ANY(${decisionIds})`);
+        await tx.execute(sql`DELETE FROM shadow_jobs WHERE decision_id = ANY(${decisionIds})`);
+      }
+      await tx.delete(agentTraceSteps).where(inArray(agentTraceSteps.auditCaseId, caseIds));
+      await tx.delete(agentRuns).where(inArray(agentRuns.auditCaseId, caseIds));
+      await tx.delete(remediations).where(inArray(remediations.auditCaseId, caseIds));
+      await tx.delete(findingRevisions).where(inArray(findingRevisions.auditCaseId, caseIds));
+      await tx.delete(partyHistoryRecords).where(inArray(partyHistoryRecords.auditCaseId, caseIds));
+      // Only the exclusively demo-owned verification rows, identified above.
+      if (verificationIds.length > 0) {
+        await tx.delete(subjectVerifications).where(inArray(subjectVerifications.id, verificationIds));
+      }
+      await tx.delete(auditSnapshots).where(inArray(auditSnapshots.auditCaseId, caseIds));
+      await tx.delete(auditCases).where(inArray(auditCases.id, caseIds));
     }
-    const revisionRows = await this.db
+
+    const revisionRows = await tx
       .select({ contractId: contractRevisions.contractId })
       .from(contractRevisions)
       .where(inArray(contractRevisions.sourceRecordId, sourceIds));
     const contractIds = [...new Set(revisionRows.map((row) => row.contractId))];
-    await this.db
-      .delete(contractRevisions)
-      .where(inArray(contractRevisions.sourceRecordId, sourceIds));
+    await tx.delete(contractRevisions).where(inArray(contractRevisions.sourceRecordId, sourceIds));
     for (const contractId of contractIds) {
-      const remaining = await this.db
+      const remaining = await tx
         .select({ id: contractRevisions.id })
         .from(contractRevisions)
         .where(eq(contractRevisions.contractId, contractId))
         .limit(1);
       if (remaining.length === 0) {
-        await this.db.delete(contracts).where(eq(contracts.id, contractId));
+        await tx.delete(contracts).where(eq(contracts.id, contractId));
       }
     }
-    await this.db.delete(sourceRecords).where(inArray(sourceRecords.id, sourceIds));
+    // A demo source record is removed only when nothing still references it:
+    // a surviving case, revision or verification row that points at it means
+    // the record is shared, and deleting it would break that reference.
+    const deletableSources: string[] = [];
+    for (const sourceId of sourceIds) {
+      const references = await tx.execute<{ remaining: number }>(sql`
+        SELECT (
+          (SELECT COUNT(*)::int FROM audit_cases WHERE source_record_id = ${sourceId}) +
+          (SELECT COUNT(*)::int FROM contract_revisions WHERE source_record_id = ${sourceId}) +
+          (SELECT COUNT(*)::int FROM subject_verifications WHERE source_record_id = ${sourceId})
+        ) AS remaining
+      `);
+      if ((references[0]?.remaining ?? 0) === 0) deletableSources.push(sourceId);
+    }
+    if (deletableSources.length > 0) {
+      await tx.delete(sourceRecords).where(inArray(sourceRecords.id, deletableSources));
+    }
     return caseIds.length;
+  }
+
+  /**
+   * Counts rows a completed reset must have left at zero: shadow jobs and
+   * feedback pointing at cases that no longer exist, and verification rows
+   * pointing at source records that no longer exist.
+   *
+   * The query is not wrapped in a catch. An earlier version swallowed any SQL
+   * error and returned zeros, which turns a broken check into a passing one —
+   * exactly the failure mode a verification query exists to prevent. If the
+   * shadow tables are absent the reset's own contract is broken, and that must
+   * surface as an error rather than as "no orphans".
+   */
+  async countDemoResetOrphans(): Promise<DemoResetOrphans> {
+    const rows = await this.db.execute<{
+      shadow_jobs: number;
+      shadow_feedback: number;
+      verification_sources: number;
+    }>(sql`
+      SELECT
+        (SELECT COUNT(*)::int FROM shadow_jobs j
+          LEFT JOIN audit_cases c ON c.id = j.audit_case_id
+          WHERE c.id IS NULL) AS shadow_jobs,
+        (SELECT COUNT(*)::int FROM shadow_feedback f
+          LEFT JOIN shadow_jobs j ON j.decision_id = f.decision_id
+          WHERE j.decision_id IS NULL) AS shadow_feedback,
+        (SELECT COUNT(*)::int FROM subject_verifications v
+          LEFT JOIN source_records s ON s.id = v.source_record_id
+          WHERE v.source_record_id IS NOT NULL AND s.id IS NULL) AS verification_sources
+    `);
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error("demo reset orphan check returned no row");
+    }
+    return {
+      shadowJobs: row.shadow_jobs,
+      shadowFeedback: row.shadow_feedback,
+      verificationSources: row.verification_sources,
+    };
   }
 
   async ping(): Promise<boolean> {

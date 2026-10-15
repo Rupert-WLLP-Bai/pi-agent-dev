@@ -26,11 +26,12 @@ async function resolveContractDocument(
     sourceText: string;
     originalPath: string | null;
     uploadFileName: string | null;
+    metadata: Record<string, unknown> | null;
   },
   ocr?: OcrPort,
 ): Promise<ContractDocument> {
   if (input.originalPath) {
-    const bytes = new Uint8Array(await readOriginal(input.originalPath));
+    const bytes = await readOriginal(input.originalPath, input.metadata);
     const parsed = await parseContractFile(
       {
         filename: input.uploadFileName ?? "contract.docx",
@@ -89,6 +90,7 @@ export async function ensureRunSnapshot(
         sourceText: source.sourceText,
         originalPath: source.originalPath,
         uploadFileName: readUploadFilename(metadata),
+        metadata,
       },
       ocr,
     );

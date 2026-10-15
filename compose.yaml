@@ -1,32 +1,60 @@
+# Local deployment for the contract audit workbench.
+#
+# Two profiles, one file:
+#
+#   minimal — deterministic fake audit, shadow off, no model credentials.
+#   full    — explicitly configured model/shadow providers.
+# Both modes use the same access gate and encrypted credential storage.
+# scripts/demo/cli.ts generates private local access/encryption credentials.
+#
+# Reproducibility rules this file follows:
+#   * every third-party image is pinned to an exact release tag, never
+#     `latest`, so a rebuild months later composes the same stack;
+#   * every port binds to 127.0.0.1 unless a variable explicitly widens it —
+#     a laptop stack must not be reachable from the network by accident;
+#   * every credential is a `${VAR}` with a documented local default; nothing
+#     secret is baked into the file.
+#
+# The compose project name is namespaced so a second worktree can run its own
+# stack against different volumes without colliding.
+
+name: ${COMPOSE_PROJECT_NAME:-contract-audit}
+
 services:
   postgres:
-    image: postgres:18
+    image: postgres:18@sha256:08870f282d0dc6df6540cb710bd69144a994efd7a70a40fbf65bc921e6f5ec48
     environment:
-      POSTGRES_USER: contract_audit
-      POSTGRES_PASSWORD: contract_audit
-      POSTGRES_DB: contract_audit
+      POSTGRES_USER: ${POSTGRES_USER:-contract_audit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contract_audit}
+      POSTGRES_DB: ${POSTGRES_DB:-contract_audit}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U contract_audit"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 3s
       retries: 5
+    # A bounded container keeps a runaway query from starving the host; the
+    # values are generous for a single-developer stack.
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   rustfs:
-    image: rustfs/rustfs:1.0.0
+    image: rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
     command: ["/data"]
     environment:
-      RUSTFS_ACCESS_KEY: contract_audit
-      RUSTFS_SECRET_KEY: contract_audit
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-contract_audit}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-contract_audit}
       RUSTFS_ADDRESS: ":9000"
       RUSTFS_CONSOLE_ADDRESS: ":9001"
       RUSTFS_CONSOLE_ENABLE: "true"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${S3_BIND:-127.0.0.1}:${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_BIND:-127.0.0.1}:${S3_CONSOLE_PORT:-9001}:9001"
     volumes:
       - rustfs-data:/data
     healthcheck:
@@ -35,25 +63,29 @@ services:
       timeout: 3s
       retries: 5
 
-  # One-shot: create the originals bucket, then exit. `aws s3api create-bucket`
-  # returns success when the configured account already owns the bucket, so it
-  # is safe to rerun after a local stack restart.
+  # One-shot, idempotent: keep the bucket if it already exists for this account.
   rustfs-init:
-    image: amazon/aws-cli:latest
+    image: amazon/aws-cli:2.32.5@sha256:cc6d04158b1a3bb8c94f995d197cfd29041c35f84386cb677076020ba7c36aae
     depends_on:
       rustfs:
         condition: service_healthy
     environment:
-      AWS_ACCESS_KEY_ID: contract_audit
-      AWS_SECRET_ACCESS_KEY: contract_audit
-      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-contract_audit}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-contract_audit}
+      AWS_DEFAULT_REGION: ${S3_REGION:-us-east-1}
+      # Silence the pager: a non-TTY compose log must not hang on it.
+      AWS_PAGER: ""
+      S3_BUCKET: ${S3_BUCKET:-contract-originals}
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      ["--endpoint-url", "http://rustfs:9000", "s3api", "create-bucket", "--bucket", "contract-originals"]
+      - >-
+        aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket "$$S3_BUCKET" >/dev/null 2>&1 ||
+        aws --endpoint-url http://rustfs:9000 s3api create-bucket --bucket "$$S3_BUCKET"
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e0df28b7b89bee1a9e32778ae7d7acfe2b6881da3b9d21b4f5a52554b27cdae1
     ports:
-      - "6379:6379"
+      - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -67,29 +99,62 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: postgresql://contract_audit:contract_audit@postgres:5432/contract_audit
+      DATABASE_URL: postgresql://${POSTGRES_USER:-contract_audit}:${POSTGRES_PASSWORD:-contract_audit}@postgres:5432/${POSTGRES_DB:-contract_audit}
       API_PORT: "3000"
-      WEB_ORIGIN: http://localhost:8080
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
       AUDIT_AGENT_MODE: ${AUDIT_AGENT_MODE:-fake}
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://rustfs:9000
-      S3_ACCESS_KEY: contract_audit
-      S3_SECRET_KEY: contract_audit
-      S3_BUCKET: contract-originals
-      S3_REGION: us-east-1
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-contract_audit}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-contract_audit}
+      S3_BUCKET: ${S3_BUCKET:-contract-originals}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      # Strict by default: an object-store write failure fails the upload
+      # instead of silently persisting on local disk.
+      S3_STRICT: ${S3_STRICT:-true}
+      S3_TIMEOUT_MS: ${S3_TIMEOUT_MS:-10000}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-10485760}
       SUBJECT_VERIFICATION_MODE: ${SUBJECT_VERIFICATION_MODE:-fixture}
       XYG_ENDPOINT: ${XYG_ENDPOINT:-}
       XYG_API_KEY: ${XYG_API_KEY:-}
       XYG_MODEL: ${XYG_MODEL:-}
       QCC_TOKEN: ${QCC_TOKEN:-}
-      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      # The single-workspace access gate. Required in demo/production; the
+      # compose stack runs APP_ENV=demo, so the token must be supplied.
+      APP_ENV: ${APP_ENV:-demo}
+      API_ACCESS_TOKEN: ${API_ACCESS_TOKEN:-}
+      LLM_KEY_ENCRYPTION_SECRET: ${LLM_KEY_ENCRYPTION_SECRET:-}
+      # Raw-contract outbound policy: empty means no external model origin is
+      # permitted to receive contract text. Loopback alone is not an exemption.
+      LLM_INTERNAL_DATA_ORIGINS: ${LLM_INTERNAL_DATA_ORIGINS:-}
+      # Decision shadow slice. off/disabled by default: nothing is called until
+      # an operator opts in explicitly.
+      DECISION_MODE: ${DECISION_MODE:-off}
+      DECISION_PROVIDER: ${DECISION_PROVIDER:-disabled}
+      DECISION_ENDPOINT: ${DECISION_ENDPOINT:-}
+      DECISION_ALLOWED_ORIGINS: ${DECISION_ALLOWED_ORIGINS:-}
+      DECISION_MODEL: ${DECISION_MODEL:-multilingual}
+      DECISION_MODEL_REVISION: ${DECISION_MODEL_REVISION:-1720e3e3357cfe1e281542e223f8273b0890ca34}
+      DECISION_CODE_REVISION: ${DECISION_CODE_REVISION:-432312b36714d8889eba405507b37eda25257d9c}
+      DECISION_TIMEOUT_MS: ${DECISION_TIMEOUT_MS:-10000}
+      DECISION_POLL_INTERVAL_MS: ${DECISION_POLL_INTERVAL_MS:-2000}
+      DECISION_MAX_RETRIES: ${DECISION_MAX_RETRIES:-2}
+      DECISION_CONCURRENCY: ${DECISION_CONCURRENCY:-1}
+      DECISION_LEASE_MS: ${DECISION_LEASE_MS:-60000}
+      DECISION_RETENTION_DAYS: ${DECISION_RETENTION_DAYS:-30}
+      # Demo environment identity. The reset guard reads these three together.
+      DEMO_ENVIRONMENT_ID: ${DEMO_ENVIRONMENT_ID:-}
+      DEMO_DATABASE_NAME: ${DEMO_DATABASE_NAME:-}
+      DEMO_RESET_CONFIRMATION: ${DEMO_RESET_CONFIRMATION:-}
     ports:
-      - "3000:3000"
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
     healthcheck:
       # Shell form so the exit code of the fetch decides health. /api/health
       # returns 503 when Postgres or the dispatcher is down.
@@ -106,8 +171,10 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    environment:
+      API_PROXY_TARGET: http://api:3000
     ports:
-      - "8080:80"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:80"
     depends_on:
       api:
         condition: service_healthy
