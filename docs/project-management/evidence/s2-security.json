@@ -1,0 +1,38 @@
+{
+  "recordedAt": "2026-10-15",
+  "baseCommit": "6a59906",
+  "scope": "Main S2 access and raw-model-data protection slice; UI and full deployment acceptance remain separate",
+  "verification": {
+    "command": "DATABASE_URL=<contract_audit_omp_s0_unit_20261015> bun run verify",
+    "exitCode": 0,
+    "lintFiles": 292,
+    "typecheckPasses": 2,
+    "testsPassed": 688,
+    "testsFailed": 0,
+    "testFiles": 77,
+    "testDurationSeconds": 31.07,
+    "log": "/tmp/contract-audit-security-verify.log"
+  },
+  "httpSmoke": {
+    "transport": "actual HTTP listener on loopback, persistent reads against isolated migrated PostgreSQL",
+    "anonymousCaseList": 401,
+    "sessionDiscovery": 200,
+    "login": 200,
+    "authorizedCaseList": 200,
+    "logout": 204,
+    "revokedCookieReplay": 401
+  },
+  "behaviorChecks": [
+    "Anonymous protected reads denied; health and session discovery remain reachable",
+    "Bearer parity, opaque HttpOnly SameSite=Strict sessions, expiry, forgery and server-side logout revocation",
+    "Foreign-origin writes rejected before mutation; logs exclude body/header/query/resource values",
+    "Raw non-fixture contracts need an exact explicitly authorized processing origin; loopback alone is insufficient",
+    "Synthetic exemption recomputes canonical content hash and rejects real external verification or prior-review evidence",
+    "Both keyed and keyless Pi requests reach the configured redirecting source but never send a payload to its redirect destination"
+  ],
+  "limits": [
+    "Shared-workspace access only; no per-person RBAC, SSO or multi-tenant isolation",
+    "Sessions are process-local and revoked on restart; single application instance remains required",
+    "Browser access shell and complete deployment/fault acceptance are not covered by this slice"
+  ]
+}

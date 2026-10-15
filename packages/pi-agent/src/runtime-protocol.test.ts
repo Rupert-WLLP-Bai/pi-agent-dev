@@ -3,6 +3,9 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
+import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
+import { PiAuditAgent } from "./runtime";
 
 interface GatewayRequest {
   messages: { role: string; content: unknown }[];
@@ -136,6 +139,54 @@ test.each(["test-key", ""])(
     } finally {
       server.stop(true);
       await rm(workspace, { recursive: true, force: true });
+    }
+  },
+  15000,
+);
+
+test.each(["test-key", ""])(
+  "refuses provider redirects before contract data reaches a second origin for API key %j",
+  async (apiKey) => {
+    const redirectedRequests: string[] = [];
+    let redirectIssued = false;
+    const destination = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      async fetch(request) {
+        redirectedRequests.push(await request.text());
+        return completionStream(false);
+      },
+    });
+    const source = Bun.serve({
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch() {
+        redirectIssued = true;
+        return new Response(null, {
+          status: 307,
+          headers: { location: `http://127.0.0.1:${destination.port}/v1/chat/completions` },
+        });
+      },
+    });
+    try {
+      const snapshot = createAuditSnapshot({
+        sourceRecordId: "redirect-boundary",
+        document: normalizeContractDocument("第三条 本测试条款包含不应重定向发送的原文。"),
+        enabledRuleCodes: ["ADVANCE_PAYMENT_LIMIT"],
+      });
+      const agent = new PiAuditAgent({
+        endpoint: `http://127.0.0.1:${source.port}/v1`,
+        apiKey,
+        model: "audit-contract-model",
+        maxInput: 128000,
+        maxOutput: 256,
+      });
+      await expect(agent.run(snapshot, AbortSignal.timeout(10000), () => {})).rejects.toThrow();
+      expect(redirectIssued).toBe(true);
+      expect(redirectedRequests).toEqual([]);
+    } finally {
+      source.stop(true);
+      destination.stop(true);
     }
   },
   15000,

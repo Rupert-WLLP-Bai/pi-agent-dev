@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Shared-workspace API access with Bearer credentials or revocable HttpOnly sessions,
+  protected original downloads/SSE/configuration, origin checks for writes, and
+  access logs that omit request content and credentials. Demo/production require a token.
+- Raw internal contract processing requires an explicitly authorized model origin;
+  standard synthetic documents are identified from recomputed content hashes.
+  Pi refuses HTTP redirects for both keyed and keyless model requests.
 - Versioned shadow-decision contracts for Disabled/Fake and local Laya, with distinct
   case, snapshot and run identities, typed failures, independent feedback and public
   detail envelopes. These contracts do not grant authority to change audit findings.

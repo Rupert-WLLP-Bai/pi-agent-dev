@@ -5,6 +5,7 @@ import { FakeAuditAgent, PiAuditAgent } from "@contract-audit/pi-agent";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
+import { type AccessControlOptions, createAccessControl } from "./access-control";
 import { loadApiConfig, maxUploadBytes } from "./config";
 import { createDb, createRepository } from "./db/repositories";
 import { createRuleRepository } from "./db/rule-repository";
@@ -20,6 +21,7 @@ import {
 } from "./document/ocr/ocr-settings-repository";
 import { loadObjectStoreConfig } from "./document/original-store";
 import { type ApiHealth, buildHealthSnapshot } from "./health";
+import { assertAuditDataDestination } from "./llm/audit-data-policy";
 import { LlmProviderRegistry } from "./llm/provider-registry";
 import {
   createLlmProviderRepository,
@@ -52,6 +54,8 @@ import { verificationsRoutes } from "./routes/verifications";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps & {
+  /** Shared-workspace token/session policy; injectable without mutating process env. */
+  access?: AccessControlOptions;
   /** Model-service persistence; absent falls back to the in-memory store (tests). */
   llmProviders?: LlmProviderStore;
   /** The runtime registry shared by the agent factory and the health snapshot. */
@@ -104,7 +108,18 @@ function agentFactoryFor(
   if (mode === "fake") return (snapshot) => new FakeAuditAgent(demoProposalsFor(snapshot));
   // The dispatcher calls this once per run and reads `agent.identity`, so the
   // registry lookup must stay synchronous — `current()` is a cache read.
-  return () => new PiAuditAgent(registry.current());
+  return () => {
+    const configured = registry.current();
+    const agent = new PiAuditAgent(configured);
+    const endpoint = configured?.endpoint ?? process.env.XYG_ENDPOINT ?? "";
+    return {
+      identity: agent.identity,
+      async run(snapshot, signal, trace) {
+        assertAuditDataDestination(snapshot, endpoint);
+        return agent.run(snapshot, signal, trace);
+      },
+    };
+  };
 }
 
 function subjectVerificationPortFor(
@@ -144,11 +159,6 @@ export function createApp(deps: AppDeps) {
       return stored ?? loadOcrConfig();
     });
   return new Elysia()
-    .onRequest(({ request, set }) => {
-      const incoming = request.headers.get("x-request-id")?.trim();
-      const requestId = incoming && incoming.length > 0 ? incoming : crypto.randomUUID();
-      set.headers["x-request-id"] = requestId;
-    })
     .onError(({ code, set }) => {
       const requestId = set.headers["x-request-id"] ?? crypto.randomUUID();
       set.headers["x-request-id"] = requestId;
@@ -166,6 +176,7 @@ export function createApp(deps: AppDeps) {
       if (status >= 500) return { error: "internal_error", requestId };
       return { error: String(code).toLowerCase(), requestId };
     })
+    .use(createAccessControl({ ...deps.access, webOrigin: config.webOrigin }))
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(contractsRoutes({ repository: deps.repository }))

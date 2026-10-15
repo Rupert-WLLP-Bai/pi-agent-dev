@@ -88,15 +88,19 @@ export async function createModelRuntime(config: PiConfig): Promise<ModelRuntime
     // Pi requires an SDK credential even for keyless endpoints. It stays in memory;
     // the keyless stream explicitly removes the SDK's generated bearer header.
     apiKey: config.apiKey || "unused",
-    ...(config.apiKey.length === 0
-      ? {
-          streamSimple: (_model, context, options) =>
-            streamOpenAI(model, context, {
-              ...options,
-              headers: { ...options?.headers, Authorization: null },
-            }),
-        }
-      : {}),
+    streamSimple: (_model, context, options) =>
+      streamOpenAI(model, context, {
+        ...options,
+        ...(config.apiKey.length === 0
+          ? { headers: { ...options?.headers, Authorization: null } }
+          : {}),
+        // A configured endpoint cannot redirect contract/tool payloads to a second origin.
+        fetch: Object.assign(
+          (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) =>
+            (options?.fetch ?? globalThis.fetch)(input, { ...init, redirect: "error" }),
+          { preconnect: globalThis.fetch.preconnect },
+        ),
+      }),
     models: [
       {
         id: model.id,

@@ -12,7 +12,10 @@ export function operatorFrom(headers: Record<string, string | undefined>): strin
   const raw = headers["x-operator"];
   if (raw === undefined) return undefined;
   try {
-    return decodeURIComponent(raw);
+    const decoded = decodeURIComponent(raw);
+    const name = decoded.trim();
+    if (!name || name.length > 128 || /\p{Cc}/u.test(decoded)) return undefined;
+    return name;
   } catch {
     return undefined;
   }
