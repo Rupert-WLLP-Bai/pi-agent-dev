@@ -10,18 +10,32 @@ const reuseExistingServer =
 const apiPort = Number(process.env.PLAYWRIGHT_API_PORT ?? 3000);
 const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 5173);
 
-// A scratch database, when one is named, keeps a run from reading or leaving
-// artifacts in the developer's demo data. The specs are not independent of what
-// the database already holds: the party-history rule reads earlier cases, so a
-// confirmed risk left behind by one run changes how many findings the next run's
-// audit raises, and a case that used to complete starts awaiting review. CI gets
-// this for free from a fresh service container; on a host, pass
-// PLAYWRIGHT_DATABASE_URL. It is applied after .env is sourced, or .env would
-// win.
-const databaseOverride =
-  process.env.PLAYWRIGHT_DATABASE_URL === undefined
-    ? ""
-    : `DATABASE_URL=${process.env.PLAYWRIGHT_DATABASE_URL} `;
+/**
+ * A scratch database, when one is named, keeps a run from reading or leaving
+ * artifacts in the developer's demo data. The specs are not independent of what
+ * the database already holds: the party-history rule reads earlier cases, so a
+ * confirmed risk left behind by one run changes how many findings the next run's
+ * audit raises, and a case that used to complete starts awaiting review. CI gets
+ * this for free from a fresh service container; on a host, pass
+ * PLAYWRIGHT_DATABASE_URL.
+ *
+ * The value is handed to the API web server as an explicit `DATABASE_URL`
+ * through Playwright's structured `env` option — it is **never** interpolated
+ * into the command string. Interpolating a connection string into a shell
+ * command would (a) put the URL, credentials included, into the process table
+ * where any `ps` can read it, (b) put it into the layer command recorded in the
+ * QA report and summary.html, and (c) break on any URL containing a shell
+ * metacharacter. Playwright merges `env` over the inherited environment, so the
+ * URL wins over whatever DATABASE_URL the developer's shell happens to export.
+ *
+ * `.env` is deliberately **not** sourced here. Sourcing it would let root
+ * secrets (LLM keys, QCC tokens, S3 credentials) reach every process this
+ * config starts, and would override the explicitly provided DATABASE_URL. The
+ * acceptance run forces AUDIT_AGENT_MODE=fake instead and needs no real
+ * secrets; anything else the API reads from the root environment (REDIS_URL,
+ * S3_ENDPOINT) is inherited unmodified from the invoking session.
+ */
+const databaseUrl = process.env.PLAYWRIGHT_DATABASE_URL?.trim();
 
 const config: Config = {
   testDir: "./tests",
@@ -52,10 +66,19 @@ const config: Config = {
       // Run the API directly, not via the `--watch` dev script: a file watcher
       // restarts the server whenever test artifacts are written, which makes
       // the browser intermittently see an unavailable API.
-      command: `set -a; [ -f .env ] && . ./.env; set +a; ${databaseOverride}API_PORT=${apiPort} AUDIT_AGENT_MODE=fake bun apps/api/src/app.ts`,
+      command: `bun apps/api/src/app.ts`,
       port: apiPort,
       timeout: 60_000,
       reuseExistingServer,
+      // Structured, not interpolated: the connection string travels as an
+      // environment value, so it never appears in the command line, the process
+      // table, or any log that records the command. `DATABASE_URL` here
+      // overrides an inherited value with the same name.
+      env: {
+        ...(databaseUrl === undefined ? {} : { DATABASE_URL: databaseUrl }),
+        API_PORT: String(apiPort),
+        AUDIT_AGENT_MODE: "fake",
+      },
     },
     {
       command: `API_PROXY_TARGET=http://localhost:${apiPort} bun --filter @contract-audit/web dev --port ${webPort}`,

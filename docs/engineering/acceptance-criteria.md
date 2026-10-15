@@ -9,7 +9,7 @@
 | --- | --- | --- | --- |
 | S0 基线 | Git 历史重建、环境实测、已完成/缺口矩阵、风险表 | `docs/project-management/BASELINE.md`、`evidence/s0-results.json`、提交 `a4c6119` | 完成（保留 1 个 E2E 失败与 375px 缺陷，已定位 Owner） |
 | S1 契约 | G1–G7：版本化 DTO、错误/幂等、隐私/授权/保留、迁移回滚、Laya 前置、任务矩阵、worktree 隔离 | `docs/architecture/INTEGRATION-CONTRACT.md`、`evidence/s1-verification.json`（18 测试、670 测试） | 完成（契约层；实现层属 S2） |
-| S2 实施 | 每个任务有实现 + smoke + 回滚说明 | 各 Owner 交回；`1f33d99` 安全切片已实测 | 进行中 |
+| S2 实施 | 每个任务有实现 + smoke + 回滚说明 | 五份功能切片已合并：AI `a6ec041`、Infra `908cb5a`、UX `cc942b2`、DB `f7ce8d1`、QA `de7ea2d`、Docs `31bb8d1`、集成修正 `a849b29`（verify 835/0，Main 观察）；未提交决策契约修订待 Main 收尾 | 大部分已实现待统一验收（逐项见 [TASK-MATRIX](../project-management/TASK-MATRIX.md)） |
 | S3 集成 | 统一 verify、集成、E2E、Docker、降级、幂等；`docs/quality/RELEASE-READINESS.md` | 待 Main 执行 | 未开始 |
 | S4 交付 | 真实证据、复现指南、Gantt 历史/未来分离、竞品与推广 | 本文档 + `docs/competition/` | 进行中 |
 
@@ -63,12 +63,13 @@ curl -i -b cookies.txt -X DELETE http://localhost:3000/api/session
 | 重置安全 | 两次 reset 后受管实体数量/稳定 ID/hash 一致；非 demo 哨兵行数不变；生产/未知环境拒绝 | reset 前后计数与哨兵查询 |
 | 降级 | S3/RustFS 未配置或不可达时原文落本地且 locator 记录真实后端；Redis 不可达不失败审计 | health 输出 + 业务流程走查 |
 | 隐私 | 公开 DTO 无完整请求/原始响应/身份/gold；模型请求体无敏感标识 | 响应体断言 + 抓包（QA） |
+| 视觉重设计（V1 行） | 四档视口 375/1280/1440/1920 Playwright 通过并留存截图；键盘操作可达；375px 面板控制不回退；中文 UI、真实 API 数据、现有路由不变 | spec + 截图（VisualRedesign 交付，Main 归档） |
 
 ## 4. 已知未通过项（不得在汇报中省略）
 
-1. `tests/acceptance/audit-case.spec.ts:191`：旧"重新运行 Agent"契约与新 rerun 语义冲突（S0 实测失败，QA 修正中）。
-2. 375px 窄屏复核面板与风险导航隐藏、可见复核操作 0（S0 截图两份；UX 修复中）。
-3. 真实 Redis/S3 故障集成、字段级出网抓包、覆盖率工件、第三方复现记录均**未有本次运行证据**，状态为待补。
+1. `tests/acceptance/audit-case.spec.ts:191`：旧"重新运行 Agent"契约与新 rerun 语义冲突——**已由 QA 重写**（`de7ea2d`：新案/新 Run、旧案字节级不变）；全绿记录待 S3。
+2. 375px 窄屏复核面板隐藏——**已由 UX 修复**（`cc942b2`：375px 提交复核并回读的行为验收入树）；截图归档待 S3。
+3. 真实 Redis/S3 故障集成（本机端口未监听，用例已入树）、字段级出网抓包、全量 Laya 数据集评测、第三方复现记录均**未有本次运行证据**，状态为待补（S3）。
 
 ## 5. 汇报口径
 

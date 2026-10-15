@@ -152,6 +152,8 @@ export async function loadManagedDemoEnvironment(create = false): Promise<Manage
   const compose = [
     "docker",
     "compose",
+    "--file",
+    resolve(projectRoot, "compose.yaml"),
     "--project-directory",
     projectRoot,
     "--env-file",

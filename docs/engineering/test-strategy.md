@@ -12,7 +12,7 @@
 | 真实模型冒烟 | 固定合成样本的 Pi/Laya 推理 | 脚本 + 证据 JSON | 只发合成合同；凭据不进报告 |
 | 故障/降级 | S3/Redis/模型不可用、重置中断、并发 rerun | 集成测试 + 场景脚本 | 明确区分环境故障与产品缺陷 |
 
-现有入口：`bun run verify`（lint + 两轮 typecheck + 单测）、`bun run acceptance`、`bun --filter @contract-audit/pi-agent run smoke`。QA 计划新增分层入口与机器可读报告（`artifacts/qa/<SHA>/summary.json`）——**未产出前本文不引用其数字**。
+现有入口：`bun run verify`（lint + 两轮 typecheck + 单测）、`bun run acceptance`、`bun --filter @contract-audit/pi-agent run smoke`、`Makefile` 分层入口（`test-unit`/`test-integration`/`test-e2e`/`coverage`/`qa-report`，`de7ea2d` 入树）。QA 的机器可读报告与覆盖率工件已产出（`docs/quality/`、`artifacts/qa/coverage/lcov.info`）；统一运行数字以 S3 为准。
 
 ## 2. 测试设计原则
 
@@ -26,13 +26,13 @@
 
 | 主题 | 策略要点 | 关联风险（Main 维护） | 状态 |
 | --- | --- | --- | --- |
-| 验收契约过期 | rerun 语义改变后重写行为验收（新案/新 Run/旧案保留） | RISK-02 | QA 实施中 |
-| 清理脚本读根 `.env` | 统一解析数据库覆盖配置，防止误清开发库 | RISK-01 | QA 实施中 |
-| 真实对象存储往返 | put/get/stat + hash 一致性 + 失败不伪报成功 | RISK-04/06 | Infra+QA |
-| 降级矩阵 | S3 本地回退、Redis 直连、模型 fake/off | RISK-14 | 待归集 |
-| 影子故障隔离 | 故障注入对照正式结论不变 | RISK-06/07 | AI+QA |
-| 窄屏可访问性 | 375/1280/1440/1920 实测 | RISK-17 | UX 实施中 |
-| 覆盖率口径 | 行/函数/分支分开报，不平均 | RISK-10 | QA |
+| 验收契约过期 | rerun 语义改变后重写行为验收（新案/新 Run/旧案保留） | RISK-02 | 已重写（`de7ea2d`）；全绿记录待S3 |
+| 清理脚本读根 `.env` | 统一解析数据库覆盖配置，防止误清开发库 | RISK-01 | 已修复（`de7ea2d`：`db-cleanup.ts`） |
+| 真实对象存储往返 | put/get/stat + hash 一致性 + 失败不伪报成功 | RISK-04/06 | 集成用例入树（`de7ea2d`）；真实服务统一运行待S3 |
+| 降级矩阵 | S3 本地回退、Redis 直连、模型 fake/off | RISK-14 | 用例入树（`de7ea2d`）；`qa:faults` 覆盖；统一运行待S3 |
+| 影子故障隔离 | 故障注入对照正式结论不变 | RISK-06/07 | 结构边界测试入树（`a6ec041`）；对照运行待S3 |
+| 窄屏可访问性 | 375/1280/1440/1920 实测 | RISK-17 | 行为验收入树（`cc942b2`）；截图归档待S3；视觉重设计后复跑（RISK-18） |
+| 覆盖率口径 | 行/函数/分支分开报，不平均 | RISK-10 | 已产出（`de7ea2d`：行81.1%/函数82.8%；分支不可测报null） |
 
 ## 4. 已有实测数字（仅引用，带上下文）
 
@@ -48,8 +48,8 @@
 
 | 产物 | 位置 | 说明 |
 | --- | --- | --- |
-| 单元/集成报告 | `artifacts/qa/<SHA>/summary.json` | 计划中；含退出码与分层计数 |
-| 覆盖率工件 | `artifacts/qa/<SHA>/coverage/` | 计划中；行/函数/分支分开 |
-| 故障注入记录 | `artifacts/qa/<SHA>/faults.json` | 计划中 |
+| 单元/集成报告 | `docs/quality/TEST-REPORT.md`（机器报告 `scripts/qa/report.ts`） | 已产出（`de7ea2d`，冻结基线 670/0）；统一运行数字待S3 |
+| 覆盖率工件 | `artifacts/qa/coverage/lcov.info`、`docs/quality/COVERAGE-BASELINE.md` | 已产出（`de7ea2d`）；行/函数分开，分支报null |
+| 故障注入记录 | `scripts/qa/faults.ts` | 已入树（`de7ea2d`）；需 `DATABASE_URL`，未配置记 skipped |
 | 浏览器报告 | Playwright HTML（本地产物） | 已存在运行机制 |
 | 发布就绪 | `docs/quality/RELEASE-READINESS.md` | S3 由 Main 整合 |

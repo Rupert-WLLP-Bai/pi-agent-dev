@@ -1,42 +1,31 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 
 /**
  * The database URL the acceptance run actually talks to.
  *
- * The Playwright webServer is started by `playwright.config.ts` with `.env`
- * sourced and then `PLAYWRIGHT_DATABASE_URL` applied on top, so the specs and
- * the API share one connection string. Reading `.env` alone — as these specs
- * used to do — pointed the cleanup at whatever `.env` holds even when the run
- * was explicitly scoped to a scratch database: the deletes then missed the rows
- * the specs had just created and silently ran against the developer's demo
- * data instead. Both layers are applied here in the same order, and a missing
- * `PLAYWRIGHT_DATABASE_URL` means "no override", exactly as in the config.
+ * `playwright.config.ts` passes `PLAYWRIGHT_DATABASE_URL` to the API web server
+ * through its structured `env` option (never through the command string, and
+ * without sourcing root `.env`), so the specs and the API share one connection
+ * string. This helper reads the same variable, which keeps cleanup pointed at
+ * exactly the database the run wrote to.
  *
- * Resolving the URL is not enough on its own: the specs connect to it directly,
- * so an unset value must fail the cleanup loudly rather than fall back to some
- * other default and delete nothing (or worse, something else).
+ * The `.env` fallback is gone, deliberately. Reading it pointed cleanup at the
+ * developer's demo data whenever `PLAYWRIGHT_DATABASE_URL` happened to be
+ * unset — the deletes then missed the rows the specs had just created and ran
+ * against live data instead. An unset variable now fails the cleanup loudly,
+ * because a cleanup that cannot name its target must not run at all. A local
+ * dev run against the dev database is still possible: export
+ * `PLAYWRIGHT_DATABASE_URL` with that URL, which is the same thing the browser
+ * stack and the report layer are required to see.
  */
 export function acceptanceDatabaseUrl(): string {
   const override = process.env.PLAYWRIGHT_DATABASE_URL;
-  if (override !== undefined && override.trim() !== "") return override.trim();
-
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-  const envPath = resolve(root, ".env");
-  if (!existsSync(envPath)) {
+  if (override === undefined || override.trim() === "") {
     throw new Error(
-      "acceptance cleanup: .env not found and PLAYWRIGHT_DATABASE_URL unset — refusing to guess a database",
+      "acceptance cleanup: PLAYWRIGHT_DATABASE_URL is not set — export the disposable database this run is scoped to (the same value playwright.config.ts passes to the API web server)",
     );
   }
-  const match = /^DATABASE_URL=(.*)$/m.exec(readFileSync(envPath, "utf8"));
-  if (!match || match[1].trim() === "") {
-    throw new Error(
-      "acceptance cleanup: DATABASE_URL missing from .env — refusing to guess a database",
-    );
-  }
-  return match[1].trim();
+  return override.trim();
 }
 
 /** Tables that carry an `audit_case_id` column, in child-first delete order. */
@@ -71,6 +60,10 @@ export async function deleteCasesAndRelations(caseIds: readonly string[]): Promi
   const sql = postgres(acceptanceDatabaseUrl(), { max: 1, onnotice: () => {} });
   try {
     await sql.begin(async (tx) => {
+      const sourceRows = await tx.unsafe<{ id: string }[]>(
+        `SELECT DISTINCT source_record_id AS id FROM audit_cases WHERE id = ANY($1::uuid[])`,
+        [unique],
+      );
       for (const table of CASE_CHILD_TABLES) {
         await tx.unsafe(`DELETE FROM ${table} WHERE audit_case_id = ANY($1::uuid[])`, [unique]);
       }
@@ -79,13 +72,16 @@ export async function deleteCasesAndRelations(caseIds: readonly string[]): Promi
       // Source Records only referenced by the removed cases: their originals
       // stay on disk (UPLOAD_DIR/S3) — a cleanup must not reach into storage,
       // which may be shared with a live stack.
-      const sourceRows = await tx.unsafe<{ id: string }[]>(
-        `SELECT id FROM source_records WHERE id IN (
-           SELECT source_record_id FROM audit_cases WHERE id = ANY($1::uuid[])
-         )`,
-        [unique],
+      const unreferencedSources = await tx.unsafe<{ id: string }[]>(
+        `SELECT id FROM source_records s WHERE id = ANY($1::uuid[])
+           AND NOT EXISTS (SELECT 1 FROM audit_cases c WHERE c.source_record_id = s.id)
+           AND NOT EXISTS (
+             SELECT 1 FROM contract_revisions r JOIN audit_cases c ON c.contract_revision_id = r.id
+             WHERE r.source_record_id = s.id
+           )`,
+        [sourceRows.map((row) => row.id)],
       );
-      const sourceIds = sourceRows.map((row) => row.id);
+      const sourceIds = unreferencedSources.map((row) => row.id);
       if (sourceIds.length === 0) return;
 
       const revisionRows = await tx.unsafe<{ contract_id: string }[]>(

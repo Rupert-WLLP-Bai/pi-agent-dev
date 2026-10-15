@@ -26,28 +26,40 @@ import {
  * by its own tests plus `scripts/qa/faults.ts`. Asserting the factory's own
  * contract here keeps this file about the composition it can see.
  *
- * With a reachable RustFS (S3_ENDPOINT set) the round trip is real; without one
- * the suite proves the local-only and fallback paths.
+ * With a reachable RustFS (S3_ENDPOINT set) the round trip is real. When S3 is
+ * not configured at all the suite proves the local-only and fallback paths, and
+ * that is the only honest skip: a configured endpoint that fails to answer is a
+ * broken integration, not an absent one, so the probe **fails the suite** rather
+ * than quietly downgrading it to the local tests. A green suite must never be
+ * the result of an endpoint that was briefly unreachable.
  */
 
 const endpoint = process.env.S3_ENDPOINT?.trim() ?? "";
 const accessKey = process.env.S3_ACCESS_KEY?.trim() ?? "";
 const secretKey = process.env.S3_SECRET_KEY?.trim() ?? "";
+
+/** S3 is "configured" only when endpoint and both credentials are present. */
+const s3Configured = endpoint !== "" && accessKey !== "" && secretKey !== "";
+
 const bucket = process.env.S3_BUCKET?.trim() ?? "contract-originals";
 const region = process.env.S3_REGION?.trim() ?? "us-east-1";
 
-let realS3Available = false;
 const uploadDirs: string[] = [];
 
 beforeAll(async () => {
-  if (endpoint === "" || accessKey === "" || secretKey === "") return;
+  if (!s3Configured) return;
   try {
-    // A plain probe: a RustFS that answers anything at all means the endpoint
-    // is real, and the round-trip test below decides whether it is usable.
-    const response = await fetch(`${endpoint}/${bucket}?location`);
-    realS3Available = response.status < 500;
-  } catch {
-    realS3Available = false;
+    // The bucket is not created here: the round-trip test writes a key inside it
+    // downstream, so a missing bucket must surface as that test's failure, and
+    // an unreachable endpoint surfaces right here as a probe failure.
+    const response = await fetch(`${endpoint}/${bucket}?location`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status >= 500) throw new Error(`S3 probe returned ${response.status}`);
+  } catch (cause) {
+    throw new Error(
+      `S3 is configured (endpoint=${endpoint}) but unreachable: ${cause instanceof Error ? cause.message : String(cause)}. Unset S3_ENDPOINT/S3_ACCESS_KEY/S3_SECRET_KEY to run the local suites instead.`,
+    );
   }
 });
 
@@ -91,20 +103,25 @@ describe("integration: S3-compatible object storage", () => {
     expect((await store.read(locator)).toString("utf8")).toBe("降级正文");
   });
 
-  test.skipIf(!realS3Available)("a real S3 round trip returns the exact bytes", async () => {
-    if (!realS3Available) return;
+  test.skipIf(!s3Configured)("a real S3 round trip returns the exact bytes", async () => {
     const client = createAwsS3Client({ endpoint, accessKey, secretKey, region });
+    const deleteObject = client.deleteObject;
+    if (!deleteObject) throw new Error("aws s3 client cannot delete test writes");
     const store = createS3OriginalStore({ client, bucket });
     const recordId = `integration-${crypto.randomUUID()}`;
     const bytes = Buffer.from("对象存储往返正文：合同金额的70%作为预付款。", "utf8");
     const locator = await store.save(recordId, bytes, "合同.txt");
     expect(locator).toBe(`s3://${bucket}/${recordId}.txt`);
-    const readBack = await store.read(locator);
-    expect(readBack.equals(bytes)).toBe(true);
+    try {
+      const readBack = await store.read(locator);
+      expect(readBack.equals(bytes)).toBe(true);
+    } finally {
+      // Delete only the object created by this test.
+      await deleteObject({ bucket, key: `${recordId}.txt` });
+    }
   });
 
-  test.skipIf(!realS3Available)("a local row is never re-read through S3", async () => {
-    if (!realS3Available) return;
+  test.skipIf(!s3Configured)("a local row is never re-read through S3", async () => {
     const dir = await tempUploadDir();
     const client = createAwsS3Client({ endpoint, accessKey, secretKey, region });
     const store = createFallbackOriginalStore(

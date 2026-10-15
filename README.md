@@ -4,15 +4,15 @@
 
 ## 当前状态
 
-审计核心、Pi Agent、Elysia REST/SSE API、PostgreSQL 留痕、RustFS 合同原文对象存储、Redis 主体核验缓存、模型服务管理、React 工作台与 Playwright 验收流程均已实现并在 `main` 上落地。审计工作台（审计队列指挥中心与 decision-first 复核工作台）、规则治理（参数版本化、发布前案例验证、运行时启停）、复核中心（SLA 队列与批量转交）与整改跟踪也已上线。
+现有代码包含确定性审计、Pi Agent、REST/SSE、PostgreSQL 留痕、RustFS 原件存储、Redis 核验缓存、模型配置、人工复核与整改工作台。本轮正在进行 **M1 / v0.7.0 稳定化验收，尚未发布**；当前状态以[唯一任务板](./docs/project/TASK-BOARD.md)及[交接记录](./docs/project/HANDOFF.md)为准，后续里程碑不提前计作完成。
 
-领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，完整技术方案见 [Architecture](./docs/architecture/mvp.md)，逐任务实现计划见 [implementation plan](./docs/superpowers/plans/2026-09-11-contract-audit-mvp.md) 和 [modern workbench plan](./docs/superpowers/plans/2026-09-11-modern-audit-workbench.md)。
+领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，技术方案见 [Architecture](./docs/architecture/mvp.md)。`docs/superpowers/plans/`保留历史计划；当前实施与验收只更新[任务板](./docs/project/TASK-BOARD.md)。
 
 Pi SDK 已升级至 1.2.0；版本依据、兼容性处理与验证记录见 [升级记录](./docs/research/2026-10-14-pi-1.2-upgrade.md)。
 
 ### 文档索引
 
-工程文档（SRS-lite、C4/ADR 索引、测试策略、运维索引、研发历史与甘特图、风险与发布计划、RTM）见 [docs/engineering](./docs/engineering/)，入口：[需求规格](./docs/engineering/requirements.md)、[研发历史与甘特图](./docs/engineering/gantt.md)、[追溯矩阵](./docs/engineering/traceability.csv)。竞赛材料（项目简介、创新与证据、竞品矩阵、演示剧本、评委 FAQ、KPI 口径）见 [docs/competition](./docs/competition/)。安全与运维：[访问门](./docs/runbook/access-control.md)、[密钥轮换](./docs/runbook/key-rotation.md)。阶段基线与风险由 Main 维护于 [docs/project-management](./docs/project-management/)。
+工程文档（需求、C4/ADR、测试、运维、研发历史、风险及追溯矩阵）见 [docs/engineering](./docs/engineering/)。竞赛材料见 [docs/competition](./docs/competition/)。安全与运维：[访问门](./docs/runbook/access-control.md)、[密钥轮换](./docs/runbook/key-rotation.md)。当前基线、风险、所有权和交接由 Main 维护于 [docs/project](./docs/project/)；`docs/project-management/`为历史记录。
 
 项目参加**第一届黄桷树 AI 智能体开发大赛**，赛道为**智创开发**——基于黄桷树 Panda 编程 IDE 开发解决实际业务问题的软件工具，并验证其可用性与推广价值。交付形态为独立系统，不做 Panda 技能插件。
 
@@ -57,12 +57,14 @@ packages/pi-agent Pi SDK 适配器、Skill 与受控 Tool
 
 LLM 有两条路径，二选一即可：
 
-- **环境变量**：`XYG_ENDPOINT`、`XYG_API_KEY`、`XYG_MODEL`、`XYG_MAX_INPUT`、`XYG_MAX_OUTPUT`。这条路径的 API key **只保存在进程内存中**，不落盘、不打印、不随 API 返回。
+- **环境变量**：`XYG_ENDPOINT`、`XYG_API_KEY`、`XYG_MODEL`、`XYG_MAX_INPUT`、`XYG_MAX_OUTPUT`。Provider 表为空且 endpoint/model 齐备时，启动会把配置导入首个 provider；不能把环境配置理解为只驻留内存。密钥保存策略及轮换要求见[运行手册](./docs/runbook/key-rotation.md)。
 - **模型服务页**（`/settings/providers`，侧边栏「系统管理」）：在 UI 里新增/编辑 OpenAI 兼容的 provider（名称、base URL、模型、API key、最大输入/输出 token、启用开关）。**恰好一个 provider 是「当前」**，它就是下一次审计运行使用的配置；表为空时回退到上面的 `XYG_*` 环境变量，因此不配置任何 provider 也能保持既有行为。
 
-模型服务页添加的 provider 会把 API key 持久化进 PostgreSQL 的 `llm_providers` 表——这是「允许运维在运行时增改 provider」的直接代价。无论走哪条路径，key 都**绝不通过任何 API 响应返回**（API 只报告是否存在并给出掩码提示）、**不写日志**、**不进入浏览器**。
+模型服务配置保存在 PostgreSQL 的`llm_providers`表，密钥采用统一加密策略；demo/production 要求配置`LLM_KEY_ENCRYPTION_SECRET`。后续查询响应仅报告密钥是否存在及掩码，不返回明文；运维在配置页面输入的密钥只用于该次保存请求。
 
 `AUDIT_AGENT_MODE=fake` 可在不配置 LLM 凭证时使用 FakeAuditAgent 跑通全流程。本地开发形态下合同原文默认写入本地 `UPLOAD_DIR`（`var/uploads`）；设置 `S3_ENDPOINT` 后改存对象存储，且 demo/production 下写入失败即失败（不静默回退）。`REDIS_URL` 未配置即关闭核验缓存，这也是本机默认状态。
+
+受管演示沿用现有入口，使用独立的`.demo.env`与 Compose 项目，不覆盖开发配置：`bun run demo:up`启动，`demo:check`只读检查配置/数据身份，`demo:verify`核对必需组件与 Web，`demo:ready`执行受保护的两次重置与一致性验收，`demo:down`停止。`demo:ready`仅重建演示工具拥有的数据；操作前提和日志命令见[演示部署](./docs/deployment/demo.md)。
 
 ## 质量闸门
 
@@ -75,33 +77,35 @@ bun run typecheck                # 应用代码 + 测试与构建脚本两轮 ts
 bun run test                     # 单元测试（bun test packages apps）
 bun run acceptance               # Playwright 验收测试（需 dev 栈或自动拉起）
 bun run verify                   # lint + typecheck + 单元测试
+bun run test:all                 # 严格分层报告：unit + integration + e2e + coverage
+                                # 需 TEST_DATABASE_URL、PLAYWRIGHT_DATABASE_URL 与 Chromium
 ```
 
 Biome 配置见 `biome.json`：2 空格缩进、100 列、双引号、尾逗号、`organizeImports`。`docs/design` 下的设计稿与 `apps/web/src/styles.css`（覆盖 antd 内联样式的层）有针对性豁免，理由写在配置注释与本节。`tsconfig.tests.json` 让 `tests/`、`playwright.config.ts`、`vite.config.ts`、`drizzle.config.ts` 也纳入类型检查——这些文件此前不在闸门内，曾漏掉真实的类型错误。
 
 CI 见 `.github/workflows/ci.yml`：`quality` job 跑 lint/typecheck/单测；`acceptance` job 起 PostgreSQL service、应用迁移并跑 Playwright。
 
-**本机跑验收测试要给它一个专用库**，因为 CI 里每次都是全新数据库，本机不是。验收用例之间通过数据库互相影响：相对方历史关联规则会读此前的案件，一次运行留下的"已确认风险"会改变下一次审计出多少条发现，本来能"已完成"的案件会变成"待复核"。同理，端口默认 3000/5173，若被别的工作树或常驻 dev 栈占着，Playwright 会**复用**那个服务，于是你对着一份旧代码断言（新页面直接 `Not Found`）。三个变量都可覆盖：
+验收必须显式指定新建、已迁移的独立 TEST 库。`TEST_DATABASE_URL`供集成层使用；`PLAYWRIGHT_DATABASE_URL`供浏览器 API 与清理助手共同使用，不能依赖开发`.env`。每轮使用空的专用验收库，避免历史案件改变相对方关联规则；使用新端口并禁止复用，确保浏览器运行当前代码。
 
 ```bash
-docker exec pi-agent-dev-postgres-1 createdb -U contract_audit contract_audit_acceptance
-cd apps/api && DATABASE_URL=postgresql://contract_audit:contract_audit@localhost:5433/contract_audit_acceptance bun run migrate && cd ..
-PLAYWRIGHT_DATABASE_URL=postgresql://contract_audit:contract_audit@localhost:5433/contract_audit_acceptance \
-  PLAYWRIGHT_WEB_PORT=5193 PLAYWRIGHT_API_PORT=3023 bunx playwright test
+# 先配置两个独立测试库的 URL，并分别应用 apps/api 中已提交的迁移。
+TEST_DATABASE_URL="$TEST_DATABASE_URL" PLAYWRIGHT_DATABASE_URL="$PLAYWRIGHT_DATABASE_URL" \
+  PLAYWRIGHT_WEB_PORT=15002 PLAYWRIGHT_API_PORT=14002 CI=true \
+  bun run test:all
 ```
 
-要重置这个库，得**整库删建**：`drop schema public` 不够，drizzle 的迁移记录在独立的 `drizzle` schema 里，只删 public 会让 `migrate` 认为一切已应用而不建任何表。
+分层报告写入`artifacts/qa/`；未配置依赖会记录跳过原因，严格`test:all`返回失败。不要通过清空 DEV/DEMO 数据来准备验收库；保留独立 TEST 库的配置与创建记录。
 
 ```bash
 cp .env.example .env                   # 填写 LLM 配置（或留空走模型服务页）
 docker compose up -d postgres rustfs redis rustfs-init  # 本地基础设施
-bun install                             # 安装依赖
-cd apps/api && bunx drizzle-kit generate && bunx drizzle-kit migrate && cd ../..
+bun install --frozen-lockfile            # 使用已提交锁文件
+(cd apps/api && bun run migrate)         # 应用已提交迁移，不在启动时生成新迁移
 bun run lint                            # lint + 格式检查
 bun run typecheck                       # 类型检查（含 tests/）
 bun run test                            # 单元测试
 bunx playwright install                 # 安装浏览器（首次）
-bunx playwright test                    # 验收测试
+# 完整验收按上面的独立 TEST 配置运行 bun run test:all
 ```
 
 ## Ant Design 版本基线

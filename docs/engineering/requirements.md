@@ -33,10 +33,10 @@
 | FR-14 | 系统必须提供 OpenAI 兼容模型服务管理：运行时增改 provider、恰好一个"当前"、key 不随 API 返回 | 表空回退 `XYG_*`；mask 提示；空 key 编辑不抹掉已存 key | 已实现且已验证（llm-providers 用例） |
 | FR-15 | 系统应提供演示世界种子：固定 RNG、场景化案件（历史关联/版本 diff/主体红线/误报对照/背靠背等） | `seed:demo` 可重复执行；场景与预期在源码中声明 | 已实现且已验证（`demo-scenarios.ts` + seed 测试） |
 | FR-16 | 系统必须实现工作区访问门：`API_ACCESS_TOKEN` 启用时除 health/session 外全部 API（含 SSE、原件下载）要求 Bearer 或 HttpOnly 会话；登出/过期关闭已建立 SSE | 匿名 401、授权 200、登出 204、重放 cookie 401 | 已实现且已验证（`1f33d99` 及后续安全修复；`evidence/s2-security.json`） |
-| FR-17 | 系统必须实现决策影子层（S2）：`DecisionRequest`/`DecisionAdvice`/`DecisionFeedback`，provider 为 disabled/fake/laya-cpu，默认 off | 契约测试通过；off 不创建/不领取/不推理 | 契约已冻结并验证（`6a59906`，18 测试）；持久化与 worker 实施中 |
-| FR-18 | 系统必须实现影子反馈（S2）：append-only，`Idempotency-Key` 作用域为 decision+actor，同键同体重放返回既有事件，异体 409 | 幂等与冲突行为有测试 | 契约已冻结；实现实施中 |
-| FR-19 | 系统应提供演示 CLI（S2）：`up/down/reset/seed/verify/check`，带环境登记、确认与事务化重置 | 两次 reset 结果一致；非 demo 数据保留 | 实施中（Infra） |
-| FR-20 | 系统应提供决策详情 UI（S2）：区分空/off/失败/未校准/来源，反馈入口注明"仅评估、不改变结论" | 三档宽度浏览器实测 | 实施中（UX） |
+| FR-17 | 系统必须实现决策影子层（S2）：`DecisionRequest`/`DecisionAdvice`/`DecisionFeedback`，provider 为 disabled/fake/laya-cpu，默认 off | 契约测试通过；off 不创建/不领取/不推理 | 契约已冻结并验证（`6a59906`，18 测试）；实现已合并（`a6ec041`、`f7ce8d1`），待 S3 统一验收 |
+| FR-18 | 系统必须实现影子反馈（S2）：append-only，`Idempotency-Key` 作用域为 decision+actor，同键同体重放返回既有事件，异体 409 | 幂等与冲突行为有测试 | 实现已合并（`a6ec041`：幂等 201/409、UUID 形状 404），待 S3 统一验收 |
+| FR-19 | 系统应提供演示 CLI（S2）：`up/down/reset/seed/verify/check`，带环境登记、确认与事务化重置 | 两次 reset 结果一致；非 demo 数据保留 | 已实现待统一验收（`908cb5a`+`a849b29`；minimal 根`.env`不含`ready`，demo profile 另含`ready`；`logs`/`status`由 Infra 收尾后登记） |
+| FR-20 | 系统应提供决策详情 UI（S2）：区分空/off/失败/未校准/来源，反馈入口注明"仅评估、不改变结论" | 三档宽度浏览器实测 | 已实现待统一验收（`cc942b2`：`decision-advice-panel.tsx`+验收 spec；截图归档待 S3） |
 
 ## 3. 非功能需求（NFR）
 
@@ -48,7 +48,7 @@
 | NFR-04 安全 | 密钥/口令绝不进 Git、日志、测试工件、URL 或**未授权**浏览器上下文；合同原文只允许经授权的证据界面渲染（按 Source Record 授权），不因"防泄露"而禁止授权展示 | 密钥扫描；API 不返回 key；`LLM_INTERNAL_DATA_ORIGINS` 默认空；授权/未授权访问对照 | 部分验证：访问门已实测；出网抓包验证待 QA（SEC4） |
 | NFR-05 可移植性 | 一条 `compose.yaml` 描述开发/演示；应用容器自迁移；`AUDIT_AGENT_MODE=fake` 免凭证演示 | 第三方按 runbook 从零起步 | 已实现；第三方复现记录待 Infra 归集（I7） |
 | NFR-06 性能（已知边界） | 单次完整审计约 62 s（约 20 次工具调用，真实 LLM 路径）；OCR 视觉模型 24.6 MB 扫描件约 396 s | 只报实测样本，不宣称吞吐指标 | 已实现且有历史实测（升级记录、ICT 调研 §5） |
-| NFR-07 可访问性 | 桌面 1440×900 复核操作可达；窄屏 375px 亦须可达（当前已知缺陷） | 浏览器实测可见操作数 | 缺陷已复现（S0 截图）；修复实施中（UX/F5） |
+| NFR-07 可访问性 | 桌面 1440×900 复核操作可达；窄屏 375px 亦须可达 | 浏览器实测可见操作数 | 修复已合并（`cc942b2`：375px 行为验收+1280/1440/1920 断言）；截图归档待 S3 |
 | NFR-08 失败可观测 | 依赖故障必须留下稳定状态：trace/cache 不回显上游原始错误；主体核验真实失败不被合成豁免吞掉（保留失败状态与私有 Source Record，模型侧 basis 剥离上游 body/错误）；缓存不可达不得无限重试；会话失效关闭已建立 SSE | 隐私/降级回归；health 与日志行为；快照附加 `subjectVerificationProvider` 标注 | 已实现且已验证（`2d63f15` 及后续修复；`cache-failure-smoke.json`；7 项回归） |
 
 ## 4. 安全需求（SEC）
@@ -57,24 +57,24 @@
 | --- | --- | --- | --- |
 | SEC-01 | 访问门为单工作区口令门，不等于 SSO/RBAC；不得宣称多租户隔离 | 文档与实现一致 | 已实现且已验证 |
 | SEC-02 | `X-Operator` 仅为归属标记，不是认证；须做 trim/128 字符/控制字符校验 | 畸形输入按缺省处理 | 已实现且已验证（`1f33d99`） |
-| SEC-03 | 原件下载必须按 Source Record 查库授权后解析内部引用，不接受任意 `s3://` 或路径参数 | 越界拒绝用例 | 待加强（RISK-04，Infra+QA） |
+| SEC-03 | 原件下载必须按 Source Record 查库授权后解析内部引用，不接受任意 `s3://` 或路径参数 | 越界拒绝用例 | 已实现待统一验收（`908cb5a`：目录/桶归属拒绝+行为测试；`storage-boundary-smoke.json` 实测） |
 | SEC-04 | 原始/内部合同出网需**已授权 origin**（`LLM_INTERNAL_DATA_ORIGINS` 精确匹配）；已证明的合成内容 + 可信 fixture 上下文可豁免该白名单，无需配置列表 | 抓取实际发送字段；内置合成内容以 canonical hash 证明 | 策略已实现（`1f33d99`）；字段级抓包证据待 QA |
-| SEC-05 | 模型输入最小化：身份、gold/comparison、完整请求、原始响应不进入模型 state 或公开 DTO | DTO 契约审查 + 请求体断言 | 契约已冻结（S1 §5）；实施中 |
+| SEC-05 | 模型输入最小化：身份、gold/comparison、完整请求、原始响应不进入模型 state 或公开 DTO | DTO 契约审查 + 请求体断言 | 已实现待统一验收（`a6ec041`：脱敏 DTO 测试入树）；字段级抓包待 S3 |
 | SEC-06 | 密钥管理：demo/production 启动要求 `LLM_KEY_ENCRYPTION_SECRET` ≥32；轮换事务性重包且默认 dry-run | 轮换 runbook 与 dry-run/apply 证据 | 已实现且已验证（`cd24aac`；`key-rotation-smoke.json`、`startup-security.json`） |
-| SEC-07 | 演示/测试重置必须环境保护：`APP_ENV` 限 demo/test、库身份登记、明确确认、保留非 demo 哨兵 | 两次 reset + 哨兵行数稳定 | 实施中（Infra） |
-| SEC-08 | Prompt Injection 防护：合成恶意指令样本不得越权触发工具或改写结论 | 恶意样本回归 | 规划（QA+AI） |
+| SEC-07 | 演示/测试重置必须环境保护：`APP_ENV` 限 demo/test、库身份登记、明确确认、保留非 demo 哨兵 | 两次 reset + 哨兵行数稳定 | 主体已实现待统一验收（`908cb5a`+`a849b29`）；Main 修正 qcc 核验 Source Record 重置遗漏中，修后回归 |
+| SEC-08 | Prompt Injection 防护：合成恶意指令样本不得越权触发工具或改写结论 | 恶意样本回归 | 已实现待统一验收（`a6ec041`：受控问题目录与脱敏输入；恶意样本专项回归待 S3） |
 
 ## 5. Agent/影子治理需求（AI-*）
 
 | ID | 需求 | 验收 | 状态 |
 | --- | --- | --- | --- |
 | AI-01 | 影子 provider 只有 disabled/fake/laya-cpu；无 Jev、无远程决策 adapter | 代码无远程决策调用路径 | 已实现且已验证（契约冻结） |
-| AI-02 | 影子任务独立持久化（租约/次数/终态），不借用正式案件 PENDING 队列，正式 dispatcher 不等模型 HTTP | 独立 worker 冒烟 | 实施中 |
-| AI-03 | 冻结身份：Run+Snapshot+inputHash+question/policy/redaction 版本+provider/modelVersion；缺身份拒绝派生 | 幂等测试 | 实施中 |
-| AI-04 | 未校准输出必须标 `calibrated=false`、`uncertainty`、`needsHumanReview=true`；不得把集中度表述为正确率 | DTO 字段断言 | 契约已冻结 |
-| AI-05 | Laya 仅接受服务端配置的 loopback/容器 origin；禁止重定向、userinfo、fragment | 端点校验测试 | 实施中 |
-| AI-06 | 保留期默认 `DECISION_RETENTION_DAYS=30`（1–365），只清理终态影子记录与反馈，不动正式数据 | dry-run/apply 边界测试 | 实施中 |
-| AI-07 | 影子故障（provider/队列/超时）不得使成功案件转 FAILED，不得改写 Snapshot/RuleAssessment/Finding/Review/Remediation | 故障注入对照 | 实施中 |
+| AI-02 | 影子任务独立持久化（租约/次数/终态），不借用正式案件 PENDING 队列，正式 dispatcher 不等模型 HTTP | 独立 worker 冒烟 | 已实现待统一验收（`a6ec041`：shadow-worker+shadow_jobs；SQL 路径真实 PG 回归待 S3） |
+| AI-03 | 冻结身份：Run+Snapshot+inputHash+question/policy/redaction 版本+provider/modelVersion；缺身份拒绝派生 | 幂等测试 | 已实现待统一验收（`a6ec041`：派生幂等+激活锁契约） |
+| AI-04 | 未校准输出必须标 `calibrated=false`、`uncertainty`、`needsHumanReview=true`；不得把集中度表述为正确率 | DTO 字段断言 | 已实现（`a6ec041` DTO+`cc942b2` UI 标识）；字段断言回归待 S3 |
+| AI-05 | Laya 仅接受服务端配置的 loopback/容器 origin；禁止重定向、userinfo、fragment | 端点校验测试 | 已实现待统一验收（`a6ec041`：laya-wire origin 校验+测试） |
+| AI-06 | 保留期默认 `DECISION_RETENTION_DAYS=30`（1–365），只清理终态影子记录与反馈，不动正式数据 | dry-run/apply 边界测试 | 已实现待统一验收（`a6ec041`：保留期路由+活动租约不清理） |
+| AI-07 | 影子故障（provider/队列/超时）不得使成功案件转 FAILED，不得改写 Snapshot/RuleAssessment/Finding/Review/Remediation | 故障注入对照 | 已实现（结构边界测试入树，`a6ec041`）；对照运行待 S3 |
 
 ## 6. 追溯（RTM）
 

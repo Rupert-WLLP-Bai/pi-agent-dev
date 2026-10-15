@@ -18,10 +18,10 @@ const createdCaseIds: string[] = [];
  * dev database.
  */
 test.afterAll(async () => {
-  // The exact database the run was scoped to: `.env` overlaid by
-  // PLAYWRIGHT_DATABASE_URL, resolved by the shared helper the specs now share
-  // with the webServer. Reading `.env` alone pointed this cleanup at the
-  // developer's data whenever a scratch database was in play.
+  // The exact database the run was scoped to: PLAYWRIGHT_DATABASE_URL, resolved
+  // by the shared helper the specs share with the webServer. Reading `.env`
+  // alone pointed this cleanup at the developer's data whenever a scratch
+  // database was in play.
   const sql = postgres(acceptanceDatabaseUrl(), { max: 1, onnotice: () => {} });
   try {
     await sql.begin(async (tx) => {

@@ -45,14 +45,14 @@
 
 | 产品 | 结论产生方式（来源） | 规则/参数治理 | 证据与复核 | 数据边界 | 主要来源 |
 | --- | --- | --- | --- | --- | --- |
-| Icertis ICI | Copilot 基于 Azure OpenAI 的生成式能力 + agentic 工作流（官方博客） | 未见公开说明参数版本门禁 | 审批工作流、义务跟踪（官方博客） | 云交付；AES-256、SSO、Key Vault（官方博客/第三方页） | [icertis.com/research/blog](https://www.icertis.com/research/blog/icertis-demonstrates-mass-appeal-of-ai-first-contract-intelligence) |
+| Icertis ICI | Copilot 基于 Azure OpenAI 的生成式能力 + agentic 工作流（官方博客） | 未见公开说明参数版本门禁 | 审批工作流、义务跟踪（官方博客） | 云交付；AES-256（官方[安全博客](https://www.icertis.com/research/blog/the-importance-of-a-secure-clm-system-in-a-data-driven-world/)）；"Azure Key Vault" 系 Azure 通用能力（Microsoft 文档），**非 Icertis 自述，不归因于 Icertis** | [icertis.com/research/blog](https://www.icertis.com/research/blog/icertis-demonstrates-mass-appeal-of-ai-first-contract-intelligence) |
 | Ironclad | AI CLM + workflow designer（官方站） | 未见公开说明参数版本门禁 | 条件审批路由、OCR 可检索仓库（官方站） | 云托管；SOC 1/SOC 2（官方安全页） | [ironcladapp.com](https://ironcladapp.com/)、[安全页](https://ironcladapp.com/journal/contract-management/contract-management-security) |
-| Luminance | 法律级 AI，多 agent 平台（官网/新闻稿） | 未见公开说明 | 审查工作流（官网） | **提供本地部署**，合同数据不出客户基础设施；SOC 2/ISO 27001（官网博客/第三方对照） | [luminance.com 博客](https://www.luminance.com/blogs/3-pain-points-of-ai-implementation-and-how-luminance-solves-them) |
+| Luminance | 法律级 AI，多 agent 平台（官网/新闻稿） | 未见公开说明 | 审查工作流（官网） | **提供本地部署**（[on-premise Support Datasheet](https://www.luminance.com/legal/support-datasheet-on-premise)），但该资料说明 on-prem 需要 "Call Home" SSH/TLS 通道至 Luminance 中央管理（健康检查/远程支持/补丁），**不等于数据完全不出客户基础设施**；SOC 2/ISO 27001（[安全页](https://www.luminance.com/security)）；"不用客户数据训练"仅见于第三方对比文，非一手声明 | [luminance.com 安全/支持资料](https://www.luminance.com/legal/support-datasheet-on-premise) |
 | Spellbook | Word 内 AI 起草/审查（官网/新闻稿） | 未见公开说明 | 审查建议驱动人工修改（官网） | 云；CBA 项目宣称数据存加拿大境内、不用于训练（新闻稿） | [Spellbook/CBA 新闻稿](https://finance.yahoo.com/news/spellbook-named-exclusive-ai-contract-140000903.html) |
 | e签宝 | AI 合同审查：高中低风险分级、自动归档（官网） | 未见公开说明 | 签署流程内审批（官网） | 云（官网） | [tsign.cn](https://www.tsign.cn) |
 | 幂律智能 MeCheck | 基于 PowerLawGLM4 的风险识别、修改建议、法规案例推荐（官网/第三方产品页） | 未见公开说明 | 审查报告 + 条款定位（官网） | 未获取部署说明 | [powerlaw.ai/mecheck](https://powerlaw.ai/mecheck) |
-| OpenContracts | pgvector + LlamaIndex 语义检索 + PydanticAI agent（仓库文档） | 未见规则版本门禁 | Django 权限/多租户（仓库） | 自托管、可关遥测（仓库） | [GitHub 仓库](https://github.com/Open-Source-Legal/OpenContracts)（MIT） |
-| OpenCLM | 开源 CLM：审批工作流、条款库、义务跟踪（官网） | 未见规则版本门禁 | RBAC、电子签（官网） | 自托管（官网） | [openclm.ai](https://openclm.ai)（AGPL v3） |
+| OpenContracts | pgvector + PydanticAI 语义检索与 agent（**早期版本用 LlamaIndex**，当前依赖不含它）（仓库文档） | 未见规则版本门禁 | Django 权限/多租户（仓库） | 自托管、可关遥测（仓库） | [GitHub 仓库](https://github.com/Open-Source-Legal/OpenContracts)（MIT） |
+| OpenCLM | 开源 CLM：审批工作流、条款库、义务跟踪（官网自述；**其 GitHub 链接 nxglabs/openclm 返回 404，许可 AGPL v3 仅为厂商页面自述，无可达仓库证据**） | 未见规则版本门禁 | RBAC、电子签（官网） | 自托管（官网） | [openclm.ai](https://openclm.ai)（厂商自述 AGPL v3；同名可达仓库 bytecrunch-io/openclm 为不同项目） |
 | Laya | 非自回归决策引擎：choice/score/noul 单次前向（仓库） | ——（本项目作为影子推理依赖） | 仓库 issue/PR 活跃 | 本地 CPU/GPU（仓库） | [GitHub 仓库](https://github.com/NandhaKishorM/laya)（Apache-2.0） |
 
 ## 5. 本项目的机制差异（对照上表可核，均有代码证据）
@@ -63,7 +63,7 @@
 | 规则变更治理 | 模板库/条款库/审批流（未见参数版本 + 发布门禁） | 参数版本化（草稿/已发布/已退役）+ 发布前案例门禁 | `rules.ts` 409 路径、ADR-0003 |
 | 证据结构 | 原文定位（未见"无定位不能提交"的结构约束） | 原件 hash + 块 + Unicode 码点区间；无定位不能提交 | ADR-0002、Guard 测试 |
 | 人工决策 | 工作流审批 | 逐 finding 确认/误报，append-only 修订 | `findings.ts`、review-center 用例 |
-| 数据边界 | 云为主（Luminance 提供本地部署，但需 Call Home 通道） | 原始/内部合同出网需已授权 origin；可全本地（fake/OCR off/影子 off） | `audit-data-policy.ts`、compose |
+| 数据边界 | 云为主（Luminance 提供本地部署，但需 Call Home 通道，非完全离线） | 原始/内部合同出网需已授权 origin；可全本地（fake/OCR off/影子 off） | `audit-data-policy.ts`、compose |
 | 影子/辅助模型 | 上表未见同类公开机制 | 本地 Laya 影子只标记同命题冲突；未校准即标 | `decision.ts` 契约 + Laya 冒烟 |
 
 **不宣称**："竞品没有 X"仅在其公开资料未展示该机制时成立（证据缺失口径）；不比较准确率（无可比口径）；不引用无来源的收费数字作结论。

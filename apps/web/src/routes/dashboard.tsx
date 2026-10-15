@@ -1,4 +1,4 @@
-import { ArrowUpOutlined, ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined } from "@ant-design/icons";
 import type { AuditOverview } from "@contract-audit/api";
 import type { Severity } from "@contract-audit/audit/model";
 import { Link } from "@tanstack/react-router";
@@ -13,7 +13,6 @@ import {
   Segmented,
   Space,
   Spin,
-  Statistic,
   Tooltip,
   Typography,
 } from "antd";
@@ -65,19 +64,20 @@ const formatDay = (value: string): string => {
 };
 
 const todoTagColors: Record<string, string> = {
-  高风险: "#b91c1c",
-  中风险: "#a16207",
-  低风险: "#0B5C99",
-  待复核: "#0B5C99",
+  高风险: "#B91C1C",
+  中风险: "#B45309",
+  低风险: "#0369A1",
+  待复核: "#0369A1",
 };
+
+type KpiTone = "primary" | "warning" | "success" | "danger";
 
 interface Kpi {
   title: string;
   value: number | string;
   suffix: string;
   delta: string;
-  up: boolean;
-  color: string;
+  tone: KpiTone;
   /** Where a click lands, so every number has its records one click away. */
   to: "/audit-cases" | "/audit-runs";
   lifecycle?: AuditLifecycleFilter;
@@ -166,8 +166,7 @@ export default function DashboardPage() {
       value: overview.totalCases,
       suffix: "",
       delta: `近 7 天新增 ${weeklyNew} 件`,
-      up: weeklyNew > 0,
-      color: "#0B6BB5",
+      tone: "primary",
       to: "/audit-cases",
     },
     {
@@ -175,8 +174,7 @@ export default function DashboardPage() {
       value: overview.awaitingReview,
       suffix: "",
       delta: "点击打开待复核队列",
-      up: false,
-      color: "#a16207",
+      tone: "warning",
       to: "/audit-cases",
       lifecycle: "AWAITING_REVIEW",
     },
@@ -185,8 +183,7 @@ export default function DashboardPage() {
       value: medianSeconds === null ? "-" : medianSeconds.toFixed(1),
       suffix: medianSeconds === null ? "" : " 秒",
       delta: `成功运行 ${overview.successfulAgentRuns} 次`,
-      up: false,
-      color: "#15803d",
+      tone: "success",
       to: "/audit-runs",
     },
     {
@@ -194,8 +191,7 @@ export default function DashboardPage() {
       value: overview.acceptedFindings,
       suffix: "",
       delta: `误报判定 ${overview.rejectedFindings} 条`,
-      up: false,
-      color: "#b91c1c",
+      tone: "danger",
       to: "/audit-cases",
       lifecycle: "COMPLETED",
     },
@@ -239,17 +235,16 @@ export default function DashboardPage() {
   );
 
   const kpiCard = (kpi: Kpi) => (
-    <Card className="kpi-card" style={{ borderLeft: `3px solid ${kpi.color}` }}>
-      <Statistic
-        title={kpi.title}
-        value={kpi.value}
-        suffix={kpi.suffix}
-        styles={{ content: { fontSize: 25, fontWeight: 680 } }}
-      />
-      <div className="kpi-hint">
-        {kpi.up && <ArrowUpOutlined style={{ color: "#15803d", marginRight: 4 }} />}
-        <span style={{ color: "#667085", fontSize: 12 }}>{kpi.delta}</span>
+    <Card className={`kpi-card kpi-card--${kpi.tone}`}>
+      <div className="kpi-top">
+        <div className="kpi-value tnum">
+          {kpi.value}
+          {kpi.suffix !== "" && <span className="kpi-suffix">{kpi.suffix}</span>}
+        </div>
+        <span className={`kpi-glyph kpi-glyph--${kpi.tone}`} aria-hidden="true" />
       </div>
+      <div className="kpi-title">{kpi.title}</div>
+      <div className="kpi-hint">{kpi.delta}</div>
     </Card>
   );
 
@@ -257,16 +252,16 @@ export default function DashboardPage() {
     <div className="page">
       <div className="page-head">
         <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
+          <Typography.Title level={3} style={{ margin: 0, fontSize: 20 }}>
             审计驾驶舱
           </Typography.Title>
-          <Typography.Text type="secondary">
+          <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
             处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。点击任一指标可下钻到对应记录。
           </Typography.Text>
         </div>
         <div className="page-head-actions">
           {updatedAt !== null && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }} className="tnum">
               更新于 {updatedAt.toLocaleTimeString("zh-CN", { hour12: false })}
             </Typography.Text>
           )}
@@ -295,7 +290,7 @@ export default function DashboardPage() {
       <Row gutter={[12, 12]} className="dash-row">
         <Col xs={24} lg={15}>
           <Card
-            className="dash-fill-card"
+            className="dash-fill-card card-head-strong"
             title="审计处理趋势"
             size="small"
             extra={
@@ -322,7 +317,7 @@ export default function DashboardPage() {
         </Col>
         <Col xs={24} lg={9}>
           <Card
-            className="dash-fill-card"
+            className="dash-fill-card card-head-strong"
             title="风险发现类型"
             size="small"
             extra={
@@ -352,7 +347,7 @@ export default function DashboardPage() {
                               className="hbar-fill"
                               style={{
                                 width: `${Math.max(pct, 4)}%`,
-                                background: pct > 60 ? "#C44A4A" : pct > 35 ? "#C58A20" : "#0B6BB5",
+                                background: pct > 60 ? "#B91C1C" : pct > 35 ? "#B45309" : "#0369A1",
                               }}
                             />
                           </div>
@@ -382,14 +377,15 @@ export default function DashboardPage() {
 
       <Row gutter={[12, 12]} className="dash-row">
         <Col xs={24} lg={15}>
-          <Card className="dash-fill-card" title="质量指标" size="small">
+          <Card className="dash-fill-card card-head-strong" title="质量指标" size="small">
             <Row gutter={10}>
               {qualityMetrics.map((metric) => (
                 <Col key={metric.label} flex={1}>
                   <Tooltip title={metric.note}>
                     <div className="quality-item">
-                      <b>{metric.value}</b>
-                      <span>{metric.label}</span>
+                      <span className="quality-item__label">{metric.label}</span>
+                      <b className="tnum">{metric.value}</b>
+                      <span className="quality-item__note">{metric.note}</span>
                     </div>
                   </Tooltip>
                 </Col>
@@ -399,7 +395,7 @@ export default function DashboardPage() {
         </Col>
         <Col xs={24} lg={9}>
           <Card
-            className="dash-fill-card"
+            className="dash-fill-card card-head-strong"
             title="待我处理"
             size="small"
             extra={
@@ -439,7 +435,7 @@ export default function DashboardPage() {
                       item.highestSeverity === null
                         ? "待复核"
                         : severityLabels[item.highestSeverity];
-                    const color = todoTagColors[tag] ?? "#0B5C99";
+                    const color = todoTagColors[tag] ?? "#0369A1";
                     return (
                       <Link
                         key={item.id}

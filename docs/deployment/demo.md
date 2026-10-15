@@ -44,15 +44,22 @@ APP_ENV=demo bun --env-file=.demo.env scripts/demo/cli.ts up
 ## 3. 一键就绪
 
 ```bash
-bun --env-file=.demo.env scripts/demo/cli.ts up     # 启动栈、迁移、登记演示环境、播种
+bun --env-file=.demo.env scripts/demo/cli.ts up      # 受管环境、基础设施、迁移、登记、首次播种、api/web、健康检查
 bun --env-file=.demo.env scripts/demo/cli.ts check  # 只诊断：环境、登记、对象存储、演示世界
 bun --env-file=.demo.env scripts/demo/cli.ts verify # 对运行中的 API 做启动验收
 bun --env-file=.demo.env scripts/demo/cli.ts seed   # 重置后重新播种
 bun --env-file=.demo.env scripts/demo/cli.ts down   # 停止本地栈（保留数据卷）
+bun --env-file=.demo.env scripts/demo/cli.ts status # compose ps
+bun --env-file=.demo.env scripts/demo/cli.ts logs   # compose 日志（可跟服务名）
+bun --env-file=.demo.env scripts/demo/cli.ts ready  # 就绪演练：两次 reset 对比 + 非演示哨兵保护 + API/孤儿检查
 ```
 
-`up` 按顺序执行：`docker compose up -d --wait` 启动 postgres/rustfs/redis/rustfs-init → 迁移 →
-校验并登记演示环境 → 重置并播种。每一步失败即中止并打印原因，不继续到下一步。
+`up` 按顺序执行：`docker compose up -d --wait` 启动 postgres/rustfs/redis → `compose run --rm
+rustfs-init` 幂等建桶（一次性任务不用 `--wait` 等待）→ 以受管 `DATABASE_URL` 迁移 →
+向服务器确认 `current_database()` 后登记演示身份 → 仅当演示世界为空时重建播种（重复 `up`
+不清空现有演示数据；要重建请显式 `reset`）→ `docker compose up -d --build --wait api web` →
+对 `${API_BASE_URL}/api/health` 与 Web 端口做真实应答检查。每一步失败即中止并打印原因
+（凭据经 `redactDemoOutput` 脱敏），不继续到下一步，也不在没有真实应答时声称成功。
 
 **服务端口只绑定 127.0.0.1**。需要局域网访问时显式覆盖，例如 `API_BIND=0.0.0.0`；默认值刻意不做成
 可被网络访问的状态。
@@ -74,8 +81,10 @@ bun --env-file=.demo.env scripts/demo/cli.ts down   # 停止本地栈（保留�
 
 ## 5. 备份与恢复到新库
 
+备份与恢复工具只连接受管环境（`.demo.env`），不读取也不需要根 `.env`：
+
 ```bash
-# 备份当前演示库到 .demo/backups/<库名>-<时间戳>.dump
+# 备份受管演示库到 .demo/backups/<库名>-<时间戳>.dump
 bun --env-file=.demo.env scripts/demo/backup-restore.ts backup
 
 # 恢复到全新的数据库：RESTORE_DATABASE_NAME 必须与源库不同且尚不存在
@@ -83,12 +92,24 @@ RESTORE_DATABASE_NAME=contract_audit_restore \
   bun --env-file=.demo.env scripts/demo/backup-restore.ts restore
 ```
 
+`DUMP_FILE` 可指定某一份备份；缺省取 `.demo/backups` 中最新的一个。`DEMO_BACKUP_DIR`
+可改变备份目录（缺省 `.demo/backups`）。
+
 规则：
 
-- **恢复只写入不存在的数据库**。目标库已存在即拒绝，不会 drop、不会覆盖。
-- 源库与对象存储保持不变；原件按 locator 共享同一个桶，因此不需要（也不允许）复制或删除。
-- 备份文件名带时间戳，重复备份不会互相覆盖；`DUMP_FILE` 可指定某一份备份。
-- 备份与恢复同样受演示环境守卫约束（`APP_ENV` + 登记身份）。
+- **恢复只写入不存在的数据库**。目标库已存在即拒绝，不会 drop、不会覆盖；目标名还必须是
+  合法的 PostgreSQL 标识符。
+- **凭据不进入命令行或日志**。`pg_dump`/`createdb`/`pg_restore` 通过 libpq 环境参数
+  （`PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE`）取得连接信息，命令行参数里没有
+  连接串；子进程输出先经 `redactDemoOutput` 脱敏再显示。
+- **备份与恢复同样受演示环境守卫约束**：`APP_ENV` + 确认值之外，还会向运行中的服务器查询
+  `current_database()` 与 `demo_environments` 登记行（与重置共用的身份检查）。未注册或
+  登记不符的数据库一律拒绝，生产库不会因此获得演示身份。
+- 备份为 pg_dump custom 格式（`--no-owner --no-privileges`），文件名带时间戳，重复备份不会
+  互相覆盖，演练可以追溯到确切的那份转储。
+- **范围仅限数据库字节，不是完整灾备**。对象存储中的原件不复制也不删除：原件按 locator 共享
+  同一个桶，恢复出的副本行仍指向同一对象。若对象存储本身丢失，数据库备份无法重建原件；
+  需要完整恢复时必须另行备份对象存储数据卷。
 
 用完的一次性副本由操作者手动删除；本工具不提供自动清理。
 
@@ -110,6 +131,7 @@ RESTORE_DATABASE_NAME=contract_audit_restore \
 - 连续两次 `reset` 的非演示哨兵与计数保持、孤儿计数为 0。
 - `docker compose --build` 在 `APP_ENV=demo` 下的实际启动（含 ≥32 字符口令校验）。
 - `minimal` 与 `full` 两档的真实启动耗时。
-- `backup` / `restore` 的一次完整往返。
+- `backup` / `restore` 的一次完整往返（含目标已存在时的拒绝路径）。
+- `ready` 的完整就绪演练（两次 reset 对比、非演示哨兵保护、API 应答与孤儿检查）。
 
 本页只描述脚本与配置的真实行为，不声称上述场景已经跑过。

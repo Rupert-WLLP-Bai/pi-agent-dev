@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-15T08:32:42.617Z",
+  "source": {
+    "baseCommit": "a849b29",
+    "workingTree": true,
+    "description": "M1 frozen implementation before checkpoint commits; final release maps the verified source candidate."
+  },
+  "environment": {
+    "origin": "http://127.0.0.1:18080",
+    "api": "http://127.0.0.1:13002",
+    "agent": "fake-agent",
+    "liveModel": false,
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "caseId": "790e61fe-6b0b-4d71-9055-4ca763a062ec",
+  "sourceRecordId": "243ea5a3-0aaf-45a1-96e1-e069df00ab6e",
+  "original": {
+    "backend": "s3",
+    "locator": "s3://contract-audit-demo-originals/243ea5a3-0aaf-45a1-96e1-e069df00ab6e.txt",
+    "status": 200,
+    "bytes": 417,
+    "sha256": "9016b9e4b45a554f08cf510ba21c71b1728e8e072ef6f9ac69a25a37ad31473d",
+    "readAfterRustfsRestart": true
+  },
+  "review": {
+    "confirmedFindings": 5,
+    "caseStatus": "COMPLETED",
+    "generatedRemediations": 5,
+    "closedRemediations": 1,
+    "closureSurvivesReload": true
+  },
+  "evidence": {
+    "documentBlock": "p-5",
+    "quotedText": "70%",
+    "startCodePoint": 27,
+    "endCodePoint": 30,
+    "policyLimitRatio": 0.3,
+    "selectedBlockObserved": true
+  },
+  "trace": {
+    "provider": "Fake 0",
+    "model": "fake-agent",
+    "steps": 46,
+    "durationMs": 263,
+    "guardAcceptedProposals": 5,
+    "syntheticExecutionExplicitlyLabeled": true
+  },
+  "rerun": {
+    "caseId": "cf63f54e-525c-4fc0-9fe7-d44736ce7ce7",
+    "status": "AWAITING_REVIEW",
+    "sameSource": true,
+    "sameContractRevision": true,
+    "oldSnapshotId": "508a9e30-b845-40b0-bbb9-954d6242de1d",
+    "newSnapshotId": "a6cd32fc-f769-4bea-a39e-cd3f674dd1af",
+    "formalDataUnchanged": true,
+    "formalDataSha256": "7cc6ab0537926438a2cf139e81aaaa423a83ea26593cc6727174f1cd41df9d36"
+  },
+  "screenshots": [
+    "dashboard-1920.webp",
+    "evidence-1920.webp",
+    "remediation-1920.webp",
+    "trace-1920.webp"
+  ]
+}

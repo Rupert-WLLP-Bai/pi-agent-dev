@@ -33,11 +33,18 @@ M31,S0 基线审计与验证证据,history,2026-10-15,2026-10-15,Main,verified,a
 M32,OCR/Agent 轨迹/研究检查点,history,2026-10-15,2026-10-15,Main,verified,d9a84a4
 M33,S1 决策影子契约冻结（18 测试通过）,history,2026-10-15,2026-10-15,AI,verified,6a59906
 M34,工作区访问门+出网策略+操作者校验,history,2026-10-15,2026-10-15,Main,verified,1f33d99
-P1,决策层实现（provider/独立任务/反馈/详情）,plan,2026-10-15,2026-10-22,AI,planned,
-P2,访问门全 API 覆盖+出网默认禁止+compose 转发,plan,2026-10-15,2026-10-22,Main,planned,
-P3,影子 UI+未校准标识+375px 复核可达,plan,2026-10-15,2026-10-24,UX,planned,
-P4,RTM/覆盖率/真实依赖回归/失败注入,plan,2026-10-15,2026-10-24,QA,planned,
-P5,demo CLI 与环境保护（两次 reset 幂等）,plan,2026-10-15,2026-10-24,Infra,planned,
+M35,密钥轮换/重封+真实模型/缓存证据,history,2026-10-15,2026-10-15,Main,verified,cd24aac/2d63f15/b2033e1
+M36,S2 决策影子实现（provider/持久化/worker/路由）,history,2026-10-15,2026-10-15,AI,merged,a6ec041/f7ce8d1
+M37,S2 部署与演示环境保护（digest/localhost/受管CLI/存储边界）,history,2026-10-15,2026-10-15,Infra,merged,908cb5a
+M38,S2 决策 UI+访问会话+行为验收（含375px修复）,history,2026-10-15,2026-10-15,UX,merged,cc942b2
+M39,S2 分层测试/覆盖率/机器报告+工程竞赛文档,history,2026-10-15,2026-10-15,QA+Docs,merged,de7ea2d/31bb8d1
+M40,S2 集成修正（reset 删除范围/lint；检查点 verify 835/0）,history,2026-10-15,2026-10-15,Main,verified,a849b29
+P1,决策层实现（provider/独立任务/反馈/详情）,plan,2026-10-15,2026-10-22,AI,merged-pending-acceptance,a6ec041/f7ce8d1
+P2,访问门全 API 覆盖+出网默认禁止+compose 转发,plan,2026-10-15,2026-10-22,Main,merged-pending-acceptance,1f33d99/b2033e1
+P3,影子 UI+未校准标识+375px 复核可达,plan,2026-10-15,2026-10-24,UX,merged-pending-acceptance,cc942b2
+P4,RTM/覆盖率/真实依赖回归/失败注入,plan,2026-10-15,2026-10-24,QA,merged-pending-acceptance,de7ea2d
+P5,demo CLI 与环境保护（两次 reset 幂等）,plan,2026-10-15,2026-10-24,Infra,merged-pending-acceptance,908cb5a/a849b29
+P5a,全站视觉重设计（用户新增；四档视口375/1280/1440/1920+键盘）,plan,2026-10-15,2026-10-24,VisualRedesign,in-progress,
 P6,分片合并/迁移执行/逐切片 smoke,plan,2026-10-25,2026-10-31,Main,planned,
 P7,统一回归（单测/集成/E2E/Docker/降级）,plan,2026-11-01,2026-11-04,Main,planned,
 P8,发布就绪报告与门禁裁决,plan,2026-11-04,2026-11-05,Main,planned,

@@ -15,7 +15,7 @@
 cp .env.example .env          # 首次；本机已配好，见下
 bun install                   # 安装依赖（workspaces）
 docker compose up -d postgres rustfs redis rustfs-init   # 本地基础设施：PostgreSQL + RustFS + Redis
-cd apps/api && bun run migrate && cd ../..   # 应用迁移（18 张业务表，迁移 0000–0017）
+cd apps/api && bun run migrate && cd ../..   # 应用迁移（21 张业务表，迁移 0000–0018）
 bunx playwright install       # 首次安装浏览器
 ```
 

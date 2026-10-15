@@ -157,7 +157,7 @@ export function TrendChart({
                 x2={PAD.left + plotW}
                 y1={yAt(tick)}
                 y2={yAt(tick)}
-                stroke={tick === 0 ? "#cbd5e1" : "#eef2f7"}
+                stroke={tick === 0 ? "#CBD5E1" : "#EDF2F7"}
                 strokeWidth="1"
               />
               <text
@@ -174,9 +174,9 @@ export function TrendChart({
 
           <defs>
             <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#0B6BB5" stopOpacity="0.28" />
-              <stop offset="70%" stopColor="#0B6BB5" stopOpacity="0.06" />
-              <stop offset="100%" stopColor="#0B6BB5" stopOpacity="0" />
+              <stop offset="0%" stopColor="#0369A1" stopOpacity="0.22" />
+              <stop offset="70%" stopColor="#0369A1" stopOpacity="0.05" />
+              <stop offset="100%" stopColor="#0369A1" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -193,7 +193,7 @@ export function TrendChart({
             <path
               d={linePath}
               fill="none"
-              stroke="#0B6BB5"
+              stroke="#0369A1"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -206,7 +206,7 @@ export function TrendChart({
                   x2={hoverX}
                   y1={PAD.top}
                   y2={PAD.top + plotH}
-                  stroke="#94a3b8"
+                  stroke="#94A3B8"
                   strokeWidth="1"
                   strokeDasharray="3 3"
                 />
@@ -215,7 +215,7 @@ export function TrendChart({
                   cy={yAt(hovered.cumulative)}
                   r="4.5"
                   fill="#fff"
-                  stroke="#0B6BB5"
+                  stroke="#0369A1"
                   strokeWidth="2.5"
                 />
                 <circle

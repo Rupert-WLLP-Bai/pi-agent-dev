@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sanitizeCapturedText } from "./redact";
 
 /**
  * The failure-path regression runner (Q6).
@@ -8,9 +9,11 @@ import { fileURLToPath } from "node:url";
  * Each scenario drives the real HTTP surface with one dependency broken and
  * asserts what the operator sees: a business failure with a stable error code,
  * or a safe fallback — never a hang, a stack trace, or a corrupted formal
- * result. Scenarios that need a real service (Redis, S3) are skipped with a
- * reason when the service is not configured, so a run without infrastructure
- * still reports what it proved.
+ * result. A scenario is `failed` when an assertion is unmet, not merely when
+ * the request throws: a fetch that returns 200 proves nothing about the
+ * contract it is supposed to defend. Scenarios that need a real service (Redis,
+ * S3) are skipped with a reason when the service is not configured, so a run
+ * without infrastructure still reports what it proved.
  *
  * The output is one JSON file per run, keyed by Git SHA, listing every scenario
  * with its observed status. A scenario that could not run is `skipped` with the
@@ -93,6 +96,25 @@ async function withServer(
 
 const databaseUrl = (process.env.DATABASE_URL ?? "").trim();
 
+/**
+ * Throws with a stable code when an expectation is unmet. A scenario that
+ * returns without asserting has proven nothing, so every scenario below ends in
+ * `assert*` calls; the observed response alone is recorded for the report.
+ */
+const assertStatus = (label: string, actual: number, expected: number): void => {
+  if (actual !== expected) {
+    throw new Error(`${label}: expected status ${expected}, observed ${actual}`);
+  }
+};
+
+const assertEqual = (label: string, actual: unknown, expected: unknown): void => {
+  if (actual !== expected) {
+    throw new Error(
+      `${label}: expected ${JSON.stringify(expected)}, observed ${JSON.stringify(actual)}`,
+    );
+  }
+};
+
 const scenarios: Scenario[] = [
   {
     id: "redis-unreachable-verification-still-succeeds",
@@ -111,9 +133,15 @@ const scenarios: Scenario[] = [
               contractText: "甲方应于签订后支付合同金额的70%作为预付款。",
             }),
           });
+          // The contract: a dead Redis must not take the audit with it. Health
+          // reports the connection as degraded (not fatal-only `status`), the
+          // text entry still schedules a case, and the queue acknowledges it.
+          assertEqual("health.status", health.status, "ok");
+          assertEqual("health.connections.redis.ok", health.connections?.redis?.ok, false);
+          assertStatus("POST /api/audit-cases", created.status, 202);
           return {
             healthStatus: health.status,
-            redisReported: health.redis,
+            redisReported: health.connections?.redis?.ok ?? null,
             createStatus: created.status,
           };
         },
@@ -158,6 +186,13 @@ const scenarios: Scenario[] = [
           });
           const body = (await created.json()) as { id: string };
           const detail = await (await fetch(`${base}/api/audit-cases/${body.id}`)).json();
+          // The contract: the Put fails against the dead endpoint, the write
+          // still lands on local disk under the non-strict wiring, and the row
+          // records the backend that actually answered so a later read follows
+          // it instead of re-hitting S3.
+          assertStatus("POST /api/audit-cases/upload", created.status, 202);
+          assertEqual("originalStorage", detail.originalStorage, "local");
+          assertEqual("originalDownloadable", detail.originalDownloadable, true);
           return {
             createStatus: created.status,
             originalStorage: detail.originalStorage,
@@ -171,13 +206,20 @@ const scenarios: Scenario[] = [
     requirement: "Q3/G3: 未知路由与非法 UUID 返回可读错误，不伪装 500",
     guard: () => (databaseUrl === "" ? "DATABASE_URL not configured" : null),
     run: () =>
-      withServer({ DATABASE_URL: databaseUrl }, async (base) => ({
-        unknownRoute: (await fetch(`${base}/api/no-such-route`)).status,
-        malformedCaseId: (await fetch(`${base}/api/audit-cases/not-a-uuid`)).status,
-        malformedDecisionId: (
+      withServer({ DATABASE_URL: databaseUrl }, async (base) => {
+        const unknownRoute = (await fetch(`${base}/api/no-such-route`)).status;
+        const malformedCaseId = (await fetch(`${base}/api/audit-cases/not-a-uuid`)).status;
+        const malformedDecisionId = (
           await fetch(`${base}/api/audit-cases/not-a-uuid/retry`, { method: "POST" })
-        ).status,
-      })),
+        ).status;
+        // The contract: each of these is the caller's fault, so each answers
+        // with a 4xx the operator can read. A 5xx would mean a malformed input
+        // reached code that was not written for it.
+        assertStatus("GET /api/no-such-route", unknownRoute, 404);
+        assertStatus("GET /api/audit-cases/not-a-uuid", malformedCaseId, 404);
+        assertStatus("POST /api/audit-cases/not-a-uuid/retry", malformedDecisionId, 404);
+        return { unknownRoute, malformedCaseId, malformedDecisionId };
+      }),
   },
   {
     id: "oversized-and-hostile-uploads-are-refused",
@@ -200,16 +242,24 @@ const scenarios: Scenario[] = [
           "file",
           new File([new TextEncoder().encode("x")], "../../etc/passwd", { type: "text/plain" }),
         );
+        const oversizedStatus = (
+          await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: oversized })
+        ).status;
+        const typeMismatchStatus = (
+          await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: lying })
+        ).status;
+        const traversalNameStatus = (
+          await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: traversal })
+        ).status;
+        // The contract: none of these is a server problem, so none may answer
+        // 5xx — and the size check must fire before parsing (no 422 there).
+        assertStatus("oversized upload", oversizedStatus, 413);
+        assertStatus("declared type contradicting extension", typeMismatchStatus, 422);
+        assertStatus("traversal filename", traversalNameStatus, 422);
         return {
-          oversized: (
-            await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: oversized })
-          ).status,
-          typeMismatch: (
-            await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: lying })
-          ).status,
-          traversalName: (
-            await fetch(`${base}/api/audit-cases/upload`, { method: "POST", body: traversal })
-          ).status,
+          oversized: oversizedStatus,
+          typeMismatch: typeMismatchStatus,
+          traversalName: traversalNameStatus,
         };
       }),
   },
@@ -243,7 +293,7 @@ for (const scenario of scenarios) {
       id: scenario.id,
       requirement: scenario.requirement,
       status: "failed",
-      reason: error instanceof Error ? error.message : String(error),
+      reason: sanitizeCapturedText(error instanceof Error ? error.message : String(error)),
       durationMs: Date.now() - started,
     });
   }
@@ -280,7 +330,7 @@ const outputDir = process.env.QA_FAULT_DIR ?? "artifacts/qa";
 const targetDir = join(outputDir, sha ?? "unknown-sha");
 mkdirSync(targetDir, { recursive: true });
 const path = join(targetDir, "faults.json");
-writeFileSync(path, `${JSON.stringify(report, null, 2)}\n`);
+writeFileSync(path, `${sanitizeCapturedText(JSON.stringify(report, null, 2))}\n`);
 console.log(`fault report: ${relative(REPO_ROOT, path)}`);
 console.log(
   `scenarios: ${report.totals.passed} passed, ${report.totals.failed} failed, ${report.totals.skipped} skipped`,

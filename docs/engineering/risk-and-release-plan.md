@@ -6,12 +6,13 @@
 
 | 门禁 | 判据 | 证据来源 | 当前状态 |
 | --- | --- | --- | --- |
-| G-A 质量 | `bun run verify` 全绿；E2E 无契约过期失败 | QA 报告（`docs/quality/`） | 部分达标：单测 688/0（`1f33d99`）；1 个 E2E 用例待修正 |
-| G-B 安全 | 匿名 401/授权 200/登出 204 实测；出网默认禁止；密钥不落URL/日志 | `evidence/s2-security.json`、抓包（待 QA） | 访问门已实测；字段级抓包待补 |
-| G-C 决策治理 | off/shadow 正式结论一致；影子故障不污染；未校准标识齐全 | AI+QA 对照运行 | 契约已验证；行为证据待 S2 完成 |
-| G-D 数据安全 | 两次 reset 一致；非 demo 哨兵保留；生产拒绝 | Infra 演示 CLI + QA 断言 | 实施中 |
-| G-E 可复现 | 第三方按 runbook 从零起步成功；`demo:check`/`verify` 通过 | Infra 复现记录 | 实施中 |
-| G-F 文档 | README/架构/竞品/演示/FAQ/KPI 与代码一致，声明均有证据 | 本文档群 + Docs 校正提交 | 进行中（本轮交付） |
+| G-A 质量 | `bun run verify` 全绿；E2E 无契约过期失败 | QA 报告（`docs/quality/`） | 部分达标：合并后检查点 835/0（`a849b29`，Main 观察）；过期 rerun 用例已重写（`de7ea2d`）；最终统一运行待 S3 |
+| G-B 安全 | 匿名 401/授权 200/登出 204 实测；出网默认禁止；密钥不落URL/日志 | `evidence/s2-security.json`、抓包（待 QA） | 访问门已实测；影子详情授权回归与字段级抓包待 S3 |
+| G-C 决策治理 | off/shadow 正式结论一致；影子故障不污染；未校准标识齐全 | AI+QA 对照运行 | 实现已合并（`a6ec041`/`cc942b2`）；对照运行待 S3 |
+| G-D 数据安全 | 两次 reset 一致；非 demo 哨兵保留；生产拒绝 | Infra 演示 CLI + QA 断言 | 主体已实现（`908cb5a`+`a849b29`）；qcc 核验重置遗漏由 Main 修正中；对照运行待 S3 |
+| G-E 可复现 | 第三方按 runbook 从零起步成功；`demo:check`/`verify` 通过 | Infra 复现记录 | CLI 已入树（minimal 根`.env`六命令；demo profile 另含`ready`）；复现记录待归集 |
+| G-F 文档 | README/架构/竞品/演示/FAQ/KPI 与代码一致，声明均有证据 | 本文档群 + Docs 校正提交 | 进行中（S2 合并后口径已同步；`a849b29` 集成检查点 835/0 已登记） |
+| G-V 视觉重设计 | 四档视口 375/1280/1440/1920 + 键盘 Playwright 通过并留存截图；375px 面板控制不回退；CSS tokens 与 Ant 主题对齐 | VisualRedesign spec + 截图（Main 归档） | 实施中（VisualRedesign） |
 | G-G 回滚 | `DECISION_MODE=off` + 停 worker 可回旧路径；迁移只增量 | Main 迁移纪律 | 契约已定；执行待 S3 |
 
 **任一缺失即 fail/blocked**；`offline-demo` 成功不能替代真实模型门禁结论。

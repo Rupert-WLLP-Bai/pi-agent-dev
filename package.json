@@ -15,7 +15,7 @@
     "test:integration": "bun --env-file=.env test tests/integration",
     "test:e2e": "playwright test",
     "test:coverage": "bun --env-file=.env test --coverage --coverage-reporter=lcov --coverage-dir=artifacts/qa/coverage packages apps",
-    "test:all": "bun run test:unit && bun run test:integration && bun run test:e2e",
+    "test:all": "QA_REQUIRE_ALL=1 bun run qa:report",
     "qa:report": "bun scripts/qa/report.ts",
     "qa:faults": "bun scripts/qa/faults.ts",
     "qa:coverage": "bun scripts/qa/coverage.ts",

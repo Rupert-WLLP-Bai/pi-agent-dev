@@ -76,6 +76,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Decision HTTP errors now retain their explicit Elysia status and bounded success
+  schemas, so the typed client no longer needs response casts or a parallel fetch path.
+- Managed demo commands select `compose.yaml` explicitly, check required component
+  health, and verify two protected resets with a temporary non-demo sentinel.
+- Acceptance cleanup captures source ownership before deleting cases and preserves
+  sources and revisions still referenced by another case. A real PostgreSQL regression
+  covers exclusive cleanup and shared-source preservation.
+- The existing QA report now powers strict `test:all`, observes whitespace-prefixed
+  Bun tallies, records E2E flakes and missing layers, and sanitizes fault captures.
+  Configured S3 integration tests execute their real round trip and remove owned writes.
+
 - OCR settings repository imports now resolve from `document/ocr/`, allowing
   the API to start after the OCR module move.
 - Docker build contexts exclude `node_modules` at every workspace depth, preventing

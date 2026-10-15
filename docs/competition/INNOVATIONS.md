@@ -13,7 +13,8 @@
 | 存储 | original-store 适配（S3/本地降级）、locator 语义 | RustFS（S3 兼容）、PostgreSQL、Redis | 领域不依赖具体厂商 |
 | OCR | 可插拔 `OcrPort`、栅格化、几何取舍（不带 bbox） | 视觉模型（网关）、MinerU 4.x 服务 | 我们拥有锚定策略与降级语义 |
 | 界面 | 全部页面与交互 | React/Ant Design/TanStack | —— |
-| 基础设施 | compose、迁移、种子、CI | Docker、GitHub Actions | —— |
+| 测试与治理工装 | 分层测试入口/机器报告/故障注入、demo 环境保护与备份恢复 | —— | —— |
+| 基础设施 | compose（镜像 digest 固定、端口默认 localhost）、迁移、种子、受管演示 CLI、CI | Docker、GitHub Actions | —— |
 
 **明确不做/未做**：不自训模型、不微调、不建向量库/RAG、不引入消息队列/K8s/OTel、不做 SSO/RBAC/多租户、不做多副本调度。这些是范围决策，不是缺陷隐瞒——理由见 FAQ。
 
@@ -48,7 +49,7 @@
 
 - **是什么**：本地 Laya CPU 产生影子建议（choice/score/noul），与规则冲突时只标记**同命题互斥**；未校准即标 `calibrated=false` + `needsHumanReview=true`；默认 off；正式链路不等模型 HTTP。
 - **证据**：契约 `packages/audit/src/decision.ts` + TypeBox 校验（18 测试，`6a59906`）；本地 Laya CPU 冒烟（单请求 642 ms、未校准，`docs/project-management/evidence/laya-cpu-smoke.json`）。
-- **状态**：契约与单样本冒烟已验证；**持久化/worker/UI 为 S2 实施项**，未就绪前演示只讲机制与契约。
+- **状态**：契约与单样本冒烟已验证；持久化/worker/UI 已随切片合并（`a6ec041`、`cc942b2`，`a849b29` 后集成检查点 835/0，含未提交契约修订待 Main 收尾）；off/shadow 对照与故障隔离的统一回归在 S3，S3 前演示只讲机制与已验证证据。
 
 ### 2.6 隐私与出网默认禁止
 

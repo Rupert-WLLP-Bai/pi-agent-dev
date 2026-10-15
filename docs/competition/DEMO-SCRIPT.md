@@ -6,10 +6,12 @@
 ## 0. 演示前检查（任何时长都先做）
 
 ```bash
-docker compose up -d postgres rustfs redis rustfs-init   # 基础设施
-docker compose exec api bun run seed:demo                # 演示种子（不自动执行）
-curl -s http://localhost:3000/api/health | jq .          # status=ok
+bun --env-file=.demo.env scripts/demo/cli.ts up      # 受管演示栈：启动、迁移、登记演示环境、播种（.demo.env 由 up 生成，0600）
+bun --env-file=.demo.env scripts/demo/cli.ts verify  # 对运行中的 API 做启动验收
+curl -s http://localhost:3000/api/health | jq .      # status=ok
 ```
+
+最小开发档（无模型凭据、原件落本地）可用根 `.env`：`bun --env-file=.env scripts/demo/cli.ts up|down|reset|seed|verify|check`；compose 兜底路径（`docker compose up -d postgres rustfs redis rustfs-init` + `docker compose exec api bun run seed:demo`）仍然有效。**演示 CLI 的各入口以代码与 [docs/deployment/demo.md](../deployment/demo.md) 为准，统一回归（S3）完成前按"已实现待验收"对待。**
 
 预期：`status=ok`、`database=true`、`dispatcher=true`；`objectStore`/`redis` 可降级（`ok` false 不阻塞）。
 
@@ -52,14 +54,14 @@ curl -s http://localhost:3000/api/health | jq .          # status=ok
 
 | 步 | 页面/操作 | 预期 | 讲解要点 |
 | --- | --- | --- | --- |
-| 12 | 打开案件决策面板（若 S2 UI 就绪） | 显示影子建议、来源、**未校准**标识；没有建议时显示"未提供"而非 0% | 影子只是建议；未校准即标记 |
+| 12 | 打开案件决策面板 | 显示影子建议、来源、**未校准**标识；没有建议时显示"未提供"而非 0% | 影子只是建议；未校准即标记 |
 | 13 | 影子反馈入口 | 提交"接受/驳回/需复核"；注明"仅评估，不改变审计结论" | 反馈 append-only，独立于 Finding Review |
 | 14 | 对比演示：同一合同 off vs shadow | 正式规则结论、Finding、复核、整改完全一致 | 影子故障/存在都不污染正式链路 |
 | 15 | 隐私口径讲解（配合 `audit-data-policy.ts`） | 原始合同默认不出网；`LLM_INTERNAL_DATA_ORIGINS` 默认空；合成内容以 hash 证明 | 数据边界是代码强制的 |
 | 16 | 访问门演示 | 匿名 401 → 登录 200 → 登出 204 | 单工作区门禁（非 SSO/RBAC） |
-| 17 | 收尾：`bun run verify` 数字 + 一键复现命令 | 单测 693/0（commit `b2033e1`；集成后全局计数以 Main 最终记录为准） | 质量证据可复跑 |
+| 17 | 收尾：`bun run verify` 数字 + 一键复现命令 | 单测 693/0（commit `b2033e1`）；合并后集成检查点 835/0（`a849b29`，Main 观察）；最终统一计数以 S3 为准，不同 commit 数字不可混用 | 质量证据可复跑 |
 
-**步骤 12–14 的就绪度**：契约与 Laya CPU 冒烟已验证；持久化/worker/UI 由 AI/UX 在 S2 交付。**未就绪时省略该步并明说"预研/实施中"**，不得用 Fake 冒充实时影子。
+**步骤 12–14 的就绪度**：决策层代码与持久化/worker/UI 已随 S2 切片合并（`a6ec041`、`cc942b2`，含未提交契约修订待 Main 收尾）；off/shadow 对照与故障隔离的**统一回归在 S3**。S3 通过前该环节按"已实现待验收"对待；不得用 Fake 冒充实时影子。
 
 ## 4. 技术版（7–10 分钟，面向技术评委）
 
@@ -93,7 +95,7 @@ curl -s http://localhost:3000/api/health | jq .          # status=ok
 
 | 声明 | 证据 |
 | --- | --- |
-| 单测全绿 | commit `b2033e1`，693/0（Main 验证记录；78 文件） |
+| 单测全绿 | commit `b2033e1`，693/0（Main 验证记录；78 文件）；S2 合并检查点 `a849b29` 835/0（Main 观察，最终以 S3 统一运行为准） |
 | 访问门行为 | `docs/project-management/evidence/s2-security.json` |
 | 真实 Pi 单样本 | `docs/project-management/evidence/real-pi-smoke.json` |
 | Laya CPU 单样本 | `docs/project-management/evidence/laya-cpu-smoke.json` |

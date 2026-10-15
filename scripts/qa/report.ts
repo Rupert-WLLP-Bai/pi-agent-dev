@@ -10,6 +10,7 @@ import {
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+import { sanitizeCapturedText } from "./redact";
 
 /**
  * The layered QA report writer.
@@ -28,9 +29,18 @@ import { chromium } from "@playwright/test";
  *   is deleted before the run so the numbers can only be this run's;
  * - Chromium availability is observed (`chromium.executablePath()` + a
  *   filesystem probe), never assumed;
- * - command output is redacted through a narrow allowlist filter before it
- *   reaches the report, so a leaky tool cannot put a credential into
- *   summary.json or summary.html.
+ * - command output is redacted through the shared `./redact` sanitizer before
+ *   it reaches the report, so a leaky tool cannot put a credential, a
+ *   connection-string password, or a managed-environment literal into
+ *   summary.json or summary.html;
+ * - a layer that exits 0 but observed **no case counts** is reported `failed`,
+ *   not `passed`: a command that matched nothing (renamed suite, empty
+ *   selector, cached-filter run) must not look like a green run with zero
+ *   work done.
+ *
+ * `QA_REPORT_DIR` relocates the output. `QA_REQUIRE_ALL=1` turns skips into a
+ * non-zero exit (the `make test-all` gate); without it the report is
+ * diagnostic and a skipped layer is a report, not a failure.
  *
  * The report keeps the three coverage kinds apart: unit line/function coverage,
  * integration scenario counts, and E2E requirement results. Summing them into
@@ -56,6 +66,8 @@ export interface LayerResult {
     pass: number;
     fail: number;
     skip: number;
+    /** Passed-on-retry; E2E only, recorded rather than absorbed. */
+    flaky?: number;
   };
   /** Artifact paths this layer wrote, relative to the repository root. */
   artifacts?: string[];
@@ -73,6 +85,8 @@ export interface QaReport {
     arch: string;
     /** Variables that decide which layers can run at all. */
     testDatabaseUrlConfigured: boolean;
+    /** What the acceptance layer actually passes to the API web server. */
+    playwrightDatabaseUrlConfigured: boolean;
     redisUrlConfigured: boolean;
     s3EndpointConfigured: boolean;
     /**
@@ -91,28 +105,6 @@ export interface QaReport {
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
-/**
- * Values a command's output must never carry into a report. Only variables that
- * are credentials by name are redacted — everything else is left readable so
- * the log stays useful. The match is on the assignment's value part, so a
- * variable named `*_ENDPOINT` is not treated as a secret.
- */
-const SECRET_PATTERNS: Array<[RegExp, string]> = [
-  [
-    /((?:PASSWORD|PASSWD|SECRET|TOKEN|API_KEY|APIKEY|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*\s*=\s*)\S+/giu,
-    "$1[REDACTED]",
-  ],
-];
-
-/** Applies the redaction allowlist to one chunk of command output. */
-const redactOutput = (output: string): string => {
-  let redacted = output;
-  for (const [pattern, replacement] of SECRET_PATTERNS) {
-    redacted = redacted.replace(pattern, replacement);
-  }
-  return redacted;
-};
-
 const run = (command: string): { exitCode: number; output: string; durationMs: number } => {
   const started = Date.now();
   const proc = Bun.spawnSync(["bash", "-lc", command], {
@@ -124,11 +116,15 @@ const run = (command: string): { exitCode: number; output: string; durationMs: n
   const durationMs = Date.now() - started;
   // Bun prints its pass/fail tally to stderr; dropping it here would leave the
   // summary without counts, so both streams are captured and combined in order.
+  // Interleaving is reconstructable via the `[stderr]` marker, which lets a
+  // human tell an actual tally line from output that merely contains one.
   const stdout = new TextDecoder().decode(proc.stdout ?? new Uint8Array());
   const stderr = new TextDecoder().decode(proc.stderr ?? new Uint8Array());
   return {
     exitCode: proc.exitCode,
-    output: redactOutput(stdout + (stderr === "" ? "" : `\n[stderr]\n${stderr}`)),
+    output: sanitizeCapturedText(
+      stdout + (stderr === "" ? "" : `\n[stderr]\n${stderr}\n[/stderr]\n`),
+    ),
     durationMs,
   };
 };
@@ -139,28 +135,66 @@ const git = (args: string[]): string | null => {
   return new TextDecoder().decode(proc.stdout ?? new Uint8Array()).trim() || null;
 };
 
-/** Parses Bun's own tally lines (`N pass`, `N fail`, `N skip`) from output. */
+/**
+ * Parses Bun's own tally lines (`N pass`, `N fail`, `N skip`) from output.
+ *
+ * Bun emits one summary line per suite with counts aligned in columns, e.g.
+ * ` 12 pass,  0 fail,  3 skip` and a final `tests: 15 pass, 0 fail, 3 skip`.
+ * Only lines where a count is followed by the exact word `pass`/`fail`/`skip`
+ * count, so a prose line that mentions "0 pass" inside a test's own name or a
+ * stack frame cannot be mistaken for a tally. Bun pads these lines with
+ * leading spaces, so the anchor tolerates horizontal whitespace — anchoring
+ * without it silently dropped every tally, which is how a whole successful
+ * suite once appeared as "no counts observed". The **last** match wins: Bun
+ * prints per-file tallies before the global one, so the global line is the
+ * authoritative total.
+ */
 const parseBunCounts = (output: string): LayerResult["counts"] | undefined => {
-  const pass = /(\d+)\s+pass/u.exec(output);
-  const fail = /(\d+)\s+fail/u.exec(output);
-  if (pass === null && fail === null) return undefined;
-  const skip = /(\d+)\s+skip/u.exec(output);
-  return {
-    pass: pass ? Number(pass[1]) : 0,
-    fail: fail ? Number(fail[1]) : 0,
-    skip: skip ? Number(skip[1]) : 0,
-  };
+  const pass = [...output.matchAll(/^[^\S\n]*(\d+)\s+pass\s*$/gmu)];
+  const fail = [...output.matchAll(/^[^\S\n]*(\d+)\s+fail\s*$/gmu)];
+  const skip = [...output.matchAll(/^[^\S\n]*(\d+)\s+skip\s*$/gmu)];
+  if (pass.length === 0 && fail.length === 0) return undefined;
+  const last = (matches: RegExpMatchArray[]): number =>
+    matches.length === 0 ? 0 : Number(matches[matches.length - 1][1]);
+  return { pass: last(pass), fail: last(fail), skip: last(skip) };
 };
 
 /** Where the Playwright JSON reporter writes; playwright.config.ts owns this. */
 const E2E_RESULTS_PATH = "artifacts/qa/e2e/results.json";
 
-/** Synchronous read + parse of the current run's Playwright JSON report. */
-const readPlaywrightCounts = (): { counts: LayerResult["counts"]; artifact: string } | null => {
+/**
+ * Synchronous read + parse of the *current run's* Playwright JSON report.
+ *
+ * Only the file this layer just wrote is read: the stale copy is deleted before
+ * the run, so a hit here is this run's data. Three facts come out, because each
+ * answers a different honesty question:
+ *
+ * - `pass`/`fail` from `stats.expected`/`stats.unexpected` — Playwright's own
+ *   tally, which already separates "expected to pass" from "failed";
+ * - `flaky` from `stats.flaky` — passed-on-retry is a *traceable* state, not a
+ *   green one, and deleting it would make a retry-prone suite look stable;
+ * - `suiteFailed` from `stats.unexpected` plus top-level `errors` — a run that
+ *   crashed before any test executed (global setup throw, config error) must
+ *   not be recorded as a zero-test success.
+ *
+ * `skip` is only credible when the suite actually ran: `stats.skipped` counts
+ * tests marked skipped by the suite, which Playwright reports even when the
+ * whole file was filtered out — hence the explicit `no specs matched` branch.
+ */
+const readPlaywrightCounts = (): {
+  counts: LayerResult["counts"] & { flaky?: number };
+  artifact: string;
+} | null => {
   const path = resolve(REPO_ROOT, E2E_RESULTS_PATH);
   if (!existsSync(path)) return null;
   let parsed: {
-    stats?: { expected?: number; unexpected?: number; skipped?: number };
+    stats?: {
+      expected?: number;
+      unexpected?: number;
+      skipped?: number;
+      flaky?: number;
+    };
+    errors?: unknown[];
   };
   try {
     parsed = JSON.parse(readFileSync(path, "utf8")) as typeof parsed;
@@ -174,6 +208,7 @@ const readPlaywrightCounts = (): { counts: LayerResult["counts"]; artifact: stri
       pass: stats.expected ?? 0,
       fail: stats.unexpected ?? 0,
       skip: stats.skipped ?? 0,
+      ...(stats.flaky === undefined ? {} : { flaky: stats.flaky }),
     },
     artifact: E2E_RESULTS_PATH,
   };
@@ -195,7 +230,22 @@ const observeChromium = (): { executablePath: string | null; installed: boolean 
   }
 };
 
-const integrationGuard = (): string | null => {
+/**
+ * The database a layer must run against.
+ *
+ * Integration suites resolve their identity through
+ * `tests/integration/db.ts`, which accepts `TEST_DATABASE_URL` and only
+ * falls back to `DATABASE_URL` behind an explicit `INTEGRATION_ALLOW_DEFAULT_DB=1`
+ * opt-in. The report guard mirrors that same rule, so a layer's guard can never
+ * be weaker than the suite it launches.
+ *
+ * The acceptance webServer is started by `playwright.config.ts` with the value
+ * of `PLAYWRIGHT_DATABASE_URL` passed to it as `DATABASE_URL`, so the E2E layer
+ * needs that variable to name the same disposable database. Checking
+ * `TEST_DATABASE_URL` alone (as this guard once did) let a run through where the
+ * browser stack silently booted against the developer's `.env` database.
+ */
+const disposableDatabaseGuard = (): string | null => {
   if ((process.env.TEST_DATABASE_URL ?? "").trim() !== "") return null;
   if (
     (process.env.DATABASE_URL ?? "").trim() !== "" &&
@@ -203,12 +253,16 @@ const integrationGuard = (): string | null => {
   ) {
     return null;
   }
-  return "TEST_DATABASE_URL not configured (set it to a disposable database, or set INTEGRATION_ALLOW_DEFAULT_DB=1 to reuse DATABASE_URL)";
+  return "TEST_DATABASE_URL not configured — set it to a disposable migrated database, or set INTEGRATION_ALLOW_DEFAULT_DB=1 to explicitly reuse DATABASE_URL";
 };
 
+const integrationGuard = (): string | null => disposableDatabaseGuard();
+
 const e2eGuard = (): string | null => {
-  if ((process.env.TEST_DATABASE_URL ?? "").trim() === "") {
-    return "TEST_DATABASE_URL not configured — acceptance needs a disposable migrated database";
+  const disposable = disposableDatabaseGuard();
+  if (disposable !== null) return disposable;
+  if ((process.env.PLAYWRIGHT_DATABASE_URL ?? "").trim() === "") {
+    return "PLAYWRIGHT_DATABASE_URL not configured — playwright.config.ts passes it to the API web server as DATABASE_URL, so acceptance needs it on the disposable database";
   }
   const chromiumState = observeChromium();
   if (!chromiumState.installed) {
@@ -280,10 +334,14 @@ for (const layer of LAYERS) {
       : parseBunCounts(result.output);
   const artifacts =
     layer.artifacts?.filter((artifact) => existsSync(resolve(REPO_ROOT, artifact))) ?? [];
-  // A run that exited 0 but left no counts is not a pass: the summary must say
-  // so rather than inherit a green exit code it cannot explain. The layer still
-  // records its exit code, so the operator can investigate.
-  const status: LayerStatus = result.exitCode === 0 ? "passed" : "failed";
+  // A run that exited 0 but observed no case counts is not a pass: a command
+  // that matched nothing (renamed suite, over-narrow filter, config that
+  // resolved zero specs) exits 0 with no tallies at all, and reporting that as
+  // a green layer would hide the fact that nothing was verified. The layer
+  // still records its exit code and absence, so the operator can investigate.
+  const observedCases = counts ? counts.pass + counts.fail + counts.skip : 0;
+  const status: LayerStatus =
+    result.exitCode !== 0 ? "failed" : observedCases > 0 ? "passed" : "failed";
   layers.push({
     id: layer.id,
     status,
@@ -294,6 +352,12 @@ for (const layer of LAYERS) {
     artifacts: artifacts.length > 0 ? artifacts : undefined,
     ...(status === "failed" && counts === undefined
       ? { reason: "no case counts observed in the layer's output" }
+      : {}),
+    ...(status === "failed" && observedCases === 0 && counts !== undefined
+      ? { reason: "the layer exited 0 but reported zero cases — nothing was verified" }
+      : {}),
+    ...(result.exitCode !== 0 && counts !== undefined
+      ? { reason: `the layer exited with code ${result.exitCode}` }
       : {}),
   });
 }
@@ -308,6 +372,7 @@ const report: QaReport = {
     platform: process.platform,
     arch: process.arch,
     testDatabaseUrlConfigured: (process.env.TEST_DATABASE_URL ?? "").trim() !== "",
+    playwrightDatabaseUrlConfigured: (process.env.PLAYWRIGHT_DATABASE_URL ?? "").trim() !== "",
     redisUrlConfigured: (process.env.REDIS_URL ?? "").trim() !== "",
     s3EndpointConfigured: (process.env.S3_ENDPOINT ?? "").trim() !== "",
     chromium: observeChromium(),
@@ -343,15 +408,43 @@ console.log(
 // see it.
 if (report.totals.failed > 0) process.exit(1);
 
+/**
+ * `QA_REQUIRE_ALL=1` makes the report the `make test-all` gate: every layer —
+ * unit, integration, e2e, coverage — must have actually run, so a skipped layer
+ * fails the command even though nothing failed. The skip reason is retained in
+ * the summary (both files), because a gate that only says "some layer did not
+ * run" wastes the operator's time chasing which one.
+ *
+ * A plain `bun run qa:report` stays diagnostic-lenient (skips are reports), so
+ * the same command can be used for a casual local sweep and as the strict gate.
+ */
+if (process.env.QA_REQUIRE_ALL === "1" && report.totals.skipped > 0) {
+  const missing = report.layers
+    .filter((layer) => layer.status === "skipped")
+    .map((layer) => `${layer.id} (${layer.reason ?? "no reason recorded"})`)
+    .join("; ");
+  console.log(`QA_REQUIRE_ALL=1: ${missing}`);
+  process.exit(1);
+}
+
+/** Minimal HTML escaping: command output never reaches here, but a status,
+ *  reason or count from a report could carry a character with markup meaning. */
+const escapeHtml = (text: string): string =>
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
 function renderHtml(value: QaReport): string {
   const rows = value.layers
     .map(
       (layer) =>
-        `<tr><td>${layer.id}</td><td>${layer.status}</td><td>${layer.exitCode ?? "—"}</td>` +
-        `<td>${layer.durationMs}</td><td>${layer.reason ?? ""}</td>` +
-        `<td>${JSON.stringify(layer.counts ?? {})}</td>` +
-        `<td>${(layer.artifacts ?? []).join("<br/>")}</td>` +
-        `<td><code>${layer.command}</code></td></tr>`,
+        `<tr><td>${escapeHtml(layer.id)}</td><td>${escapeHtml(layer.status)}</td><td>${layer.exitCode ?? "—"}</td>` +
+        `<td>${layer.durationMs}</td><td>${escapeHtml(layer.reason ?? "")}</td>` +
+        `<td>${escapeHtml(JSON.stringify(layer.counts ?? {}))}</td>` +
+        `<td>${(layer.artifacts ?? []).map(escapeHtml).join("<br/>")}</td>` +
+        `<td><code>${escapeHtml(layer.command)}</code></td></tr>`,
     )
     .join("\n");
   const chromium = value.environment.chromium;
@@ -373,10 +466,10 @@ code { background: #f5f7fa; padding: 0 0.25rem; }
 </head>
 <body>
 <h1>分层测试摘要</h1>
-<p>Git SHA: <code>${value.git.sha ?? "unknown"}</code>（branch <code>${value.git.branch ?? "unknown"}</code>，dirty: ${value.git.dirty ? "是" : "否"}）</p>
-<p>生成时间: ${value.generatedAt}；Bun ${value.environment.bun ?? "unknown"}；platform ${value.environment.platform}/${value.environment.arch}</p>
-<p>TEST_DATABASE_URL 已配置: ${value.environment.testDatabaseUrlConfigured ? "是" : "否"}；Redis 已配置: ${value.environment.redisUrlConfigured ? "是" : "否"}；S3 已配置: ${value.environment.s3EndpointConfigured ? "是" : "否"}</p>
-<p>Chromium: ${chromium.installed ? `已安装（<code>${chromium.executablePath}</code>）` : "未安装"}</p>
+<p>Git SHA: <code>${escapeHtml(value.git.sha ?? "unknown")}</code>（branch <code>${escapeHtml(value.git.branch ?? "unknown")}</code>，dirty: ${value.git.dirty ? "是" : "否"}）</p>
+<p>生成时间: ${escapeHtml(value.generatedAt)}；Bun ${escapeHtml(value.environment.bun ?? "unknown")}；platform ${escapeHtml(value.environment.platform)}/${escapeHtml(value.environment.arch)}</p>
+<p>TEST_DATABASE_URL 已配置: ${value.environment.testDatabaseUrlConfigured ? "是" : "否"}；PLAYWRIGHT_DATABASE_URL 已配置: ${value.environment.playwrightDatabaseUrlConfigured ? "是" : "否"}；Redis 已配置: ${value.environment.redisUrlConfigured ? "是" : "否"}；S3 已配置: ${value.environment.s3EndpointConfigured ? "是" : "否"}</p>
+<p>Chromium: ${chromium.installed ? `已安装（<code>${escapeHtml(chromium.executablePath ?? "")}</code>）` : "未安装"}</p>
 <table>
 <thead><tr><th>层</th><th>状态</th><th>退出码</th><th>耗时(ms)</th><th>跳过/缺失原因</th><th>用例计数</th><th>工件</th><th>命令</th></tr></thead>
 <tbody>

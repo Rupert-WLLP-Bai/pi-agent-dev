@@ -96,6 +96,12 @@ gantt
 | M22 | 10-15 | S0 基线审计（含实测 652/0、37/38 E2E） | `a4c6119` | docs: record S0 baseline audit and verification evidence |
 | M23 | 10-15 | S1 影子决策契约冻结（18 测试通过） | `6a59906` | feat(decision): freeze versioned local Laya shadow contracts |
 | M24 | 10-15 | 工作区访问门 + 出网策略 + 操作者校验 | `1f33d99` | feat(security): gate workspace access and contract model data |
+| M25 | 10-15 | 密钥轮换/重封 + 真实模型/缓存证据 | `cd24aac`/`2d63f15`/`b2033e1` | feat/fix(security): rotate stored keys / redact failure logs / revoke active streams |
+| M26 | 10-15 | S2 决策影子实现（provider/持久化/worker/路由） | `a6ec041`、`f7ce8d1` | feat(agent): add isolated persistent shadow decisions; feat(db): persist shadow decisions |
+| M27 | 10-15 | S2 部署与演示环境保护（digest 固定、localhost、受管 CLI、存储边界） | `908cb5a` | feat(infra): guard demo rebuilds and verify original integrity |
+| M28 | 10-15 | S2 决策 UI + 访问会话 + 行为验收（含 375px 修复） | `cc942b2` | feat(web): add access sessions and shadow decision workflow |
+| M29 | 10-15 | S2 分层测试/覆盖率/机器报告 + 工程竞赛文档 | `de7ea2d`、`31bb8d1` | test(qa): add layered suites; docs(competition): add engineering and submission evidence |
+| M30 | 10-15 | S2 集成修正（reset 删除范围、lint）；检查点 verify 835/0 | `a849b29` | fix(integration): correct demo reset deletes and lint regressions |
 
 ### 1.3 测试/质量证据随历史的位置（避免"文档先行"误读）
 
@@ -104,6 +110,7 @@ gantt
 - 09-14 `5294847`：订正 README 与调研口径，竞品结论入档。
 - 10-15 `a4c6119` 附 `docs/project-management/evidence/s1-verification.json`：独立库 670 测试通过、0 失败；18 项决策契约测试通过。
 - 10-15 `1f33d99` 附 `docs/project-management/evidence/s2-security.json`：688 测试通过，HTTP 层匿名 401 / 授权 200 / 登出 204 / 重放 401 实测。
+- 10-15 S2 五切片合并（M26–M29）：决策影子实现、演示环境保护、决策 UI 与行为验收、分层测试与文档。集成修正 `a849b29` 后 Main 观察 `bun run verify` **835 通过/0 失败**（集成检查点；其后有未提交决策契约修订，最终统一计数以 S3 为准，不与上述各 commit 数字合并）。
 
 ## 2. 架构演进（随提交可证）
 
@@ -116,11 +123,12 @@ gantt
 | 10-14 | Pi SDK 0.85.1 → 1.2.0，工具 schema 统一 TypeBox 1.3.27，原生工具计时 | `docs/research/2026-10-14-pi-1.2-upgrade.md`（对应 `d9a84a4` 前的升级链） |
 | 10-15 | 决策影子层契约（DecisionRequest/Advice/Feedback，TypeBox 校验）与工作区访问门 | `6a59906`、`1f33d99` |
 
-**未决/待核验项**（不得写成已演进完成）：影子推理持久化与独立 worker（S2 实施中，AI 负责）、本地 Laya 的完整数据集评测（Main 负责）、多副本部署（明确不做，见 FAQ）。
+**未决/待核验项**（不得写成已演进完成）：影子持久化/worker/UI 代码已合并（`a6ec041`、`f7ce8d1`、`cc942b2`，含 `a849b29` 后未提交契约修订待 Main 收尾），但 off/shadow 对照与真实 PG 回归未跑（S3，Main/QA 负责）；本地 Laya 的完整数据集评测（Main 负责，S3）；多副本部署（明确不做，见 FAQ）。
 
 ## 3. 未来计划（规划，不是历史）
 
 目标：2026-11-10 V1 冻结。以下日期为计划，附 Owner 与验收；每条在完成前都不得称为事实。
+**S2 计划行（P1–P5）的实现已随五份切片合并**（见 §1.2 M26–M30），状态为"已实现待统一验收"；P6 起的统一回归仍全部为规划。`gantt.csv` 同步（`merged-pending-acceptance`）。
 
 ```mermaid
 gantt
@@ -152,7 +160,8 @@ gantt
 | P2 | 10-15 → 10-22 | 访问门全 API 覆盖（含 SSE/originals）、`LLM_INTERNAL_DATA_ORIGINS` 默认空、compose 转发 | Main + Infra | 匿名 401、授权 200 实测；默认不出网策略有证据 |
 | P3 | 10-15 → 10-24 | 影子建议展示、未校准标识、反馈入口、375px 复核可达 | UX | 浏览器实测三档宽度；空/off/失败/未校准可区分 |
 | P4 | 10-15 → 10-24 | RTM/覆盖率/真实 PG/Redis/S3 回归、失败注入 | QA | 报告含 SHA/退出码；不可测项标 BLOCKED |
-| P5 | 10-15 → 10-24 | `scripts/demo/cli.ts`（up/down/reset/seed/verify/check）+ demo 环境保护 | Infra | 两次 reset 结果一致，非 demo 哨兵保留 |
+| P5 | 10-15 → 10-24 | `scripts/demo/cli.ts`（up/down/reset/seed/verify/check + demo profile `ready`；`logs`/`status`由 Infra 收尾后登记）+ demo 环境保护 | Infra | 两次 reset 结果一致，非 demo 哨兵保留 |
+| P5a | 10-15 → 10-24 | 全站视觉重设计（用户新增）：企业SaaS浅色方向，CSS tokens与Ant主题对齐，中文UI/路由/真实API数据不变，无新UI框架/外部字体/GSAP/图标依赖 | VisualRedesign | 四档视口 375/1280/1440/1920 + 键盘操作 Playwright 通过并留存截图；375px 面板控制不回退；reduced motion/焦点可见 |
 | P6 | 10-25 → 10-31 | 分片合并、迁移执行、逐切片 smoke | Main | 每切片有集成提交与 smoke 记录 |
 | P7 | 11-01 → 11-04 | 统一 verify、集成、E2E、Docker、降级与幂等 | Main + QA | `docs/quality/RELEASE-READINESS.md` 实际数字 |
 | P8 | 11-04 → 11-05 | 发布就绪报告与门禁裁决 | Main | P0/P1 全绿或明确 blocked 项 |

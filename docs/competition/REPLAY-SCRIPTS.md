@@ -125,11 +125,17 @@ curl -s http://localhost:3000/api/audit-cases/<caseId> | bun -e 'const c=await B
 | OCR 未配置 | 上传扫描件 PDF | 明确"无法识别"而非猜测内容 | 不编造文本 |
 | 并发重跑 | 对运行中案件再提交 rerun | `409 case_active`；不产生第二个运行 | 并发保护 |
 
-> **存储模式口径**：demo/production 默认严格（S3 写失败即失败，不静默降级）；本地回退仅在显式配置 `s3-fallback-local` 的开发形态启用（见工程规格 §5.3）。Infra 的演示 CLI（`bun --env-file=.env scripts/demo/cli.ts up|down|reset|seed|verify|check`）交付后，本文与 README 的复现步骤以 CLI 为入口。
+> **存储模式口径**：demo/production 默认严格（S3 写失败即失败，不静默降级）；本地回退仅在显式配置 `s3-fallback-local` 的开发形态启用（见工程规格 §5.3）。受管演示 CLI 已入树：minimal（根 `.env`）`bun --env-file=.env scripts/demo/cli.ts up|down|reset|seed|verify|check`；demo profile（受管 `.demo.env`，`up` 生成）另含 `ready`；备份/恢复 `scripts/demo/backup-restore.ts backup|restore`（需 `.demo.env`）。统一回归（S3）后本文复现步骤以 CLI 为入口；compose 兜底路径保留。
 
 ## 6. 一键复现（完整）
 
 ```bash
+# 受管演示栈（首选；.demo.env 由 up 生成，0600）
+bun --env-file=.demo.env scripts/demo/cli.ts up
+bun --env-file=.demo.env scripts/demo/cli.ts verify
+# 打开 http://localhost:3000
+
+# compose 兜底（完整栈容器化）
 docker compose up --build        # 演示栈
 # 打开 http://localhost:8080
 docker compose exec api bun run seed:demo

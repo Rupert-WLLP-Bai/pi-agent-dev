@@ -15,12 +15,14 @@
 | 真实 Pi 冒烟 | `evidence/real-pi-smoke.json` | 单合成样本 `equipment-lease`；请求端点/模型 + 环境凭据 | 29727 ms、42 步骤、Guard 通过、快照未变；provenance 守卫后复跑 30365 ms、同样 2 项 Guard 有效提案、快照不可变（`b2033e1`） |
 | Laya CPU 冒烟 | `evidence/laya-cpu-smoke.json` | 本地 CPU 单请求；laya 0.4.7 `432312b…`/模型 `1720e3…` | 642 ms、未校准、cpu/线程 4 |
 | 密钥轮换 | `evidence/key-rotation-smoke.json` | 新迁移库 dry-run/apply；错库拒绝；损坏行回滚 | commit `cd24aac` |
+| 存储边界 | `evidence/storage-boundary-smoke.json` | S3 归属/严格模式/local 不经过 S3 读 | 迁移 `0018`（`f7ce8d1`） |
 | 启动安全 | `evidence/startup-security.json` | demo/production secret 前置校验；旧明文重封 2→0 幂等 | commit `cd24aac` |
 | 缓存失败与隐私回归 | `evidence/cache-failure-smoke.json` | Redis 不可达 1.5 s 超时/不重试，观测 33 ms 返回 disabled cache；7 项隐私/降级回归通过 | commit `2d63f15` 及后续安全切片；最终计数待集成 |
 | 金额链实测 | `docs/research/2026-09-14-ict-项目卷宗现状调研.md` §6 | 合成卷宗（1 xlsx + 2 docx）端到端 | 0.56 s 冷启动、3 项比对、2 处手工合计 |
 | OCR 真实耗时 | 同上 §5 | 24.6 MB 扫描件、视觉模型、`OCR_SCALE=2`、并发 3 | 396 s、990 块/26041 字 |
 | Pi 1.2 升级 | `docs/research/2026-10-14-pi-1.2-upgrade.md` | 真实模型完成审计 + 协议回归 | 69170 ms 样本、版本锁 1.2.0 |
 | E2E 基线 | S0 记录 | `CI=true ... bun run acceptance` | 37/38；失败用例 `audit-case.spec.ts:191` |
+| S2 合并集成检查点 | Main 观察（`a849b29`） | `bun run verify` | 835 通过/0 失败；其后有未提交决策契约修订，最终计数以 S3 为准 |
 
 ## 2. 复现命令对照（证据 → 命令）
 
@@ -39,13 +41,13 @@
 
 | 项 | 负责 | 状态 |
 | --- | --- | --- |
-| 覆盖率工件（行/函数/分支分开） | QA | 待归集 |
-| 真实 Redis/S3 故障与恢复集成 | Infra + QA | 待归集 |
+| 覆盖率工件（行/函数分开；分支不可测标null） | QA | 已产出（`de7ea2d`：`artifacts/qa/coverage/lcov.info`）；统一运行待S3 |
+| 真实 Redis/S3 故障与恢复集成 | Infra + QA | 用例已入树（`de7ea2d`）；真实服务统一运行待S3 |
 | 字段级出网抓包（模型请求无敏感标识） | QA | 待归集 |
-| 两次 reset + 非 demo 哨兵 | Infra + QA | 待归集 |
+| 两次 reset + 非 demo 哨兵 | Infra + QA | 脚本与保护已入树（`908cb5a`+`a849b29`）；对照运行待S3（reset遗漏修正由Main进行中） |
 | 第三方复现记录（K3） | Infra | 待归集 |
-| 影子 off/shadow 对照运行 | AI + QA | S2 后 |
-| 修正后的 E2E 全绿记录 | QA | 待归集 |
+| 影子 off/shadow 对照运行 | AI + QA | 代码已合并（`a6ec041`）；对照运行待S3 |
+| 修正后的 E2E 全绿记录 | QA | rerun 契约已重写（`de7ea2d`）；全绿记录待S3 |
 
 ## 4. 使用规则
 

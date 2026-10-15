@@ -18,7 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
-import { Avatar, Button, Drawer, Layout, Menu, Tooltip, Typography } from "antd";
+import { Avatar, Button, Drawer, Layout, Menu, Tooltip } from "antd";
 import { useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
@@ -230,71 +230,6 @@ function selectedKeys(pathname: string, origin?: unknown): string[] {
   return [pathname];
 }
 
-function breadcrumbFor(pathname: string, origin?: unknown) {
-  if (pathname.startsWith("/audit-cases/") && pathname.endsWith("/decisions")) {
-    return (
-      <>
-        <Link to="/audit-cases">审计队列</Link>
-        <span className="app-breadcrumb-sep">/</span>
-        辅助决策
-      </>
-    );
-  }
-  if (pathname.startsWith("/audit-cases/") && pathname.endsWith("/trace")) {
-    return (
-      <>
-        <Link to="/audit-cases">审计队列</Link>
-        <span className="app-breadcrumb-sep">/</span>
-        运行轨迹
-      </>
-    );
-  }
-  if (pathname.startsWith("/audit-cases/")) {
-    const fromReviews = origin === "reviews";
-    const fromRemediations = origin === "remediations";
-    const to = fromReviews ? "/reviews" : fromRemediations ? "/remediations" : "/audit-cases";
-    const label = fromReviews ? "复核中心" : fromRemediations ? "整改跟踪" : "审计队列";
-    return (
-      <>
-        <Link to={to}>{label}</Link>
-        <span className="app-breadcrumb-sep">/</span>
-        审计案件
-      </>
-    );
-  }
-  if (pathname === "/reviews") return "复核中心";
-  if (pathname === "/remediations") return "整改跟踪";
-  if (pathname === "/demo") return "演示概览";
-  if (pathname === "/contracts") return "合同中心";
-  if (pathname.startsWith("/contracts/")) {
-    return (
-      <>
-        <Link to="/contracts">合同中心</Link>
-        <span className="app-breadcrumb-sep">/</span>
-        合同详情
-      </>
-    );
-  }
-  if (pathname === "/dossier-review") return "卷宗核对";
-  if (pathname === "/audit-runs") return "运行轨迹";
-  if (pathname === "/rules") return "规则管理";
-  if (pathname.startsWith("/rules/")) {
-    return (
-      <>
-        <Link to="/rules">规则管理</Link>
-        <span className="app-breadcrumb-sep">/</span>
-        规则编辑器
-      </>
-    );
-  }
-  if (pathname === "/cases") return "案例验证";
-  if (pathname === "/integrations") return "集成健康";
-  if (pathname === "/verification") return "外部核验";
-  if (pathname === "/settings/providers") return "模型服务";
-  if (pathname === "/settings/ocr") return "OCR 识别";
-  return "审计队列";
-}
-
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userCollapsed, setUserCollapsed] = useState<boolean | null>(readStoredCollapse);
@@ -363,7 +298,7 @@ export function AppShell() {
           width={232}
           collapsedWidth={64}
           collapsed={effectiveCollapsed}
-          theme="light"
+          theme="dark"
           trigger={null}
           className="app-sider"
         >
@@ -371,7 +306,7 @@ export function AppShell() {
           {navMenu}
           <div className="app-sider-foot">
             <div className="app-user-tile">
-              <Avatar size={28} style={{ background: "#0B6BB5", flexShrink: 0 }}>
+              <Avatar size={28} style={{ background: "#1D4E79", flexShrink: 0 }}>
                 审
               </Avatar>
               {!effectiveCollapsed && (
@@ -405,9 +340,6 @@ export function AppShell() {
                 />
               </Tooltip>
             )}
-            <Typography.Text className="app-breadcrumb" type="secondary">
-              {breadcrumbFor(location.pathname, origin)}
-            </Typography.Text>
           </div>
           <div className="app-header-right">
             {showHealth && (
@@ -430,7 +362,7 @@ export function AppShell() {
                 退出登录
               </Button>
             )}
-            <Avatar size={28} style={{ background: "#0B6BB5" }}>
+            <Avatar size={28} style={{ background: "#1D4E79" }}>
               审
             </Avatar>
           </div>
@@ -447,7 +379,7 @@ export function AppShell() {
           onClose={() => setMenuOpen(false)}
           size={260}
           className="app-menu-drawer"
-          styles={{ body: { padding: 0, background: "#ffffff" } }}
+          styles={{ body: { padding: 0, background: "#0F2740" } }}
         >
           <BrandMark collapsed={false} />
           <Menu
