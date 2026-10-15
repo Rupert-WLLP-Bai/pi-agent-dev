@@ -39,14 +39,14 @@ export function createCachedSubjectVerificationPort(
       try {
         const hit = await cache.get(key);
         if (hit !== null) return JSON.parse(hit) as SubjectVerificationOutcome;
-      } catch (error) {
-        console.warn("qcc cache get failed; calling provider", error);
+      } catch {
+        console.warn("QCC_CACHE_GET_FAILED_CALLING_PROVIDER");
       }
       const result = await inner.verify(subject, signal);
       try {
         await cache.set(key, JSON.stringify(result), ttlSeconds);
-      } catch (error) {
-        console.warn("qcc cache set failed; continuing without cache", error);
+      } catch {
+        console.warn("QCC_CACHE_SET_FAILED_CONTINUING_WITHOUT_CACHE");
       }
       return result;
     },
@@ -55,14 +55,17 @@ export function createCachedSubjectVerificationPort(
 
 export async function connectRedis(url: string | undefined): Promise<VerificationCache | null> {
   if (url === undefined || url.trim() === "") return null;
-  const client = createClient({ url: url.trim() });
-  client.on("error", (error) => {
-    console.warn("redis client error", error);
+  const client = createClient({
+    url: url.trim(),
+    socket: { connectTimeout: 1_500, reconnectStrategy: false },
+  });
+  client.on("error", () => {
+    console.warn("REDIS_CLIENT_ERROR");
   });
   try {
     await client.connect();
-  } catch (error) {
-    console.warn("redis connect failed; QCC cache disabled", error);
+  } catch {
+    console.warn("REDIS_CONNECT_FAILED_QCC_CACHE_DISABLED");
     return null;
   }
   return {

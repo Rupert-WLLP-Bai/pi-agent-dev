@@ -27,15 +27,12 @@ const outcome = (summary: string): SubjectVerificationOutcome => ({
 
 class MemoryCache implements VerificationCache {
   store = new Map<string, { value: string; ttlSeconds: number }>();
-  fail = false;
 
   async get(key: string): Promise<string | null> {
-    if (this.fail) throw new Error("redis get failed");
     return this.store.get(key)?.value ?? null;
   }
 
   async set(key: string, value: string, ttlSeconds: number): Promise<void> {
-    if (this.fail) throw new Error("redis set failed");
     this.store.set(key, { value, ttlSeconds });
   }
 }
@@ -86,14 +83,23 @@ test("a missing cache always calls through to the inner port", async () => {
   expect(inner.calls).toHaveLength(2);
 });
 
-test("a redis failure still returns the inner answer", async () => {
+test("cache failure preserves verification without logging credentials or party data", async () => {
   const inner = recordingPort(outcome("降级"));
-  const cache = new MemoryCache();
-  cache.fail = true;
-  const port = createCachedSubjectVerificationPort(inner, cache);
-
-  const result = await port.verify("深圳精工科技有限公司");
-
-  expect(result.summary).toBe("降级");
-  expect(inner.calls).toEqual(["深圳精工科技有限公司"]);
+  const sensitive = "SYNTHETIC_REDIS_SECRET_9921_PRIVATE_PARTY_7730";
+  const fail = async () => {
+    throw new Error(sensitive);
+  };
+  const cache: VerificationCache = { get: fail, set: fail };
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    const port = createCachedSubjectVerificationPort(inner, cache);
+    const result = await port.verify("深圳精工科技有限公司");
+    expect(result.summary).toBe("降级");
+    expect(inner.calls).toEqual(["深圳精工科技有限公司"]);
+    expect(Bun.inspect(warnings)).not.toContain(sensitive);
+  } finally {
+    console.warn = originalWarn;
+  }
 });

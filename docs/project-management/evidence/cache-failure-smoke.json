@@ -1,0 +1,30 @@
+{
+  "recordedAt": "2026-10-15T05:16:05.161Z",
+  "scenario": "Actual loopback Redis endpoint unreachable; no real credentials supplied",
+  "before": {
+    "elapsedMs": 3008,
+    "settled": false,
+    "result": "WATCHDOG",
+    "processStoppedByWatchdog": true
+  },
+  "after": {
+    "elapsedMs": 33,
+    "settled": true,
+    "result": null,
+    "exitCode": 0,
+    "safeLogs": [
+      "REDIS_CLIENT_ERROR",
+      "REDIS_CONNECT_FAILED_QCC_CACHE_DISABLED"
+    ]
+  },
+  "privacyRegressions": {
+    "traceBefore": "FAILED: synthetic contract text and credential leaked in raw error",
+    "cacheBefore": "FAILED: synthetic Redis credential and party marker leaked in raw error",
+    "after": {
+      "command": "bun test packages/audit/src/agent-trace.test.ts apps/api/src/qcc/cache.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "assertions": 18
+    }
+  }
+}

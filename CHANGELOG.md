@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Atomic model/OCR encryption-key rotation with database identity confirmation,
   a dry-run default, corrupt-row rollback and no credential logging. Startup seals
   legacy plaintext keys in both stores and requires an encryption secret for demo/production.
+- Trace/cache failures omit raw errors that may contain document text or credentials.
+  An unavailable optional Redis now disables caching promptly instead of blocking startup
+  with unlimited reconnects; verification continues through the underlying provider.
 - Versioned shadow-decision contracts for Disabled/Fake and local Laya, with distinct
   case, snapshot and run identities, typed failures, independent feedback and public
   detail envelopes. These contracts do not grant authority to change audit findings.

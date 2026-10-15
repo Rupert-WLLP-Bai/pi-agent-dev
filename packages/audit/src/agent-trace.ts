@@ -42,8 +42,8 @@ export function createAgentTraceCollector(
     steps.push(step);
     tail = tail
       .then(() => write(step))
-      .catch((error: unknown) => {
-        console.warn("agent_trace_write_failed", { runId, sequence: step.sequence, error });
+      .catch(() => {
+        console.warn("agent_trace_write_failed", { runId, sequence: step.sequence });
       });
   };
 
