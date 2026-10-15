@@ -1,0 +1,1 @@
+ALTER TABLE "agent_trace_steps" ADD COLUMN "parent_ref" text;

@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@contract-audit/audit": "workspace:*",
-    "@earendil-works/pi-coding-agent": "0.85.1",
-    "@earendil-works/pi-ai": "0.85.1",
-    "@sinclair/typebox": "^0.34.0"
+    "@earendil-works/pi-coding-agent": "1.2.0",
+    "@earendil-works/pi-ai": "1.2.0",
+    "typebox": "1.3.27"
   }
 }

@@ -40,14 +40,19 @@ const testResultSchema = t.Object({
   error: t.Union([t.String(), t.Null()]),
   latencyMs: t.Number(),
 });
-const modelsSchema = t.Object({ models: t.Array(t.String()) });
+const modelSchema = t.Object({
+  id: t.String(),
+  maxInput: t.Union([t.Number(), t.Null()]),
+  maxOutput: t.Union([t.Number(), t.Null()]),
+});
+const modelsSchema = t.Object({ models: t.Array(modelSchema) });
 const idParams = t.Object({ id: t.String() });
 
 const createBody = t.Object({
   name: t.String(),
   endpoint: t.String(),
   model: t.String(),
-  apiKey: t.String(),
+  apiKey: t.Optional(t.String()),
   maxInput: t.Optional(t.Number()),
   maxOutput: t.Optional(t.Number()),
   enabled: t.Optional(t.Boolean()),
@@ -82,7 +87,7 @@ export function llmProvidersRoutes({ providers, onChanged }: LlmProvidersRouteDe
       "/api/llm-providers",
       async ({ body, set, headers }) => {
         try {
-          const provider = await providers.create(body);
+          const provider = await providers.create({ ...body, apiKey: body.apiKey ?? "" });
           await onChanged?.(operatorFrom(headers));
           set.status = 201;
           return provider;
@@ -207,24 +212,38 @@ export function llmProvidersRoutes({ providers, onChanged }: LlmProvidersRouteDe
         },
       },
     )
-    .get(
-      "/api/llm-providers/:id/models",
-      async ({ params, set }) => {
-        const credentials = await providers.credentialsFor(params.id);
-        if (!credentials) {
-          set.status = 404;
-          return { error: "模型服务不存在" };
+    .post(
+      "/api/llm-providers/models",
+      async ({ body, set }) => {
+        const endpoint = body.endpoint.trim().replace(/\/+$/, "");
+        let apiKey = body.apiKey?.trim() ?? "";
+        if (body.providerId && body.apiKey === undefined) {
+          const saved = await providers.credentialsFor(body.providerId);
+          if (!saved) {
+            set.status = 404;
+            return { error: "模型服务不存在" };
+          }
+          // A changed destination must never receive the previous provider's key.
+          if (saved.endpoint.trim().replace(/\/+$/, "") === endpoint) apiKey = saved.apiKey;
         }
-        const probe = await probeProvider(credentials.endpoint, credentials.apiKey);
-        return { models: probe.ok ? probe.models : [] };
+        const probe = await probeProvider(endpoint, apiKey);
+        if (!probe.ok) {
+          set.status = 502;
+          return { error: probe.error ?? "获取模型列表失败" };
+        }
+        return { models: probe.models };
       },
       {
-        params: idParams,
-        response: { 200: modelsSchema, 404: notFoundSchema },
+        body: t.Object({
+          endpoint: t.String({ minLength: 1 }),
+          apiKey: t.Optional(t.String()),
+          providerId: t.Optional(t.String()),
+        }),
+        response: { 200: modelsSchema, 404: notFoundSchema, 502: errorSchema },
         detail: {
-          summary: "获取模型列表",
+          summary: "获取草稿配置的模型列表",
           description:
-            "使用已保存的密钥请求 {endpoint}/models 并返回模型 id 列表。上游失败时返回空列表，绝不抛出 5xx。",
+            "无需保存模型服务，按填写的地址与可选 API Key 请求 /models。空密钥不发送鉴权头；编辑时省略密钥可在地址未改变时沿用已存密钥。容量字段缺失时返回 null，不推测模型上限。",
           tags: TAG,
         },
       },

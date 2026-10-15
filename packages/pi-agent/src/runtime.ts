@@ -7,7 +7,12 @@ import type {
   AgentTraceSink,
   AuditAgentPort,
 } from "@contract-audit/audit/ports";
-import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  createAgentSession,
+  DefaultResourceLoader,
+  SessionManager,
+  SettingsManager,
+} from "@earendil-works/pi-coding-agent";
 import {
   buildModel,
   createModelRuntime,
@@ -62,13 +67,32 @@ export class PiAuditAgent implements AuditAgentPort {
     const tools = createAuditTools(input, (value) => {
       proposals.set(value.findingType, value);
     });
+    const settingsManager = SettingsManager.inMemory();
+    const resourceLoader = new DefaultResourceLoader({
+      cwd: import.meta.dir,
+      agentDir: import.meta.dir,
+      settingsManager,
+      noExtensions: true,
+      noSkills: true,
+      noPromptTemplates: true,
+      noThemes: true,
+      noContextFiles: true,
+      systemPrompt: loadSkillPrompt(),
+      appendSystemPromptOverride: () => [],
+    });
+    await resourceLoader.reload();
+    signal.throwIfAborted();
 
     const { session } = await createAgentSession({
+      cwd: import.meta.dir,
       model: buildModel(this.config),
       modelRuntime,
+      thinkingLevel: "off",
+      resourceLoader,
+      settingsManager,
       tools: [...AUDIT_TOOL_NAMES],
       customTools: tools,
-      sessionManager: SessionManager.inMemory(),
+      sessionManager: SessionManager.inMemory(import.meta.dir),
     });
 
     // Subscribe before prompting: the first events carry the run boundary and
@@ -83,7 +107,7 @@ export class PiAuditAgent implements AuditAgentPort {
     let outcome: "completed" | "failed" = "failed";
     try {
       signal.addEventListener("abort", abortSession, { once: true });
-      await session.prompt(loadSkillPrompt());
+      await session.prompt("请审查当前合同，依据确定性评估与证据提交风险建议，并用中文说明结果。");
       signal.throwIfAborted();
       // Zero findings is a legitimate outcome: the contract passed. Zero
       // findings *and* zero tool calls means the model never audited anything,
@@ -111,12 +135,4 @@ export class PiAuditAgent implements AuditAgentPort {
       session.dispose();
     }
   }
-}
-
-export async function createSmokeTestSession() {
-  const result = await createAgentSession({
-    noTools: "all",
-    sessionManager: SessionManager.inMemory(),
-  });
-  return result.session;
 }

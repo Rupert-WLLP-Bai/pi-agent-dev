@@ -37,6 +37,7 @@ export function decryptApiKey(stored: string, secret: string | null): string {
 
 /** Stores encrypted when a secret is configured; otherwise keeps plaintext (local dev). */
 export function sealApiKey(plain: string): string {
+  if (plain.length === 0) return "";
   const secret = llmKeyEncryptionSecret();
   if (!secret) return plain;
   return encryptApiKey(plain, secret);

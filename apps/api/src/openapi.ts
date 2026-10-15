@@ -78,7 +78,10 @@ export const openapiDocumentation = {
     { url: "http://localhost:8080/api", description: "演示环境（Nginx 反代，/api 前缀）" },
   ],
   tags: [
-    { name: openapiTags.auditCases, description: "创建、查询、取消、重试与重评估审计案件。" },
+    {
+      name: openapiTags.auditCases,
+      description: "创建、查询、取消、重试、重评估与重新审计审计案件。",
+    },
     { name: openapiTags.reviews, description: "待复核队列、复核决策与分配。" },
     { name: openapiTags.remediations, description: "整改项看板、状态流转与关闭。" },
     { name: openapiTags.rules, description: "规则目录、版本、验证门禁、发布与启停。" },

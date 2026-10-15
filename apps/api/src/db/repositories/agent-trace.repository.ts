@@ -71,6 +71,7 @@ export class AgentTraceRepository {
         at: new Date(step.at),
         label: step.label,
         ref: step.ref,
+        parentRef: step.parentRef,
         input: step.input,
         output: step.output,
         isError: step.isError,

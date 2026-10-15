@@ -32,6 +32,7 @@ test("GET /api/agent-runs lists recent runs with step counts", async () => {
     at: new Date().toISOString(),
     label: "RUN_STARTED",
     ref: null,
+    parentRef: null,
     input: null,
     output: null,
     isError: false,

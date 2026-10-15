@@ -6,4 +6,4 @@ export {
   PI_AGENT_VERSION,
 } from "./config";
 export { FakeAuditAgent } from "./fake-agent";
-export { createSmokeTestSession, PiAuditAgent } from "./runtime";
+export { PiAuditAgent } from "./runtime";

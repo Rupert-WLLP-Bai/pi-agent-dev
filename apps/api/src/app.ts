@@ -160,16 +160,11 @@ export function createApp(deps: AppDeps) {
       // unclassified error — or one whose handler promised 5xx — is ours.
       if (set.status === undefined || set.status === 200) {
         set.status =
-          code === "NOT_FOUND"
-            ? 404
-            : code === "VALIDATION"
-              ? 422
-              : code === "PARSE"
-                ? 400
-                : 500;
+          code === "NOT_FOUND" ? 404 : code === "VALIDATION" ? 422 : code === "PARSE" ? 400 : 500;
       }
-      if (set.status >= 500) return { error: "internal_error", requestId };
-      return { error: code.toLowerCase(), requestId };
+      const status = typeof set.status === "number" ? set.status : 500;
+      if (status >= 500) return { error: "internal_error", requestId };
+      return { error: String(code).toLowerCase(), requestId };
     })
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))

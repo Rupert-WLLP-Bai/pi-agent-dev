@@ -20,6 +20,7 @@ const baseStep = (
   durationMs: null,
   tokens: null,
   runId: "run-1",
+  parentRef: null,
   ...overrides,
 });
 

@@ -1,69 +1,24 @@
+import { loadOcrConfig, type OcrConfig } from "./config";
 import { createMineruOcrPort } from "./mineru";
-import type { OcrPort, OcrProbe, OcrResult } from "./types";
+import type { LiveOcrPort, OcrPort, OcrProbe, OcrResult } from "./types";
 import { createVlmOcrPort } from "./vlm";
 
-export { createMineruOcrPort } from "./mineru";
-export type { OcrBlock, OcrPort, OcrProbe, OcrResult } from "./types";
+export type { OcrConfig } from "./config";
+export { loadOcrConfig } from "./config";
+export { createMineruOcrPort, type MineruOcrOptions } from "./mineru";
+export {
+  createMemoryOcrSettingsStore,
+  createOcrSettingsRepository,
+  OCR_SETTINGS_KEY,
+  type OcrSettings,
+  OcrSettingsRepository,
+  OcrSettingsRepositoryError,
+  type OcrSettingsStore,
+  type OcrSettingsUpdate,
+} from "./ocr-settings-repository";
+export type { LiveOcrPort, OcrBlock, OcrPort, OcrProbe, OcrResult } from "./types";
+export { isLiveOcrPort } from "./types";
 export { createVlmOcrPort } from "./vlm";
-
-export type OcrProviderName = "vlm" | "mineru" | "off";
-
-export interface OcrConfig {
-  provider: OcrProviderName;
-  endpoint: string;
-  apiKey: string;
-  model: string;
-  fallbackModel: string | null;
-  maxPages: number;
-  scale: number;
-  jpegQuality: number;
-  concurrency: number;
-  requestTimeoutMs: number;
-  mineruEndpoint: string;
-}
-
-const positiveInt = (raw: string | undefined, fallback: number): number => {
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback;
-};
-
-const positiveNumber = (raw: string | undefined, fallback: number): number => {
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-};
-
-/**
- * Reads the OCR wiring from the environment. The provider defaults to `off`
- * rather than `vlm`: recognition sends contract page images to a model
- * endpoint, and that must be an explicit decision, never a side effect of
- * leaving a variable unset.
- */
-export function loadOcrConfig(env: Record<string, string | undefined> = process.env): OcrConfig {
-  const endpoint = env.OCR_VLM_ENDPOINT?.trim() ?? "";
-  const declared = env.OCR_PROVIDER?.trim().toLowerCase();
-  const provider: OcrProviderName =
-    declared === "vlm" || declared === "mineru" || declared === "off"
-      ? declared
-      : endpoint.length > 0
-        ? "vlm"
-        : "off";
-
-  const fallback = env.OCR_VLM_FALLBACK_MODEL?.trim() ?? "";
-
-  return {
-    provider,
-    endpoint,
-    apiKey: env.OCR_VLM_API_KEY?.trim() ?? "",
-    model: env.OCR_VLM_MODEL?.trim() ?? "",
-    fallbackModel: fallback.length > 0 ? fallback : null,
-    maxPages: positiveInt(env.OCR_MAX_PAGES, 40),
-    scale: positiveNumber(env.OCR_SCALE, 2),
-    jpegQuality: positiveInt(env.OCR_JPEG_QUALITY, 85),
-    concurrency: positiveInt(env.OCR_CONCURRENCY, 3),
-    requestTimeoutMs: positiveInt(env.OCR_TIMEOUT_MS, 120_000),
-    mineruEndpoint: env.MINERU_ENDPOINT?.trim() ?? "",
-  };
-}
 
 /** The no-op recognizer: scanned contracts stay unreadable, and say so. */
 function createDisabledOcrPort(detail: string): OcrPort {
@@ -88,7 +43,14 @@ function createDisabledOcrPort(detail: string): OcrPort {
 
 /** Builds the configured recognizer. Never throws — a misconfigured OCR is `off`. */
 export function createOcrPort(config: OcrConfig = loadOcrConfig()): OcrPort {
-  if (config.provider === "mineru") return createMineruOcrPort(config.mineruEndpoint);
+  if (config.provider === "mineru") {
+    return createMineruOcrPort(config.mineruEndpoint, {
+      // The configured caps are the operator's, so the server applies them:
+      // `page_range=1-N` bounds the parse and the timeout bounds the request.
+      maxPages: config.maxPages,
+      requestTimeoutMs: config.requestTimeoutMs,
+    });
+  }
   if (config.provider === "off") {
     return createDisabledOcrPort("未设置 OCR_VLM_ENDPOINT，扫描件合同无法识别");
   }
@@ -106,4 +68,52 @@ export function createOcrPort(config: OcrConfig = loadOcrConfig()): OcrPort {
     concurrency: config.concurrency,
     requestTimeoutMs: config.requestTimeoutMs,
   });
+}
+
+/**
+ * A recognizer that resolves its configuration on every call.
+ *
+ * The dispatcher and the health route each hold one of these for the process's
+ * lifetime, so a save cannot rebuild them. What a save *does* do is change what
+ * the resolver returns: the next `probe()` or `recognizePdf()` entry builds the
+ * recognizer the saved configuration describes. That is what makes "the next
+ * PDF uses new settings without restarting the app" true, while `capture()`
+ * freezes one configuration for the whole of a single operation, so a page
+ * half-recognized under the old endpoint never flips models mid-document.
+ *
+ * The resolver may be async — the stored row is one database read — and the
+ * port awaits it per entry. A synchronous resolver (the environment, a test)
+ * works unchanged.
+ */
+export function createLiveOcrPort(resolve: () => OcrConfig | Promise<OcrConfig>): LiveOcrPort {
+  const build = async (): Promise<OcrPort> => createOcrPort(await resolve());
+  return {
+    // A live port cannot answer these synchronously: the configuration is one
+    // database read away. `describe()` is the async form the health route uses;
+    // the synchronous getters exist only to satisfy the port contract and say
+    // so rather than freezing a value that is already stale.
+    get provider(): string {
+      throw new Error("OCR_LIVE_PORT_IS_ASYNC");
+    },
+    get target(): string {
+      throw new Error("OCR_LIVE_PORT_IS_ASYNC");
+    },
+    get enabled(): boolean {
+      throw new Error("OCR_LIVE_PORT_IS_ASYNC");
+    },
+    probe(): Promise<OcrProbe> {
+      return build().then((port) => port.probe());
+    },
+    recognizePdf(data: Uint8Array): Promise<OcrResult> {
+      return build().then((port) => port.recognizePdf(data));
+    },
+    /** The recognizer one operation runs under, bound to the config right now. */
+    async capture(): Promise<OcrPort> {
+      return build();
+    },
+    async describe() {
+      const port = await build();
+      return { provider: port.provider, target: port.target, enabled: port.enabled };
+    },
+  };
 }

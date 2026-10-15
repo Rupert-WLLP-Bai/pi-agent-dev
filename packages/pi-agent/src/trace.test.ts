@@ -19,7 +19,7 @@ function recorder() {
   };
 }
 
-test("pairs a tool call with its result and measures the gap", () => {
+test("pairs tool results and rounds SDK timing independently of the wall clock", () => {
   const { observations, reporter, advance, labels } = recorder();
 
   reporter.observe({
@@ -28,13 +28,14 @@ test("pairs a tool call with its result and measures the gap", () => {
     toolName: "get_rule_assessments",
     args: { evidenceIds: ["a"] },
   });
-  advance(25);
+  advance(2500);
   reporter.observe({
     type: "tool_execution_end",
     toolCallId: "call-1",
     toolName: "get_rule_assessments",
     result: { assessments: [] },
     isError: false,
+    durationMs: 25.6,
   });
 
   expect(labels()).toEqual(["get_rule_assessments", "get_rule_assessments"]);
@@ -50,7 +51,7 @@ test("pairs a tool call with its result and measures the gap", () => {
     input: null,
     output: { assessments: [] },
     isError: false,
-    durationMs: 25,
+    durationMs: 26,
   });
 });
 
@@ -153,8 +154,102 @@ test("ignores events it does not model instead of failing the audit", () => {
   reporter.observe(null);
   reporter.observe("not an event");
   reporter.observe({ type: "compaction_start", reason: "threshold" });
-  reporter.observe({ type: "turn_start" });
+  reporter.observe({ type: "agent_settled", aborted: false });
   reporter.observe({ type: "tool_execution_start", toolCallId: 7, toolName: "t" });
 
   expect(observations).toEqual([]);
+});
+
+test("records each turn as its own boundary, carrying the turn's usage", () => {
+  const { observations, reporter } = recorder();
+
+  reporter.observe({ type: "turn_start" });
+  reporter.observe({
+    type: "tool_execution_start",
+    toolCallId: "c1",
+    toolName: "search_contract",
+    args: { query: "预付款" },
+  });
+  reporter.observe({
+    type: "tool_execution_end",
+    toolCallId: "c1",
+    toolName: "search_contract",
+    result: { matches: [] },
+    isError: false,
+    durationMs: 12,
+  });
+  reporter.observe({
+    type: "turn_end",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "查不到预付款条款。" }],
+      stopReason: "stop",
+      usage: {
+        input: 900,
+        output: 40,
+        cacheRead: 512,
+        cacheWrite: 0,
+        totalTokens: 940,
+      },
+    },
+    toolResults: [{ callId: "c1" }],
+  });
+  reporter.observe({ type: "turn_start" });
+  reporter.observe({
+    type: "turn_end",
+    message: {
+      role: "assistant",
+      content: [{ type: "text", text: "完成。" }],
+      stopReason: "stop",
+      usage: { input: 960, output: 12 },
+    },
+    toolResults: [],
+  });
+
+  expect(observations.map((observation) => observation.label)).toEqual([
+    "TURN_STARTED",
+    "search_contract",
+    "search_contract",
+    "TURN_COMPLETED",
+    "TURN_STARTED",
+    "TURN_COMPLETED",
+  ]);
+  const closed = observations[3];
+  expect(closed).toMatchObject({
+    kind: "STAGE",
+    label: "TURN_COMPLETED",
+    input: { turnIndex: 1 },
+    output: { toolResults: 1 },
+    tokens: { input: 900, output: 40, cacheRead: 512, total: 940 },
+  });
+  expect(typeof closed.durationMs).toBe("number");
+  // A turn that closed without its own start — a trace that begins mid-run —
+  // records nothing rather than a bogus boundary.
+  reporter.observe({ type: "turn_end", message: {}, toolResults: [] });
+  expect(observations).toHaveLength(6);
+});
+
+test("nests calls a tool made, keyed by the parent's call id", () => {
+  const { observations, reporter } = recorder();
+
+  reporter.observe({
+    type: "tool_execution_start",
+    toolCallId: "outer/1",
+    toolName: "get_evidence",
+    args: { evidenceIds: ["ev-1"] },
+    parentToolCallId: "outer",
+  });
+  reporter.observe({
+    type: "tool_execution_end",
+    toolCallId: "outer/1",
+    toolName: "get_evidence",
+    result: [{ id: "ev-1" }],
+    isError: false,
+    parentToolCallId: "outer",
+  });
+
+  expect(observations).toMatchObject([
+    { kind: "TOOL_CALL", ref: "outer/1", parentRef: "outer" },
+    { kind: "TOOL_RESULT", ref: "outer/1", parentRef: "outer" },
+  ]);
 });

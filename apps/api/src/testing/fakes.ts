@@ -273,6 +273,12 @@ export class InMemoryAuditCaseRepository {
    * mirroring the SQL guards: the source case must have stopped, and no other
    * case on that revision may still be queued or running. The source case's
    * snapshots, findings, reviews and remediations are left exactly as they were.
+   *
+   * The SQL repository refuses an id that is not a UUID before sending any
+   * statement — the columns are typed `uuid`, so a raw string would abort the
+   * transaction and surface as a 500. The fake's ids are synthetic, so it
+   * reproduces the same contract by shape: an id carrying whitespace or the
+   * characters a UUID never uses cannot address a row here either.
    */
   async createRerunCase(sourceCaseId: string): Promise<CreateRerunCaseResult> {
     const source = this.cases.get(sourceCaseId);

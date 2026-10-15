@@ -172,12 +172,31 @@ test("a half-configured provider yields a disabled port that explains itself", a
   expect((await port.probe()).detail).toContain("OCR_VLM_MODEL");
 });
 
-test("the MinerU slot is reachable but honestly reports itself unimplemented", async () => {
-  const port = createOcrPort(
-    loadOcrConfig({ OCR_PROVIDER: "mineru", MINERU_ENDPOINT: "http://mineru:8000" }),
-  );
+test("the MinerU adapter reaches its documented v1 health route", async () => {
+  let requested = "";
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    requested = typeof input === "string" ? input : input.toString();
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        version: "4.0.12",
+        features: { output_formats: ["markdown", "middle_json"] },
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  }) as typeof fetch;
 
-  expect(port.provider).toBe("mineru");
-  expect(port.enabled).toBe(false);
-  expect((await port.probe()).detail).toContain("尚未实现");
+  try {
+    const port = createOcrPort(
+      loadOcrConfig({ OCR_PROVIDER: "mineru", MINERU_ENDPOINT: "http://mineru:8000" }),
+    );
+
+    expect(port.provider).toBe("mineru");
+    expect(port.enabled).toBe(true);
+    expect((await port.probe()).ok).toBe(true);
+    // The 4.x contract is under /v1; a 3.x path would be a guess.
+    expect(requested).toBe("http://mineru:8000/v1/health");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

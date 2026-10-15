@@ -30,11 +30,11 @@ export async function seedProviderFromEnv(store: LlmProviderStore): Promise<stri
   if (existing.length > 0) return null;
 
   const endpoint = process.env.XYG_ENDPOINT?.trim();
-  const apiKey = process.env.XYG_API_KEY?.trim();
+  const apiKey = process.env.XYG_API_KEY?.trim() ?? "";
   const model = process.env.XYG_MODEL?.trim();
   // Not configured via the environment either — leave the table empty and let
   // the runtime report LLM_NOT_CONFIGURED when an audit starts.
-  if (!endpoint || !apiKey || !model) return null;
+  if (!endpoint || !model) return null;
 
   const input: LlmProviderInput = {
     name: "默认模型服务",

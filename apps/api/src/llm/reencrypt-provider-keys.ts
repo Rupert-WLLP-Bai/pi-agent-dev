@@ -1,4 +1,4 @@
-import { eq, not, sql } from "drizzle-orm";
+import { and, eq, ne, not, sql } from "drizzle-orm";
 import type { DrizzleDB } from "../db/repositories";
 import { llmProviders } from "../db/schema";
 import { llmKeyEncryptionSecret, openApiKey, sealApiKey } from "./api-key-crypto";
@@ -10,7 +10,7 @@ export async function reencryptPlainLlmProviderKeys(db: DrizzleDB): Promise<numb
   const rows = await db
     .select({ id: llmProviders.id, apiKey: llmProviders.apiKey })
     .from(llmProviders)
-    .where(not(sql`${llmProviders.apiKey} LIKE 'enc:v1:%'`));
+    .where(and(ne(llmProviders.apiKey, ""), not(sql`${llmProviders.apiKey} LIKE 'enc:v1:%'`)));
   let updated = 0;
   for (const row of rows) {
     const plain = openApiKey(row.apiKey);

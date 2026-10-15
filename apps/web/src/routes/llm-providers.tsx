@@ -24,10 +24,11 @@ import {
   activateLlmProvider,
   createLlmProvider,
   deleteLlmProvider,
+  fetchLlmModels,
   type LlmProvider,
   type LlmProviderUpdateInput,
-  listLlmProviderModels,
   listLlmProviders,
+  type ProviderModel,
   testLlmProvider,
   updateLlmProvider,
 } from "../api";
@@ -65,7 +66,7 @@ export default function LlmProvidersPage() {
   const [form] = Form.useForm<ProviderFormValues>();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<LlmProvider | null>(null);
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<ProviderModel[]>([]);
 
   // Watched so the 获取模型列表 button can gate on the fields the probe needs.
   const endpointValue = Form.useWatch("endpoint", form);
@@ -159,22 +160,18 @@ export default function LlmProvidersPage() {
   });
 
   const modelsMutation = useMutation({
-    mutationFn: listLlmProviderModels,
+    mutationFn: fetchLlmModels,
     onSuccess: (list) => {
       setModels(list);
-      if (list.length === 0) message.info("该接口未返回任何模型");
+      if (list.length === 0) message.info("该接口未返回模型列表");
+      else message.success(`获取到 ${list.length} 个模型`);
     },
     onError: (error: Error) => message.error(error.message),
   });
 
   const submitting = createMutation.isPending || updateMutation.isPending;
 
-  // Probing a saved provider uses its stored key, so it is only possible once a
-  // provider exists; there is no draft-probe endpoint.
-  const canFetchModels =
-    editing !== null &&
-    (endpointValue ?? "").trim().length > 0 &&
-    ((apiKeyValue ?? "").trim().length > 0 || editing.apiKeyConfigured);
+  const canFetchModels = (endpointValue ?? "").trim().length > 0;
 
   const handleSubmit = (values: ProviderFormValues) => {
     const apiKey = values.apiKey?.trim() ?? "";
@@ -193,13 +190,20 @@ export default function LlmProvidersPage() {
         input: { ...base, ...(apiKey ? { apiKey } : {}) },
       });
     } else {
-      // Opening a provider requires a key; the API rejects a create without one.
-      createMutation.mutate({ ...base, apiKey });
+      // The API key is optional for compatible services that do not require authentication.
+      createMutation.mutate({ ...base, ...(apiKey ? { apiKey } : {}) });
     }
   };
 
   const handleFetchModels = () => {
-    if (editing) modelsMutation.mutate(editing.id);
+    const endpoint = endpointValue?.trim();
+    if (!endpoint) return;
+    const apiKey = apiKeyValue?.trim();
+    modelsMutation.mutate({
+      endpoint,
+      ...(apiKey ? { apiKey } : {}),
+      ...(editing ? { providerId: editing.id } : {}),
+    });
   };
 
   const columns: ColumnsType<LlmProvider> = [
@@ -412,27 +416,33 @@ export default function LlmProvidersPage() {
                 获取模型列表
               </Button>
             </Space.Compact>
-            {!editing && (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                保存后可获取模型列表。
-              </Typography.Text>
-            )}
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              填入接口地址后可直接获取；API Key 可留空。接口未提供容量时保留当前值，可手动编辑。
+            </Typography.Text>
             {models.length > 0 && (
               <Space size={[4, 4]} wrap style={{ marginTop: 8 }}>
                 {models.map((model) => (
                   <Tag
-                    key={model}
-                    color={selectedModel === model ? "blue" : undefined}
+                    key={model.id}
+                    color={selectedModel === model.id ? "blue" : undefined}
                     style={{ cursor: "pointer" }}
-                    onClick={() => form.setFieldValue("model", model)}
+                    onClick={() => {
+                      form.setFieldValue("model", model.id);
+                      const limits: Partial<ProviderFormValues> = {};
+                      if (model.maxInput !== null) limits.maxInput = model.maxInput;
+                      if (model.maxOutput !== null) limits.maxOutput = model.maxOutput;
+                      if (Object.keys(limits).length > 0) form.setFieldsValue(limits);
+                    }}
                   >
-                    {model}
+                    {model.id}
+                    {model.maxInput !== null || model.maxOutput !== null
+                      ? ` (${model.maxInput ?? "?"} / ${model.maxOutput ?? "?"})`
+                      : " (上限未提供)"}
                   </Tag>
                 ))}
               </Space>
             )}
           </Form.Item>
-
           <Form.Item
             label="API Key"
             name="apiKey"

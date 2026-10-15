@@ -538,3 +538,27 @@ test("unknown remediation ids are 404", async () => {
   );
   expect(close.status).toBe(404);
 });
+
+test("an unmatched path is 404, not a masked 500", async () => {
+  // The global error handler used to rewrite every Elysia classification to
+  // 500, so a wrong URL or method read as a server fault and the real status
+  // was unrecoverable.
+  const unknown = await app.handle(json("GET", "/api/definitely-not-a-route"));
+  expect(unknown.status).toBe(404);
+  const body = await unknown.json();
+  expect(body).toMatchObject({ error: "not_found" });
+  expect(body.error).not.toBe("internal_error");
+});
+
+test("an unsupported method on a real path is 404, not a masked 500", async () => {
+  // Only POST exists at the draft-discovery path; a GET is the caller's mistake.
+  const wrongMethod = await app.handle(json("GET", "/api/llm-providers/models"));
+  expect(wrongMethod.status).toBe(404);
+  expect((await wrongMethod.json()).error).not.toBe("internal_error");
+});
+
+test("a body validation failure stays 422 with its own error code", async () => {
+  const invalid = await app.handle(json("POST", "/api/llm-providers/models", {}));
+  expect(invalid.status).toBe(422);
+  expect((await invalid.json()).error).not.toBe("internal_error");
+});

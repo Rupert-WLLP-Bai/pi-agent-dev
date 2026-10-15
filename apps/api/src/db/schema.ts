@@ -231,6 +231,13 @@ export const agentTraceSteps = pgTable(
     at: timestamp("at", { withTimezone: true, mode: "date" }).notNull(),
     label: text("label").notNull(),
     ref: text("ref"),
+    /**
+     * The `ref` of the tool call this step ran under, or null at the top level.
+     * Only nested calls carry one. The parent is referenced by its toolCallId
+     * rather than by row id because the producer only knows the call id when it
+     * reports the step.
+     */
+    parentRef: text("parent_ref"),
     input: jsonb("input"),
     output: jsonb("output"),
     isError: boolean("is_error").notNull().default(false),

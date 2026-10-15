@@ -75,12 +75,13 @@ export function createVlmOcrPort(config: VlmOcrConfig): OcrPort {
     model: string,
     jpeg: Buffer,
   ): Promise<{ content: string; finishReason: string }> => {
+    // An unauthenticated local endpoint rejects a `Bearer` with an empty token,
+    // so the header is only sent when a key is actually configured.
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (config.apiKey.length > 0) headers.authorization = `Bearer ${config.apiKey}`;
     const response = await fetch(chatUrl, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${config.apiKey}`,
-      },
+      headers,
       signal: AbortSignal.timeout(config.requestTimeoutMs),
       body: JSON.stringify({
         model,
@@ -118,8 +119,10 @@ export function createVlmOcrPort(config: VlmOcrConfig): OcrPort {
 
     async probe(): Promise<OcrProbe> {
       try {
+        const headers: Record<string, string> = {};
+        if (config.apiKey.length > 0) headers.authorization = `Bearer ${config.apiKey}`;
         const response = await fetch(`${config.endpoint.replace(/\/+$/u, "")}/models`, {
-          headers: { authorization: `Bearer ${config.apiKey}` },
+          headers,
           signal: AbortSignal.timeout(5_000),
         });
         if (!response.ok) return { ok: false, detail: `模型列表返回 ${response.status}` };

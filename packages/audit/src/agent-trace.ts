@@ -33,7 +33,12 @@ export function createAgentTraceCollector(
   let tail: Promise<void> = Promise.resolve();
 
   const sink: AgentTraceSink = (observation: AgentTraceObservation) => {
-    const step: AgentTraceStep = { ...observation, runId, sequence: steps.length };
+    const step: AgentTraceStep = {
+      ...observation,
+      parentRef: observation.parentRef ?? null,
+      runId,
+      sequence: steps.length,
+    };
     steps.push(step);
     tail = tail
       .then(() => write(step))

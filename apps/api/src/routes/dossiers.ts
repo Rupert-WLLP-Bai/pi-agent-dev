@@ -10,6 +10,7 @@ import { readStatedTotals } from "@contract-audit/audit/stated-total";
 import { Elysia, type Static, t } from "elysia";
 import { loadApiConfig } from "../config";
 import { parseContractFile, validateExtension } from "../document";
+import type { OcrPort } from "../document/ocr";
 import { openapiTags } from "../openapi";
 
 /**
@@ -74,7 +75,14 @@ const errorSchema = t.Object({ error: t.String() });
 /** Wire shape of the amount-chain review, owned here for the Eden client and the UI. */
 export type DossierAmountChain = Static<typeof amountChainSchema>;
 
-export function dossiersRoutes({ maxUploadBytes }: { maxUploadBytes: number }) {
+export function dossiersRoutes({
+  maxUploadBytes,
+  ocr,
+}: {
+  maxUploadBytes: number;
+  /** The recognizer scanned PDFs in a dossier are read through. */
+  ocr?: OcrPort;
+}) {
   return new Elysia().post(
     "/api/dossiers/amount-chain",
     async ({ body, set }) => {
@@ -127,10 +135,13 @@ export function dossiersRoutes({ maxUploadBytes }: { maxUploadBytes: number }) {
         // PDF with OCR unconfigured is reported against its own artifact while
         // the rest of the chain is still checked.
         try {
-          const parsed = await parseContractFile({
-            filename: file.name,
-            data: new Uint8Array(await file.arrayBuffer()),
-          });
+          const parsed = await parseContractFile(
+            {
+              filename: file.name,
+              data: new Uint8Array(await file.arrayBuffer()),
+            },
+            ocr,
+          );
 
           if (parsed.spreadsheet !== undefined) {
             const found = extractSheetTotals(parsed.spreadsheet.cells);

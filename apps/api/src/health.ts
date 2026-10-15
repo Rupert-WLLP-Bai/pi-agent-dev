@@ -2,6 +2,7 @@ import { mkdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { ApiConfig } from "./config";
 import type { OcrPort } from "./document/ocr";
+import { isLiveOcrPort } from "./document/ocr/types";
 import { createAwsS3Client, type ObjectStoreConfig } from "./document/original-store";
 import type { VerificationCache } from "./qcc/cache";
 
@@ -34,7 +35,7 @@ export interface ApiHealth {
   agentMode: "pi" | "fake";
   /** Whether the QCC bearer token is present, not the token itself. */
   qccConfigured: boolean;
-  /** Whether the real agent's LLM key is present, not the key itself. */
+  /** Whether the real agent has an endpoint and model configured. */
   llmConfigured: boolean;
   connections: {
     database: HealthConnection;
@@ -203,11 +204,7 @@ const objectStoreConnection = async (config: ObjectStoreConfig): Promise<HealthC
 const llmConnection = (agent: HealthInputs["agent"]): HealthConnection => {
   const target = agent.model && agent.endpoint ? `${agent.model} @ ${agent.endpoint}` : "未配置";
   if (agent.configured) return connection(true, target);
-  return connection(
-    false,
-    target,
-    target === "未配置" ? "未配置 LLM，使用模拟智能体" : "未配置 LLM 凭据",
-  );
+  return connection(false, target, "未配置 LLM 接口地址或模型");
 };
 
 const qccConnection = (qcc: HealthInputs["qcc"]): HealthConnection =>
@@ -224,6 +221,22 @@ const dispatcherConnection = (inputs: HealthInputs): HealthConnection =>
   );
 
 const ocrConnection = async (ocr: OcrPort): Promise<HealthConnection> => {
+  // A live port carries no frozen identity: its provider, target and
+  // enabled-ness come from the configuration in force right now, which is what
+  // the health line must report after a settings save.
+  if (isLiveOcrPort(ocr)) {
+    const { target, enabled } = await ocr.describe();
+    if (!enabled) {
+      const probe = await ocr.probe();
+      return connection(false, target, probe.detail);
+    }
+    try {
+      const probe = await withTimeout(ocr.probe(), PROBE_TIMEOUT_MS);
+      return connection(probe.ok, target, probe.detail);
+    } catch (error) {
+      return connection(false, target, describeError(error));
+    }
+  }
   if (!ocr.enabled) {
     const probe = await ocr.probe();
     return connection(false, ocr.target, probe.detail);
@@ -258,7 +271,7 @@ export async function buildHealthSnapshot(inputs: HealthInputs): Promise<ApiHeal
     dispatcher: inputs.dispatcherOk,
     agentMode: inputs.config.agentMode,
     qccConfigured: inputs.qcc.tokenConfigured,
-    llmConfigured: inputs.config.llmConfigured,
+    llmConfigured: inputs.agent.configured,
     connections: { database, redis, objectStore, llm, qcc, ocr, dispatcher },
   };
 }

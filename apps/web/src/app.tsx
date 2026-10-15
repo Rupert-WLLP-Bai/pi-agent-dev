@@ -18,6 +18,7 @@ import DemoPage from "./routes/demo";
 import DossierReviewPage from "./routes/dossier-review";
 import IntegrationsPage from "./routes/integrations";
 import LlmProvidersPage from "./routes/llm-providers";
+import OcrSettingsPage from "./routes/ocr-settings";
 import RemediationBoardPage from "./routes/remediations";
 import ReviewCenterPage from "./routes/reviews";
 import RuleDetail from "./routes/rule-detail";
@@ -166,6 +167,12 @@ const providersRoute = createRoute({
   component: LlmProvidersPage,
 });
 
+const ocrSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/settings/ocr",
+  component: OcrSettingsPage,
+});
+
 const verificationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/verification",
@@ -210,6 +217,7 @@ const routeTree = rootRoute.addChildren([
   validationRoute,
   integrationsRoute,
   providersRoute,
+  ocrSettingsRoute,
   verificationRoute,
   contractsRoute,
   contractDetailRoute,

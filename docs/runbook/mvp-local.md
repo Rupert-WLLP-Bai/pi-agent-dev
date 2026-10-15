@@ -121,18 +121,52 @@ Open http://localhost:5173/audit-cases to use the workbench.
 
 ## Rerun Agent Analysis
 
-For an audit case marked **已完成** or **待复核**, click **重新运行 Agent** in
-the audit queue row or the case detail banner, then confirm **确认重新运行**.
-The case is queued for a new Agent Run against its existing Audit Snapshot.
+Three distinct actions, and the difference matters:
 
-New findings are appended. Existing findings, human reviews, remediation items,
-and earlier run traces remain available. The same issue may create another
-finding awaiting review; rerunning does not automatically review that finding.
-The action is unavailable while the case is queued or running.
+| Action | What it does | When it is offered |
+| --- | --- | --- |
+| **重新运行 Agent** (retry) | Re-queues the *same* case against its **existing** snapshot and appends a new Agent Run. | FAILED / CANCELLED / INTERRUPTED only |
+| **重新审计** (rerun) | Opens a **new** Audit Case over the same Source Record and the same Contract Revision, re-parses the original bytes under the current OCR settings, rebuilds the snapshot under current rules, and runs the Agent again. The old case, its findings, human reviews, remediation items and traces stay exactly as they were. | any stopped case, including 已完成 and 待复核 |
+| **按当前规则重评** (reassess) | Rebuilds the snapshot in place from currently published rules and re-queues the same case. | FAILED / CANCELLED / INTERRUPTED only |
 
-This differs from **按当前规则重评**, which rebuilds the snapshot using current
-published rules and is offered for failed, cancelled, or interrupted cases.
-See [GLOSSARY.md](../../GLOSSARY.md) for the domain terms.
+On the audit queue row or the case detail banner, an audited case shows **重新审计**
+rather than retry: new findings belong in a new case, never appended into work a
+human already reviewed. The confirmation states that the old results are preserved,
+and the operator is taken to the new case when the rerun is accepted.
+
+- `409 case_active` — the source case is still queued or running.
+- `409 rerun_already_active` — another case on the same Contract Revision is already
+  queued or running, so two operators cannot overlap audits of one document.
+- `404 audit_case_not_found` — the case does not exist (an id that is not a UUID is
+  reported the same way rather than as a server fault).
+- Sequential reruns are allowed: once a generation finishes, the next one may start,
+  always over the same revision.
+
+Because the rerun re-parses the stored original, changing the OCR settings (below)
+and then re-auditing a scanned contract reads it with the new recognizer — while the
+old case keeps the reading it was audited under. See [GLOSSARY.md](../../GLOSSARY.md)
+for the domain terms.
+
+## Scanned-Document Recognition (OCR)
+
+`/settings/ocr` configures which recognizer reads scanned, text-less PDFs:
+
+- **关闭** (default) — scans stay unreadable, and a text-less PDF fails with an
+  explicit "无法识别" reason rather than guessing content.
+- **视觉模型** — each page is rendered to an image and transcribed through an
+  OpenAI-compatible vision endpoint. The API key is optional for endpoints that do
+  not require authentication; it is sealed at rest and returned only as a mask.
+- **MinerU** — calls a MinerU 4.x service's `/v1/file_parse` for layout-aware
+  structured content. The readiness line reports honestly whether the configured
+  instance actually answers; nothing is faked.
+
+The configuration is a single saved row. **Saving changes what the next PDF parse
+uses — including the next audit run — without restarting the app**; both the health
+probe and the parser read the same configuration. With nothing saved yet, the
+`OCR_*` environment variables act as the bootstrap and the page labels the source
+`env`. An empty key on an edit keeps the stored credential. Model limits advertised
+by the endpoint (`context_length`, `max_output_tokens`, …) fill the capacity fields
+when known and leave the operator's manual values alone when they are not.
 
 ## Pages
 
@@ -144,6 +178,7 @@ Entry points in the workbench:
 - `/rules`, `/cases` — rule governance and case validation
 - `/verification`, `/integrations` — external verification and integration health
 - `/settings/providers` — 模型服务 (sidebar group 系统管理): manage OpenAI-compatible LLM providers
+- `/settings/ocr` — OCR 识别 (sidebar group 系统管理): the recognizer scanned, text-less PDFs are read through
 - `/api/openapi` — the API reference (Elysia OpenAPI/Scalar). It sits under the
   `/api` prefix so the same URL works directly on :3000, through the Vite proxy
   on :5173 and through the nginx proxy on :8080; `/api/openapi/json` is the raw

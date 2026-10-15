@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { AuditSnapshot, FindingType } from "@contract-audit/audit/model";
-import { Value } from "@sinclair/typebox/value";
+import { Value } from "typebox/value";
 import { createAuditTools, SUBMITTABLE_FINDING_TYPES } from "./tools";
 
 const snapshot = {
@@ -143,11 +143,31 @@ type ToolExecute = (
   ctx: object,
 ) => Promise<{ content: unknown; details: unknown }>;
 
+/** Records the nested calls a tool made, the way the session's ctx would. */
+interface NestedCallRecord {
+  name: string;
+  args: unknown;
+}
+
+function nestedCtx(record: NestedCallRecord[]) {
+  return {
+    executeTool: async (name: string, args: unknown) => {
+      record.push({ name, args });
+      return {
+        toolCall: { type: "toolCall" as const, id: "call-1/1", name, arguments: {} },
+        result: { content: [{ type: "text" as const, text: "[]" }], details: [] },
+        isError: false,
+      };
+    },
+  };
+}
+
 async function runTool(
   tool: { execute: ToolExecute },
   params: unknown,
+  ctx: object = {},
 ): Promise<{ content: unknown; details: unknown }> {
-  return tool.execute("call-1", params, undefined, undefined, {});
+  return tool.execute("call-1", params, undefined, undefined, ctx);
 }
 
 test("get_rule_assessments inlines the evidence locators", async () => {
@@ -163,6 +183,18 @@ test("get_rule_assessments inlines the evidence locators", async () => {
   };
   expect(result.details).toMatchObject(payload);
   expect(result.content).toEqual([{ type: "text", text: JSON.stringify(payload) }]);
+});
+
+test("get_rule_assessments re-reads every cited locator through nested calls", async () => {
+  const tools = createAuditTools(populated, () => undefined);
+  const assessments = tools.find((tool) => tool.name === "get_rule_assessments");
+  expect(assessments).toBeDefined();
+  if (!assessments) return;
+  const nested: NestedCallRecord[] = [];
+  await runTool(assessments as { execute: ToolExecute }, {}, nestedCtx(nested));
+  // One real get_evidence call per cited id, de-duplicated — the trace shows
+  // the fetch happening rather than asserting it happened.
+  expect(nested).toEqual([{ name: "get_evidence", args: { evidenceIds: ["ev-1"] } }]);
 });
 
 test("get_contract_document returns every block under the budget", async () => {

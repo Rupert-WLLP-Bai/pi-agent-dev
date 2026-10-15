@@ -36,12 +36,13 @@ loadRootEnvFile();
 
 const DEMO_CONTRACT = "乙方签订后支付合同金额的70%作为预付款。";
 
-/** One trace line: sequence, kind, label, timing, and whichever payload it has. */
+/** One trace line: sequence, kind, label, nesting, timing, and whichever payload it has. */
 function formatStep(step: AgentTraceStep): string {
   const timing = step.durationMs === null ? "" : ` (${step.durationMs}ms)`;
+  const nesting = step.parentRef === null ? "" : ` under ${step.parentRef}`;
   const payload = step.input ?? step.output;
   const body = payload === null || payload === undefined ? "" : ` ${JSON.stringify(payload)}`;
-  return `[${step.sequence}] ${step.kind} ${step.label}${timing}${body}`;
+  return `[${step.sequence}] ${step.kind} ${step.label}${nesting}${timing}${body}`;
 }
 
 async function main(): Promise<void> {

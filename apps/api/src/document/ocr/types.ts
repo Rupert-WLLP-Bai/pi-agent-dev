@@ -49,3 +49,28 @@ export interface OcrPort {
   probe(): Promise<OcrProbe>;
   recognizePdf(data: Uint8Array): Promise<OcrResult>;
 }
+
+/**
+ * A recognizer whose configuration can change while the process runs. Saving
+ * OCR settings does not rebuild the ports the dispatcher and health route hold,
+ * so those ports are live ones: `capture()` freezes the configuration one
+ * operation runs under, and the port keeps answering with whatever is current
+ * afterwards. A port that is not live is by definition already frozen.
+ */
+export interface LiveOcrPort extends OcrPort {
+  /**
+   * The recognizer one operation runs under, bound to the configuration in
+   * force at the moment of the call. Async because the stored configuration is
+   * one database read.
+   */
+  capture(): Promise<OcrPort>;
+  /**
+   * What the health line reports: provider, target and enabled-ness for the
+   * current configuration, without probing. Async for the same reason.
+   */
+  describe(): Promise<{ provider: string; target: string; enabled: boolean }>;
+}
+
+/** Narrows a port to the live contract without trusting an unvalidated shape. */
+export const isLiveOcrPort = (ocr: OcrPort): ocr is LiveOcrPort =>
+  typeof (ocr as Partial<LiveOcrPort>).capture === "function";

@@ -19,3 +19,14 @@ test("sealApiKey leaves plaintext when no secret is configured", () => {
     else process.env.LLM_KEY_ENCRYPTION_SECRET = previous;
   }
 });
+
+test("sealApiKey keeps an absent credential empty even when encryption is configured", () => {
+  const previous = process.env.LLM_KEY_ENCRYPTION_SECRET;
+  process.env.LLM_KEY_ENCRYPTION_SECRET = "test-secret-for-llm-keys";
+  try {
+    expect(sealApiKey("")).toBe("");
+  } finally {
+    if (previous === undefined) delete process.env.LLM_KEY_ENCRYPTION_SECRET;
+    else process.env.LLM_KEY_ENCRYPTION_SECRET = previous;
+  }
+});

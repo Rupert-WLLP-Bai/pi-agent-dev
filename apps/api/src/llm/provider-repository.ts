@@ -44,12 +44,12 @@ export interface LlmProvider {
   updatedAt: string;
 }
 
-/** The body that opens a provider. `name`/`endpoint`/`model`/key are required. */
+/** The provider endpoint, which may be protected by an optional API key. */
 export interface LlmProviderInput {
   name: string;
   endpoint: string;
   model: string;
-  apiKey: string;
+  apiKey?: string;
   maxInput?: number;
   maxOutput?: number;
   enabled?: boolean;
@@ -162,9 +162,6 @@ export class LlmProviderRepository implements LlmProviderStore {
 
   async create(input: LlmProviderInput): Promise<LlmProvider> {
     const apiKey = input.apiKey?.trim() ?? "";
-    if (apiKey.length === 0) {
-      throw new LlmProviderRepositoryError(400, "API Key 不能为空");
-    }
     try {
       assertAllowedLlmEndpoint(input.endpoint);
     } catch {
@@ -376,7 +373,6 @@ export function createMemoryLlmProviderStore(): LlmProviderStore {
     },
     async create(input) {
       const apiKey = input.apiKey?.trim() ?? "";
-      if (apiKey.length === 0) throw new LlmProviderRepositoryError(400, "API Key 不能为空");
       try {
         assertAllowedLlmEndpoint(input.endpoint);
       } catch {

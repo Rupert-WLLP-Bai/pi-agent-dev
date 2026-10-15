@@ -48,14 +48,14 @@ export class LlmProviderRegistry {
         providerName: this.cache.name,
         endpoint: this.cache.endpoint,
         model: this.cache.model,
-        configured: this.cache.apiKey.length > 0,
+        configured: Boolean(this.cache.endpoint && this.cache.model),
       };
     }
     return {
       providerName: null,
       endpoint: process.env.XYG_ENDPOINT ?? null,
       model: process.env.XYG_MODEL ?? null,
-      configured: Boolean(process.env.XYG_API_KEY),
+      configured: Boolean(process.env.XYG_ENDPOINT && process.env.XYG_MODEL),
     };
   }
 }

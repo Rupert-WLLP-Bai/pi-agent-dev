@@ -377,6 +377,27 @@ test("re-running a case that does not exist is a 404", async () => {
   expect(body).toEqual({ error: "audit_case_not_found" });
 });
 
+/**
+ * An id that is not a UUID can never address a row. The case columns are typed
+ * `uuid`, so passing such a value straight to SQL makes the driver abort the
+ * transaction — which the global handler would report as a 500, blaming the
+ * server for the caller's malformed id. The repository answers it as not-found
+ * before any statement is sent, so the route reports an honest 404.
+ */
+test("re-running a case with a malformed id is a 404, not a 500", async () => {
+  const { app, dispatcher } = setup();
+
+  for (const malformed of ["no-such-case", "not-a-uuid", "!!!not-a-uuid!!!"]) {
+    const response = await rerun(app, malformed);
+
+    expect(response.status).toBe(404);
+    const body: { error: string } = await response.json();
+    expect(body).toEqual({ error: "audit_case_not_found" });
+  }
+  // Nothing was created and nothing was enqueued.
+  expect(dispatcher.enqueued).toHaveLength(0);
+});
+
 test("retrying an audited case is refused instead of appending into reviewed work", async () => {
   const { repository, rules, dispatcher, app } = setup();
   const id = await auditedCase(app, repository, rules, "AWAITING_REVIEW");

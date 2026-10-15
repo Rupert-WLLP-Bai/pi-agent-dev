@@ -21,6 +21,7 @@ function step(
   return {
     at: new Date().toISOString(),
     ref: null,
+    parentRef: null,
     input: null,
     output: null,
     isError: false,
@@ -55,6 +56,7 @@ export class FakeAuditAgent implements AuditAgentPort {
     trace: AgentTraceSink,
   ): Promise<AgentRunResult> {
     let calls = 0;
+    let nestedCalls = 0;
     const nextCallId = () => `fake-call-${++calls}`;
 
     const findEvidence = (id: string): EvidenceLocator => {
@@ -68,9 +70,38 @@ export class FakeAuditAgent implements AuditAgentPort {
     const knownEvidenceIds = new Set(input.evidence.map((item) => item.id));
 
     trace(step({ kind: "STAGE", label: "RUN_STARTED" }));
+    trace(step({ kind: "STAGE", label: "TURN_STARTED", input: { turnIndex: 1 } }));
 
     const assessmentCall = nextCallId();
     trace(step({ kind: "TOOL_CALL", label: "get_rule_assessments", ref: assessmentCall }));
+    // The real agent re-reads every cited locator through the nested-call path
+    // while it runs, so the fake does the same: each cited id becomes a nested
+    // get_evidence call under this one. A trace that skipped them would make the
+    // tree view untestable; a fake that invented extra calls would make it
+    // dishonest about what the real agent does.
+    for (const evidence of input.evidence) {
+      const nestedCallId = `${assessmentCall}/${nestedCalls + 1}`;
+      nestedCalls += 1;
+      trace(
+        step({
+          kind: "TOOL_CALL",
+          label: "get_evidence",
+          ref: nestedCallId,
+          parentRef: assessmentCall,
+          input: { evidenceIds: [evidence.id] },
+        }),
+      );
+      trace(
+        step({
+          kind: "TOOL_RESULT",
+          label: "get_evidence",
+          ref: nestedCallId,
+          parentRef: assessmentCall,
+          output: evidence,
+          durationMs: 1,
+        }),
+      );
+    }
     trace(
       step({
         kind: "TOOL_RESULT",
@@ -81,6 +112,7 @@ export class FakeAuditAgent implements AuditAgentPort {
           availableEvidenceIds: input.evidence.map((item) => item.id),
           evidence: input.evidence,
         },
+        durationMs: 12,
       }),
     );
 
@@ -169,6 +201,16 @@ export class FakeAuditAgent implements AuditAgentPort {
     }
 
     await new Promise<void>((resolve) => setTimeout(resolve, 1));
+    trace(
+      step({
+        kind: "STAGE",
+        label: "TURN_COMPLETED",
+        input: { turnIndex: 1 },
+        output: { toolResults: 1 },
+        durationMs: 24,
+        tokens: { input: 0, output: 0 },
+      }),
+    );
     trace(step({ kind: "STAGE", label: "RUN_COMPLETED" }));
     return { proposals: this.proposals, usage: null };
   }

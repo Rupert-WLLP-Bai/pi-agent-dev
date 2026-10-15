@@ -11,6 +11,7 @@ import {
   MenuOutlined,
   MenuUnfoldOutlined,
   NodeIndexOutlined,
+  ScanOutlined,
   SettingOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
@@ -176,6 +177,11 @@ const navGroups: MenuProps["items"] = [
         label: <Link to="/settings/providers">模型服务</Link>,
       },
       {
+        key: "/settings/ocr",
+        icon: <ScanOutlined />,
+        label: <Link to="/settings/ocr">OCR 识别</Link>,
+      },
+      {
         key: "/api/docs",
         icon: <FileTextOutlined />,
         label: (
@@ -216,6 +222,8 @@ function selectedKeys(pathname: string, origin?: unknown): string[] {
   }
   // The rule editor belongs to 规则管理, so the section stays highlighted.
   if (pathname.startsWith("/rules")) return ["/rules"];
+  // The two settings pages are siblings under 系统管理.
+  if (pathname.startsWith("/settings/")) return [pathname];
   return [pathname];
 }
 
@@ -270,6 +278,8 @@ function breadcrumbFor(pathname: string, origin?: unknown) {
   if (pathname === "/cases") return "案例验证";
   if (pathname === "/integrations") return "集成健康";
   if (pathname === "/verification") return "外部核验";
+  if (pathname === "/settings/providers") return "模型服务";
+  if (pathname === "/settings/ocr") return "OCR 识别";
   return "审计队列";
 }
 

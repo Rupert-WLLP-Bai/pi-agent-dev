@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-10-14
 
+### Added
+
+- **Agent Trace tree**: the audit-case trace page now renders a deepseek-harness-style
+  recursive tool-call tree with turn grouping instead of a flat list. Turns are
+  `TURN_STARTED` / `TURN_COMPLETED` STAGE steps carrying the assistant message, tool
+  results, and token usage (input/output/cacheRead/cacheWrite/total); Tool Calls render
+  their Nested Tool Calls (a tool calling another via the session's `executeTool`,
+  id `<parentId>/<n>`, linked by `parentRef`) beneath them. Legacy traces without turn
+  stages still render under a synthetic root turn.
+- Nested-call support in the trace pipeline: `AgentTraceStep` carries `parentRef`
+  (parent toolCallId, null at top level); `get_rule_assessments` became an
+  orchestrating tool issuing real nested `get_evidence` calls; the Pi trace reporter
+  maps `parentToolCallId` from SDK events defensively. See ADRs 0004 and 0005.
+- `GLOSSARY.md` at the repository root collects the full product vocabulary
+  (Contract … Party History Run) in one place, adding Agent Turn, Tool Call,
+  Nested Tool Call, and Trace Tree.
+- **Scanned-document recognition settings** (`/settings/ocr`): one persisted OCR
+  configuration row selecting 关闭 / 视觉模型 / MinerU, with the VLM endpoint, an
+  optional key, model plus optional fallback, and page/quality/concurrency/timeout
+  limits. The key is sealed at rest with the same crypto as LLM providers, responses
+  carry presence plus a mask only, and an empty key on an edit keeps the stored one.
+- A live `OcrPort` resolves the stored row per operation, so a save changes what the
+  next PDF parse — audit or dossier — and `GET /api/health` report **without
+  restarting**; one run captures a single recognizer, so a document is never half-read
+  under two configurations. The `OCR_*` variables are the bootstrap until a row exists.
+- `POST /api/ocr-settings/test` and `GET /api/ocr-settings/probe` for readiness; a
+  recognizer that is off or unreachable reports why instead of pretending to work.
+- A real MinerU adapter for the verified 4.x HTTP contract (`/v1/file_parse` with
+  `output_formats` as repeated query parameters, `files` as the only form field,
+  docvortex v2 `pages[].blocks[]` geometry, `409`/`202`/`status` handling,
+  `error.message` surfaced as the parse reason, bounded result polling). Bounding
+  boxes are deliberately dropped: `OcrBlock` has no box, and an unreliable one is
+  worse than none.
+- **重新审计 (Audit Rerun)**: `POST /api/audit-cases/:id/rerun` opens a new Audit Case
+  over the same Source Record and the **same** Contract Revision, re-parses the
+  original bytes under the current recognizer, rebuilds the snapshot under current
+  rules, and runs the Agent again. The old case, its status, snapshots, findings,
+  human reviews, remediation items and traces stay exactly as they were. Concurrent
+  protection: `409 case_active` for a still-running source, `409 rerun_already_active`
+  when another case on that revision is already queued or running.
+- `POST /api/llm-providers/models` discovers models from an unsaved draft: only the
+  endpoint is required, an empty key sends no `Authorization` header, and advertised
+  capacities (`context_length`, `max_output_tokens`, …) fill the form while unknown
+  limits leave the operator's manual values untouched.
+
 ### Fixed
 
 - OCR settings repository imports now resolve from `document/ocr/`, allowing
@@ -15,17 +60,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dependency-link transfer failures when building from WSL through Docker Desktop.
 - Tool durations now use Pi's monotonic execution timing, rounded to integer
   milliseconds for persistence, instead of wall-clock event delivery gaps.
-- Model service settings can discover models from the current unsaved endpoint,
-  create providers without credentials, and use advertised input/output limits.
-  Unknown limits leave the operator's manually configured values in place; an
-  empty API key remains empty even when at-rest encryption is enabled.
+- The model runtime no longer fails keyless local endpoints: an empty key is stored
+  as empty (never encrypted into a non-empty ciphertext) so `apiKeyConfigured` stays
+  honest, no `Authorization` header is sent when there is no credential, and
+  `GET /api/health` follows endpoint + model rather than credential presence.
+- Malformed and unknown ids on the rerun route answer `404 audit_case_not_found`
+  instead of a driver cast error surfacing as `500`; a retry of an audited case
+  (待复核 / 已完成) returns `409 case_not_retryable` — new findings for reviewed
+  work must go through a rerun.
+- `assertAllowedLlmEndpoint` tests no longer depend on the developer's ambient
+  `LLM_ENDPOINT_ALLOWLIST`, and malformed/non-http endpoints are covered.
 
 ### Added
 
-- Completed and awaiting-review audit cases now offer **重新运行 Agent** in
-  both the audit queue and case detail. Confirmation explains that reruns reuse
-  the existing snapshot, append findings, and retain reviews and remediation;
-  the same issue can produce another finding awaiting review.
+- Completed and awaiting-review audit cases now offer **重新审计** in
+  both the audit queue and case detail: it opens a NEW case over the same
+  Source Record and Contract Revision (see the 重新审计 entry above), while
+  retry keeps its narrower un-reviewed-failure scope. Confirmation explains that
+  the original case's findings, reviews and remediations are preserved unchanged.
 - **Agent Run traces**: every Pi Agent run now leaves a persistent, ordered
   trace of what it did — stage boundaries, tool calls with arguments, tool
   results, assistant messages, and token counts — stored in a new

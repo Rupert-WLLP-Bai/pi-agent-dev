@@ -1,7 +1,7 @@
 import type { ContractDocument, RawBlock } from "@contract-audit/audit/document-ir";
 import { buildContractDocument } from "@contract-audit/audit/document-ir";
 import { parseDocx } from "./docx-parser";
-import { createOcrPort, type OcrPort } from "./ocr";
+import { createOcrPort, isLiveOcrPort, type OcrPort } from "./ocr";
 import { parsePdf } from "./pdf-parser";
 import { type ParsedSpreadsheet, parseXlsx } from "./xlsx-parser";
 
@@ -26,9 +26,22 @@ export class EmptyContractError extends Error {
  * the recognizer is off or failed.
  */
 export class ScannedPdfNotRecognizedError extends Error {
-  constructor(filename: string, detail: string) {
+  /**
+   * Which recognizer the parse actually reached, in the form the operator
+   * needs to act on: provider id, target, and whether it was enabled. A
+   * recognizer that was *disabled* is a configuration question, and naming the
+   * provider and target answers it without a log dive. Never carries a key.
+   */
+  readonly recognizer: { provider: string; target: string; enabled: boolean };
+
+  constructor(
+    filename: string,
+    detail: string,
+    recognizer: { provider: string; target: string; enabled: boolean },
+  ) {
     super(`扫描件合同无法识别：${filename}（${detail}）`);
     this.name = "ScannedPdfNotRecognizedError";
+    this.recognizer = recognizer;
   }
 }
 
@@ -95,15 +108,16 @@ export function validateMimeType(filename: string, mimeType: string): true | str
 }
 
 /**
- * The recognizer used when a caller does not inject one. Built lazily so
- * importing this module never touches the environment, and shared so a
- * multi-page audit does not re-read configuration per file.
+ * The recognizer used when a caller does not inject one.
+ *
+ * There is deliberately no cached default: a module-level singleton would freeze
+ * one configuration for the process's lifetime, and an OCR settings save must
+ * change what the *next* parse uses. Callers that need a stable port for the
+ * app's lifetime — the health route and the dispatcher — receive the live port
+ * the composition builds (`createLiveOcrPort`), which resolves its
+ * configuration per operation instead.
  */
-let sharedOcr: OcrPort | null = null;
-const defaultOcrPort = (): OcrPort => {
-  sharedOcr ??= createOcrPort();
-  return sharedOcr;
-};
+const defaultOcrPort = (): OcrPort => createOcrPort();
 
 /**
  * Turns an uploaded contract into the Contract Document IR. Format dispatch is
@@ -134,11 +148,22 @@ export async function parseContractFile(
     // Signed contracts arrive as scans with no text layer at all. Zero blocks
     // from a PDF is the signal to recognize it, not to reject it.
     if (rawBlocks.length === 0) {
-      if (!ocr.enabled) {
-        const probe = await ocr.probe();
-        throw new ScannedPdfNotRecognizedError(input.filename, probe.detail ?? "未配置 OCR 提供方");
+      // A live port's sync getters throw by design (its configuration is one
+      // database read away), so resolve the frozen port for this parse first.
+      const port = isLiveOcrPort(ocr) ? await ocr.capture() : ocr;
+      if (!port.enabled) {
+        const probe = await port.probe();
+        throw new ScannedPdfNotRecognizedError(
+          input.filename,
+          probe.detail ?? "未配置 OCR 提供方",
+          {
+            provider: port.provider,
+            target: port.target,
+            enabled: port.enabled,
+          },
+        );
       }
-      const recognized = await ocr.recognizePdf(input.data);
+      const recognized = await port.recognizePdf(input.data);
       rawBlocks = recognized.blocks.map((block) => ({
         text: block.text,
         kind: "paragraph" as const,
@@ -151,7 +176,11 @@ export async function parseContractFile(
         degradedPages: recognized.degradedPages,
       };
       if (rawBlocks.length === 0) {
-        throw new ScannedPdfNotRecognizedError(input.filename, `${ocr.provider} 未返回任何文字`);
+        throw new ScannedPdfNotRecognizedError(input.filename, `${port.provider} 未返回任何文字`, {
+          provider: port.provider,
+          target: port.target,
+          enabled: port.enabled,
+        });
       }
     }
   } else if (extension === ".txt" || extension === ".md") {

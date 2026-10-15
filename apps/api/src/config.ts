@@ -24,11 +24,7 @@ export interface ApiConfig {
    * a wrong stance silences rules, so an unconfigured deployment must not guess.
    */
   ownOrganizationNames: readonly string[];
-  /**
-   * Whether the real agent's LLM credential is present. Only presence is
-   * captured — the value stays in the pi-agent runtime, so no secret enters
-   * the config object and `GET /api/health` can report it safely.
-   */
+  /** Whether environment settings identify an LLM endpoint and model; keys are optional. */
   llmConfigured: boolean;
 }
 
@@ -71,7 +67,6 @@ export function loadApiConfig(): ApiConfig {
     qccRiskEndpoint: process.env.QCC_RISK_ENDPOINT ?? "https://agent.qcc.com/mcp/risk/stream",
     qccToken: process.env.QCC_TOKEN ?? "",
     ownOrganizationNames: parseNameList(process.env.OWN_ORGANIZATION_NAMES),
-    // The key is the credential; endpoint and model are non-secret settings.
-    llmConfigured: Boolean(process.env.XYG_API_KEY),
+    llmConfigured: Boolean(process.env.XYG_ENDPOINT && process.env.XYG_MODEL),
   };
 }

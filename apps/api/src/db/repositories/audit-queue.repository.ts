@@ -25,6 +25,14 @@ export type CreateRerunCaseResult =
   /** Another case on the same Contract Revision is already queued or running. */
   | { status: "rerun_active" };
 
+/**
+ * Canonical UUID text. `audit_cases.id` and the ids it references are typed
+ * `uuid`, so a value that does not match can only ever match zero rows —
+ * checking the shape first keeps a malformed id an honest 404 rather than a
+ * driver cast error the caller would see as a 500.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class AuditQueueRepository {
   constructor(private readonly db: DrizzleDB) {}
 
@@ -160,8 +168,15 @@ export class AuditQueueRepository {
    *
    * A refusal is returned as a reason rather than thrown, because it is an
    * expected outcome the HTTP layer answers with a status code.
+   *
+   * An id that is not a UUID at all is answered as `not_found` before any
+   * statement is sent: the columns are typed `uuid`, so passing a raw string
+   * makes the driver abort the transaction with a cast error instead of
+   * matching zero rows. That would surface as a 500, blaming the server for a
+   * caller's malformed id.
    */
   async createRerunCase(sourceCaseId: string): Promise<CreateRerunCaseResult> {
+    if (!UUID_PATTERN.test(sourceCaseId)) return { status: "not_found" };
     return this.db.transaction(async (tx) => {
       // Lock the source row first: a concurrent rerun of the same case then
       // waits here instead of interleaving its own checks with ours.

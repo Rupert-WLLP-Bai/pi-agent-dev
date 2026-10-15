@@ -80,6 +80,7 @@ const agentTraceStepSchema = t.Object(
     at: t.String(),
     label: t.String(),
     ref: t.Union([t.String(), t.Null()]),
+    parentRef: t.Union([t.String({ description: "父工具调用的 ref；嵌套调用才有值" }), t.Null()]),
     input: t.Any({ description: "工具参数；无参数时为 null" }),
     output: t.Any({ description: "工具返回值；无返回值时为 null" }),
     isError: t.Boolean(),

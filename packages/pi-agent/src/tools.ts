@@ -12,7 +12,7 @@ import type {
 } from "@contract-audit/audit/model";
 import { assertProposalLegal } from "@contract-audit/audit/proposal-guard";
 import { defineTool } from "@earendil-works/pi-coding-agent";
-import { Type } from "@sinclair/typebox";
+import { Type } from "typebox";
 
 /**
  * Every finding type the agent is allowed to submit.
@@ -65,12 +65,30 @@ export function createAuditTools(
       description:
         "Returns every deterministic rule assessment for the current audit case, together with the evidence locators those assessments cite. These cannot be overridden. Do not call get_evidence for ids already in this payload.",
       parameters: Type.Object({}),
-      execute: async () => {
+      execute: async (toolCallId, _params, _signal, _onUpdate, ctx) => {
         const payload = {
           assessments: snapshot.ruleAssessments,
           availableEvidenceIds: snapshot.evidence.map((item) => item.id),
           evidence: snapshot.evidence,
         };
+        // Re-read every cited locator through the session's nested-call path so
+        // the trace shows the evidence actually being fetched per assessment,
+        // not just the payload handed back. Each nested call runs the real
+        // get_evidence tool; a failure surfaces as an error row, never as a
+        // silent gap, because the payload above already carries the locators.
+        //
+        // A tool wrapped without a context factory gets no ctx, and a session
+        // that offers no nested calls leaves executeTool undefined. Either way
+        // the re-read is skipped: it is observability, never correctness.
+        const citedIds = [...new Set(snapshot.ruleAssessments.flatMap((item) => item.evidenceIds))];
+        if (typeof ctx?.executeTool === "function" && citedIds.length > 0) {
+          for (const id of citedIds) {
+            const outcome = await ctx.executeTool("get_evidence", { evidenceIds: [id] });
+            if (outcome.isError) {
+              console.warn("nested_get_evidence_failed", { toolCallId, evidenceId: id });
+            }
+          }
+        }
         return {
           content: [{ type: "text", text: JSON.stringify(payload) }],
           details: payload,

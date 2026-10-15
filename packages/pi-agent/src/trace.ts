@@ -28,7 +28,12 @@ function readTokens(message: unknown): AgentTraceTokens | null {
   if (!isRecord(usage)) return null;
   const { input, output } = usage;
   if (typeof input !== "number" || typeof output !== "number") return null;
-  return { input, output };
+  const tokens: AgentTraceTokens = { input, output };
+  if (typeof usage.cacheRead === "number") tokens.cacheRead = usage.cacheRead;
+  if (typeof usage.cacheWrite === "number") tokens.cacheWrite = usage.cacheWrite;
+  if (typeof usage.reasoning === "number") tokens.reasoning = usage.reasoning;
+  if (typeof usage.totalTokens === "number") tokens.total = usage.totalTokens;
+  return tokens;
 }
 
 /**
@@ -54,12 +59,29 @@ function stage(at: string, label: string, turnIndex?: number): AgentTraceObserva
     at,
     label,
     ref: null,
+    parentRef: null,
     input: turnIndex === undefined ? null : { turnIndex },
     output: null,
     isError: false,
     durationMs: null,
     tokens: null,
   };
+}
+
+/** A nested call's parent, or null when the SDK reports no parent. */
+function parentRefOf(raw: Record<string, unknown>): string | null {
+  const parent = raw.parentToolCallId;
+  return typeof parent === "string" && parent.length > 0 ? parent : null;
+}
+
+/**
+ * What a closed turn executed, as the trace's output for the TURN_COMPLETED
+ * step: the count of tool results it returned, or null when the SDK attached
+ * none. Kept deliberately small — the tool rows themselves carry the payloads.
+ */
+function toolResultCountOf(message: unknown, toolResults: unknown): { toolResults: number } | null {
+  if (Array.isArray(toolResults)) return { toolResults: toolResults.length };
+  return isRecord(message) && Array.isArray(message.content) ? { toolResults: 0 } : null;
 }
 
 /**
@@ -69,22 +91,22 @@ function stage(at: string, label: string, turnIndex?: number): AgentTraceObserva
  * type we do not model, or a field that changed shape, is skipped rather than
  * crashing the audit it is meant to describe.
  *
- * The reporter is stateful only for timing — the SDK reports when a turn or
- * tool *starts* and when it *ends*, and a harness view is far less useful
- * without the gap between the two.
+ * The reporter tracks run and turn boundaries and tool counts. Tool durations
+ * come from the SDK's monotonic clock rather than wall-clock event timestamps.
+ * Nested calls — the ones a tool made through `ctx.executeTool()` — arrive with
+ * `parentToolCallId`, which becomes the step's `parentRef`; the tree the trace
+ * describes is observed from the SDK, never inferred from ordering.
  */
 export function createPiTraceReporter(
   sink: AgentTraceSink,
   now: () => number = Date.now,
 ): PiTraceReporter {
-  const toolStartedAt = new Map<string, number>();
   let toolCalls = 0;
   let lastProviderError: string | null = null;
   let started = false;
   let closed = false;
-
-  const elapsed = (since: number | undefined): number | null =>
-    since === undefined ? null : Math.max(0, now() - since);
+  let turnIndex = 0;
+  let turnOpenedAt: number | null = null;
 
   return {
     sink,
@@ -106,16 +128,37 @@ export function createPiTraceReporter(
             sink(stage(at, "RUN_STARTED"));
           }
           return;
+        case "turn_start":
+          // One trace describes one run, so the first start wins even if the
+          // session is prompted again. A turn is the only boundary the SDK
+          // actually draws; the UI groups by it rather than guessing.
+          turnIndex += 1;
+          turnOpenedAt = now();
+          sink(stage(at, "TURN_STARTED", turnIndex));
+          return;
+        case "turn_end": {
+          if (turnOpenedAt === null) return;
+          const durationMs = Math.max(0, Math.round(now() - turnOpenedAt));
+          turnOpenedAt = null;
+          const message = raw.message;
+          sink({
+            ...stage(at, "TURN_COMPLETED", turnIndex),
+            durationMs,
+            tokens: isRecord(message) ? readTokens(message) : null,
+            output: isRecord(message) ? toolResultCountOf(message, raw.toolResults) : null,
+          });
+          return;
+        }
         case "tool_execution_start": {
           const { toolCallId, toolName } = raw;
           if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
           toolCalls += 1;
-          toolStartedAt.set(toolCallId, now());
           sink({
             kind: "TOOL_CALL",
             at,
             label: toolName,
             ref: toolCallId,
+            parentRef: parentRefOf(raw),
             input: raw.args ?? null,
             output: null,
             isError: false,
@@ -127,13 +170,18 @@ export function createPiTraceReporter(
         case "tool_execution_end": {
           const { toolCallId, toolName } = raw;
           if (typeof toolCallId !== "string" || typeof toolName !== "string") return;
-          const durationMs = elapsed(toolStartedAt.get(toolCallId));
-          toolStartedAt.delete(toolCallId);
+          const durationMs =
+            typeof raw.durationMs === "number" &&
+            Number.isFinite(raw.durationMs) &&
+            raw.durationMs >= 0
+              ? Math.round(raw.durationMs)
+              : null;
           sink({
             kind: "TOOL_RESULT",
             at,
             label: toolName,
             ref: toolCallId,
+            parentRef: parentRefOf(raw),
             input: null,
             output: raw.result ?? null,
             isError: raw.isError === true,
@@ -154,6 +202,7 @@ export function createPiTraceReporter(
               at,
               label: "assistant",
               ref: null,
+              parentRef: null,
               input: null,
               output: errorMessage,
               isError: true,
@@ -169,6 +218,7 @@ export function createPiTraceReporter(
             at,
             label: "assistant",
             ref: null,
+            parentRef: null,
             input: null,
             output: text,
             isError: false,

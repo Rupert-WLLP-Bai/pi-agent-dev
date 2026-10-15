@@ -419,11 +419,25 @@ export type AgentTraceStepKind =
  * Stable stage codes. Kept as wire values (not prose) so the trace stays
  * machine-readable; presentation maps them to Chinese on the way out.
  */
-export type AgentTraceStage = "RUN_STARTED" | "RUN_COMPLETED" | "RUN_FAILED";
+export type AgentTraceStage =
+  /** Run boundary: the first turn is about to start. */
+  | "RUN_STARTED"
+  /** Turn boundary: one assistant turn opened. */
+  | "TURN_STARTED"
+  /** Turn boundary: one assistant turn closed, carrying its usage. */
+  | "TURN_COMPLETED"
+  /** Run boundary: the agent reached a business outcome. */
+  | "RUN_COMPLETED"
+  /** Run boundary: the run ended without one. */
+  | "RUN_FAILED";
 
 export interface AgentTraceTokens {
   input: number;
   output: number;
+  cacheRead?: number;
+  cacheWrite?: number;
+  reasoning?: number;
+  total?: number;
 }
 
 /**
@@ -444,6 +458,14 @@ export interface AgentTraceObservation {
    * and two calls can be in flight at once.
    */
   ref: string | null;
+  /**
+   * The `ref` of the tool call this step belongs under, or null at the top
+   * level. Only nested calls — calls a tool made through `ctx.executeTool()` —
+   * carry one: the SDK gives them ids of the form `<parent>/<n>` and reports
+   * `parentToolCallId`, so a step's place in the tree is observed, never
+   * inferred from order or tool name.
+   */
+  parentRef: string | null;
   /** Tool arguments, or null for steps that carry none. */
   input: unknown;
   /** Tool return value, or null for steps that carry none. */

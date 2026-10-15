@@ -483,6 +483,8 @@ export function getTraceStageLabel(label: string): string {
   return (
     {
       RUN_STARTED: "开始运行",
+      TURN_STARTED: "开始生成",
+      TURN_COMPLETED: "本轮完成",
       RUN_COMPLETED: "运行完成",
       RUN_FAILED: "运行失败",
     }[label] ?? label

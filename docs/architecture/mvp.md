@@ -63,10 +63,10 @@ API 容器启动时自动应用迁移。`AUDIT_AGENT_MODE` 在容器中默认为
 | Area | Choice | responsibility |
 | --- | --- | --- |
 | Web | React, Vite, Ant Design, TanStack Router/Query | 审计创建、进度、Finding 与人工复核、模型服务页 |
-| API | Bun 1.3.14, Elysia, TypeBox/Elysia `t` | REST、SSE、DTO 校验、OpenAPI/Scalar |
+| API | Bun 1.4.0, Elysia, TypeBox/Elysia `t` | REST、SSE、DTO 校验、OpenAPI/Scalar |
 | Client typing | Eden Treaty | Monorepo 内前后端类型推导 |
 | Core | TypeScript | Contract Document、Facts、Rule Assessment、编排端口 |
-| Agent | `@earendil-works/pi-coding-agent@0.85.1` | 一个内存 Session 对应一个 Agent Run |
+| Agent | `@earendil-works/pi-coding-agent@1.2.0` | 一个内存 Session 对应一个 Agent Run |
 | Data | PostgreSQL, Drizzle | 审计快照、运行记录、Finding revisions、规则参数、LLM provider |
 | Object storage | RustFS（S3 API）| 合同原文；未配置时回退本地目录 |
 | Cache | Redis | 仅企查查主体核验结果（7 天 TTL）|
@@ -88,8 +88,11 @@ Text paste / `.docx` / `.pdf` upload
   -> Rule Assessments (enabled rules × published versions)
   -> bounded Audit Snapshot
   -> Pi Agent Run
-       get_rule_assessment
+       get_rule_assessments
        get_evidence
+       get_contract_document
+       search_contract
+       read_contract_block
        submit_finding_proposal
   -> Finding Revision
   -> Human Review
@@ -105,7 +108,9 @@ Owns domain types, the PlainText adapter contract, Fact Builder, payment rule, a
 
 ### `packages/pi-agent`
 
-Implements the audit-agent port with Pi. It loads the `payment-terms-audit` Skill and registers only `get_rule_assessment`, `get_evidence`, and `submit_finding_proposal`. Pi built-in coding tools are disabled.
+Implements the audit-agent port with Pi 1.2.0. The `payment-terms-audit` instructions are the system prompt. Sessions use in-memory model credentials, settings, and conversation history, with an explicit six-tool allowlist: `get_rule_assessments`, `get_evidence`, `get_contract_document`, `search_contract`, `read_contract_block`, and `submit_finding_proposal`. Resource discovery for extensions, skills, prompt templates, themes, project context, and appended system instructions is disabled. The declared model uses thinking level `off` with the existing OpenAI-compatible gateway settings.
+
+Tool schemas use TypeBox 1.3.27, matching the SDK. Tool trace durations use the SDK's monotonic `durationMs`, rounded to the existing integer millisecond storage format. Release evidence and compatibility details are in [the Pi 1.2.0 upgrade record](../research/2026-10-14-pi-1.2-upgrade.md).
 
 ### `apps/api`
 
@@ -190,6 +195,8 @@ GET  /api/audit-cases/:id/events
 GET  /api/audit-cases/:id/trace
 POST /api/audit-cases/:id/cancel
 POST /api/audit-cases/:id/retry
+POST /api/audit-cases/:id/rerun
+POST /api/audit-cases/:id/reassess
 POST /api/audit-cases/:id/assignment
 
 # Review
@@ -227,6 +234,13 @@ DELETE /api/llm-providers/:id
 POST   /api/llm-providers/:id/activate
 POST   /api/llm-providers/:id/test
 GET    /api/llm-providers/:id/models
+POST   /api/llm-providers/models
+
+# Scanned-document recognition
+GET    /api/ocr-settings
+PATCH  /api/ocr-settings
+POST   /api/ocr-settings/test
+GET    /api/ocr-settings/probe
 
 # Ops
 GET  /api/agent-runs

@@ -94,6 +94,7 @@ async function exerciseOverviewAndRuns(repository: {
     at: new Date().toISOString(),
     label: "RUN_STARTED",
     ref: null,
+    parentRef: null,
     input: null,
     output: null,
     isError: false,
@@ -193,6 +194,21 @@ maybeTest("real repository reruns an audited case as a new case", async () => {
     expect(rerunCaseId).not.toBe(sourceCaseId);
     // A second rerun is refused while the first is still queued.
     expect(await repository.createRerunCase(sourceCaseId)).toEqual({ status: "rerun_active" });
+  });
+});
+
+/**
+ * A malformed id must be answered as not-found, not raised. The case columns
+ * are typed `uuid`, so sending a non-UUID string straight to SQL makes the
+ * driver abort the whole transaction — which the HTTP layer would report as a
+ * 500, blaming the server for the caller's bad id. Only the real repository can
+ * catch that, so this case is Postgres-only.
+ */
+maybeTest("real repository answers a malformed rerun id as not found", async () => {
+  await withReal(async (repository) => {
+    for (const malformed of ["no-such-case", "not-a-uuid", "!!!"]) {
+      expect(await repository.createRerunCase(malformed)).toEqual({ status: "not_found" });
+    }
   });
 });
 

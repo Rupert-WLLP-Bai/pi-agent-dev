@@ -107,6 +107,7 @@ export const toTraceStep = (row: typeof agentTraceSteps.$inferSelect): AgentTrac
   at: row.at.toISOString(),
   label: row.label,
   ref: row.ref,
+  parentRef: row.parentRef,
   input: row.input,
   output: row.output,
   isError: row.isError,

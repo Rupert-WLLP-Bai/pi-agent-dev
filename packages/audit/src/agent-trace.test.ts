@@ -7,6 +7,7 @@ const observation = (label: string): AgentTraceObservation => ({
   at: new Date(0).toISOString(),
   label,
   ref: null,
+  parentRef: null,
   input: null,
   output: null,
   isError: false,

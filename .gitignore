@@ -24,3 +24,6 @@ compose.override.yaml
 
 # Local agent plan scratch.
 .cursor/plans/
+
+# Local throwaway smoke scripts.
+apps/api/src/tmp-smoke/

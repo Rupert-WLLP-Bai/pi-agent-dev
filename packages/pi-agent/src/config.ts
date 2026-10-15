@@ -1,9 +1,10 @@
 import { LLMNotConfiguredError } from "@contract-audit/audit/model";
 import { InMemoryCredentialStore, InMemoryModelsStore, type Model } from "@earendil-works/pi-ai";
+import { streamSimple as streamOpenAI } from "@earendil-works/pi-ai/api/openai-completions";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 export const PI_AGENT_PROVIDER = "xyg" as const;
-export const PI_AGENT_VERSION = "0.85.1" as const;
+export const PI_AGENT_VERSION = "1.2.0" as const;
 
 /**
  * vLLM OpenAI-compat (deepseek-v4-flash / dsv4) thinks by default. The stream
@@ -32,10 +33,10 @@ export interface PiConfig {
 
 export function loadPiConfig(): PiConfig {
   const endpoint = process.env.XYG_ENDPOINT;
-  const apiKey = process.env.XYG_API_KEY;
+  const apiKey = process.env.XYG_API_KEY?.trim() ?? "";
   const model = process.env.XYG_MODEL;
 
-  if (!endpoint || !apiKey || !model) {
+  if (!endpoint || !model) {
     throw new LLMNotConfiguredError("LLM_NOT_CONFIGURED");
   }
 
@@ -83,8 +84,19 @@ export async function createModelRuntime(config: PiConfig): Promise<ModelRuntime
     name: "XYG",
     baseUrl: config.endpoint,
     api: "openai-completions",
-    authHeader: true,
-    apiKey: config.apiKey,
+    authHeader: config.apiKey.length > 0,
+    // Pi requires an SDK credential even for keyless endpoints. It stays in memory;
+    // the keyless stream explicitly removes the SDK's generated bearer header.
+    apiKey: config.apiKey || "unused",
+    ...(config.apiKey.length === 0
+      ? {
+          streamSimple: (_model, context, options) =>
+            streamOpenAI(model, context, {
+              ...options,
+              headers: { ...options?.headers, Authorization: null },
+            }),
+        }
+      : {}),
     models: [
       {
         id: model.id,
