@@ -34,3 +34,6 @@ apps/api/src/tmp-smoke/
 
 # Demo run state written by the CLI: PIDs, logs and diagnostics output.
 .demo/
+
+# QA run artifacts
+artifacts/
