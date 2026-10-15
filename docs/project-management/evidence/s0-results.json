@@ -1,0 +1,111 @@
+{
+  "phase": "S0",
+  "observedAt": "2026-10-15",
+  "gitSha": "d9a84a4055b629d9b1af12e545dbcd574fcf416b",
+  "checkout": "/tmp/contract-audit-omp-s0-d9a84a4",
+  "runtime": { "bun": "1.4.3", "node": "v24.19.0", "dockerEngine": "29.8.2", "compose": "v5.5.1" },
+  "checks": [
+    { "command": "bun install --frozen-lockfile", "exitCode": 0 },
+    { "command": "docker compose config --quiet", "exitCode": 0 },
+    {
+      "command": "docker compose up -d --wait postgres redis rustfs",
+      "exitCode": 0,
+      "healthy": ["postgres", "redis", "rustfs"]
+    },
+    { "command": "bun run check:migrations", "cwd": "apps/api", "exitCode": 0 },
+    {
+      "command": "bun run migrate",
+      "database": "contract_audit_omp_s0_unit_20261015",
+      "exitCode": 0,
+      "publicTableCount": 18
+    },
+    { "command": "bun run migrate", "database": "contract_audit_omp_s0_20261015", "exitCode": 0 },
+    {
+      "command": "DATABASE_URL=<isolated-unit-db> bun run verify",
+      "exitCode": 0,
+      "passed": 652,
+      "failed": 0,
+      "skipped": 0,
+      "files": 74,
+      "assertions": 1938,
+      "testSeconds": 13.14,
+      "commandSeconds": 28.37,
+      "sessionOutput": "artifact://131"
+    },
+    {
+      "command": "bun --filter @contract-audit/web build",
+      "exitCode": 0,
+      "javascriptBytesDecimalKB": 1599.6,
+      "gzipBytesDecimalKB": 502.59,
+      "commandSeconds": 11.05,
+      "warnings": ["entry bundle exceeds 500kB"]
+    },
+    {
+      "command": "CI=true PLAYWRIGHT_DATABASE_URL=<isolated-browser-db> PLAYWRIGHT_API_PORT=3301 PLAYWRIGHT_WEB_PORT=5301 bun run acceptance",
+      "attempt": 1,
+      "exitCode": 1,
+      "classification": "environment",
+      "reason": "missing chromium_headless_shell-1243",
+      "sessionOutput": "artifact://132"
+    },
+    {
+      "command": "bunx playwright install chromium",
+      "exitCode": 0,
+      "chromiumRevision": 1243,
+      "chromiumVersion": "153.0.8010.12"
+    },
+    {
+      "command": "CI=true PLAYWRIGHT_DATABASE_URL=<isolated-browser-db> PLAYWRIGHT_API_PORT=3301 PLAYWRIGHT_WEB_PORT=5301 bun run acceptance",
+      "attempt": 2,
+      "exitCode": 1,
+      "passed": 37,
+      "failed": 1,
+      "commandSeconds": 172.94,
+      "classification": "stale-rerun-contract-test",
+      "failedTest": "tests/acceptance/audit-case.spec.ts:191",
+      "sessionOutput": "artifact://138"
+    },
+    {
+      "command": "GET http://127.0.0.1:3302/api/health",
+      "status": "ok",
+      "database": true,
+      "dispatcher": true,
+      "agentMode": "fake"
+    },
+    {
+      "command": "browser.open http://127.0.0.1:5302/audit-cases",
+      "viewport": [1440, 900],
+      "result": "visible empty queue with create action"
+    }
+  ],
+  "responsiveReview": {
+    "caseId": "8f4391ee-6d05-4fea-b950-2104691c01c2",
+    "synthetic": true,
+    "desktop": {
+      "width": 1440,
+      "findingPaneDisplay": "flex",
+      "inspectorDisplay": "flex",
+      "visibleReviewActions": 2,
+      "screenshot": "s0-review-1440.png"
+    },
+    "mobile": {
+      "width": 375,
+      "findingPaneDisplay": "none",
+      "inspectorDisplay": "none",
+      "visibleReviewActions": 0,
+      "screenshot": "s0-review-375.png"
+    }
+  },
+  "readOnlyAudits": [
+    "QaBaseline",
+    "InfraBaseline",
+    "DecisionBaseline",
+    "UxBaseline",
+    "DocsBaseline"
+  ],
+  "limitations": [
+    "No Laya/Jev inference performed",
+    "No human expert sign-off of new decision labels",
+    "No production accuracy or business-efficiency claim"
+  ]
+}
