@@ -24,8 +24,8 @@
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | M1-B01 真实浏览器业务闭环 | Main、A/C / DONE | 独立Demo与标准合同 → 上传、审计、证据、复核、整改、轨迹、原件记录 | 浏览器实际操作、刷新后持久化、S3 locator/hash；A apps/web，C acceptance，Main证据 | [浏览器证明](./evidence/m1/browser.json)：790e61fe上传、双来源证据、5项复核/整改、整改关闭刷新保持、Fake Trace46步、S3重启后读取与同源重新审计通过；不替代全站E2E | 业务闭环 / M1 | 未记录 / M1 Phase A | 2026-10-15 |
-| M1-B02 完整Release Gate | Main、B/C / IN_PROGRESS | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | [历史验证来源](./recovery/2026-10-15/verification-provenance.json)：verify841/0、87文件31.76秒，Docker API/Web Built；Web及独立E2E迁移通过。RustFS重启/同源重新审计见浏览器证据；四层test:all及统一故障/安全报告仍未完成 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-15 |
-| M1-B03 发布与交接 | Main / TODO | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 未发布；代码候选880ff97、检查点a1e6191；没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02 | 2026-10-15 |
+| M1-B02 完整Release Gate | Main、B/C / BLOCKED | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | 用户要求暂停；本次四层入口失败，报告HTML初始化错误、Playwright混入Bun测试、测试进程未收到S3/Redis配置。两套新TEST库迁移及check:migrations通过；具体结果/路径见HANDOFF暂停断点，尚未修复 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01；用户要求继续后解除暂停 | 2026-10-15 |
+| M1-B03 发布与交接 | Main / BLOCKED | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 用户要求暂停，且M1-B02尚未通过；未发布，没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02；用户要求继续 | 2026-10-15 |
 
 ## M2 · v0.8.0 · Phase A 设计与实现
 
@@ -221,7 +221,7 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 ## 当前执行视图
 
-OMP保留M1-B01完成、M1-B02进行中、M1-B03待办，以及暂停的M2-B01/TI工作包入口。临时REC恢复操作在[恢复记录](./recovery/2026-10-15/README.md)保留；完成后退出日常执行视图，不挤占全局任务。TI原29项仍为DONE 1 / IN_PROGRESS 1 / TODO 27，完整状态不因入口暂停而改变。
+OMP保留M1-B01完成、M1-B02与M1-B03因用户要求暂停而BLOCKED，以及暂停的M2-B01/TI工作包入口。恢复断点见[HANDOFF](./HANDOFF.md)；用户要求继续后解除暂停。临时REC操作保存在[恢复记录](./recovery/2026-10-15/README.md)。TI原29项仍为DONE 1 / IN_PROGRESS 1 / TODO 27，不因入口暂停而改变。
 
 登记口径：原53项 + 后增8项 + 四Milestone33项 + TI29项 = **123条主任务记录**；另有G1–G7和A2-P0共**8条历史验收/名称变更记录**。不同层级有关联和重叠，不据此计算产品完成率。原无编号的操作、延期范围及REC恢复步骤单列保留。
 
