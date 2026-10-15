@@ -1,3 +1,5 @@
+import { type DecisionConfig, loadDecisionConfig } from "./decision/config";
+
 export interface ApiConfig {
   databaseUrl: string;
   /** Maximum wall-clock time for a single agent run, in milliseconds. 0 = no timeout. */
@@ -26,10 +28,12 @@ export interface ApiConfig {
   ownOrganizationNames: readonly string[];
   /** Whether environment settings identify an LLM endpoint and model; keys are optional. */
   llmConfigured: boolean;
+  /** Shadow decision layer settings; `decisionMode` is `off` by default. */
+  decision: DecisionConfig;
 }
 
 /** A comma-separated list, tolerating the full-width comma a Chinese keyboard types. */
-const parseNameList = (value: string | undefined): readonly string[] =>
+export const parseNameList = (value: string | undefined): readonly string[] =>
   (value ?? "")
     .split(/[,，]/u)
     .map((name) => name.trim())
@@ -39,6 +43,12 @@ const parseInteger = (value: string | undefined, fallback: number): number => {
   if (value === undefined || value.trim() === "") return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+/** A parsed integer held inside `[min, max]`; a non-numeric value uses the fallback. */
+export const clampInteger = (parsed: number, fallback: number, min: number, max = Number.MAX_SAFE_INTEGER): number => {
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(Math.max(Math.trunc(parsed), min), max);
 };
 
 /**
@@ -68,5 +78,6 @@ export function loadApiConfig(): ApiConfig {
     qccToken: process.env.QCC_TOKEN ?? "",
     ownOrganizationNames: parseNameList(process.env.OWN_ORGANIZATION_NAMES),
     llmConfigured: Boolean(process.env.XYG_ENDPOINT && process.env.XYG_MODEL),
+    decision: loadDecisionConfig(),
   };
 }

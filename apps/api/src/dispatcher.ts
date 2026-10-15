@@ -22,6 +22,21 @@ import type { AuditEventBroker } from "./sse";
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
 
+/**
+ * Resolves the persisted snapshot row's id for a case.
+ *
+ * The domain `AuditSnapshot` deliberately carries no row id — it is a value
+ * object, not a database row — so the id is read from the row the repository
+ * returns. When the repository cannot produce one the shadow derivation is
+ * skipped rather than guessing at "the latest snapshot": an observation whose
+ * snapshot identity cannot be proven must not exist.
+ */
+const snapshotIdOf = (row: unknown): string => {
+  if (row === null || typeof row !== "object" || !("id" in row)) return "";
+  const id = row.id;
+  return typeof id === "string" && id.length > 0 ? id : "";
+};
+
 export class AuditDispatcher {
   private activeAgentRuns = new Map<string, { abort: () => void }>();
   private cancelledCaseIds = new Set<string>();
@@ -48,6 +63,21 @@ export class AuditDispatcher {
      * environment configuration.
      */
     private readonly ocr?: OcrPort,
+    /**
+     * Derives a shadow observation for a run that has just reached a proven
+     * successful terminal state. Never awaited by the formal path's outcome:
+     * the dispatcher calls it after the formal status is persisted and
+     * swallows everything it does, so a shadow failure cannot turn a
+     * successful audit into a failed one. Absent means the decision layer is
+     * not wired, which is the default.
+     */
+    private readonly deriveShadow?: (input: {
+      auditCaseId: string;
+      snapshotId: string;
+      agentRunId: string;
+      snapshot: AuditSnapshot;
+      traceId: string;
+    }) => Promise<unknown>,
   ) {}
 
   get isStarted(): boolean {
@@ -107,6 +137,11 @@ export class AuditDispatcher {
         undefined,
         ocr,
       );
+      // The snapshot row this run actually judged under, resolved now rather
+      // than taken from the claim: a first run builds and persists one here,
+      // so the claim's (older or null) id would name the wrong generation.
+      const snapshotRow = await this.repository.getSnapshotByCase(auditCaseId);
+      const snapshotId = snapshotRow === null ? "" : snapshotIdOf(snapshotRow);
 
       this.broker.publish({ type: "audit.started", auditCaseId });
       // Rules already ran while the snapshot was assembled, so the first stage
@@ -160,6 +195,11 @@ export class AuditDispatcher {
           subjectVerificationProvider: this.subjectVerificationPort.provider,
           evidence: [...snapshot.evidence, ...verification.evidence],
           ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
+          // The provider that actually answered, recorded on the run-only
+          // enriched context so a downstream policy can tell a fixture answer
+          // from a real provider's rather than inferring it from the
+          // assessment text.
+          subjectVerificationProvider: this.subjectVerificationPort.provider,
         };
       }
 
@@ -224,12 +264,13 @@ export class AuditDispatcher {
 
       if (result.proposals.length === 0) {
         // No issues found — the case passes without review. Persist the
-        // terminal state first: the SSE handler refetches on this event, and a
-        // publish that overtakes the write leaves the detail view on
+        // terminal state first: the SSE handler refetches on this event, and
+        // a publish that overtakes the write leaves the detail view on
         // "审计进行中" with no later event to correct it.
         await this.repository.updateCaseStatus(auditCaseId, "COMPLETED", "COMPLETED");
         await this.repository.refreshRemediationClosureHints(auditCaseId);
         this.broker.publish({ type: "audit.completed", auditCaseId });
+        await this.deriveShadowAdvice(auditCaseId, snapshotId, runId, context);
         return;
       }
 
@@ -240,6 +281,7 @@ export class AuditDispatcher {
       await this.repository.updateCaseStatus(auditCaseId, "AWAITING_REVIEW", "AWAITING_REVIEW");
       await this.repository.refreshRemediationClosureHints(auditCaseId);
       this.broker.publish({ type: "audit.awaiting_review", auditCaseId });
+      await this.deriveShadowAdvice(auditCaseId, snapshotId, runId, context);
     } catch (error) {
       const cancelled = this.cancelledCaseIds.delete(auditCaseId) || isAbortError(error);
       if (cancelled) {
@@ -257,6 +299,41 @@ export class AuditDispatcher {
       this.activeAgentRuns.delete(auditCaseId);
       this.running -= 1;
       await this.processQueue();
+    }
+  }
+
+  /**
+   * Hands a proven successful run to the shadow layer, if one is wired.
+   *
+   * Everything this does is contained: the call is awaited only so a job
+   * exists before the process might exit, and every failure — including a
+   * provider repository that is missing tables — is swallowed with the formal
+   * outcome already persisted. The shadow layer's own reliability lives in its
+   * worker's independent scan, so a derivation that fails here is retried by
+   * that scan rather than by re-running the audit.
+   */
+  private async deriveShadowAdvice(
+    auditCaseId: string,
+    snapshotId: string,
+    agentRunId: string,
+    context: AuditSnapshot,
+  ): Promise<void> {
+    if (this.deriveShadow === undefined) return;
+    // Without a proven snapshot row id the observation's identity cannot be
+    // frozen, so it is not derived at all.
+    if (snapshotId === "") return;
+    try {
+      await this.deriveShadow({
+        auditCaseId,
+        snapshotId,
+        agentRunId,
+        snapshot: context,
+        traceId: `${agentRunId}`,
+      });
+    } catch {
+      // A shadow failure never reaches the formal path. The worker's scan
+      // derives the same observation again, idempotently, from the same
+      // proven run identity.
     }
   }
 

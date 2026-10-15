@@ -177,4 +177,11 @@ export interface SourceRecordOriginal {
   originalPath: string | null;
   name: string | null;
   provenance: SourceProvenance | null;
+  /**
+   * The Source Record's stored metadata, including the upload integrity facts
+   * (`originalSha256`, `originalSizeBytes`, `originalMimeType`,
+   * `originalBackend`) a download or re-audit verifies the bytes against.
+   * Null when the record carries none.
+   */
+  metadata: Record<string, unknown> | null;
 }
