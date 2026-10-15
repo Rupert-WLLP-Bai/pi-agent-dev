@@ -46,6 +46,21 @@ const baseConfig = (overrides: Partial<ApiConfig> = {}): ApiConfig => ({
   qccToken: "qcc-token-present",
   ownOrganizationNames: ["中国移动通信集团重庆有限公司"],
   llmConfigured: true,
+  decision: {
+    decisionMode: "off",
+    decisionProvider: "disabled",
+    decisionEndpoint: "",
+    decisionAllowedOrigins: [],
+    decisionModel: "",
+    decisionModelRevision: "1720e3e3357cfe1e281542e223f8273b0890ca34",
+    decisionCodeRevision: "432312b36714d8889eba405507b37eda25257d9c",
+    decisionTimeoutMs: 10_000,
+    decisionPollIntervalMs: 2_000,
+    decisionMaxRetries: 2,
+    decisionConcurrency: 1,
+    decisionLeaseMs: 60_000,
+    decisionRetentionDays: 30,
+  },
   ...overrides,
 });
 

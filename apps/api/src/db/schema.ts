@@ -1,5 +1,9 @@
 import type { ValidationCaseResult, ValidationSummary } from "@contract-audit/audit/golden-eval";
 import type {
+  DecisionProviderResult,
+  DecisionRequest,
+} from "@contract-audit/audit/decision";
+import type {
   AgentTraceTokens,
   AuditCaseStatus,
   AuditSnapshot,
@@ -545,6 +549,164 @@ export const ocrSettings = pgTable(
   (table) => [uniqueIndex("ocr_settings_singleton_idx").on(table.singletonKey)],
 );
 
+/**
+ * The frozen minimal masked request, as persisted for recovery and hashing.
+ * Recovery re-hashes it and re-runs the same question; nothing here is ever
+ * returned by a public DTO, and the model state is built from it through the
+ * redaction projector rather than by serializing it.
+ */
+export type DecisionRequestFrozen = DecisionRequest;
+
+/** The validated provider result, stored verbatim so a later read never re-derives it. */
+export type DecisionProviderResultFrozen = DecisionProviderResult;
+
+/**
+ * One registered demo environment. The row is what lets a demo reset prove it
+ * is pointed at a database an operator explicitly registered for that purpose:
+ * the CLI checks `DEMO_ENVIRONMENT_ID` against this table and
+ * `current_database()` against `database_name` before touching anything. It is
+ * written only by guarded registration (demo/test APP_ENV, explicit
+ * confirmation) — a production database migration never inserts one.
+ */
+export const demoEnvironments = pgTable("demo_environments", {
+  /** The environment identifier `DEMO_ENVIRONMENT_ID` carries. */
+  id: text("id").primaryKey(),
+  /** The database name the environment was registered against. */
+  databaseName: text("database_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+});
+
+/** The five lifecycle states a shadow decision job moves through. */
+export const shadowJobStatuses = [
+  "PENDING",
+  "RUNNING",
+  "SUCCEEDED",
+  "FAILED",
+  "SKIPPED",
+] as const;
+export type ShadowJobStatus = (typeof shadowJobStatuses)[number];
+
+/**
+ * One shadow decision observation, persisted independently of the formal audit
+ * path. The row *is* the durable job: identity, lease, retries and the final
+ * parsed provider result all live here, so an interrupted process recovers
+ * through the database rather than through in-memory state.
+ *
+ * The identity columns (agent_run_id, question/policy/redaction versions,
+ * input_hash, provider, model_version) carry a single non-nullable unique
+ * index: a re-derivation of the same observation reuses the existing row
+ * instead of appending a second answer, and a job whose identity cannot be
+ * proven is never created at all.
+ *
+ * `frozen_input` holds the minimal masked request — enough to re-hash and
+ * recover, never enough to reconstruct the contract. Public DTOs never return
+ * it.
+ */
+export const shadowJobs = pgTable(
+  "shadow_jobs",
+  {
+    /** The DecisionAdvice's own decisionId; the row's identity. */
+    decisionId: uuid("decision_id").primaryKey(),
+    auditCaseId: uuid("audit_case_id")
+      .references(() => auditCases.id, { onDelete: "cascade" })
+      .notNull(),
+    snapshotId: uuid("snapshot_id")
+      .references(() => auditSnapshots.id, { onDelete: "cascade" })
+      .notNull(),
+    /**
+     * The exact Agent Run this observation was derived from, frozen as text:
+     * the formal run that succeeded is the proof a shadow job needs, and the
+     * column is deliberately not an FK because a run's identity is recorded at
+     * derivation time and must never be re-resolved to "the latest run".
+     */
+    agentRunId: text("agent_run_id").notNull(),
+    inputHash: text("input_hash").notNull(),
+    questionKey: text("question_key").notNull(),
+    questionVersion: text("question_version").notNull(),
+    policyVersion: text("policy_version").notNull(),
+    redactionVersion: text("redaction_version").notNull(),
+    provider: text("provider").notNull(),
+    modelVersion: text("model_version").notNull(),
+    status: text("status", { enum: shadowJobStatuses })
+      .$type<ShadowJobStatus>()
+      .notNull()
+      .default("PENDING"),
+    attempts: integer("attempts").notNull().default(0),
+    /** Which worker holds the lease; null when claimable. */
+    leaseOwner: text("lease_owner"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true, mode: "date" }),
+    /** The frozen minimal masked request; recovery and hashing only. */
+    frozenInput: jsonb("frozen_input").$type<DecisionRequestFrozen>().notNull(),
+    /** The validated provider result; null until the job succeeds. */
+    result: jsonb("result").$type<DecisionProviderResultFrozen | null>(),
+    fallbackReason: text("fallback_reason"),
+    latencyMs: integer("latency_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    // The idempotency identity: one observation per exact run, snapshot, input,
+    // question/policy/redaction versions, provider and model revision. No
+    // nullable column participates, so a duplicate can never slip through.
+    uniqueIndex("shadow_jobs_identity_idx").on(
+      table.agentRunId,
+      table.questionKey,
+      table.questionVersion,
+      table.policyVersion,
+      table.redactionVersion,
+      table.inputHash,
+      table.provider,
+      table.modelVersion,
+    ),
+    index("shadow_jobs_audit_case_id_idx").on(table.auditCaseId),
+    // The worker's claim query: status plus lease expiry, oldest first.
+    index("shadow_jobs_status_lease_idx").on(table.status, table.leaseExpiresAt, table.createdAt),
+    // Retention and demo cleanup only ever look at terminal rows.
+    index("shadow_jobs_terminal_created_at_idx")
+      .on(table.status, table.completedAt)
+      .where(sql`${table.status} IN ('SUCCEEDED', 'FAILED', 'SKIPPED')`),
+  ],
+);
+
+/** The three evaluation choices a reviewer can record against a shadow advice. */
+export const shadowFeedbackDecisions = ["accepted", "rejected", "needs_review"] as const;
+export type ShadowFeedbackDecision = (typeof shadowFeedbackDecisions)[number];
+
+/**
+ * Append-only evaluation feedback on one shadow advice. Deliberately separate
+ * from a finding's human-review history: recording "this advice was wrong"
+ * never accepts, rejects or otherwise touches a Finding, a Rule Assessment or
+ * the audit case.
+ *
+ * `idempotencyKey` is scoped by the caller to (decision, actor); the partial
+ * unique index below turns a network retry of the same key into a read of the
+ * stored event instead of a second append, while a different body under the
+ * same key is a 409 the route answers before writing.
+ */
+export const shadowFeedback = pgTable(
+  "shadow_feedback",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    decisionId: uuid("decision_id")
+      .references(() => shadowJobs.decisionId, { onDelete: "cascade" })
+      .notNull(),
+    decision: text("decision", { enum: shadowFeedbackDecisions })
+      .$type<ShadowFeedbackDecision>()
+      .notNull(),
+    actor: text("actor").notNull(),
+    reason: text("reason"),
+    idempotencyKey: text("idempotency_key"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("shadow_feedback_decision_id_idx").on(table.decisionId),
+    uniqueIndex("shadow_feedback_idempotency_idx")
+      .on(table.decisionId, table.actor, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
+  ],
+);
+
 export const schema = {
   sourceRecords,
   contracts,
@@ -564,6 +726,9 @@ export const schema = {
   auditActionLogs,
   llmProviders,
   ocrSettings,
+  demoEnvironments,
+  shadowJobs,
+  shadowFeedback,
 };
 
 export type SourceRecord = InferSelectModel<typeof sourceRecords>;
@@ -582,6 +747,9 @@ export type ValidationCaseRow = InferSelectModel<typeof validationCases>;
 export type AuditActionLogRow = InferSelectModel<typeof auditActionLogs>;
 export type LlmProviderRow = InferSelectModel<typeof llmProviders>;
 export type OcrSettingsRow = InferSelectModel<typeof ocrSettings>;
+export type DemoEnvironmentRow = InferSelectModel<typeof demoEnvironments>;
+export type ShadowJobRow = InferSelectModel<typeof shadowJobs>;
+export type ShadowFeedbackRow = InferSelectModel<typeof shadowFeedback>;
 
 export const sourceRecordsRelations = relations(sourceRecords, ({ many }) => ({
   cases: many(auditCases),

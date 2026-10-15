@@ -247,6 +247,16 @@ export interface AuditSnapshot {
    * unversioned rule set (e.g. the golden bench).
    */
   policy?: AuditSnapshotPolicy;
+  /**
+   * Which subject-verification provider enriched this run's context. Set by
+   * the dispatcher on the run-only enriched snapshot, from the port that
+   * actually answered, so a downstream policy can tell a fixture answer from
+   * a real provider's without inferring it from the assessment text.
+   * `qcc-fixture` marks the built-in fixture; anything else is a real
+   * provider. Absent means the snapshot carries no appended subject
+   * assessment, or predates the field.
+   */
+  subjectVerificationProvider?: string;
   createdAt: string;
 }
 

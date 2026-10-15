@@ -26,6 +26,13 @@ export type CreateRerunCaseResult =
   | { status: "rerun_active" };
 
 /**
+ * The demo world's activation-lock key. The exact integer Infra's reset takes
+ * exclusively; both files must spell the number, never derive it, so the key
+ * cannot drift.
+ */
+export const DEMO_WORLD_LOCK_KEY = 748291001;
+
+/**
  * Canonical UUID text. `audit_cases.id` and the ids it references are typed
  * `uuid`, so a value that does not match can only ever match zero rows —
  * checking the shape first keeps a malformed id an honest 404 rather than a
@@ -38,6 +45,10 @@ export class AuditQueueRepository {
 
   async claimNextPendingCase(): Promise<{ caseId: string; snapshotId: string | null } | null> {
     return this.db.transaction(async (tx) => {
+      // Shared demo-world gate: concurrent claims never block each other, and
+      // a demo reset's exclusive lock waits for this claim to commit before it
+      // touches any case.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock_shared(${DEMO_WORLD_LOCK_KEY})`);
       const rows = await tx.execute<{ case_id: string; snapshot_id: string | null }>(sql`
         SELECT c.id AS case_id,
                (
@@ -68,6 +79,8 @@ export class AuditQueueRepository {
     auditCaseId: string,
   ): Promise<{ caseId: string; snapshotId: string | null } | null> {
     return this.db.transaction(async (tx) => {
+      // Shared demo-world gate; see claimNextPendingCase.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock_shared(${DEMO_WORLD_LOCK_KEY})`);
       const rows = await tx.execute<{ case_id: string; snapshot_id: string | null }>(sql`
         SELECT c.id AS case_id,
                (
@@ -102,6 +115,15 @@ export class AuditQueueRepository {
       metadata?: Record<string, unknown>;
       assignee?: string | null;
       contractId?: string | null;
+      /**
+       * Where the uploaded original already lives, registered together with
+       * the Source Record in this same transaction. Lets a caller save the
+       * bytes first and then register locator, source and case atomically, so
+       * a failure can never leave a case pointing at bytes that were never
+       * written. Null (the default) keeps the historical shape: a pasted
+       * submission, or an upload that points the row at its file afterwards.
+       */
+      originalPath?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
     return this.db.transaction(async (tx) => {
@@ -110,6 +132,7 @@ export class AuditQueueRepository {
         .values({
           id: sourceRecordId,
           sourceText,
+          originalPath: options.originalPath ?? null,
           metadata: {
             ...(provenance === null
               ? {}
@@ -178,6 +201,8 @@ export class AuditQueueRepository {
   async createRerunCase(sourceCaseId: string): Promise<CreateRerunCaseResult> {
     if (!UUID_PATTERN.test(sourceCaseId)) return { status: "not_found" };
     return this.db.transaction(async (tx) => {
+      // Shared demo-world gate; see claimNextPendingCase.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock_shared(${DEMO_WORLD_LOCK_KEY})`);
       // Lock the source row first: a concurrent rerun of the same case then
       // waits here instead of interleaving its own checks with ours.
       const source = await tx.execute<{
@@ -502,6 +527,10 @@ export class AuditQueueRepository {
       originalPath: row.originalPath,
       name,
       provenance: toSourceProvenance(sourceType, name),
+      metadata:
+        metadata !== null && typeof metadata === "object" && !Array.isArray(metadata)
+          ? (metadata as Record<string, unknown>)
+          : null,
     };
   }
 }

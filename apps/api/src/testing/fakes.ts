@@ -232,6 +232,7 @@ export class InMemoryAuditCaseRepository {
       metadata?: Record<string, unknown>;
       assignee?: string | null;
       contractId?: string | null;
+      originalPath?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
     const caseId = `case-${this.cases.size + 1}`;
@@ -240,6 +241,11 @@ export class InMemoryAuditCaseRepository {
     this.sourceRecordIdsByCase.set(caseId, sourceRecordId);
     this.sourceProvenanceByRecord.set(sourceRecordId, provenance);
     this.sourceTexts.set(sourceRecordId, sourceText);
+    // Registered in the same step as the case, mirroring the SQL repository's
+    // single-transaction insert.
+    if (options.originalPath !== undefined && options.originalPath !== null) {
+      this.sourceOriginalPaths.set(sourceRecordId, options.originalPath);
+    }
     if (options.metadata) this.sourceMetadata.set(sourceRecordId, { ...options.metadata });
     if (provenance?.displayName != null) {
       this.sourceDisplayNames.set(sourceRecordId, provenance.displayName);
@@ -401,6 +407,9 @@ export class InMemoryAuditCaseRepository {
       originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,
       name: this.sourceDisplayNames.get(sourceRecordId) ?? null,
       provenance: this.sourceProvenanceByRecord.get(sourceRecordId) ?? null,
+      // The same server metadata the SQL repository returns, so integrity
+      // checks read the same fields against either implementation.
+      metadata: this.sourceMetadata.get(sourceRecordId) ?? null,
     };
   }
 
