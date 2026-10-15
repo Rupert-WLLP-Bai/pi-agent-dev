@@ -8,6 +8,8 @@
     "./agent-trace": "./src/agent-trace.ts",
     "./contract-search": "./src/contract-search.ts",
     "./contract-stance": "./src/contract-stance.ts",
+    "./decision": "./src/decision.ts",
+    "./decision-contract": "./src/decision-contract.ts",
     "./model": "./src/model.ts",
     "./proposal-guard": "./src/proposal-guard.ts",
     "./payment-rule": "./src/payment-rule.ts",
@@ -36,5 +38,8 @@
     "./remediation-closure": "./src/remediation-closure.ts",
     "./dossier-consistency": "./src/dossier-consistency.ts",
     "./stated-total": "./src/stated-total.ts"
+  },
+  "dependencies": {
+    "typebox": "1.3.27"
   }
 }

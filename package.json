@@ -17,6 +17,7 @@
     "seed:demo": "bun --env-file=.env apps/api/src/demo/seed-cli.ts"
   },
   "devDependencies": {
+    "@contract-audit/audit": "workspace:*",
     "@biomejs/biome": "^2.5.13",
     "@playwright/test": "^1.50.0",
     "@types/bun": "^1.4.2",

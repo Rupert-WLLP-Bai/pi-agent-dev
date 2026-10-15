@@ -1,0 +1,47 @@
+{
+  "recordedAt": "2026-10-15T04:32:33.135Z",
+  "inputBaseCommit": "a4c6119422ff2c3c2e19f52cef1c32a6e38a3bf4",
+  "sourceRef": "S1 working tree; source digests identify the exact verified implementation",
+  "bunVersion": "1.4.3",
+  "database": "contract_audit_omp_s0_unit_20261015",
+  "checks": [
+    {
+      "command": "bun test packages/audit/src/decision-contract.test.ts",
+      "exitCode": 0,
+      "passed": 18,
+      "failed": 0,
+      "expectations": 25
+    },
+    {
+      "command": "DATABASE_URL=<isolated migrated database> bun run verify",
+      "exitCode": 0,
+      "lintFiles": 287,
+      "typecheckPasses": 2,
+      "passed": 670,
+      "failed": 0,
+      "testFiles": 75,
+      "testDurationSeconds": 9.99
+    },
+    {
+      "command": "bun -e <versioned contract JSON consumer smoke>",
+      "exitCode": 0,
+      "schemaVersion": 1,
+      "provider": "fake",
+      "liveInference": false,
+      "acceptedAnswer": {
+        "type": "noul",
+        "noul": 0.8
+      },
+      "rejectedVersion": "unsupported_schema",
+      "distinctIdentityKinds": 3
+    }
+  ],
+  "contractSourceDigests": {
+    "packages/audit/src/decision.ts": "1c1a31cc82258c8e1173793f41c04e09d914c3a62522080f3d48230427ae42a6",
+    "packages/audit/src/decision-contract.ts": "0f293d69c106133744232e45f516cf9bc8cfaba2a41981f31f0463045a2b9561",
+    "packages/audit/src/decision-contract.test.ts": "d6157a5d73d7fdaa357a82ffd6db592d4f656427d54b634f8dd6c6b094762f1f",
+    "tests/fixtures/decision/contract.ts": "db50564707ac6c6f73852fc9334534f3b58dcdc999a9ba366674cf6c1d8e445d"
+  },
+  "scope": "Contracts and validation only. Authorization, persistence, Laya CPU inference and UI remain S2 implementation tasks.",
+  "verificationLog": "/tmp/contract-audit-s1-verify.log"
+}

@@ -141,3 +141,11 @@ _Avoid_: counterparty check (generic), company API response
 **Party History Run**:
 The deterministic evaluation of prior reviewed findings on the same Contract Party, frozen into one Audit Case as Evidence and a Rule Assessment.
 _Avoid_: CRM history, manual memory
+
+**Shadow Advice**:
+A separately recorded machine suggestion about an audit's interpretation or review needs, with its origin and uncertainty. It does not adjudicate a Finding Proposal.
+_Avoid_: Finding, Rule Assessment, evidence, final decision
+
+**Shadow Feedback**:
+A person's evaluation of the usefulness of Shadow Advice. It is independent of the Human Review that accepts or rejects a Finding Proposal.
+_Avoid_: Human Review, finding acceptance, remediation decision

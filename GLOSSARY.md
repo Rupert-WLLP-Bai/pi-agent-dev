@@ -169,3 +169,11 @@ _Avoid_: 重试、重评、重新提交、新建合同版本
 **Audit Reassessment（重评）**:
 针对同一审计案件，按当前生效规则形成新的审查快照后再次进行分析；原快照仍是过去评估依据的记录。
 _Avoid_: 重新运行 Agent、重新审计、重试
+
+**Shadow Advice**:
+A separately recorded machine suggestion about an audit's interpretation or review needs, with its origin and uncertainty. It does not adjudicate a Finding Proposal.
+_Avoid_: Finding, Rule Assessment, evidence, final decision
+
+**Shadow Feedback**:
+A person's evaluation of the usefulness of Shadow Advice. It is independent of the Human Review that accepts or rejects a Finding Proposal.
+_Avoid_: Human Review, finding acceptance, remediation decision

@@ -5,10 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-10-14
+## [Unreleased] - 2026-10-15
 
 ### Added
 
+- Versioned shadow-decision contracts for Disabled/Fake and local Laya, with distinct
+  case, snapshot and run identities, typed failures, independent feedback and public
+  detail envelopes. These contracts do not grant authority to change audit findings.
+- TypeBox validation for controlled questions and provider answers: unsupported
+  versions, invalid distributions, non-finite values and provider-supplied authority
+  fields are rejected. S1 also freezes privacy, retention, access and migration
+  responsibilities for the subsequent implementation.
 - **Agent Trace tree**: the audit-case trace page now renders a deepseek-harness-style
   recursive tool-call tree with turn grouping instead of a flat list. Turns are
   `TURN_STARTED` / `TURN_COMPLETED` STAGE steps carrying the assistant message, tool
