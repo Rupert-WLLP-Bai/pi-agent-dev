@@ -1565,13 +1565,52 @@ a.todo-item:focus-visible {
 
 /* ── Mobile ─────────────────────────────────── */
 
+/* The pane switcher only exists where the panes stack; on a desktop it would
+   duplicate the always-visible three-column layout. */
+.review-pane-switch {
+  display: none;
+}
+
 @media (max-width: 767px) {
+  .review-pane-switch {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    background: #fff;
+    border-bottom: 1px solid var(--color-border-soft);
+    grid-column: 1 / -1;
+  }
+  .review-pane-switch button {
+    flex: 1;
+    min-height: 32px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-soft);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .review-pane-switch button.active {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    font-weight: 600;
+  }
   .review-workspace {
     grid-template-columns: 1fr;
   }
+  .review-workspace[data-mobile-pane="findings"] > .document-stage,
+  .review-workspace[data-mobile-pane="findings"] > .inspector,
+  .review-workspace[data-mobile-pane="document"] > .finding-nav,
+  .review-workspace[data-mobile-pane="document"] > .inspector,
+  .review-workspace[data-mobile-pane="inspector"] > .finding-nav,
+  .review-workspace[data-mobile-pane="inspector"] > .document-stage {
+    display: none;
+  }
   .finding-nav,
   .inspector {
-    display: none;
+    min-width: 0;
   }
   .document-stage {
     padding: 12px 8px;
@@ -2192,4 +2231,191 @@ a.todo-item:focus-visible {
   .remediation-board {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── 辅助决策（影子建议）───────────────────── */
+
+.decision-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.decision-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.decision-panel__head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.decision-note {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  margin: 0;
+}
+
+.decision-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.decision-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+}
+.decision-list__item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-soft);
+  font-family: inherit;
+  color: inherit;
+}
+.decision-list li:last-child .decision-list__item {
+  border-bottom: none;
+}
+.decision-list__item.active {
+  background: var(--tone-info-bg);
+}
+.decision-list__time {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.decision-detail {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.decision-detail__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.decision-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.decision-block h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.decision-answer {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.decision-confidence-value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.decision-probabilities,
+.decision-evidence {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.decision-conflict {
+  border-left: 3px solid var(--color-warning);
+  padding-left: 10px;
+}
+.decision-conflict p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.decision-feedback-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.decision-feedback-reason {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+}
+
+.decision-feedback-list {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) 0 0;
+  list-style: none;
+  border-top: 1px solid var(--color-border-soft);
+}
+.decision-feedback-list li {
+  padding: 4px 0;
+}
+
+/* A case action rendered as a link so middle-click and ⌘-click open it. */
+.case-action-link {
+  display: inline-flex;
+}
+
+@media (max-width: 767px) {
+  .decision-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 访问口令门禁 ──────────────────────────── */
+
+.access-gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4);
+  background: var(--color-bg);
+}
+
+.access-gate__card {
+  width: min(420px, 100%);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 6%);
+}
+
+.access-gate__card h1 {
+  font-size: 18px;
+  font-weight: 650;
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.access-gate__hint {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  margin: 0 0 var(--space-4);
+  line-height: 1.6;
 }

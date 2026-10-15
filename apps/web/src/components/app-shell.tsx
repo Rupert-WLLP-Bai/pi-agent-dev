@@ -23,6 +23,8 @@ import { useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 import { readOperator } from "../operator";
+import { sessionAllowsQueries, useSession, useSessionActions } from "../session";
+import { AccessGate } from "./access-gate";
 
 const { Sider, Header, Content } = Layout;
 
@@ -35,7 +37,7 @@ const healthLabels = {
 } as const;
 
 /** Org mark, product name, and contest badge stacked as one lockup. */
-function BrandMark({ collapsed }: { collapsed: boolean }) {
+export function BrandMark({ collapsed }: { collapsed: boolean }) {
   if (collapsed) {
     return (
       <div className="brand-collapsed" title="合同智能审计智能体">
@@ -216,6 +218,7 @@ function selectedKeys(pathname: string, origin?: unknown): string[] {
   // A case's detail page and its trace page are both the queue section: the
   // nav must keep highlighting where the operator came from.
   if (pathname.startsWith("/audit-cases")) {
+    if (pathname.endsWith("/decisions")) return ["/audit-cases"];
     if (origin === "reviews") return ["/reviews"];
     if (origin === "remediations") return ["/remediations"];
     return ["/audit-cases"];
@@ -228,6 +231,15 @@ function selectedKeys(pathname: string, origin?: unknown): string[] {
 }
 
 function breadcrumbFor(pathname: string, origin?: unknown) {
+  if (pathname.startsWith("/audit-cases/") && pathname.endsWith("/decisions")) {
+    return (
+      <>
+        <Link to="/audit-cases">审计队列</Link>
+        <span className="app-breadcrumb-sep">/</span>
+        辅助决策
+      </>
+    );
+  }
   if (pathname.startsWith("/audit-cases/") && pathname.endsWith("/trace")) {
     return (
       <>
@@ -291,10 +303,18 @@ export function AppShell() {
   const location = useLocation();
   const origin = readOrigin(location.search);
 
+  const session = useSession();
+  const { login, logout } = useSessionActions();
+  // Protected queries stay withheld until the gate answers: an unresolved
+  // session (still loading, or the endpoint itself failing) must not be read
+  // as "no gate", because the server is going to refuse those queries anyway.
+  const queriesAllowed = sessionAllowsQueries(session.data);
+
   const healthQuery = useQuery({
     queryKey: ["api-health"],
     queryFn: getApiHealth,
     refetchInterval: 30_000,
+    enabled: queriesAllowed,
   });
   const health = healthQuery.data?.status ?? "checking";
   const showHealth = health !== "ok";
@@ -322,6 +342,19 @@ export function AppShell() {
       />
     </nav>
   );
+
+  // The gate renders instead of the shell while a passphrase is required and
+  // missing, so no protected query is mounted and no route content is shown.
+  if (session.data?.authenticationRequired === true && !session.data.authenticated) {
+    return (
+      <AccessGate
+        pending={login.isPending}
+        error={login.error instanceof Error ? login.error.message : null}
+        unreachable={session.isError}
+        onSubmit={(passphrase) => login.mutate(passphrase)}
+      />
+    );
+  }
 
   return (
     <Layout className="app-shell">
@@ -386,6 +419,16 @@ export function AppShell() {
                 <span aria-hidden="true" className="health-indicator__dot" />
                 {healthLabels[health]}
               </span>
+            )}
+            {session.data?.authenticationRequired === true && session.data.authenticated && (
+              <Button
+                size="small"
+                loading={logout.isPending}
+                onClick={() => logout.mutate()}
+                aria-label="退出登录"
+              >
+                退出登录
+              </Button>
             )}
             <Avatar size={28} style={{ background: "#0B6BB5" }}>
               审

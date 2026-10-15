@@ -20,6 +20,11 @@ import type {
   ValidationRunRecord,
   ValidationRunView,
 } from "@contract-audit/api";
+import type {
+  DecisionAdviceList,
+  DecisionDetail,
+  DecisionFeedback,
+} from "@contract-audit/audit/decision";
 import type { AgentRunTrace } from "@contract-audit/audit/model";
 import type { ReviewPriority } from "@contract-audit/audit/ports";
 import { type Treaty, treaty } from "@elysiajs/eden";
@@ -344,6 +349,87 @@ export async function reassessAuditCase(id: string) {
   if (error) throw new ApiRequestError("重评失败", error.status);
   return data;
 }
+
+// ── 辅助决策（影子建议）────────────────────────────────
+
+/**
+ * The shadow-decision reads and the feedback write.
+ *
+ * These use `fetch` rather than Eden Treaty because the decision routes are
+ * still being assembled by the backend owner; the shapes are the frozen
+ * canonical DTOs from `@contract-audit/audit/decision`, so no second copy of
+ * the contract exists here. When the routes land in `AuditApp`, these calls
+ * move onto Treaty without a shape change.
+ *
+ * Reads never require the operator header, but the feedback write is a
+ * mutation, so it carries one: attribution, not authentication.
+ */
+
+/** One replay-protected feedback submission. */
+export interface DecisionFeedbackInput {
+  decision: "accepted" | "rejected" | "needs_review";
+  reason?: string;
+  /**
+   * The key a retry reuses. The API scopes it by decision and actor: the same
+   * key with the same body returns the stored event, the same key with a
+   * different body is a 409. The caller generates one per operator action and
+   * reuses it across that action's network retries.
+   */
+  idempotencyKey: string;
+}
+
+export async function listDecisionAdvice(auditCaseId: string) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/audit-cases/${encodeURIComponent(auditCaseId)}/decisions`,
+    { headers: operatorHeader(), credentials: "same-origin" },
+  );
+  return decodeDecisionResponse<DecisionAdviceList>(response, "加载辅助建议失败");
+}
+
+export async function getDecisionAdvice(decisionId: string) {
+  const response = await fetch(`${API_BASE_URL}/api/decisions/${encodeURIComponent(decisionId)}`, {
+    headers: operatorHeader(),
+    credentials: "same-origin",
+  });
+  return decodeDecisionResponse<DecisionDetail>(response, "加载建议详情失败");
+}
+
+export async function submitDecisionFeedback(decisionId: string, input: DecisionFeedbackInput) {
+  const response = await fetch(
+    `${API_BASE_URL}/api/decisions/${encodeURIComponent(decisionId)}/feedback`,
+    {
+      method: "POST",
+      headers: {
+        ...operatorHeader(),
+        "content-type": "application/json",
+        "Idempotency-Key": input.idempotencyKey,
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        schemaVersion: 1,
+        decision: input.decision,
+        ...(input.reason === undefined || input.reason === "" ? {} : { reason: input.reason }),
+      }),
+    },
+  );
+  return decodeDecisionResponse<DecisionFeedback>(response, "提交评估反馈失败");
+}
+
+/**
+ * Decodes a decision response against the versioned error contract. A 404 is
+ * reported as such so the page can say "not found" rather than "failed"; a 409
+ * means the idempotency key was replayed with a different body, which the
+ * caller surfaces instead of silently retrying.
+ */
+async function decodeDecisionResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  if (response.ok) {
+    return (await response.json()) as T;
+  }
+  const body = (await response.json().catch(() => null)) as { error?: string } | null;
+  throw new ApiRequestError(body?.error ?? fallbackMessage, response.status);
+}
+
+export type { DecisionAdviceList, DecisionDetail, DecisionFeedback };
 
 export async function getApiHealth(): Promise<ApiHealth> {
   const { data, error } = await api.api.health.get();

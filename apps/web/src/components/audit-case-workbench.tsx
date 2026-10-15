@@ -2,6 +2,7 @@ import {
   ArrowLeftOutlined,
   CopyOutlined,
   DownloadOutlined,
+  ExperimentOutlined,
   NodeIndexOutlined,
 } from "@ant-design/icons";
 import type {
@@ -643,6 +644,10 @@ export function AuditCaseWorkbench({
   const [findingTab, setFindingTab] = useState<"pending" | "all">("pending");
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [coverageOpen, setCoverageOpen] = useState(false);
+  // Which pane a ≤767px viewport shows. The three panes stack into one column
+  // there, so only one is visible at a time; the switcher keeps the risk list
+  // and the review actions reachable instead of hiding them.
+  const [mobilePane, setMobilePane] = useState<"findings" | "document" | "inspector">("findings");
   const documentRef = useRef<HTMLDivElement>(null);
 
   const problemBlockIds = useMemo(() => {
@@ -762,6 +767,15 @@ export function AuditCaseWorkbench({
             <Button size="small" icon={<NodeIndexOutlined />} onClick={onOpenTrace}>
               运行轨迹
             </Button>
+            <Link
+              to="/audit-cases/$id/decisions"
+              params={{ id: auditCase.id }}
+              className="case-action-link"
+            >
+              <Button size="small" icon={<ExperimentOutlined />}>
+                辅助决策
+              </Button>
+            </Link>
             {canDownloadOriginal({ sourceProvenance, originalDownloadable }) && (
               <Button
                 size="small"
@@ -935,7 +949,25 @@ export function AuditCaseWorkbench({
       )}
 
       {showReview && (
-        <div className="review-workspace">
+        <div className="review-workspace" data-mobile-pane={mobilePane}>
+          <div className="review-pane-switch" role="tablist" aria-label="审查视图切换">
+            {[
+              { key: "findings", label: `风险发现 ${findings.length}` },
+              { key: "document", label: "合同原文" },
+              { key: "inspector", label: "依据与复核" },
+            ].map((pane) => (
+              <button
+                key={pane.key}
+                type="button"
+                role="tab"
+                aria-selected={mobilePane === pane.key}
+                className={mobilePane === pane.key ? "active" : ""}
+                onClick={() => setMobilePane(pane.key as typeof mobilePane)}
+              >
+                {pane.label}
+              </button>
+            ))}
+          </div>
           {/* Left: finding navigation */}
           <aside className="finding-nav">
             <div className="pane-head">

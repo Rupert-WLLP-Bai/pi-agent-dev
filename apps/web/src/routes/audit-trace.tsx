@@ -7,6 +7,7 @@ import { getAgentRunTraces, getAuditCase } from "../api";
 import {
   agentRunStateLabels,
   agentRunStateTagColors,
+  describeRunError,
   findingTypeLabels,
   formatDuration,
   formatModelIdentity,
@@ -278,7 +279,12 @@ function RunTraceSection({
       }
     >
       {run.error === null ? null : (
-        <Alert type="error" showIcon title="本次运行以失败结束" description={run.error} />
+        <Alert
+          type="error"
+          showIcon
+          title="本次运行以失败结束"
+          description={describeRunError(run.error)}
+        />
       )}
       <div className="trace-card__meta trace-card__meta--block">
         运行 ID <b className="mono">{shortAuditId(run.id)}</b> · 开始于 {formatTime(run.createdAt)}
