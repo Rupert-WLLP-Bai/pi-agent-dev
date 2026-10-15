@@ -10,6 +10,10 @@
 
 Pi SDK 已升级至 1.2.0；版本依据、兼容性处理与验证记录见 [升级记录](./docs/research/2026-10-14-pi-1.2-upgrade.md)。
 
+### 文档索引
+
+工程文档（SRS-lite、C4/ADR 索引、测试策略、运维索引、研发历史与甘特图、风险与发布计划、RTM）见 [docs/engineering](./docs/engineering/)，入口：[需求规格](./docs/engineering/requirements.md)、[研发历史与甘特图](./docs/engineering/gantt.md)、[追溯矩阵](./docs/engineering/traceability.csv)。竞赛材料（项目简介、创新与证据、竞品矩阵、演示剧本、评委 FAQ、KPI 口径）见 [docs/competition](./docs/competition/)。安全与运维：[访问门](./docs/runbook/access-control.md)、[密钥轮换](./docs/runbook/key-rotation.md)。阶段基线与风险由 Main 维护于 [docs/project-management](./docs/project-management/)。
+
 项目参加**第一届黄桷树 AI 智能体开发大赛**，赛道为**智创开发**——基于黄桷树 Panda 编程 IDE 开发解决实际业务问题的软件工具，并验证其可用性与推广价值。交付形态为独立系统，不做 Panda 技能插件。
 
 ## 运行时依赖
@@ -23,19 +27,20 @@ Pi SDK 已升级至 1.2.0；版本依据、兼容性处理与验证记录见 [�
 | React 工作台 | Vite 单页应用 |
 | Pi agent runtime | 嵌入式、进程内；一个 Agent Run 对应一个内存 Session |
 
-对象存储与缓存都是**可降级**依赖，不是审计的必要条件：`S3_ENDPOINT` 未配置（或一次 Put 失败）时合同原文写入本地 `UPLOAD_DIR`（默认 `var/uploads`），每条 Source Record 的 locator 前缀（`s3://bucket/key` 或文件系统路径）记录实际写入的后端；`REDIS_URL` 未配置或不可达时主体核验直接调用企查查，绝不导致审计失败。Redis 只做核验缓存——**不是**审计队列、**不是** SSE pub/sub、**不是**会话存储；审计队列仍在 PostgreSQL 上用 `SKIP LOCKED` 实现。
+对象存储与缓存都是**可降级**依赖，不是审计的必要条件。本地开发形态下 `S3_ENDPOINT` 未配置时合同原文写入本地 `UPLOAD_DIR`（默认 `var/uploads`），每条 Source Record 的 locator 前缀（`s3://bucket/key` 或文件系统路径）记录实际写入的后端；`REDIS_URL` 未配置或不可达时主体核验直接调用企查查，绝不导致审计失败。**demo/production 形态默认严格**：S3 写入失败即失败，不静默降级；本地回退仅在显式选择 `s3-fallback-local` 的本地开发配置下启用（口径见 [工程规格](./docs/design/2026-10-15-v1-engineering-spec.md) §5.3）。Redis 只做核验缓存——**不是**审计队列、**不是** SSE pub/sub、**不是**会话存储；审计队列仍在 PostgreSQL 上用 `SKIP LOCKED` 实现。
 
 ## 能力边界
 
-包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（当前实现是视觉模型识别：`pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型，`OCR_VLM_ENDPOINT` 未配置时整体降级为关闭；MinerU 是留给其他部署的空槽位）、PostgreSQL 留痕、合同原文对象存储（S3/RustFS + 本地回退）、企查查核验缓存，以及 OpenAI 兼容的模型服务管理（`/settings/providers`）。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、Agent 运行轨迹（含嵌套工具调用与轮次用量）、合同台账与修订对比（`/contracts`）、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（`/settings/ocr` 三选一：关闭 / 视觉模型 / MinerU。视觉模型由 `pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型；MinerU 调用已验证过的 4.x `/v1/file_parse` 接口；均未配置时整体降级为关闭，扫描件以明确"无法识别"失败而非猜测内容）、审查报告 docx 导出（`/api/audit-cases/:id/report.docx`）、PostgreSQL 留痕、合同原文对象存储（S3/RustFS + 本地回退）、企查查核验缓存、OpenAI 兼容的模型服务管理（`/settings/providers`）、工作区访问口令门（`API_ACCESS_TOKEN`，Bearer 或 HttpOnly 会话）与演示世界种子。
 
 不包含（附原因）：
 
 - **MongoDB**：不引入。审计快照、Facts 与规则参数已经存放在 PostgreSQL 的 JSONB 中，且没有独立的文档检索或 change-stream 需求。
 - **独立消息队列**：审计队列暂由 PostgreSQL `SKIP LOCKED` 承担。重新评估的触发条件是 API 需要多个副本置于负载均衡之后——届时进程内调度器与内存队列不再成立。
-- **SSO、OpenTelemetry、WebSocket**：暂不需要。
+- **SSO、RBAC、多租户、OpenTelemetry、WebSocket**：暂不需要；访问门是单工作区口令门，不是身份体系。
 - **RAG、多 Agent 编排**：暂不需要。
-- **报告中心**：尚未实现。
+- **报告中心**：尚未实现（单案件 docx 导出已具备）。
+- **生产合规认证**：未宣称通过任何标准认证（ISO 25010、NIST AI RMF 等仅作为文档方法与威胁清单参考）。
 
 ## 目标工作区
 
@@ -57,7 +62,7 @@ LLM 有两条路径，二选一即可：
 
 模型服务页添加的 provider 会把 API key 持久化进 PostgreSQL 的 `llm_providers` 表——这是「允许运维在运行时增改 provider」的直接代价。无论走哪条路径，key 都**绝不通过任何 API 响应返回**（API 只报告是否存在并给出掩码提示）、**不写日志**、**不进入浏览器**。
 
-`AUDIT_AGENT_MODE=fake` 可在不配置 LLM 凭证时使用 FakeAuditAgent 跑通全流程。合同原文默认写入本地 `UPLOAD_DIR`（`var/uploads`）；设置 `S3_ENDPOINT` 后改存对象存储。`REDIS_URL` 未配置即关闭核验缓存，这也是本机默认状态。
+`AUDIT_AGENT_MODE=fake` 可在不配置 LLM 凭证时使用 FakeAuditAgent 跑通全流程。本地开发形态下合同原文默认写入本地 `UPLOAD_DIR`（`var/uploads`）；设置 `S3_ENDPOINT` 后改存对象存储，且 demo/production 下写入失败即失败（不静默回退）。`REDIS_URL` 未配置即关闭核验缓存，这也是本机默认状态。
 
 ## 质量闸门
 
@@ -107,6 +112,6 @@ Web 工作台统一使用当前稳定的 Ant Design v6：
 - `@ant-design/icons`: `^6.3.4`
 - React 19，无需 `@ant-design/v5-patch-for-react-19`
 
-组件代码按 v6 API 编写：使用 `Space.orientation`、`Descriptions.items`、`Alert.title`、`Drawer.size` 与 `mask={{ closable }}`，全局反馈通过根 `App` 的 `App.useApp()` 获取；列表使用 `Listy`，不再新增已弃用的 `List`。修改组件前先运行 `antd info <Component> --version 6.6.3 --format json`，修改后运行 `antd lint <changed-path> --format json`。
+组件代码按 v6 API 编写：使用 `Space.orientation`、`Descriptions.items`、`Alert.title`、`Drawer.size` 与 `mask={{ closable }}`，全局反馈通过根 `App` 的 `App.useApp()` 获取；Finding 列表等自有列表保持既有本地组件写法，不新增已弃用的 `List`。修改组件前先运行 `antd info <Component> --version 6.6.3 --format json`，修改后运行 `antd lint <changed-path> --format json`。
 
 通用步骤见 [runbook](./docs/runbook/mvp-local.md)，macOS 本机差异与路由地图见 [startup.md](./docs/runbook/startup.md)。

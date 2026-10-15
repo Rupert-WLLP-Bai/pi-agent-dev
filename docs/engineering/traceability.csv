@@ -1,0 +1,44 @@
+requirementId,title,priority,source,type,status,implementation,designRef,testRef,evidence,notes
+FR-01,合同输入（粘贴与文件上传）,P0,SRS §2,functional,implemented_verified,apps/api/src/routes/audit-cases.ts,docs/architecture/mvp.md,tests/acceptance/upload.spec.ts,commit ce79ed7,支持 txt/md/docx/pdf/xlsx
+FR-02,19 条确定性规则评估,P0,SRS §2,functional,implemented_verified,packages/audit/src/rule-catalog.ts,docs/research/rules-catalogue.md,packages/audit/src/*-rule.test.ts,commit 9ce72b8,ENGINE_RULE_CODES 与 RuleCode 联合一致
+FR-03,合同立场分档,P1,SRS §2,functional,implemented_verified,packages/audit/src/contract-stance.ts,docs/architecture/mvp.md,packages/audit/src/contract-stance.test.ts,commit 3e58e7b,不适用规则记 NOT_APPLICABLE
+FR-04,受控 Pi Agent 六工具,P0,SRS §2,functional,implemented_verified,packages/pi-agent/src/tools.ts,docs/research/2026-10-14-pi-1.2-upgrade.md,packages/pi-agent/src/*.test.ts,commit 11c5cf9,无 shell/任意文件写/任意 HTTP
+FR-05,Proposal Guard 提交约束,P0,SRS §2,functional,implemented_verified,packages/audit/src/proposal-guard.ts,docs/architecture/mvp.md,packages/audit/src/proposal-guard.test.ts,commit 11c5cf9,无证据定位提交被拒
+FR-06,人工复核（确认/误报，append-only）,P0,SRS §2,functional,implemented_verified,apps/api/src/routes/findings.ts,docs/architecture/mvp.md,tests/acceptance/review-center.spec.ts,commit fcad4ae,Finding Revision 只追加
+FR-07,整改跟踪看板,P1,SRS §2,functional,implemented_verified,apps/api/src/routes/remediations.ts,docs/architecture/mvp.md,tests/acceptance/remediations.spec.ts,commit 653a3d6,四态状态机
+FR-08,规则治理（版本化+发布门禁+启停）,P1,SRS §2,functional,implemented_verified,apps/api/src/routes/rules.ts,docs/adr/0003-rule-parameters-versioned-not-rule-logic.md,tests/acceptance/rules.spec.ts,commit 25322d6,未过验证不能发布
+FR-09,Agent 运行轨迹,P1,SRS §2,functional,implemented_verified,packages/audit/src/agent-trace.ts,docs/adr/0004-nested-tool-calls-in-the-agent-trace.md,tests/acceptance/agent-trace.spec.ts,commit 7dd0a82,含嵌套调用与轮次边界（ADR-0005）
+FR-10,重新审计（rerun）语义,P0,SRS §2,functional,implemented_verified,apps/api/src/routes/audit-cases.ts,docs/runbook/mvp-local.md,tests/acceptance/audit-case.spec.ts,commit c260e4b,旧案保留；409 并发保护
+FR-11,卷宗金额链核对,P1,SRS §2,functional,implemented_verified,apps/api/src/routes/dossiers.ts,docs/architecture/mvp.md,tests/acceptance/dossier-review.spec.ts,commit 8b7a8fa,无状态不落库；合成卷宗实测
+FR-12,可插拔 OCR,P1,SRS §2,functional,implemented_unverified,apps/api/src/document/ocr,docs/runbook/mvp-local.md,apps/api/src/document/ocr/*.test.ts,commit 6ef86cc,三 provider；端到端实测证据待归集
+FR-13,健康端点,P0,SRS §2,functional,implemented_verified,apps/api/src/app.ts,docs/architecture/mvp.md,apps/api/src/app.test.ts,commit a4c6119,S0 实测 status=ok
+FR-14,模型服务管理,P1,SRS §2,functional,implemented_verified,apps/api/src/routes/llm-providers.ts,docs/architecture/mvp.md,apps/api/src/routes/llm-providers.test.ts,commit 431e1d0,key 不随 API 返回
+FR-15,演示世界种子,P1,SRS §2,functional,implemented_verified,packages/audit/src/demo-scenarios.ts,docs/architecture/mvp.md,apps/api/src/demo/seed-world.test.ts,commit 431e1d0,固定 RNG seed 20260914
+FR-16,工作区访问门,P0,SRS §2,functional,implemented_verified,apps/api/src/access-control.ts,docs/runbook/access-control.md,docs/project-management/evidence/s2-security.json,commit 1f33d99,401/200/204/重放401 实测；688 测试
+FR-17,决策影子层契约,P0,SRS §2,functional,implemented_verified,packages/audit/src/decision.ts,docs/architecture/INTEGRATION-CONTRACT.md,packages/audit/src/decision-contract.test.ts,commit 6a59906,18 测试通过；持久化实施中
+FR-18,影子反馈幂等,P1,SRS §2,functional,in_progress,apps/api/src/routes/decisions.ts,docs/architecture/INTEGRATION-CONTRACT.md,tests/acceptance/decision-advice.spec.ts,commit 6a59906,契约冻结；S2 实现
+FR-19,演示 CLI 与环境保护,P0,SRS §2,functional,in_progress,scripts/demo/cli.ts,docs/architecture/INTEGRATION-CONTRACT.md,,计划,Infra 实施中
+FR-20,决策详情 UI,P1,SRS §2,functional,in_progress,apps/web/src/routes,docs/architecture/INTEGRATION-CONTRACT.md,,计划,UX 实施中
+NFR-01,领域依赖方向纯净,P0,SRS §3,nonfunctional,implemented_verified,packages/audit,docs/adr/0001-bun-modular-monolith-with-embedded-pi.md,bun run typecheck,commit 2cee58a,两轮 tsc 通过
+NFR-02,降级可靠性,P0,SRS §3,nonfunctional,implemented_unverified,apps/api/src/document/original-store.ts,docs/architecture/mvp.md,,计划,真实 Redis/S3 故障回归待 QA（I5/Q3）
+NFR-03,规则覆盖适合性,P1,SRS §3,nonfunctional,implemented_verified,packages/audit/src,docs/research/rules-catalogue.md,golden 用例,commit 9ce72b8,四态 disposition 可区分
+NFR-04,敏感数据边界（密钥/口令不进未授权浏览器；授权证据界面可渲染原文）,P0,SRS §3,nonfunctional,implemented_unverified,apps/api/src/llm/audit-data-policy.ts,docs/architecture/INTEGRATION-CONTRACT.md,docs/project-management/evidence/s2-security.json,commit 1f33d99,访问门实测；字段级抓包待 QA（SEC4）
+NFR-05,可移植性,P1,SRS §3,nonfunctional,implemented_unverified,compose.yaml,docs/runbook/mvp-local.md,,计划,第三方复现记录待 Infra
+NFR-06,性能已知边界,P2,SRS §3,nonfunctional,implemented_verified,apps/api,docs/research/2026-10-14-pi-1.2-upgrade.md,docs/research/2026-09-14-ict-项目卷宗现状调研.md,commit d9a84a4,62s/20 工具调用；OCR 396s 样本
+NFR-07,可访问性（窄屏复核可达）,P1,SRS §3,nonfunctional,defect_known,apps/web,docs/project-management/evidence/s0-review-375.png,,计划,375px 缺陷已复现；UX 修复中
+NFR-08,失败可观测（不回显上游错误/不吞真实失败/不无限重试/失效关闭SSE）,P0,SRS §3,nonfunctional,implemented_verified,apps/api/src/db/repositories,docs/engineering/requirements.md,docs/project-management/evidence/cache-failure-smoke.json,commit 2d63f15,Redis 33ms disabled；7 项隐私/降级回归；subjectVerificationProvider 附加字段；最终计数待集成
+SEC-01,单工作区口令门（非 SSO/RBAC）,P0,SRS §4,security,implemented_verified,apps/api/src/access-control.ts,docs/runbook/access-control.md,docs/project-management/evidence/s2-security.json,commit 1f33d99,文档不宣称多租户
+SEC-02,X-Operator 归属校验,P0,SRS §4,security,implemented_verified,apps/api/src/routes/operator-header.ts,docs/architecture/INTEGRATION-CONTRACT.md,apps/api/src/app.test.ts,commit 1f33d99,trim/128/控制字符
+SEC-03,原件访问授权,P0,SRS §4,security,in_progress,apps/api/src/document/original-store.ts,docs/architecture/INTEGRATION-CONTRACT.md,,计划,RISK-04 待加强
+SEC-04,原始/内部合同出网需已授权 origin（合成+可信 fixture 可豁免）,P0,SRS §4,security,implemented_unverified,apps/api/src/llm/audit-data-policy.ts,docs/architecture/INTEGRATION-CONTRACT.md,,commit 1f33d99,LLM_INTERNAL_DATA_ORIGINS 默认空；字段级抓包待 QA
+SEC-05,模型输入最小化,P0,SRS §4,security,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,AI 实施中
+SEC-06,密钥密封与轮换,P0,SRS §4,security,implemented_verified,apps/api/src/llm,docs/runbook/key-rotation.md,docs/project-management/evidence/key-rotation-smoke.json,commit cd24aac,dry-run/apply 保留合成凭据；错库拒绝；startup-security.json 重封 2→0
+SEC-07,重置环境保护,P0,SRS §4,security,in_progress,apps/api/src/demo,docs/architecture/INTEGRATION-CONTRACT.md,,计划,Infra 实施中
+SEC-08,Prompt Injection 防护,P1,SRS §4,security,planned,packages/pi-agent,docs/design/2026-10-15-v1-engineering-spec.md,,计划,合成恶意样本回归
+AI-01,provider 白名单（无 Jev/远程）,P0,SRS §5,agent,implemented_verified,packages/audit/src/decision.ts,docs/architecture/INTEGRATION-CONTRACT.md,packages/audit/src/decision-contract.test.ts,commit 6a59906,disabled/fake/laya-cpu
+AI-02,独立影子任务,P0,SRS §5,agent,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,租约/有界重试
+AI-03,冻结身份与幂等,P0,SRS §5,agent,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,缺身份拒绝派生
+AI-04,未校准标识,P0,SRS §5,agent,implemented_verified,packages/audit/src/decision.ts,docs/architecture/INTEGRATION-CONTRACT.md,decision-contract.test.ts,commit 6a59906,calibrated=false+needsHumanReview
+AI-05,Laya origin 校验,P0,SRS §5,agent,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,禁重定向/userinfo/fragment
+AI-06,影子保留期,P1,SRS §5,agent,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,默认 30 天（1-365）
+AI-07,影子故障隔离,P0,SRS §5,agent,in_progress,apps/api/src/decision,docs/architecture/INTEGRATION-CONTRACT.md,,计划,故障注入对照

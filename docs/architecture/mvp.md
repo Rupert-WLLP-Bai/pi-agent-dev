@@ -72,7 +72,7 @@ API 容器启动时自动应用迁移。`AUDIT_AGENT_MODE` 在容器中默认为
 | Cache | Redis | 仅企查查主体核验结果（7 天 TTL）|
 | LLM providers | OpenAI-compatible | 运行时可配置的模型服务（`/settings/providers`）|
 | Dev infrastructure | Docker Compose | 开发启动 PostgreSQL + RustFS + Redis；演示启动整套栈 |
-| Later adapter | MinerU Python service | 将 PDF/OCR 输出转换为 Contract Document |
+| OCR | Pluggable `OcrPort` (`off` / `vlm` / `mineru`) | 扫描件识别：视觉模型经 OpenAI 兼容网关，或外部 MinerU 4.x 服务（`/v1/file_parse`）；未配置即关闭 |
 
 Pi 的官方 SDK 允许嵌入应用、注册自定义 Tool、订阅 Session 事件以及使用内存 Session。本系统依赖这些能力，但不持久化 Pi transcript 或原始 runtime events。[Pi SDK](https://pi.dev/docs/latest/sdk)
 
@@ -118,7 +118,7 @@ Owns Elysia routes, Drizzle schema/migrations, PostgreSQL repositories, the in-p
 
 ### `apps/web`
 
-Owns the dashboard, the audit queue and workbench (`/audit-cases`, `/audit-cases/:id`, `/audit-cases/:id/trace`), the review center (`/reviews`), remediation tracking (`/remediations`), rule governance (`/rules`, `/rules/:id`), case validation (`/cases`), and the model-service page (`/settings/providers`, sidebar group 系统管理). It uses Eden Treaty for API calls and EventSource for progress. A reconnect first fetches an audit-case snapshot; it does not replay historical streaming events. The acting operator's name is a browser-local preference (`src/operator.ts`) shared by the review center, the rule editor and the app shell.
+Owns the dashboard, the audit queue and workbench (`/audit-cases`, `/audit-cases/:id`, `/audit-cases/:id/trace`), the review center (`/reviews`), remediation tracking (`/remediations`), rule governance (`/rules`, `/rules/:id`), case validation (`/cases`), the run index (`/audit-runs`), the contracts ledger (`/contracts`, `/contracts/:id`), the dossier amount-chain page (`/dossier-review`), external verification (`/verification`), integration health (`/integrations`), the demo overview (`/demo`), and the 系统管理 sidebar group with the model-service page (`/settings/providers`) and OCR settings (`/settings/ocr`). It uses Eden Treaty for API calls and EventSource for progress. A reconnect first fetches an audit-case snapshot; it does not replay historical streaming events. The acting operator's name is a browser-local preference (`src/operator.ts`) shared by the review center, the rule editor and the app shell.
 
 ## Persistence Boundary
 
@@ -138,6 +138,10 @@ The system stores the following collections in PostgreSQL:
 | `validation_runs` / `validation_cases` | Golden-case runs recorded against a rule version |
 | `remediations` | Remediation items opened from a confirmed finding |
 | `llm_providers` | OpenAI-compatible provider configuration, including the persisted API key |
+| `ocr_settings` | The single saved OCR recognizer configuration row (provider, endpoint, limits) |
+| `contracts` / `contract_revisions` | Contract identity and its immutable revision history across cases |
+| `party_history_records` | Cross-case counterparty history used by the party-history rule |
+| `audit_action_logs` | Append-only record of operator actions for the audit trail |
 
 JSONB is used inside snapshots for bounded document, Fact and policy payloads. This preserves the domain distinctions without forcing a table for every concept.
 
@@ -147,7 +151,7 @@ JSONB is used inside snapshots for bounded document, Fact and policy payloads. T
 
 ### Object storage (contract originals)
 
-S3/RustFS is the primary store for uploaded contract originals. When `S3_ENDPOINT` is unset — or a Put fails — the adapter degrades to the `UPLOAD_DIR` local directory. The locator prefix on each Source Record records which backend wrote the row: `s3://bucket/key` for the object store, a filesystem path for the local directory. The same degradation path drives the health line: an unconfigured store reports the local directory with `ok: true` rather than failing.
+S3/RustFS is the primary store for uploaded contract originals. In the local development shape, `S3_ENDPOINT` unset means originals go to the `UPLOAD_DIR` local directory, and the locator prefix on each Source Record records which backend wrote the row: `s3://bucket/key` for the object store, a filesystem path for the local directory. The health line follows the same configuration: an unconfigured store reports the local directory with `ok: true`. **demo/production default to a strict store**: an S3 write failure is a failure, not a silent local fallback; the local fallback is an explicit `s3-fallback-local` opt-in for local development (see [engineering spec §5.3](../design/2026-10-15-v1-engineering-spec.md)).
 
 ### Redis (Qichacha verification cache only)
 
@@ -193,6 +197,7 @@ GET  /api/audit-cases
 GET  /api/audit-cases/:id
 GET  /api/audit-cases/:id/events
 GET  /api/audit-cases/:id/trace
+GET  /api/source-records/:id/original
 POST /api/audit-cases/:id/cancel
 POST /api/audit-cases/:id/retry
 POST /api/audit-cases/:id/rerun
@@ -226,6 +231,9 @@ GET   /api/remediations
 PATCH /api/remediations/:id
 POST  /api/remediations/:id/close
 
+# Subject verifications
+GET  /api/verifications
+
 # LLM providers
 GET    /api/llm-providers
 POST   /api/llm-providers
@@ -242,6 +250,20 @@ PATCH  /api/ocr-settings
 POST   /api/ocr-settings/test
 GET    /api/ocr-settings/probe
 
+# Dossier amount-chain review
+POST /api/dossiers/amount-chain
+
+# Contracts ledger
+GET  /api/contracts
+GET  /api/contracts/:id
+
+# Demo world
+GET  /api/demo/world
+POST /api/demo/world
+
+# Report export
+GET  /api/audit-cases/:id/report.docx
+
 # Ops
 GET  /api/agent-runs
 GET  /api/stats/overview
@@ -254,7 +276,7 @@ GET  /api/openapi
 Rules are seeded from the engine catalogue — the `RuleCode` union in `packages/audit/src/model.ts`. A rule's parameters are versioned; a version moves `draft → published → retired`:
 
 - Publishing a new version retires the previously published one. `retired` (`已退役`) is therefore a *lifecycle* status: that version was superseded, and findings that cite it keep their historical trace.
-- The engine catalogues 17 rule codes. `SUBJECT_RED_LINE_RISK` is the one exception: its determination comes from external subject verification rather than published parameters, so it may be active with no published version. Every other code must exist in the catalogue to be persisted.
+- The engine catalogues 19 rule codes. `SUBJECT_RED_LINE_RISK` is the one exception: its determination comes from external subject verification rather than published parameters, so it may be active with no published version. Every other code must exist in the catalogue to be persisted.
 - A rule also carries a *runtime* toggle (`enabled`, `disabled_reason`, `disabled_by`, `disabled_at`), orthogonal to version status. Disabling records an operator and a required reason; the dispatcher reads the enabled set fresh on every run, so a rule disabled after a case is enqueued is skipped and re-enabling restores it. `POST /api/rules/:id/disable` and `POST /api/rules/:id/enable` are the mutation points, and `GET /api/rules` surfaces both `status` and `enabled` so the UI never conflates them.
 
 Publishing is gated: the open draft must have a green validation run (`POST /api/rules/:id/validate`) before `POST /api/rules/:id/publish` accepts it.
