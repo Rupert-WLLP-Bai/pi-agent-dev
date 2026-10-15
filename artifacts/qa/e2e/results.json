@@ -1,0 +1,190 @@
+{
+  "config": {
+    "argv": ["/usr/bin/node", "/tmp/contract-audit-omp-s2-qa/node_modules/.bin/playwright", "test"],
+    "configFile": "/tmp/contract-audit-omp-s2-qa/playwright.config.ts",
+    "rootDir": "/tmp/contract-audit-omp-s2-qa/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/contract-audit-omp-s2-qa/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "",
+        "name": "",
+        "testDir": "/tmp/contract-audit-omp-s2-qa/tests",
+        "testIgnore": [],
+        "testMatch": ["**/*.@(spec|test).?(c|m)[jt]s?(x)"],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      ["line", null],
+      [
+        "html",
+        {
+          "open": "never"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "artifacts/qa/e2e/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/agent-trace.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/agent-trace.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/agent-trace.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | /** Cases this file audits through the live API, removed afterAll. */\n  5 | const createdCaseIds: string[] = [];"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/audit-case.spec.ts:5:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/audit-case.spec.ts",
+        "column": 1,
+        "line": 5
+      },
+      "snippet": "   at acceptance/audit-case.spec.ts:5\n\n  3 | import type { RemediationBoard } from \"../../apps/api/src/db/repositories\";\n  4 | import type { AuditCaseDetailData } from \"../../apps/web/src/components/audit-case-workbench\";\n> 5 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  6 |\n  7 | /** Every case this file audits through the live API, removed afterAll. */\n  8 | const createdCaseIds: string[] = [];"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/dashboard.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/dashboard.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/dashboard.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | /** Cases this file audits through the live API, removed afterAll. */\n  5 | const createdCaseIds: string[] = [];"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/remediations.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/remediations.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/remediations.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | const createdCaseIds: string[] = [];\n  5 |"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/review-center.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/review-center.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/review-center.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | const createdCaseIds: string[] = [];\n  5 |"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/rules.spec.ts:3:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/rules.spec.ts",
+        "column": 1,
+        "line": 3
+      },
+      "snippet": "   at acceptance/rules.spec.ts:3\n\n  1 | import { expect, type Locator, type Page, test } from \"@playwright/test\";\n  2 | import postgres from \"postgres\";\n> 3 | import { acceptanceDatabaseUrl, deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  4 |\n  5 | /**\n  6 |  * The seeded rule the publish spec drives. Every engine code is already seeded,"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/subject-verification.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/subject-verification.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/subject-verification.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | /** Cases this file audits through the live API, removed afterAll. */\n  5 | const createdCaseIds: string[] = [];"
+    },
+    {
+      "message": "SyntaxError: Cannot use 'import.meta' outside a module",
+      "stack": "SyntaxError: Cannot use 'import.meta' outside a module\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/acceptance/upload-ui.spec.ts:2:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/acceptance/upload-ui.spec.ts",
+        "column": 1,
+        "line": 2
+      },
+      "snippet": "   at acceptance/upload-ui.spec.ts:2\n\n  1 | import { expect, type Page, test } from \"@playwright/test\";\n> 2 | import { deleteCasesAndRelations } from \"./db-cleanup\";\n    | ^\n  3 |\n  4 | /** Cases this file audits through the live API, removed afterAll. */\n  5 | const createdCaseIds: string[] = [];"
+    },
+    {
+      "message": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/access-gate.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js",
+      "stack": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/access-gate.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/integration/access-gate.test.ts:1:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/integration/access-gate.test.ts",
+        "column": 1,
+        "line": 1
+      },
+      "snippet": "   at integration/access-gate.test.ts:1\n\n> 1 | import { describe, expect, test } from \"bun:test\";\n    | ^\n  2 | import type { AuditApp } from \"../../apps/api/src/app\";\n  3 | import { createApp } from \"../../apps/api/src/app\";\n  4 | import {"
+    },
+    {
+      "message": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/audit-lifecycle.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js",
+      "stack": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/audit-lifecycle.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/integration/audit-lifecycle.test.ts:1:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/integration/audit-lifecycle.test.ts",
+        "column": 1,
+        "line": 1
+      },
+      "snippet": "   at integration/audit-lifecycle.test.ts:1\n\n> 1 | import { afterAll, beforeAll, describe, expect, test } from \"bun:test\";\n    | ^\n  2 | import type { AuditApp } from \"../../apps/api/src/app\";\n  3 | import { createApp } from \"../../apps/api/src/app\";\n  4 | import type { AuditCaseRepository, DrizzleDB } from \"../../apps/api/src/db/repositories\";"
+    },
+    {
+      "message": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/original-store.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js",
+      "stack": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/original-store.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/integration/original-store.test.ts:1:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/integration/original-store.test.ts",
+        "column": 1,
+        "line": 1
+      },
+      "snippet": "   at integration/original-store.test.ts:1\n\n> 1 | import { afterAll, beforeAll, describe, expect, test } from \"bun:test\";\n    | ^\n  2 | import { mkdtempSync } from \"node:fs\";\n  3 | import { rm } from \"node:fs/promises\";\n  4 | import { tmpdir } from \"node:os\";"
+    },
+    {
+      "message": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/redis-cache.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js",
+      "stack": "Error: Cannot find module 'bun:test'\nRequire stack:\n- /tmp/contract-audit-omp-s2-qa/tests/integration/redis-cache.test.ts\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/common/index.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/playwright@1.63.0/node_modules/playwright/lib/program.js\n- /home/pejoy/cqyd/hjs/pi-agent-dev/node_modules/.bun/@playwright+test@1.63.0/node_modules/@playwright/test/cli.js\n    at Object.<anonymous> (/tmp/contract-audit-omp-s2-qa/tests/integration/redis-cache.test.ts:1:1)",
+      "location": {
+        "file": "/tmp/contract-audit-omp-s2-qa/tests/integration/redis-cache.test.ts",
+        "column": 1,
+        "line": 1
+      },
+      "snippet": "   at integration/redis-cache.test.ts:1\n\n> 1 | import { afterAll, beforeAll, describe, expect, test } from \"bun:test\";\n    | ^\n  2 | import type {\n  3 |   SubjectVerificationOutcome,\n  4 |   SubjectVerificationPort,"
+    }
+  ],
+  "stats": {
+    "startTime": "2026-10-15T06:05:17.355Z",
+    "duration": 3703.2919999999995,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

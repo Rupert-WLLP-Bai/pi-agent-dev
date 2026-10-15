@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import postgres from "postgres";
+import { acceptanceDatabaseUrl, deleteCasesAndRelations } from "./db-cleanup";
 
 /**
  * The seeded rule the publish spec drives. Every engine code is already seeded,
@@ -9,35 +9,44 @@ import postgres from "postgres";
  */
 const PUBLISH_SPEC_RULE = "PENALTY_RATIO_LIMIT";
 
+/** Cases the disable-rule spec audits through the live API, removed afterAll. */
+const createdCaseIds: string[] = [];
+
 /**
  * These specs mutate real rules through the live API (an ADVANCE draft, a v2 on
  * the publish spec's rule), so they must not leave those changes in the shared
  * dev database.
  */
 test.afterAll(async () => {
-  const envFile = readFileSync(".env", "utf8");
-  const match = envFile.match(/^DATABASE_URL=(.*)$/m);
-  if (!match) throw new Error("DATABASE_URL missing from .env — cannot clean up test rules");
-  const sql = postgres(match[1].trim());
+  // The exact database the run was scoped to: `.env` overlaid by
+  // PLAYWRIGHT_DATABASE_URL, resolved by the shared helper the specs now share
+  // with the webServer. Reading `.env` alone pointed this cleanup at the
+  // developer's data whenever a scratch database was in play.
+  const sql = postgres(acceptanceDatabaseUrl(), { max: 1, onnotice: () => {} });
   try {
-    await sql`delete from rule_versions where status = 'draft'
-      and rule_id in (select id from rules where code = 'ADVANCE_PAYMENT_LIMIT')`;
-    // The publish spec lands a v2 on a seeded rule; drop whatever it created
-    // (validation runs cascade) and put the seeded v1 back in force.
-    await sql`delete from rule_versions
-      where version > 1
-      and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
-    await sql`update rule_versions set status = 'published'
-      where version = 1
-      and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
-    // The runtime toggle spec stops a seeded rule; the shared dev database must
-    // not keep it off for the next run even if that spec died mid-flight.
-    await sql`update rules
-      set enabled = true, disabled_reason = null, disabled_by = null, disabled_at = null
-      where code = 'ADVANCE_PAYMENT_LIMIT' and enabled = false`;
+    await sql.begin(async (tx) => {
+      await tx`delete from rule_versions where status = 'draft'
+        and rule_id in (select id from rules where code = 'ADVANCE_PAYMENT_LIMIT')`;
+      // The publish spec lands a v2 on a seeded rule; drop whatever it created
+      // (validation runs cascade) and put the seeded v1 back in force.
+      await tx`delete from rule_versions
+        where version > 1
+        and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
+      await tx`update rule_versions set status = 'published'
+        where version = 1
+        and rule_id in (select id from rules where code = ${PUBLISH_SPEC_RULE})`;
+      // The runtime toggle spec stops a seeded rule; the shared dev database must
+      // not keep it off for the next run even if that spec died mid-flight.
+      await tx`update rules
+        set enabled = true, disabled_reason = null, disabled_by = null, disabled_at = null
+        where code = 'ADVANCE_PAYMENT_LIMIT' and enabled = false`;
+    });
   } finally {
-    await sql.end();
+    await sql.end({ timeout: 5 });
   }
+  // The rule specs also audit the demo contract through the live API; their
+  // cases are removed with the same scoped cleanup the other specs use.
+  await deleteCasesAndRelations(createdCaseIds.splice(0));
 });
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
@@ -229,6 +238,7 @@ test.describe
         await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
         await page.getByRole("button", { name: "开始审计" }).click();
         await page.waitForURL(/\/audit-cases\/.+$/);
+        createdCaseIds.push(page.url().split("/").pop()!);
 
         // The other demo conflict still settles, which proves the run finished —
         // the absence below is the overlay taking effect, not a slow load.

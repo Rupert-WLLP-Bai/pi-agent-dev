@@ -28,7 +28,16 @@ const config: Config = {
   // The web server is Vite in dev mode, which compiles routes on first request.
   // Line for console + HTML for artifact upload. The CLI `--reporter` flag
   // overrides this entirely, so CI must not pass one.
-  reporter: [["line"], ["html", { open: "never" }]],
+  reporter: [
+    // Line for console + HTML for artifact upload. The CLI `--reporter` flag
+    // overrides this entirely, so CI must not pass one.
+    ["line"],
+    ["html", { open: "never" }],
+    // Machine-readable requirement coverage: one record per spec, so the
+    // traceability matrix can be regenerated from a real run rather than
+    // hand-maintained.
+    ["json", { outputFile: "artifacts/qa/e2e/results.json" }],
+  ],
   expect: { timeout: 15_000 },
   // One worker, because the specs share one database and one rule catalog. The
   // rule-disable spec switches ADVANCE_PAYMENT_LIMIT off for the length of its

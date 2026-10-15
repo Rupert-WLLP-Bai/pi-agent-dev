@@ -2,6 +2,14 @@ import type { AgentRun } from "@contract-audit/audit/model";
 import { expect, type Page, test } from "@playwright/test";
 import type { RemediationBoard } from "../../apps/api/src/db/repositories";
 import type { AuditCaseDetailData } from "../../apps/web/src/components/audit-case-workbench";
+import { deleteCasesAndRelations } from "./db-cleanup";
+
+/** Every case this file audits through the live API, removed afterAll. */
+const createdCaseIds: string[] = [];
+
+test.afterAll(async () => {
+  await deleteCasesAndRelations(createdCaseIds.splice(0));
+});
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -23,6 +31,7 @@ async function createDemoAudit(page: Page) {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
+  createdCaseIds.push(page.url().split("/").pop()!);
   await expectAdvancePaymentFinding(page);
 }
 
@@ -188,7 +197,7 @@ test("records a confirmed risk and retains the business wording", async ({ page 
   await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
 });
 
-test("reruns completed and awaiting-review cases without replacing reviews or remediation", async ({
+test("re-audits a reviewed case as a new case, leaving the original history untouched", async ({
   page,
 }) => {
   await createDemoAudit(page);
@@ -196,73 +205,86 @@ test("reruns completed and awaiting-review cases without replacing reviews or re
   await confirmPendingFindings(page);
   await expect(page.locator(".audit-state-badge", { hasText: "已完成" })).toBeVisible();
 
-  const readDetail = async (): Promise<AuditCaseDetailData> =>
-    (await page.request.get(`/api/audit-cases/${caseId}`)).json();
-  const readRuns = async (): Promise<Array<{ run: AgentRun }>> =>
-    (await page.request.get(`/api/audit-cases/${caseId}/trace`)).json();
-  const before = await readDetail();
-  const originalRuns = await readRuns();
-  const beforeBoard: RemediationBoard = await (await page.request.get("/api/remediations")).json();
-  const originalRemediations = beforeBoard.columns.flatMap((column) =>
-    column.items.filter((item) => item.caseId === caseId),
-  );
+  const readDetail = async (caseIdToRead: string): Promise<AuditCaseDetailData> =>
+    (await page.request.get(`/api/audit-cases/${caseIdToRead}`)).json();
+  const readRuns = async (caseIdToRead: string): Promise<Array<{ run: AgentRun }>> =>
+    (await page.request.get(`/api/audit-cases/${caseIdToRead}/trace`)).json();
+  const readRemediations = async (caseIdToRead: string): Promise<RemediationBoard["columns"]> => {
+    const board: RemediationBoard = await (await page.request.get("/api/remediations")).json();
+    return board.columns.map((column) => ({
+      ...column,
+      items: column.items.filter((item) => item.caseId === caseIdToRead),
+    }));
+  };
+  const before = await readDetail(caseId);
+  const originalRuns = await readRuns(caseId);
+  const originalRemediations = await readRemediations(caseId);
+  const originalFindingIds = before.findings.map((finding) => finding.id);
 
-  // Dismissing confirmation must leave the completed case and its run intact.
-  const rerun = page.getByRole("button", { name: "重新运行 Agent", exact: true });
+  // A reviewed case is offered 重新审计 (a NEW case), never 重新运行 Agent
+  // (retry in place): retrying would append fresh findings into work a human
+  // already decided. The retry control must not exist for this case.
+  await expect(page.getByRole("button", { name: "重新运行 Agent", exact: true })).toHaveCount(0);
+  const rerun = page.getByRole("button", { name: "重新审计", exact: true }).first();
+  await expect(rerun).toBeVisible();
+
+  // Dismissing the confirmation must leave the case, its run and its
+  // remediations exactly as they were.
   await rerun.click();
   await page
     .locator(".ant-popconfirm")
     .getByRole("button", { name: /返\s*回/ })
     .click();
-  expect(await readRuns()).toEqual(originalRuns);
-  expect((await readDetail()).case.status).toBe("COMPLETED");
+  expect(await readRuns(caseId)).toEqual(originalRuns);
+  expect((await readDetail(caseId)).case.status).toBe("COMPLETED");
 
   await rerun.click();
-  const detailResponse = page.waitForResponse(
+  const rerunResponse = page.waitForResponse(
     (response) =>
-      response.url().endsWith(`/api/audit-cases/${caseId}/retry`) &&
+      response.url().endsWith(`/api/audit-cases/${caseId}/rerun`) &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "确认重新运行" }).click();
-  expect((await detailResponse).status()).toBe(202);
-  await expect(page.locator(".audit-state-badge", { hasText: "待复核" })).toBeVisible();
-  const afterDetail = await readDetail();
-  const afterDetailRuns = await readRuns();
-  expect(afterDetailRuns.map(({ run }) => run.id)).toEqual([
-    expect.any(String),
-    ...originalRuns.map(({ run }) => run.id),
-  ]);
-  expect(afterDetailRuns[0].run.id).not.toBe(originalRuns[0].run.id);
-  expect(afterDetailRuns[0].run.error).toBeNull();
-  for (const finding of before.findings) {
-    expect(afterDetail.findings.find((item) => item.id === finding.id)).toEqual(finding);
-  }
+  await page.getByRole("button", { name: "确认重新审计" }).click();
+  expect((await rerunResponse).status()).toBe(202);
 
-  // The queue also reruns cases still awaiting review; pending findings survive.
-  await page.goto("/audit-cases");
-  await page.getByPlaceholder("搜索合同名称 / 审计 ID / 来源记录 ID").fill(caseId);
-  await page.getByRole("row").getByRole("button", { name: "重新运行 Agent", exact: true }).click();
-  const queueResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith(`/api/audit-cases/${caseId}/retry`) &&
-      response.request().method() === "POST",
-  );
-  await page.getByRole("button", { name: "确认重新运行" }).click();
-  expect((await queueResponse).status()).toBe(202);
-  await expect
-    .poll(async () => (await readRuns()).map(({ run }) => run.id))
-    .toEqual([expect.any(String), ...afterDetailRuns.map(({ run }) => run.id)]);
-  await expect.poll(async () => (await readDetail()).case.status).toBe("AWAITING_REVIEW");
-  const afterQueue = await readDetail();
-  expect(afterQueue.snapshot).toEqual(before.snapshot);
-  expect(afterQueue.ruleAssessments).toEqual(before.ruleAssessments);
-  for (const finding of afterDetail.findings) {
-    expect(afterQueue.findings.find((item) => item.id === finding.id)).toEqual(finding);
+  // The client navigates to the fresh case, so the operator watches the new
+  // audit rather than the reviewed one.
+  await page.waitForURL(/\/audit-cases\/.+$/);
+  const newCaseId = page.url().split("/").pop()!;
+  expect(newCaseId).not.toBe(caseId);
+  createdCaseIds.push(newCaseId);
+
+  // ── The new case: its own identity, its own run ──
+  const after = await readDetail(newCaseId);
+  expect(after.case.id).toBe(newCaseId);
+  expect(after.case.status).not.toBe("COMPLETED");
+  // Same Source Record and same Contract Revision: the same bytes are re-read,
+  // not registered as a new document version.
+  expect(after.case.sourceRecordId).toBe(before.case.sourceRecordId);
+  expect(after.case.contractRevisionId).toBe(before.case.contractRevisionId);
+  // The fresh case starts empty: it is the audit about to run that produces
+  // its findings, not a copy of the reviewed ones.
+  expect(after.findings).toEqual([]);
+  const newRuns = await readRuns(newCaseId);
+  expect(newRuns.map(({ run }) => run.id)).not.toEqual(originalRuns.map(({ run }) => run.id));
+
+  // ── The original case: reviewed history is immutable ──
+  const afterOriginal = await readDetail(caseId);
+  expect(afterOriginal.case.status).toBe("COMPLETED");
+  expect(afterOriginal.case.sourceRecordId).toBe(before.case.sourceRecordId);
+  expect(afterOriginal.case.contractRevisionId).toBe(before.case.contractRevisionId);
+  // Same findings, same reviews, same snapshot and same rule assessments.
+  expect(afterOriginal.findings.map((finding) => finding.id)).toEqual(originalFindingIds);
+  for (const finding of before.findings) {
+    expect(afterOriginal.findings.find((item) => item.id === finding.id)).toEqual(finding);
   }
-  const afterBoard: RemediationBoard = await (await page.request.get("/api/remediations")).json();
-  expect(
-    afterBoard.columns.flatMap((column) => column.items.filter((item) => item.caseId === caseId)),
-  ).toEqual(originalRemediations);
+  expect(afterOriginal.snapshot).toEqual(before.snapshot);
+  expect(afterOriginal.ruleAssessments).toEqual(before.ruleAssessments);
+  // The run list of the original case is unchanged: no new run was appended
+  // into it, which is exactly what retry would have done.
+  expect(await readRuns(caseId)).toEqual(originalRuns);
+  // Remediation items opened by accepting findings stay on the original case.
+  expect(await readRemediations(caseId)).toEqual(originalRemediations);
 });
 
 test("requires a reason for a false positive and retains the decision", async ({ page }) => {

@@ -1,4 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
+import { deleteCasesAndRelations } from "./db-cleanup";
+
+/** Cases this file audits through the live API, removed afterAll. */
+const createdCaseIds: string[] = [];
+
+test.afterAll(async () => {
+  await deleteCasesAndRelations(createdCaseIds.splice(0));
+});
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -21,6 +29,7 @@ async function createDemoAudit(page: Page, demoLabel: string) {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
+  createdCaseIds.push(page.url().split("/").pop()!);
 }
 
 /**
