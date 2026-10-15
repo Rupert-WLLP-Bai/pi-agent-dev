@@ -22,6 +22,9 @@
    RustFS and Redis are optional: with `S3_ENDPOINT` / `REDIS_URL` left empty,
    contract originals go to the local `UPLOAD_DIR` directory and subject
    verification is uncached. That is the normal local state, not an error.
+   demo/production default to a **strict** store — an S3 write failure is a
+   failure, not a silent fallback to the local directory; the local fallback is
+   an explicit `s3-fallback-local` opt-in for local development.
 
 3. Install dependencies:
    ```bash

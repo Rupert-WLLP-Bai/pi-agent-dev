@@ -15,7 +15,7 @@
 cp .env.example .env          # 首次；本机已配好，见下
 bun install                   # 安装依赖（workspaces）
 docker compose up -d postgres rustfs redis rustfs-init   # 本地基础设施：PostgreSQL + RustFS + Redis
-cd apps/api && bun run migrate && cd ../..   # 应用迁移（13 张表）
+cd apps/api && bun run migrate && cd ../..   # 应用迁移（18 张业务表，迁移 0000–0017）
 bunx playwright install       # 首次安装浏览器
 ```
 
@@ -128,7 +128,10 @@ HTTP 503。`redis`、`objectStore` 可降级：未配置或不可用时 `ok` 为
 | `/cases` | 案例验证（发布前回归）|
 | `/verification` | 外部核验 |
 | `/integrations` | 集成健康 |
+| `/contracts`、`/contracts/:id` | 合同台账与合同详情 |
+| `/dossier-review` | 卷宗跨文档金额链核对（无状态，不落库）|
 | `/settings/providers` | 模型服务（系统管理组）|
+| `/settings/ocr` | OCR 识别（系统管理组）：关闭 / 视觉模型 / MinerU |
 | `/demo` | 演示概览（规则矩阵）|
 
 ## 5. 质量闸门

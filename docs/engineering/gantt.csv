@@ -1,0 +1,46 @@
+id,title,kind,start,end,owner,status,evidence
+M1,Contract Audit MVP 起点（审计核心/Pi/API/Web）,history,2026-09-11,2026-09-11,Main,verified,2cee58a
+M2,决策优先复核与队列指挥中心,history,2026-09-11,2026-09-11,Main,verified,2f0e559
+M3,审计队列指挥中心,history,2026-09-11,2026-09-11,Main,verified,f7ac822
+M4,真实 LLM 验证记录,history,2026-09-11,2026-09-11,Main,verified,c214e71
+M5,文件上传解析/企查查 MCP/统计端点,history,2026-09-12,2026-09-12,Main,verified,ce79ed7
+M6,合同文档 IR+四条确定性规则+golden 回归,history,2026-09-12,2026-09-12,Main,verified,50331dd
+M7,真实数据仪表盘/上传双模式/演示页,history,2026-09-12,2026-09-12,Main,verified,8caf0b3
+M8,Biome 质量闸门+tests 类型检查+CI,history,2026-09-12,2026-09-12,QA,verified,433effb
+M9,Agent 运行轨迹（可观测性）,history,2026-09-13,2026-09-13,Main,verified,7dd0a82
+M10,复核中心（SLA 队列/批量转交）,history,2026-09-13,2026-09-13,Main,verified,fcad4ae
+M11,规则管理（版本化参数/发布门禁）,history,2026-09-13,2026-09-13,Main,verified,25322d6
+M12,整改跟踪（看板生命周期）,history,2026-09-13,2026-09-13,Main,verified,653a3d6
+M13,案例验证（黄金案例/回归 diff）,history,2026-09-13,2026-09-13,Main,verified,0d7ec42
+M14,规则目录扩充（采购风险规则）,history,2026-09-13,2026-09-13,Main,verified,9ce72b8
+M15,Agent 受控工具边界（六工具）,history,2026-09-13,2026-09-13,Main,verified,f525af2
+M16,Wave1 规则运行时启停+演示修复,history,2026-09-14,2026-09-14,Main,verified,fa345dc
+M17,Wave2 规则目录/发布门禁/操作统一,history,2026-09-14,2026-09-14,Main,verified,0e20522
+M18,Wave3 版本追溯/操作日志/重评,history,2026-09-14,2026-09-14,Main,verified,01fff4e
+M19,Wave4 平台能力（上传门/连接池/原件存储）,history,2026-09-14,2026-09-14,Main,verified,e2728bc
+M20,Wave5 演示世界/历史规则/LLM provider/全栈 Docker,history,2026-09-14,2026-09-14,Main,verified,431e1d0
+M21,可插拔 OCR 端口（vlm）,history,2026-09-14,2026-09-14,Main,verified,6ef86cc
+M22,xlsx 解析（单元格地址与公式）,history,2026-09-14,2026-09-14,Main,verified,e7a8545
+M23,跨文档金额链核对引擎,history,2026-09-14,2026-09-14,Main,verified,8b7a8fa
+M24,合同立场接入审计+载明总额读出,history,2026-09-14,2026-09-14,Main,verified,bf14a2b
+M25,卷宗核对页收口+金额链端点,history,2026-09-14,2026-09-14,Main,verified,e4311a2
+M26,验收可信度修正（四类腐化断言）,history,2026-09-14,2026-09-14,QA,verified,a79597e
+M27,OCR 真实耗时订正（396s）,history,2026-09-14,2026-09-14,Docs,verified,bc5d750
+M28,重新审计语义（新案/旧案保留）,history,2026-09-14,2026-09-14,Main,verified,c260e4b
+M29,MinIO→RustFS 切换,history,2026-09-17,2026-09-17,Infra,verified,1c1dc7b
+M30,skills 与知识参考资料归档,history,2026-10-14,2026-10-14,Docs,verified,5523e9d
+M31,S0 基线审计与验证证据,history,2026-10-15,2026-10-15,Main,verified,a4c6119
+M32,OCR/Agent 轨迹/研究检查点,history,2026-10-15,2026-10-15,Main,verified,d9a84a4
+M33,S1 决策影子契约冻结（18 测试通过）,history,2026-10-15,2026-10-15,AI,verified,6a59906
+M34,工作区访问门+出网策略+操作者校验,history,2026-10-15,2026-10-15,Main,verified,1f33d99
+P1,决策层实现（provider/独立任务/反馈/详情）,plan,2026-10-15,2026-10-22,AI,planned,
+P2,访问门全 API 覆盖+出网默认禁止+compose 转发,plan,2026-10-15,2026-10-22,Main,planned,
+P3,影子 UI+未校准标识+375px 复核可达,plan,2026-10-15,2026-10-24,UX,planned,
+P4,RTM/覆盖率/真实依赖回归/失败注入,plan,2026-10-15,2026-10-24,QA,planned,
+P5,demo CLI 与环境保护（两次 reset 幂等）,plan,2026-10-15,2026-10-24,Infra,planned,
+P6,分片合并/迁移执行/逐切片 smoke,plan,2026-10-25,2026-10-31,Main,planned,
+P7,统一回归（单测/集成/E2E/Docker/降级）,plan,2026-11-01,2026-11-04,Main,planned,
+P8,发布就绪报告与门禁裁决,plan,2026-11-04,2026-11-05,Main,planned,
+P9,文档定稿与证据索引,plan,2026-11-05,2026-11-08,Docs,planned,
+P10,演示彩排与回滚清单,plan,2026-11-08,2026-11-09,Docs,planned,
+P11,V1 冻结候选,plan,2026-11-10,2026-11-10,Main,planned,
