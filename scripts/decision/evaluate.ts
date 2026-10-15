@@ -22,25 +22,23 @@
  * rather than a retyped summary.
  */
 
+import type { DecisionProviderLike } from "../../apps/api/src/decision/providers/base";
 import { FakeDecisionProvider } from "../../apps/api/src/decision/providers/fake";
 import { LayaCpuDecisionProvider } from "../../apps/api/src/decision/providers/laya-cpu";
-import type { DecisionProviderLike } from "../../apps/api/src/decision/providers/base";
-import { buildDecisionModelState } from "../../apps/api/src/decision/redaction";
 import {
-  decisionQuestionCatalogue,
   DECISION_QUESTION_CATALOGUE_VERSION,
+  decisionQuestionCatalogue,
 } from "../../apps/api/src/decision/questions";
+import type {
+  DecisionAnswer,
+  DecisionRequest,
+  DecisionTaskType,
+} from "../../packages/audit/src/decision";
 import {
   FIXTURE_CATEGORIES,
   type FixtureCategory,
   syntheticClauseFixtures,
 } from "../../tests/fixtures/decision/clauses";
-import type {
-  DecisionAnswer,
-  DecisionProviderResult,
-  DecisionRequest,
-  DecisionTaskType,
-} from "../../packages/audit/src/decision";
 
 /** Bumped whenever the fixture set or the question wording changes. */
 export const EVALUATION_INPUT_REVISION = "clause-fixture-v1";

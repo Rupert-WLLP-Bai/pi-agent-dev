@@ -32,7 +32,9 @@ const request: DecisionRequest = {
 
 describe("decision redaction", () => {
   test("redacts party names from the clause", () => {
-    const masked = redactClauseExcerpt("甲方北京示例科技有限公司应付款。", ["北京示例科技有限公司"]);
+    const masked = redactClauseExcerpt("甲方北京示例科技有限公司应付款。", [
+      "北京示例科技有限公司",
+    ]);
     expect(masked).not.toContain("北京示例科技有限公司");
     expect(masked).toContain("〔已脱敏〕");
   });
@@ -95,7 +97,12 @@ describe("decision input hash", () => {
 
   test("ignores run identity, so a restart re-derives the same hash", () => {
     expect(decisionInputHash(request)).toBe(
-      decisionInputHash({ ...request, auditCaseId: "other", agentRunId: "other", traceId: "other" }),
+      decisionInputHash({
+        ...request,
+        auditCaseId: "other",
+        agentRunId: "other",
+        traceId: "other",
+      }),
     );
   });
 });

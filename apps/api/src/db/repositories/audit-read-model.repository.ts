@@ -5,7 +5,6 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { DemoWorldOperationResult } from "../../demo/demo-world-operation";
 import { plantDemoCases } from "../../demo/seed-world";
 import { originalStorageOf } from "../../document/original-store";
-import { AuditCaseRepository } from "./audit-case.repository";
 import {
   agentRuns,
   agentTraceSteps,
@@ -19,6 +18,7 @@ import {
   sourceRecords,
   subjectVerifications,
 } from "../schema";
+import { AuditCaseRepository } from "./audit-case.repository";
 import { compareReviewQueueItems, contractTitleFromFirstBlock } from "./helpers";
 import { asDate, toCase, toReviewPriority, toSeverity, toSourceProvenance } from "./mappers";
 import type {
@@ -463,7 +463,10 @@ export class AuditReadModelRepository {
    * the reset's caller supplies this: the migration never inserts a row, and a
    * deployment that never calls it keeps every database unregistered.
    */
-  async registerDemoEnvironment(input: { environmentId: string; databaseName: string }): Promise<void> {
+  async registerDemoEnvironment(input: {
+    environmentId: string;
+    databaseName: string;
+  }): Promise<void> {
     await this.db.execute(sql`
       INSERT INTO demo_environments (id, database_name)
       VALUES (${input.environmentId}, ${input.databaseName})
@@ -670,15 +673,20 @@ export class AuditReadModelRepository {
       .where(inArray(auditCases.sourceRecordId, sourceIds));
     const caseIds = caseRows.map((row) => row.id);
 
-    // Verification rows name their own source record. A row is demo-owned only
-    // when it belongs to a demo case AND points at a demo source record;
-    // deleting every verification of a demo case would take a shared record's
-    // row with it.
+    // Verification rows to remove: every verification that belongs to a demo
+    // case. The earlier "demo-owned AND pointing at a demo source record"
+    // restriction left rows whose source record had already vanished (or was
+    // never one of the seeded records), and those orphans then blocked the
+    // audit_cases delete on the FK. A verification row cannot outlive its
+    // case: it is either deleted here or its case is not a demo case at all.
+    // The id lists are passed as real array parameters — `= ANY(${sql.param
+    // (ids)})` — because a bare interpolation expands the list inside the ANY
+    // parentheses as scalars, which Postgres rejects with "op ANY/ALL (array)
+    // requires array on right side".
     const verificationSources = await tx.execute<{ id: string }>(sql`
       SELECT DISTINCT v.id
       FROM subject_verifications v
-      WHERE v.audit_case_id = ANY(${caseIds})
-        AND v.source_record_id = ANY(${sourceIds})
+      WHERE v.audit_case_id = ANY(${sql.param(caseIds)})
     `);
     const verificationIds = verificationSources.map((row) => row.id);
 
@@ -686,12 +694,16 @@ export class AuditReadModelRepository {
       // Shadow rows are removed explicitly (feedback before jobs) even though
       // the FK cascades: the order documents the reset's reach.
       const jobs = await tx.execute<{ decision_id: string }>(sql`
-        SELECT decision_id FROM shadow_jobs WHERE audit_case_id = ANY(${caseIds})
+        SELECT decision_id FROM shadow_jobs WHERE audit_case_id = ANY(${sql.param(caseIds)})
       `);
       const decisionIds = jobs.map((row) => row.decision_id);
       if (decisionIds.length > 0) {
-        await tx.execute(sql`DELETE FROM shadow_feedback WHERE decision_id = ANY(${decisionIds})`);
-        await tx.execute(sql`DELETE FROM shadow_jobs WHERE decision_id = ANY(${decisionIds})`);
+        await tx.execute(
+          sql`DELETE FROM shadow_feedback WHERE decision_id = ANY(${sql.param(decisionIds)})`,
+        );
+        await tx.execute(
+          sql`DELETE FROM shadow_jobs WHERE decision_id = ANY(${sql.param(decisionIds)})`,
+        );
       }
       await tx.delete(agentTraceSteps).where(inArray(agentTraceSteps.auditCaseId, caseIds));
       await tx.delete(agentRuns).where(inArray(agentRuns.auditCaseId, caseIds));
@@ -700,7 +712,9 @@ export class AuditReadModelRepository {
       await tx.delete(partyHistoryRecords).where(inArray(partyHistoryRecords.auditCaseId, caseIds));
       // Only the exclusively demo-owned verification rows, identified above.
       if (verificationIds.length > 0) {
-        await tx.delete(subjectVerifications).where(inArray(subjectVerifications.id, verificationIds));
+        await tx
+          .delete(subjectVerifications)
+          .where(inArray(subjectVerifications.id, verificationIds));
       }
       await tx.delete(auditSnapshots).where(inArray(auditSnapshots.auditCaseId, caseIds));
       await tx.delete(auditCases).where(inArray(auditCases.id, caseIds));

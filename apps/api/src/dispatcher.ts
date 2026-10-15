@@ -192,7 +192,6 @@ export class AuditDispatcher {
 
         context = {
           ...snapshot,
-          subjectVerificationProvider: this.subjectVerificationPort.provider,
           evidence: [...snapshot.evidence, ...verification.evidence],
           ruleAssessments: [...snapshot.ruleAssessments, verification.ruleAssessment],
           // The provider that actually answered, recorded on the run-only

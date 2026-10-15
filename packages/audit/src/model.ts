@@ -233,8 +233,6 @@ export interface AuditSnapshot {
   contractDocument: ContractDocument;
   facts: PaymentFacts;
   parties: ContractParty[];
-  /** Server-captured origin of the appended subject assessment; absent on older contexts. */
-  subjectVerificationProvider?: string;
   evidence: EvidenceLocator[];
   ruleAssessments: RuleAssessment[];
   /**

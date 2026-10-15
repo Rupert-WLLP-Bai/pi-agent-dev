@@ -1,6 +1,4 @@
-import type { DecisionProviderResult } from "@contract-audit/audit/decision";
 import type { DecisionProviderLike } from "./providers/base";
-import { DisabledDecisionProvider } from "./providers/disabled";
 import type { ShadowJobClaim, ShadowJobStore } from "./shadow-repository";
 
 /** Everything the worker needs, injected so tests never touch a database. */
@@ -178,4 +176,3 @@ export class ShadowDecisionWorker {
     }
   }
 }
-

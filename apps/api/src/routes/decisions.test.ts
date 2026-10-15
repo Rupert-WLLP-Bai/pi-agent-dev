@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import type { DecisionRequest } from "@contract-audit/audit/decision";
 import { Elysia } from "elysia";
-import { InMemoryShadowDecisionRepository } from "../decision/testing/in-memory-shadow-repository";
 import { decisionQuestionCatalogue } from "../decision/questions";
 import { decisionInputHash } from "../decision/redaction";
+import { InMemoryShadowDecisionRepository } from "../decision/testing/in-memory-shadow-repository";
 import { decisionsRoutes } from "./decisions";
-import type { DecisionRequest } from "@contract-audit/audit/decision";
 
 const question = decisionQuestionCatalogue[0];
 if (question === undefined || question.question.type !== "choice") {
@@ -84,7 +84,9 @@ describe("decision routes", () => {
   test("answers an unknown case with an empty list, not a 404", async () => {
     const repository = new InMemoryShadowDecisionRepository();
     const response = await app(repository).handle(
-      new Request("http://localhost/api/audit-cases/00000000-0000-4000-8000-0000000000ff/decisions"),
+      new Request(
+        "http://localhost/api/audit-cases/00000000-0000-4000-8000-0000000000ff/decisions",
+      ),
     );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { items: unknown[] };
@@ -212,14 +214,11 @@ describe("decision routes", () => {
   test("feedback for an unknown decision is a 404", async () => {
     const repository = new InMemoryShadowDecisionRepository();
     const response = await app(repository).handle(
-      new Request(
-        "http://localhost/api/decisions/00000000-0000-4000-8000-0000000000fd/feedback",
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ schemaVersion: 1, decision: "accepted" }),
-        },
-      ),
+      new Request("http://localhost/api/decisions/00000000-0000-4000-8000-0000000000fd/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ schemaVersion: 1, decision: "accepted" }),
+      }),
     );
     expect(response.status).toBe(404);
   });
@@ -258,7 +257,11 @@ describe("decision routes", () => {
       }),
     );
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { dryRun: boolean; candidateCount: number; deletedCount: number };
+    const body = (await response.json()) as {
+      dryRun: boolean;
+      candidateCount: number;
+      deletedCount: number;
+    };
     expect(body.dryRun).toBe(true);
     expect(body.candidateCount).toBe(1);
     expect(body.deletedCount).toBe(0);

@@ -1,10 +1,10 @@
 import type { DrizzleDB } from "../db/repositories";
+import type { DecisionsRouteDeps } from "../routes/decisions";
 import type { DecisionConfig } from "./config";
-import { createDecisionProvider } from "./index";
 import { classificationFor, deriveShadowJob } from "./derive";
+import { createDecisionProvider } from "./index";
 import { ShadowDecisionRepository } from "./shadow-repository";
 import { ShadowDecisionWorker } from "./shadow-worker";
-import type { DecisionsRouteDeps } from "../routes/decisions";
 
 /** The composition the API root needs from the decision layer. */
 export interface DecisionRuntime {

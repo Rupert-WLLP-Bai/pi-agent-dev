@@ -5,7 +5,7 @@ import type {
 } from "@contract-audit/audit/decision";
 import { validateDecisionProviderResult } from "@contract-audit/audit/decision-contract";
 import { buildDecisionModelState } from "../redaction";
-import { decisionFailure, type DecisionProviderConfig, type DecisionProviderLike } from "./base";
+import { type DecisionProviderConfig, type DecisionProviderLike, decisionFailure } from "./base";
 import type { LayaWireAnswer } from "./laya-wire";
 import { parseLayaSystemOneResponse } from "./laya-wire";
 
@@ -147,7 +147,7 @@ export class LayaCpuDecisionProvider implements DecisionProviderLike {
   private project(
     request: DecisionRequest,
     body: unknown,
-    latencyMs: number,
+    _latencyMs: number,
   ): DecisionProviderOutcome {
     const parsed = parseLayaSystemOneResponse(body);
     if (parsed === null) {

@@ -17,8 +17,8 @@ import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapt
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
 import type { AuditCaseRepository, DemoResetOutcome } from "../db/repositories";
-import { checkDemoResetEnvironment } from "./demo-environment";
 import { demoProposalsFor } from "../demo-agent";
+import { checkDemoResetEnvironment } from "./demo-environment";
 
 type DemoWorldRepository = Pick<
   AuditCaseRepository,

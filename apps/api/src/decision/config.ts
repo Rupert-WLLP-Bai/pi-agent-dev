@@ -42,7 +42,11 @@ export const loadDecisionConfig = (): DecisionConfig => ({
     process.env.DECISION_MODEL_REVISION?.trim() || DECISION_MODEL_REVISION_DEFAULT,
   decisionCodeRevision:
     process.env.DECISION_CODE_REVISION?.trim() || DECISION_CODE_REVISION_DEFAULT,
-  decisionTimeoutMs: clampInteger(Number.parseInt(process.env.DECISION_TIMEOUT_MS ?? "", 10), 10_000, 1),
+  decisionTimeoutMs: clampInteger(
+    Number.parseInt(process.env.DECISION_TIMEOUT_MS ?? "", 10),
+    10_000,
+    1,
+  ),
   decisionPollIntervalMs: clampInteger(
     Number.parseInt(process.env.DECISION_POLL_INTERVAL_MS ?? "", 10),
     2_000,

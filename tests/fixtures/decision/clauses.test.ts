@@ -36,9 +36,9 @@ describe("synthetic clause fixture set", () => {
   test("every clause carries a label reason and a review status", () => {
     for (const fixture of syntheticClauseFixtures) {
       expect(fixture.reason.trim().length).toBeGreaterThan(0);
-      expect(fixture.reviewStatus === "settled" || fixture.reviewStatus === "needs_human_review").toBe(
-        true,
-      );
+      expect(
+        fixture.reviewStatus === "settled" || fixture.reviewStatus === "needs_human_review",
+      ).toBe(true);
     }
   });
 

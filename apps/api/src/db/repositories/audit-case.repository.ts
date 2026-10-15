@@ -170,9 +170,7 @@ export class AuditCaseRepository {
     return this.readModel.resetDemoWorld(...args);
   }
 
-  async rebuildDemoWorld(
-    ...args: Parameters<AuditReadModelRepository["rebuildDemoWorld"]>
-  ) {
+  async rebuildDemoWorld(...args: Parameters<AuditReadModelRepository["rebuildDemoWorld"]>) {
     return this.readModel.rebuildDemoWorld(...args);
   }
 

@@ -65,12 +65,32 @@ export type OriginalStorage = "s3" | "local";
  */
 export function describeStorageError(error: unknown): string {
   if (!(error instanceof Error)) return "storage_error";
-  if (error.message === "ORIGINAL_PATH_OUTSIDE_UPLOAD_DIR") return "original_path_outside_upload_dir";
+  if (error.message === "ORIGINAL_PATH_OUTSIDE_UPLOAD_DIR")
+    return "original_path_outside_upload_dir";
   if (error.message === "ORIGINAL_BUCKET_NOT_ALLOWED") return "original_bucket_not_allowed";
-  if (error.message === "ORIGINAL_INTEGRITY_MISMATCH" || error.message === "ORIGINAL_INTEGRITY_METADATA_INVALID") return "original_integrity_mismatch";
-  if (error.name === "TimeoutError" || error.name === "AbortError" || error.message.includes("timed out")) return "timeout";
-  if (error.name === "NoSuchKey" || error.name === "NotFound" || ("code" in error && error.code === "ENOENT")) return "original_missing";
-  if (error.name === "AccessDenied" || error.name === "InvalidAccessKeyId" || error.name === "SignatureDoesNotMatch") return "access_denied";
+  if (
+    error.message === "ORIGINAL_INTEGRITY_MISMATCH" ||
+    error.message === "ORIGINAL_INTEGRITY_METADATA_INVALID"
+  )
+    return "original_integrity_mismatch";
+  if (
+    error.name === "TimeoutError" ||
+    error.name === "AbortError" ||
+    error.message.includes("timed out")
+  )
+    return "timeout";
+  if (
+    error.name === "NoSuchKey" ||
+    error.name === "NotFound" ||
+    ("code" in error && error.code === "ENOENT")
+  )
+    return "original_missing";
+  if (
+    error.name === "AccessDenied" ||
+    error.name === "InvalidAccessKeyId" ||
+    error.name === "SignatureDoesNotMatch"
+  )
+    return "access_denied";
   return "storage_error";
 }
 
@@ -134,7 +154,9 @@ export function createS3OriginalStore(opts: {
  * fail when S3 is missing or unavailable; legacy local originals remain readable.
  * Development may explicitly choose local fallback for new writes.
  */
-export function createOriginalStore(opts: ObjectStoreConfig & { client?: ObjectStoreClient }): OriginalStore {
+export function createOriginalStore(
+  opts: ObjectStoreConfig & { client?: ObjectStoreClient },
+): OriginalStore {
   const local = createLocalOriginalStore();
   if (!opts.endpoint) {
     if (!opts.strict) return local;
@@ -160,7 +182,7 @@ export function createOriginalStore(opts: ObjectStoreConfig & { client?: ObjectS
   const writer = opts.strict ? s3 : createFallbackOriginalStore(s3, local);
   return {
     save: writer.save,
-    read: (locator) => parseS3Locator(locator) ? s3.read(locator) : local.read(locator),
+    read: (locator) => (parseS3Locator(locator) ? s3.read(locator) : local.read(locator)),
   };
 }
 
@@ -314,7 +336,11 @@ export async function readOriginal(
   const sha256 = metadata?.originalSha256;
   const sizeBytes = metadata?.originalSizeBytes;
   if (sha256 === undefined && sizeBytes === undefined) return bytes;
-  if (typeof sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(sha256) || !Number.isSafeInteger(sizeBytes)) {
+  if (
+    typeof sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(sha256) ||
+    !Number.isSafeInteger(sizeBytes)
+  ) {
     throw new Error("ORIGINAL_INTEGRITY_METADATA_INVALID");
   }
   if (bytes.length !== sizeBytes || createHash("sha256").update(bytes).digest("hex") !== sha256) {

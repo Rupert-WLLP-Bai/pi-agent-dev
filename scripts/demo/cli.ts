@@ -4,9 +4,9 @@ import {
   createRepository,
   type DrizzleDB,
 } from "../../apps/api/src/db/repositories";
-import { loadManagedDemoEnvironment, redactDemoOutput } from "./managed-environment";
 import { runDemoWorldOperation } from "../../apps/api/src/demo/demo-world-operation";
 import { readDemoWorld } from "../../apps/api/src/demo/seed-world";
+import { loadManagedDemoEnvironment, redactDemoOutput } from "./managed-environment";
 
 /**
  * The demo stack's command surface:
@@ -147,7 +147,9 @@ switch (command) {
       const health = await fetch(`${apiOrigin}/api/health`);
       console.log(`API 健康：${health.ok ? "正常" : `异常（${health.status}）`} @ ${apiOrigin}`);
     } catch {
-      console.log(`API 未在 ${apiOrigin} 应答；按 docs/deployment/demo.md 启动 API 后运行 verify。`);
+      console.log(
+        `API 未在 ${apiOrigin} 应答；按 docs/deployment/demo.md 启动 API 后运行 verify。`,
+      );
     }
     console.log("下一步：bun scripts/demo/cli.ts verify");
     break;
@@ -189,11 +191,7 @@ switch (command) {
         `演示世界已重建：移除 ${result.outcome.ok ? result.outcome.removed : 0}，播种 ${result.planted}，可见 ${result.view?.seededCaseCount ?? 0}`,
       );
       const orphans = await repository.countDemoResetOrphans();
-      if (
-        orphans.shadowJobs > 0 ||
-        orphans.shadowFeedback > 0 ||
-        orphans.verificationSources > 0
-      ) {
+      if (orphans.shadowJobs > 0 || orphans.shadowFeedback > 0 || orphans.verificationSources > 0) {
         console.warn(
           `警告：孤儿检查未通过（影子任务 ${orphans.shadowJobs}、影子反馈 ${orphans.shadowFeedback}、核验来源 ${orphans.verificationSources}）；请人工检查。`,
         );
@@ -233,7 +231,10 @@ switch (command) {
     await check("会话门禁报告认证状态", async () => {
       const response = await fetch(`${base}/api/session`);
       if (!response.ok) throw new Error(`status ${response.status}`);
-      const parsed = (await response.json()) as { authenticationRequired: boolean; authenticated: boolean };
+      const parsed = (await response.json()) as {
+        authenticationRequired: boolean;
+        authenticated: boolean;
+      };
       if (typeof parsed.authenticationRequired !== "boolean") {
         throw new Error("响应缺少 authenticationRequired");
       }
@@ -250,7 +251,9 @@ switch (command) {
   case "check": {
     const env = await loadManagedDemoEnvironment(false);
     console.log(`受管环境：${env.path}`);
-    console.log(`APP_ENV=${env.values.APP_ENV} DEMO_ENVIRONMENT_ID=${env.values.DEMO_ENVIRONMENT_ID}`);
+    console.log(
+      `APP_ENV=${env.values.APP_ENV} DEMO_ENVIRONMENT_ID=${env.values.DEMO_ENVIRONMENT_ID}`,
+    );
     console.log(
       `对象存储：${env.values.S3_ENDPOINT}（严格模式 ${env.values.S3_STRICT ?? "true"}）`,
     );

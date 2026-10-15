@@ -176,7 +176,8 @@ const smoke = async (): Promise<void> => {
   const body = {
     model: "multilingual",
     state: {
-      clause: "本合成通信设备采购合同约定：甲方在合同签订后支付合同总价70%作为预付款，剩余30%在验收后支付。",
+      clause:
+        "本合成通信设备采购合同约定：甲方在合同签订后支付合同总价70%作为预付款，剩余30%在验收后支付。",
     },
     questions: {
       category: {

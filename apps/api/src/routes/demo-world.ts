@@ -1,9 +1,6 @@
 import { Elysia, t } from "elysia";
 import type { AuditCaseRepository } from "../db/repositories";
-import {
-  runDemoWorldOperation,
-  seedInOperation,
-} from "../demo/demo-world-operation";
+import { runDemoWorldOperation } from "../demo/demo-world-operation";
 import { DemoResetRefusedError, plantDemoCases, readDemoWorld } from "../demo/seed-world";
 import { errorSchema, openapiTags } from "../openapi";
 

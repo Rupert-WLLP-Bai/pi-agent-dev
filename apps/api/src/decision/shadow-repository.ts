@@ -9,8 +9,8 @@ import type {
   DecisionStatus,
 } from "@contract-audit/audit/decision";
 import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
-import { shadowFeedback, shadowJobs, type ShadowJobRow } from "../db/schema";
 import type { DrizzleDB } from "../db/repositories";
+import { type ShadowJobRow, shadowFeedback, shadowJobs } from "../db/schema";
 
 /** One claimable job, with the frozen input a re-run needs. */
 export interface ShadowJobClaim {
@@ -155,11 +155,7 @@ export class ShadowDecisionRepository {
    * original lease is still valid. `SKIP LOCKED` keeps two workers from
    * claiming the same row concurrently.
    */
-  async claimJobs(
-    owner: string,
-    leaseMs: number,
-    limit: number,
-  ): Promise<ShadowJobClaim[]> {
+  async claimJobs(owner: string, leaseMs: number, limit: number): Promise<ShadowJobClaim[]> {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + Math.max(1, leaseMs));
     const rows = await this.db.execute<{
@@ -196,21 +192,23 @@ export class ShadowDecisionRepository {
                 j.question_key, j.question_version, j.policy_version, j.redaction_version,
                 j.provider, j.model_version, j.attempts, j.frozen_input
     `);
-    return (rows as unknown as {
-      decision_id: string;
-      audit_case_id: string;
-      snapshot_id: string;
-      agent_run_id: string;
-      input_hash: string;
-      question_key: string;
-      question_version: string;
-      policy_version: string;
-      redaction_version: string;
-      provider: string;
-      model_version: string;
-      attempts: number;
-      frozen_input: DecisionRequest;
-    }[]).map((row) => ({
+    return (
+      rows as unknown as {
+        decision_id: string;
+        audit_case_id: string;
+        snapshot_id: string;
+        agent_run_id: string;
+        input_hash: string;
+        question_key: string;
+        question_version: string;
+        policy_version: string;
+        redaction_version: string;
+        provider: string;
+        model_version: string;
+        attempts: number;
+        frozen_input: DecisionRequest;
+      }[]
+    ).map((row) => ({
       decisionId: row.decision_id,
       auditCaseId: row.audit_case_id,
       snapshotId: row.snapshot_id,
@@ -319,11 +317,7 @@ export class ShadowDecisionRepository {
         idempotencyKey: input.idempotencyKey,
       })
       .onConflictDoNothing();
-    const existing = await this.findFeedback(
-      input.decisionId,
-      input.actor,
-      input.idempotencyKey,
-    );
+    const existing = await this.findFeedback(input.decisionId, input.actor, input.idempotencyKey);
     if (existing === null) {
       // The insert conflicted with a row that is no longer readable: report
       // the write as not created rather than inventing an event.

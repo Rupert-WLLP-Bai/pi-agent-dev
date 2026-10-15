@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { DecisionProviderResult, DecisionRequest } from "@contract-audit/audit/decision";
 import type { DecisionProviderLike } from "./providers/base";
-import { InMemoryShadowDecisionRepository } from "./testing/in-memory-shadow-repository";
-import { ShadowDecisionWorker } from "./shadow-worker";
-import { toDecisionAdvice } from "./shadow-repository";
-import { decisionInputHash } from "./redaction";
 import { decisionQuestionCatalogue } from "./questions";
+import { decisionInputHash } from "./redaction";
+import { toDecisionAdvice } from "./shadow-repository";
+import { ShadowDecisionWorker } from "./shadow-worker";
+import { InMemoryShadowDecisionRepository } from "./testing/in-memory-shadow-repository";
 
 const question = decisionQuestionCatalogue[0];
 if (question === undefined || question.question.type !== "choice") {
@@ -89,7 +89,12 @@ class UnavailableProvider implements DecisionProviderLike {
 const workerFor = (
   repository: InMemoryShadowDecisionRepository,
   provider: DecisionProviderLike,
-  overrides: Partial<{ owner: string; concurrency: number; leaseMs: number; maxRetries: number }> = {},
+  overrides: Partial<{
+    owner: string;
+    concurrency: number;
+    leaseMs: number;
+    maxRetries: number;
+  }> = {},
 ): ShadowDecisionWorker =>
   new ShadowDecisionWorker({
     repository,
@@ -148,11 +153,16 @@ describe("ShadowDecisionWorker", () => {
         ok: false;
         failure: { schemaVersion: 1; error: "invalid_response"; retryable: boolean };
       }> {
-        return { ok: false, failure: { schemaVersion: 1, error: "invalid_response", retryable: false } };
+        return {
+          ok: false,
+          failure: { schemaVersion: 1, error: "invalid_response", retryable: false },
+        };
       }
     }
     await repository.ensureJob(identity("laya-cpu", "refusing"));
-    const outcomes = await workerFor(repository, new RefusingProvider(), { maxRetries: 5 }).runOnce();
+    const outcomes = await workerFor(repository, new RefusingProvider(), {
+      maxRetries: 5,
+    }).runOnce();
     expect(outcomes[0]?.status).toBe("FAILED");
     expect([...repository.jobs.values()][0]?.status).toBe("FAILED");
   });
@@ -166,7 +176,9 @@ describe("ShadowDecisionWorker", () => {
       }
     }
     await repository.ensureJob(identity("laya-cpu", "throwing"));
-    const outcomes = await workerFor(repository, new ThrowingProvider(), { maxRetries: 0 }).runOnce();
+    const outcomes = await workerFor(repository, new ThrowingProvider(), {
+      maxRetries: 0,
+    }).runOnce();
     expect(outcomes[0]?.status).toBe("FAILED");
     expect(outcomes[0]?.fallbackReason).toContain("provider_error");
   });

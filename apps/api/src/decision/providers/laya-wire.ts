@@ -72,7 +72,8 @@ const parseAnswer = (value: unknown): LayaWireAnswer | null => {
 export const parseLayaSystemOneResponse = (body: unknown): LayaWireResponse | null => {
   if (typeof body !== "object" || body === null) return null;
   if (!("model" in body) || typeof body.model !== "string" || body.model === "") return null;
-  if (!("answers" in body) || typeof body.answers !== "object" || body.answers === null) return null;
+  if (!("answers" in body) || typeof body.answers !== "object" || body.answers === null)
+    return null;
   if (Array.isArray(body.answers)) return null;
 
   const answers: Record<string, LayaWireAnswer> = {};

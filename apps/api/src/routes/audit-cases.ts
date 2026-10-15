@@ -304,11 +304,7 @@ export function auditCasesRoutes({
           // failure after the Put can never leave a PENDING case whose
           // original is unreachable — the only recovery needed is the object
           // this route already owns, which is removed explicitly below.
-          const originalPath = await saveOriginal(
-            sourceRecordId,
-            fileBytes,
-            body.file.name,
-          );
+          const originalPath = await saveOriginal(sourceRecordId, fileBytes, body.file.name);
           let caseId: string;
           try {
             const queuedCaseOptions = {
@@ -393,10 +389,16 @@ export function auditCasesRoutes({
             buffer = await readOriginal(record.originalPath, record.metadata);
           } catch (error) {
             const code = describeStorageError(error);
-            set.status = code === "original_missing" ? 404
-              : code === "original_integrity_mismatch" ? 409
-              : code === "access_denied" || code === "original_bucket_not_allowed" || code === "original_path_outside_upload_dir" ? 403
-              : 503;
+            set.status =
+              code === "original_missing"
+                ? 404
+                : code === "original_integrity_mismatch"
+                  ? 409
+                  : code === "access_denied" ||
+                      code === "original_bucket_not_allowed" ||
+                      code === "original_path_outside_upload_dir"
+                    ? 403
+                    : 503;
             return { error: code };
           }
           const filename = record.name ?? "contract";

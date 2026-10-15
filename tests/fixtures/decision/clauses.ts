@@ -34,12 +34,7 @@ export const FIXTURE_CATEGORIES = [
 export type FixtureCategory = (typeof FIXTURE_CATEGORIES)[number];
 
 /** Which judgement shape a clause exercises. */
-export type FixtureCaseKind =
-  | "positive"
-  | "negative"
-  | "ambiguous"
-  | "exception"
-  | "cross_clause";
+export type FixtureCaseKind = "positive" | "negative" | "ambiguous" | "exception" | "cross_clause";
 
 /** Whether the label is settled enough to act on without a human look. */
 export type FixtureReviewStatus = "settled" | "needs_human_review";

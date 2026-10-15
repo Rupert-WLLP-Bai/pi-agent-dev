@@ -712,29 +712,45 @@ dbTest(
   },
 );
 
-dbTest("resetDemoWorld deletes only demo rows and preserves non-demo neighbors", async (repository) => {
-  const demoId = uniqueSourceRecordId();
-  const keepId = uniqueSourceRecordId();
-  // A shared DB may already hold demo-seeded rows; assert relative deletion.
-  const alreadySeeded = (await repository.listDemoSeededCases()).length;
-  await repository.createPendingCase(demoId, seedSnapshot(demoId), null, {
-    metadata: { demoSeed: true, scenarioId: "x", caseKey: "k" },
-  });
-  const { caseId: keepCaseId } = await repository.createPendingCase(keepId, seedSnapshot(keepId), {
-    type: "TEXT_PASTE",
-    displayName: null,
-  });
+dbTest(
+  "resetDemoWorld deletes only demo rows and preserves non-demo neighbors",
+  async (repository) => {
+    const demoId = uniqueSourceRecordId();
+    const keepId = uniqueSourceRecordId();
+    // A shared DB may already hold demo-seeded rows; assert relative deletion.
+    const alreadySeeded = (await repository.listDemoSeededCases()).length;
+    await repository.createPendingCase(demoId, seedSnapshot(demoId), null, {
+      metadata: { demoSeed: true, scenarioId: "x", caseKey: "k" },
+    });
+    const { caseId: keepCaseId } = await repository.createPendingCase(
+      keepId,
+      seedSnapshot(keepId),
+      {
+        type: "TEXT_PASTE",
+        displayName: null,
+      },
+    );
+    // resetDemoWorld refuses while a demo case is queued or running. The
+    // wrapper only neutralizes formal PENDING cases before the body runs, so
+    // the demo case this test itself creates (and any shared-DB demo rows)
+    // must be parked to INTERRUPTED here: the reset's own delete is what this
+    // test exercises, not the active-run refusal, which the guard tests cover.
+    for (const seeded of await repository.listDemoSeededCases()) {
+      await repository.updateCaseStatus(seeded.caseId, "INTERRUPTED", "NORMALIZING");
+    }
+    await repository.updateCaseStatus(keepCaseId, "INTERRUPTED", "NORMALIZING");
 
-  // The registration table arrives with the decision slice's migration. On a
-  // database that predates it, the reset refuses and there is nothing to
-  // assert; the refusal itself is covered by the guard tests.
-  const tableReady = await repository.hasDemoEnvironmentTable();
-  if (!tableReady) return;
-  const databaseName = await repository.currentDatabaseName();
-  await repository.registerDemoEnvironment({ environmentId: "test", databaseName });
-  const outcome = await repository.resetDemoWorld({ environmentId: "test", databaseName });
-  if (!outcome.ok) throw new Error(outcome.reason);
-  expect(outcome.removed).toBe(alreadySeeded + 1);
-  expect(await repository.listDemoSeededCases()).toEqual([]);
-  expect(await repository.getCase(keepCaseId)).not.toBeNull();
-});
+    // The registration table arrives with the decision slice's migration. On a
+    // database that predates it, the reset refuses and there is nothing to
+    // assert; the refusal itself is covered by the guard tests.
+    const tableReady = await repository.hasDemoEnvironmentTable();
+    if (!tableReady) return;
+    const databaseName = await repository.currentDatabaseName();
+    await repository.registerDemoEnvironment({ environmentId: "test", databaseName });
+    const outcome = await repository.resetDemoWorld({ environmentId: "test", databaseName });
+    if (!outcome.ok) throw new Error(outcome.reason);
+    expect(outcome.removed).toBe(alreadySeeded + 1);
+    expect(await repository.listDemoSeededCases()).toEqual([]);
+    expect(await repository.getCase(keepCaseId)).not.toBeNull();
+  },
+);

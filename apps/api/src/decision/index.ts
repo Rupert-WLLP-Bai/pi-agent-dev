@@ -7,57 +7,61 @@
  * dependencies.
  */
 
-export { loadDecisionConfig, type DecisionConfig } from "./config";
-export {
-  DECISION_QUESTION_CATALOGUE_VERSION,
-  decisionQuestionCatalogue,
-  decisionQuestionFor,
-  type DecisionQuestionEntry,
-} from "./questions";
-export {
-  adviceEvidenceRefs,
-  buildDecisionModelState,
-  decisionInputHash,
-  redactClauseExcerpt,
-  REDACTION_VERSION,
-  type DecisionModelState,
-} from "./redaction";
+export { type DecisionsRouteDeps, decisionsRoutes } from "../routes/decisions";
+export { type DecisionConfig, loadDecisionConfig } from "./config";
 export {
   classificationFor,
   deriveShadowJob,
   modelVersionFor,
-  shadowQuestionFor,
   type ShadowDerivationInput,
+  shadowQuestionFor,
 } from "./derive";
 export {
   DECISION_POLICY_VERSION,
-  decisionFailure,
-  PROVIDER_DATA_CLASSIFICATION,
   type DecisionProviderConfig,
   type DecisionProviderLike,
+  decisionFailure,
+  PROVIDER_DATA_CLASSIFICATION,
 } from "./providers/base";
 export { DisabledDecisionProvider } from "./providers/disabled";
 export { FakeDecisionProvider } from "./providers/fake";
 export { LayaCpuDecisionProvider } from "./providers/laya-cpu";
 export {
-  ShadowDecisionRepository,
+  DECISION_QUESTION_CATALOGUE_VERSION,
+  type DecisionQuestionEntry,
+  decisionQuestionCatalogue,
+  decisionQuestionFor,
+} from "./questions";
+export {
+  adviceEvidenceRefs,
+  buildDecisionModelState,
+  type DecisionModelState,
+  decisionInputHash,
+  REDACTION_VERSION,
+  redactClauseExcerpt,
+} from "./redaction";
+export {
   ruleConflictsFor,
-  toDecisionAdvice,
-  toDecisionFeedback,
+  ShadowDecisionRepository,
   type ShadowFeedbackRecord,
   type ShadowJobClaim,
   type ShadowJobIdentity,
   type ShadowJobStore,
+  toDecisionAdvice,
+  toDecisionFeedback,
 } from "./shadow-repository";
-export { ShadowDecisionWorker, type ShadowJobOutcome, type ShadowWorkerDeps } from "./shadow-worker";
-export { decisionsRoutes, type DecisionsRouteDeps } from "../routes/decisions";
+export {
+  ShadowDecisionWorker,
+  type ShadowJobOutcome,
+  type ShadowWorkerDeps,
+} from "./shadow-worker";
 
 import type { DecisionProviderName } from "@contract-audit/audit/decision";
-import { FakeDecisionProvider } from "./providers/fake";
-import { LayaCpuDecisionProvider } from "./providers/laya-cpu";
-import { DisabledDecisionProvider } from "./providers/disabled";
 import type { DecisionConfig } from "./config";
 import type { DecisionProviderLike } from "./providers/base";
+import { DisabledDecisionProvider } from "./providers/disabled";
+import { FakeDecisionProvider } from "./providers/fake";
+import { LayaCpuDecisionProvider } from "./providers/laya-cpu";
 
 /**
  * Resolves the configured provider. An unconfigured or unknown provider is

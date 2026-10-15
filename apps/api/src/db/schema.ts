@@ -1,8 +1,5 @@
+import type { DecisionProviderResult, DecisionRequest } from "@contract-audit/audit/decision";
 import type { ValidationCaseResult, ValidationSummary } from "@contract-audit/audit/golden-eval";
-import type {
-  DecisionProviderResult,
-  DecisionRequest,
-} from "@contract-audit/audit/decision";
 import type {
   AgentTraceTokens,
   AuditCaseStatus,
@@ -577,13 +574,7 @@ export const demoEnvironments = pgTable("demo_environments", {
 });
 
 /** The five lifecycle states a shadow decision job moves through. */
-export const shadowJobStatuses = [
-  "PENDING",
-  "RUNNING",
-  "SUCCEEDED",
-  "FAILED",
-  "SKIPPED",
-] as const;
+export const shadowJobStatuses = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"] as const;
 export type ShadowJobStatus = (typeof shadowJobStatuses)[number];
 
 /**

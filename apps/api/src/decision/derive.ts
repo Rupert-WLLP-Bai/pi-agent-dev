@@ -4,10 +4,10 @@ import type {
   DecisionTaskType,
 } from "@contract-audit/audit/decision";
 import type { AuditSnapshot } from "@contract-audit/audit/model";
-import { DECISION_POLICY_VERSION } from "./providers/base";
-import { decisionInputHash, REDACTION_VERSION } from "./redaction";
-import { decisionQuestionFor } from "./questions";
 import type { DecisionConfig } from "./config";
+import { DECISION_POLICY_VERSION } from "./providers/base";
+import { decisionQuestionFor } from "./questions";
+import { decisionInputHash, REDACTION_VERSION } from "./redaction";
 import type { ShadowDecisionRepository } from "./shadow-repository";
 
 /** What a derivation needs about the formal run it observes. */
@@ -93,9 +93,9 @@ export const buildShadowRequest = (input: {
     evidenceRefs: input.derivation.snapshot.evidence.slice(0, 8).map((evidence) => ({
       evidenceId: evidence.id,
       sourceRecordId: input.derivation.snapshot.sourceRecordId,
-      blockId:
-        evidence.location.kind === "DOCUMENT_SPAN" ? evidence.location.blockId : null,
-      startOffset: evidence.location.kind === "DOCUMENT_SPAN" ? evidence.location.startOffset : null,
+      blockId: evidence.location.kind === "DOCUMENT_SPAN" ? evidence.location.blockId : null,
+      startOffset:
+        evidence.location.kind === "DOCUMENT_SPAN" ? evidence.location.startOffset : null,
       endOffset: evidence.location.kind === "DOCUMENT_SPAN" ? evidence.location.endOffset : null,
     })),
     ruleAssessments: [],

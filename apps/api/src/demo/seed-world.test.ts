@@ -8,8 +8,8 @@ import { createAuditSnapshot } from "@contract-audit/audit/orchestrator";
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import type { DemoResetOutcome } from "../db/repositories";
 import { InMemoryAuditCaseRepository } from "../testing/fakes";
-import { plantDemoCases } from "./seed-world";
 import { runDemoWorldOperation } from "./demo-world-operation";
+import { plantDemoCases } from "./seed-world";
 
 test("every authored scenario case still extracts a 乙方 the history rule can join", () => {
   for (const spec of demoScenarioCases) {

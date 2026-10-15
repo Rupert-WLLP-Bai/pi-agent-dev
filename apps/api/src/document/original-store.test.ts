@@ -123,7 +123,6 @@ test("a strict store fails the upload instead of silently switching backend", as
   }
 });
 
-
 test("the local store rejects a sibling directory that shares the root prefix", async () => {
   const root = tempDir();
   // A sibling whose name merely starts with the upload root's path string:
@@ -151,16 +150,27 @@ test("the local store reads through a symlinked upload root", async () => {
   expect((await store.read(locator)).toString("utf8")).toBe("符号链接根目录");
 });
 
-
 test("strict S3 writes keep historical local originals readable during an outage", async () => {
   const dir = tempDir();
   const previous = process.env.UPLOAD_DIR;
   process.env.UPLOAD_DIR = dir;
   try {
-    const legacy = await createLocalOriginalStore(dir).save("legacy", Buffer.from("历史原件"), "a.txt");
+    const legacy = await createLocalOriginalStore(dir).save(
+      "legacy",
+      Buffer.from("历史原件"),
+      "a.txt",
+    );
     const client = new MemoryObjectStore();
     client.failPuts = true;
-    const store = createOriginalStore({ endpoint: "http://rustfs:9000", accessKey: "k", secretKey: "s", bucket: "owned", region: "us-east-1", strict: true, client });
+    const store = createOriginalStore({
+      endpoint: "http://rustfs:9000",
+      accessKey: "k",
+      secretKey: "s",
+      bucket: "owned",
+      region: "us-east-1",
+      strict: true,
+      client,
+    });
     expect(await store.read(legacy)).toEqual(Buffer.from("历史原件"));
     await expect(store.save("new", Buffer.from("新原件"), "b.txt")).rejects.toThrow();
     expect(await readFile(join(dir, "new.txt")).catch(() => null)).toBeNull();
@@ -174,7 +184,9 @@ test("a configured S3 store refuses an existing object owned by another bucket",
   const client = new MemoryObjectStore();
   client.objects.set("foreign/private.txt", Buffer.from("不属于当前工作区的原件"));
   const store = createS3OriginalStore({ client, bucket: "owned" });
-  await expect(store.read("s3://foreign/private.txt")).rejects.toThrow("ORIGINAL_BUCKET_NOT_ALLOWED");
+  await expect(store.read("s3://foreign/private.txt")).rejects.toThrow(
+    "ORIGINAL_BUCKET_NOT_ALLOWED",
+  );
 });
 
 test("original integrity rejects changed bytes even when their length is unchanged", async () => {
@@ -183,8 +195,15 @@ test("original integrity rejects changed bytes even when their length is unchang
   process.env.UPLOAD_DIR = dir;
   delete process.env.S3_ENDPOINT;
   try {
-    const locator = await createLocalOriginalStore(dir).save("immutable", Buffer.from("abc"), "a.txt");
-    const metadata = { originalSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", originalSizeBytes: 3 };
+    const locator = await createLocalOriginalStore(dir).save(
+      "immutable",
+      Buffer.from("abc"),
+      "a.txt",
+    );
+    const metadata = {
+      originalSha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      originalSizeBytes: 3,
+    };
     expect(await readOriginal(locator, metadata)).toEqual(Buffer.from("abc"));
     await writeFile(locator, "abd");
     await expect(readOriginal(locator, metadata)).rejects.toThrow("ORIGINAL_INTEGRITY_MISMATCH");

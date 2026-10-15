@@ -127,7 +127,10 @@ describe("checkDemoResetIdentity", () => {
   test("a registration pointing at a different database is refused", () => {
     const guard = checkDemoResetIdentity({
       ...input,
-      identity: { currentDatabase: "contract_audit_demo", registeredDatabase: "contract_audit_prod" },
+      identity: {
+        currentDatabase: "contract_audit_demo",
+        registeredDatabase: "contract_audit_prod",
+      },
     });
     expect(guard.ok).toBe(false);
     if (guard.ok) return;

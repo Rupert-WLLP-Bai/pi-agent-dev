@@ -403,7 +403,6 @@ export class InMemoryAuditCaseRepository {
 
   async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
     if (!this.sourceRecordIds.has(sourceRecordId)) return null;
-    const metadata = this.sourceMetadata.get(sourceRecordId);
     return {
       id: sourceRecordId,
       originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,

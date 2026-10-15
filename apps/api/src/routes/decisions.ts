@@ -1,14 +1,14 @@
-import { Elysia, t } from "elysia";
 import type {
   DecisionAdvice,
   DecisionAdviceList,
   DecisionDetail,
   DecisionFeedback,
 } from "@contract-audit/audit/decision";
+import { Elysia, t } from "elysia";
 import type { ShadowDecisionRepository } from "../decision/shadow-repository";
 import { toDecisionAdvice, toDecisionFeedback } from "../decision/shadow-repository";
+import { openapiTags } from "../openapi";
 import { operatorFrom } from "../operator-header";
-import { errorSchema, notFoundSchema, openapiTags } from "../openapi";
 
 export interface DecisionsRouteDeps {
   repository: ShadowDecisionRepository;
@@ -267,11 +267,7 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
             typeof key === "string" && key.trim() !== "" && key.trim().length <= 128
               ? key.trim()
               : null;
-          const existing = await repository.findFeedback(
-            params.decisionId,
-            actor,
-            idempotencyKey,
-          );
+          const existing = await repository.findFeedback(params.decisionId, actor, idempotencyKey);
           // A different body under a key that already recorded an event is a
           // conflict, not a silent overwrite: the caller is told their retry
           // does not match what was stored.
@@ -316,7 +312,7 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
             201: feedbackSchema,
             404: t.Object({ error: t.String() }),
             409: t.Object({ error: t.String() }),
-            422: errorSchema,
+            422: decisionErrorSchema,
           },
         },
       )
@@ -325,14 +321,26 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
       // their feedback, and never a formal audit row.
       .post(
         "/api/decisions/retention",
-        async ({ body, set }) => {
+        async ({ body }) => {
           const now = new Date();
           const ids = await repository.terminalJobsOlderThan(body.retentionDays, now);
           if (body.apply !== true) {
-            return { schemaVersion: 1, dryRun: true, retentionDays: body.retentionDays, candidateCount: ids.length, deletedCount: 0 };
+            return {
+              schemaVersion: 1,
+              dryRun: true,
+              retentionDays: body.retentionDays,
+              candidateCount: ids.length,
+              deletedCount: 0,
+            };
           }
           const deletedCount = await repository.deleteTerminalJobs(ids);
-          return { schemaVersion: 1, dryRun: false, retentionDays: body.retentionDays, candidateCount: ids.length, deletedCount };
+          return {
+            schemaVersion: 1,
+            dryRun: false,
+            retentionDays: body.retentionDays,
+            candidateCount: ids.length,
+            deletedCount,
+          };
         },
         {
           body: t.Object({
@@ -354,7 +362,7 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
               candidateCount: t.Number(),
               deletedCount: t.Number(),
             }),
-            422: errorSchema,
+            422: decisionErrorSchema,
           },
         },
       )

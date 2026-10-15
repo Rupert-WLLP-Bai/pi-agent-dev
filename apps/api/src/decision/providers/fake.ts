@@ -4,7 +4,7 @@ import type {
   DecisionRequest,
 } from "@contract-audit/audit/decision";
 import { validateDecisionProviderResult } from "@contract-audit/audit/decision-contract";
-import { decisionFailure, type DecisionProviderLike } from "./base";
+import { type DecisionProviderLike, decisionFailure } from "./base";
 
 /**
  * The explicitly-labelled offline demonstration provider.
@@ -23,10 +23,7 @@ import { decisionFailure, type DecisionProviderLike } from "./base";
 export class FakeDecisionProvider implements DecisionProviderLike {
   readonly identity = { provider: "fake" as const, modelVersion: "fake-deterministic-v1" };
 
-  async decide(
-    request: DecisionRequest,
-    _signal: AbortSignal,
-  ): Promise<DecisionProviderOutcome> {
+  async decide(request: DecisionRequest, _signal: AbortSignal): Promise<DecisionProviderOutcome> {
     const candidate = this.answerFor(request);
     const outcome = validateDecisionProviderResult(request, candidate);
     // A catalogue bug surfaces as a typed failure, never as an exception that

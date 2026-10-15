@@ -1,5 +1,5 @@
 import type { DecisionProviderOutcome, DecisionRequest } from "@contract-audit/audit/decision";
-import { decisionFailure, type DecisionProviderLike } from "./base";
+import { type DecisionProviderLike, decisionFailure } from "./base";
 
 /**
  * The provider used when the decision layer is switched off, and the one a
@@ -10,10 +10,7 @@ import { decisionFailure, type DecisionProviderLike } from "./base";
 export class DisabledDecisionProvider implements DecisionProviderLike {
   readonly identity = { provider: "disabled" as const, modelVersion: "none" };
 
-  async decide(
-    _request: DecisionRequest,
-    _signal: AbortSignal,
-  ): Promise<DecisionProviderOutcome> {
+  async decide(_request: DecisionRequest, _signal: AbortSignal): Promise<DecisionProviderOutcome> {
     return { ok: false, failure: decisionFailure("disabled", false) };
   }
 }

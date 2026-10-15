@@ -19,15 +19,15 @@
  *     bun scripts/decision/smoke.ts               # also probe the real service
  */
 
+import type { DecisionProviderLike } from "../../apps/api/src/decision/providers/base";
 import { FakeDecisionProvider } from "../../apps/api/src/decision/providers/fake";
 import { LayaCpuDecisionProvider } from "../../apps/api/src/decision/providers/laya-cpu";
-import type { DecisionProviderLike } from "../../apps/api/src/decision/providers/base";
-import { InMemoryShadowDecisionRepository } from "../../apps/api/src/decision/testing/in-memory-shadow-repository";
-import { ShadowDecisionWorker } from "../../apps/api/src/decision/shadow-worker";
-import { decisionInputHash } from "../../apps/api/src/decision/redaction";
 import { decisionQuestionCatalogue } from "../../apps/api/src/decision/questions";
-import { syntheticClauseFixtures } from "../../tests/fixtures/decision/clauses";
+import { decisionInputHash } from "../../apps/api/src/decision/redaction";
+import { ShadowDecisionWorker } from "../../apps/api/src/decision/shadow-worker";
+import { InMemoryShadowDecisionRepository } from "../../apps/api/src/decision/testing/in-memory-shadow-repository";
 import type { DecisionRequest } from "../../packages/audit/src/decision";
+import { syntheticClauseFixtures } from "../../tests/fixtures/decision/clauses";
 
 const question = decisionQuestionCatalogue[0];
 if (question === undefined || question.question.type !== "choice") {
@@ -60,9 +60,16 @@ const requestFor = (clause: string): DecisionRequest => ({
 class FailingProvider implements DecisionProviderLike {
   readonly identity = { provider: "laya-cpu" as const, modelVersion: "unreachable@test" };
   async decide(): Promise<
-    { ok: true; result: never } | { ok: false; failure: { schemaVersion: 1; error: "provider_unavailable"; retryable: boolean } }
+    | { ok: true; result: never }
+    | {
+        ok: false;
+        failure: { schemaVersion: 1; error: "provider_unavailable"; retryable: boolean };
+      }
   > {
-    return { ok: false, failure: { schemaVersion: 1, error: "provider_unavailable", retryable: true } };
+    return {
+      ok: false,
+      failure: { schemaVersion: 1, error: "provider_unavailable", retryable: true },
+    };
   }
 }
 
@@ -125,7 +132,9 @@ const identity = (provider: string, modelVersion: string) => ({
   });
   await failing.ensureJob(identity("laya-cpu", "unreachable@test"));
   const failingOutcomes = await failingWorker.runOnce();
-  const failedJob = await failing.getJob((await failing.listByCase(request.auditCaseId))[0]?.decisionId ?? "");
+  const failedJob = await failing.getJob(
+    (await failing.listByCase(request.auditCaseId))[0]?.decisionId ?? "",
+  );
   check(
     "failing provider records a typed failure without touching formal state",
     failingOutcomes.length === 1 &&
@@ -192,7 +201,11 @@ const identity = (provider: string, modelVersion: string) => ({
     `${replay.event.id}`,
   );
   const events = await repository.listFeedback(job.decisionId);
-  check("append-only feedback holds exactly one event for the replayed key", events.length === 1, `${events.length}`);
+  check(
+    "append-only feedback holds exactly one event for the replayed key",
+    events.length === 1,
+    `${events.length}`,
+  );
 
   // Retention only ever sees terminal rows.
   job.status = "SUCCEEDED";

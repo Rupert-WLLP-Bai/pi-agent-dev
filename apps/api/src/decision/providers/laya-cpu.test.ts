@@ -168,11 +168,14 @@ describe("LayaCpuDecisionProvider response projection", () => {
   });
 
   test("projects a noul answer with no probabilities and no confidence", async () => {
-    const outcome = await decideOverFetch({ type: "noul", criteria: "是否超过上限？" }, {
-      model: "laya-rl-agent",
-      answers: { "clause-category": { type: "noul", noul: 0.8963 } },
-      usage: { input_tokens: 247, output_tokens: 0 },
-    });
+    const outcome = await decideOverFetch(
+      { type: "noul", criteria: "是否超过上限？" },
+      {
+        model: "laya-rl-agent",
+        answers: { "clause-category": { type: "noul", noul: 0.8963 } },
+        usage: { input_tokens: 247, output_tokens: 0 },
+      },
+    );
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.result.answer).toEqual({ type: "noul", noul: 0.8963 });
@@ -182,19 +185,22 @@ describe("LayaCpuDecisionProvider response projection", () => {
   });
 
   test("maps an ordinal score level back onto the canonical option scale", async () => {
-    const outcome = await decideOverFetch({ type: "score", criteria: "复核级别？", options: [0, 1, 2] }, {
-      model: "laya-rl-agent",
-      answers: {
-        "clause-category": {
-          type: "score",
-          score: 0.975,
-          confidence: 0.482,
-          probabilities: { "0": 0.0969, "1": 0.8312, "2": 0.0719 },
-          legend: { "0": "无需复核", "1": "建议复核", "2": "优先复核" },
+    const outcome = await decideOverFetch(
+      { type: "score", criteria: "复核级别？", options: [0, 1, 2] },
+      {
+        model: "laya-rl-agent",
+        answers: {
+          "clause-category": {
+            type: "score",
+            score: 0.975,
+            confidence: 0.482,
+            probabilities: { "0": 0.0969, "1": 0.8312, "2": 0.0719 },
+            legend: { "0": "无需复核", "1": "建议复核", "2": "优先复核" },
+          },
         },
+        usage: { input_tokens: 247, output_tokens: 0 },
       },
-      usage: { input_tokens: 247, output_tokens: 0 },
-    });
+    );
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     // Level 1 (the argmax of the distribution) maps to option 1.

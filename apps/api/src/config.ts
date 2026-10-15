@@ -46,7 +46,12 @@ const parseInteger = (value: string | undefined, fallback: number): number => {
 };
 
 /** A parsed integer held inside `[min, max]`; a non-numeric value uses the fallback. */
-export const clampInteger = (parsed: number, fallback: number, min: number, max = Number.MAX_SAFE_INTEGER): number => {
+export const clampInteger = (
+  parsed: number,
+  fallback: number,
+  min: number,
+  max = Number.MAX_SAFE_INTEGER,
+): number => {
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(Math.max(Math.trunc(parsed), min), max);
 };

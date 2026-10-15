@@ -1,14 +1,9 @@
 import type {
-  DecisionAdvice,
   DecisionFeedback,
   DecisionProviderResult,
   DecisionRequest,
 } from "@contract-audit/audit/decision";
-import type {
-  ShadowFeedbackRecord,
-  ShadowJobClaim,
-  ShadowJobIdentity,
-} from "../shadow-repository";
+import type { ShadowFeedbackRecord, ShadowJobClaim, ShadowJobIdentity } from "../shadow-repository";
 
 /** One stored job row, shaped like the persisted row the repository returns. */
 export interface FakeShadowJob {
@@ -208,11 +203,7 @@ export class InMemoryShadowDecisionRepository {
     reason: string | null;
     idempotencyKey: string | null;
   }): Promise<{ event: ShadowFeedbackRecord; created: boolean }> {
-    const existing = await this.findFeedback(
-      input.decisionId,
-      input.actor,
-      input.idempotencyKey,
-    );
+    const existing = await this.findFeedback(input.decisionId, input.actor, input.idempotencyKey);
     if (existing !== null) return { event: existing, created: false };
     const event: FakeShadowFeedback = {
       id: this.nextId("feedback"),

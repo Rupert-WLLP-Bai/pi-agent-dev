@@ -67,7 +67,12 @@ const requireDemoEnvironment = (): void => {
 
 /** Runs one command, streaming its output, and fails loudly on a non-zero exit. */
 const run = (cmd: string[], options: { env?: Record<string, string> } = {}): void => {
-  const result = Bun.spawnSync({ cmd, stdout: "inherit", stderr: "inherit", env: { ...process.env, ...options.env } });
+  const result = Bun.spawnSync({
+    cmd,
+    stdout: "inherit",
+    stderr: "inherit",
+    env: { ...process.env, ...options.env },
+  });
   if (result.exitCode !== 0) fail(`命令失败：${cmd.join(" ")}`);
 };
 
@@ -111,7 +116,9 @@ switch (command) {
       fail("RESTORE_DATABASE_NAME 未设置；恢复必须写入一个全新的数据库名。");
     }
     if (restoreName === databaseName) {
-      fail(`拒绝恢复：RESTORE_DATABASE_NAME 与源库同名（${databaseName}），这会覆盖唯一的数据副本。`);
+      fail(
+        `拒绝恢复：RESTORE_DATABASE_NAME 与源库同名（${databaseName}），这会覆盖唯一的数据副本。`,
+      );
     }
     // The newest dump in the backup directory; an explicit DUMP_FILE overrides.
     const explicit = process.env.DUMP_FILE?.trim();
@@ -145,7 +152,9 @@ switch (command) {
       );
       alreadyExists = rows.length > 0;
     } catch (error) {
-      fail(`无法查询目标数据库是否已存在：${error instanceof Error ? error.message : String(error)}`);
+      fail(
+        `无法查询目标数据库是否已存在：${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       await adminClient.end({ timeout: 5 });
     }
@@ -158,9 +167,12 @@ switch (command) {
 
     const targetUrl = new URL(databaseUrl);
     targetUrl.pathname = `/${restoreName}`;
-    run(["pg_restore", "--no-owner", "--no-privileges", "--dbname", targetUrl.toString(), dumpPath], {
-      env: connectionEnv(targetUrl.toString()),
-    });
+    run(
+      ["pg_restore", "--no-owner", "--no-privileges", "--dbname", targetUrl.toString(), dumpPath],
+      {
+        env: connectionEnv(targetUrl.toString()),
+      },
+    );
     console.log(`恢复完成：${restoreName}（来自 ${dumpPath}）`);
     console.log(`连接：${targetUrl.toString()}`);
     console.log("源库与对象存储保持不变；这是一个一次性副本，用完后请手动 drop。");
