@@ -1,0 +1,93 @@
+{
+  "recordedAt": "2026-10-15T04:54:34.044Z",
+  "endpoint": "http://127.0.0.1:3847/v1/systemone",
+  "httpStatus": 200,
+  "elapsedMs": 642,
+  "pythonVersion": "3.12.15",
+  "device": "cpu",
+  "threads": 4,
+  "offline": true,
+  "codeRevision": "432312b36714d8889eba405507b37eda25257d9c",
+  "modelRevision": "1720e3e3357cfe1e281542e223f8273b0890ca34",
+  "request": {
+    "model": "multilingual",
+    "state": {
+      "clause": "本合成通信设备采购合同约定：甲方在合同签订后支付合同总价70%作为预付款，剩余30%在验收后支付。"
+    },
+    "questions": {
+      "category": {
+        "type": "choice",
+        "criteria": {
+          "payment": "条款约定付款金额、时间或方式",
+          "dispute": "条款约定争议解决法院或仲裁"
+        },
+        "instructions": "请判断本合成合同条款的主要类型。"
+      },
+      "priority": {
+        "type": "score",
+        "criteria": ["无需复核", "建议复核", "优先复核"],
+        "instructions": "请判断本合成合同条款是否需要优先人工复核。"
+      },
+      "review": {
+        "type": "noul",
+        "criteria": {
+          "true": "预付款比例超过百分之三十",
+          "false": "预付款比例不超过百分之三十"
+        },
+        "instructions": "该合成条款约定的预付款比例是否超过百分之三十？"
+      }
+    }
+  },
+  "response": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "category": {
+        "type": "choice",
+        "choice": "payment",
+        "confidence": 0.9754,
+        "probabilities": {
+          "payment": 0.9976,
+          "dispute": 0.0024
+        }
+      },
+      "priority": {
+        "type": "score",
+        "score": 0.975,
+        "confidence": 0.482,
+        "probabilities": {
+          "0": 0.0969,
+          "1": 0.8312,
+          "2": 0.0719
+        },
+        "legend": {
+          "0": "无需复核",
+          "1": "建议复核",
+          "2": "优先复核"
+        }
+      },
+      "review": {
+        "type": "noul",
+        "noul": 0.8963
+      }
+    },
+    "usage": {
+      "input_tokens": 247,
+      "output_tokens": 0
+    }
+  },
+  "calibrated": false,
+  "initialAttempts": [
+    {
+      "httpStatus": 422,
+      "reason": "instructions missing"
+    },
+    {
+      "httpStatus": 422,
+      "reason": "score criteria must be description array"
+    },
+    {
+      "httpStatus": 422,
+      "reason": "noul criteria must be true/false description object"
+    }
+  ]
+}

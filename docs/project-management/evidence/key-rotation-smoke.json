@@ -1,0 +1,40 @@
+{
+  "recordedAt": "2026-10-15T05:07:27.885Z",
+  "databaseName": "contract_audit_omp_keys_1792040846269",
+  "scope": "Newly created isolated database with all committed migrations and synthetic encrypted provider/OCR keys",
+  "migrationExitCode": 0,
+  "runs": [
+    {
+      "event": "key_rotation",
+      "databaseName": "contract_audit_omp_keys_1792040846269",
+      "applied": false,
+      "providerKeys": 1,
+      "ocrKeys": 1,
+      "exitCode": 0,
+      "decryptedValuesPreserved": true,
+      "stderrEmpty": true
+    },
+    {
+      "event": "key_rotation",
+      "databaseName": "contract_audit_omp_keys_1792040846269",
+      "applied": true,
+      "providerKeys": 1,
+      "ocrKeys": 1,
+      "exitCode": 0,
+      "decryptedValuesPreserved": true,
+      "stderrEmpty": true
+    }
+  ],
+  "wrongDatabaseIdentityExitCode": 1,
+  "corruptRowRollbackRegression": {
+    "command": "bun test apps/api/src/llm/rotate-api-keys.test.ts",
+    "passed": 1,
+    "assertions": 9
+  },
+  "userDatabaseModified": false,
+  "legacyStartupSealing": {
+    "changed": 2,
+    "repeated": 0,
+    "decryptedValuesPreserved": true
+  }
+}

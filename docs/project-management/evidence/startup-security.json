@@ -1,0 +1,14 @@
+[
+  {
+    "case": "missing encryption secret",
+    "exitCode": 1,
+    "safeError": "LLM_KEY_ENCRYPTION_SECRET_REQUIRED_MINIMUM_32_CHARACTERS",
+    "rejectedBeforeDatabase": true
+  },
+  {
+    "case": "missing access token",
+    "exitCode": 1,
+    "safeError": "API_ACCESS_TOKEN_REQUIRED_MINIMUM_32_CHARACTERS",
+    "rejectedBeforeDatabase": true
+  }
+]

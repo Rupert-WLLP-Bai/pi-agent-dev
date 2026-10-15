@@ -28,7 +28,7 @@ import {
   createMemoryLlmProviderStore,
   type LlmProviderStore,
 } from "./llm/provider-repository";
-import { reencryptPlainLlmProviderKeys } from "./llm/reencrypt-provider-keys";
+import { reencryptPlainApiKeys } from "./llm/reencrypt-plain-keys";
 import { seedProviderFromEnv } from "./llm/seed-from-env";
 import { apiHealthSchema, openapiOptions, openapiTags } from "./openapi";
 import { createQccSubjectVerificationPort } from "./qcc/adapter";
@@ -257,11 +257,26 @@ let app: AuditApp | undefined;
 
 if (import.meta.main) {
   const config = loadApiConfig();
+  if (process.env.APP_ENV === "demo" || process.env.APP_ENV === "production") {
+    const encryptionSecret = process.env.LLM_KEY_ENCRYPTION_SECRET?.trim();
+    const accessToken = process.env.API_ACCESS_TOKEN?.trim();
+    if (!encryptionSecret || encryptionSecret.length < 32) {
+      throw new Error("LLM_KEY_ENCRYPTION_SECRET_REQUIRED_MINIMUM_32_CHARACTERS");
+    }
+    if (
+      !accessToken ||
+      accessToken.length < 32 ||
+      accessToken.length > 512 ||
+      /\s/u.test(accessToken)
+    ) {
+      throw new Error("API_ACCESS_TOKEN_REQUIRED_MINIMUM_32_CHARACTERS");
+    }
+  }
   const { db } = createDb(config.databaseUrl);
   const repository = createRepository(db);
   const rulesRepository = createRuleRepository(db);
   const providerRepository = createLlmProviderRepository(db);
-  await reencryptPlainLlmProviderKeys(db);
+  await reencryptPlainApiKeys(db);
   // Import the environment configuration as the first provider so the console
   // shows the model service that audits are actually using.
   await seedProviderFromEnv(providerRepository);
