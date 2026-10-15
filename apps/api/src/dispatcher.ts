@@ -23,20 +23,12 @@ const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === "AbortError" || error.message.includes("ABORTED"));
 
 /**
- * Resolves the persisted snapshot row's id for a case.
- *
- * The domain `AuditSnapshot` deliberately carries no row id — it is a value
- * object, not a database row — so the id is read from the row the repository
- * returns. When the repository cannot produce one the shadow derivation is
- * skipped rather than guessing at "the latest snapshot": an observation whose
- * snapshot identity cannot be proven must not exist.
+ * The dispatcher's shadow-derivation rule: the domain `AuditSnapshot` carries
+ * no row id, so the persisted identity is read explicitly from
+ * `getSnapshotRecordByCase`. When the repository cannot produce one the shadow
+ * derivation is skipped rather than guessing at "the latest snapshot": an
+ * observation whose snapshot identity cannot be proven must not exist.
  */
-const snapshotIdOf = (row: unknown): string => {
-  if (row === null || typeof row !== "object" || !("id" in row)) return "";
-  const id = row.id;
-  return typeof id === "string" && id.length > 0 ? id : "";
-};
-
 export class AuditDispatcher {
   private activeAgentRuns = new Map<string, { abort: () => void }>();
   private cancelledCaseIds = new Set<string>();
@@ -140,8 +132,10 @@ export class AuditDispatcher {
       // The snapshot row this run actually judged under, resolved now rather
       // than taken from the claim: a first run builds and persists one here,
       // so the claim's (older or null) id would name the wrong generation.
-      const snapshotRow = await this.repository.getSnapshotByCase(auditCaseId);
-      const snapshotId = snapshotRow === null ? "" : snapshotIdOf(snapshotRow);
+      // The identity comes from the dedicated record accessor: the domain
+      // snapshot carries no row id, so shadow derivation reads it explicitly.
+      const snapshotRecord = await this.repository.getSnapshotRecordByCase(auditCaseId);
+      const snapshotId = snapshotRecord?.snapshotId ?? "";
 
       this.broker.publish({ type: "audit.started", auditCaseId });
       // Rules already ran while the snapshot was assembled, so the first stage

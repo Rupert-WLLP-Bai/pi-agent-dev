@@ -423,6 +423,22 @@ export class InMemoryAuditCaseRepository {
     return state ? latestSnapshot(state) : null;
   }
 
+  /**
+   * Mirrors the SQL repository: the id comes from the map the fake uses to
+   * mirror the audit_snapshots table, not from the domain object.
+   */
+  async getSnapshotRecordByCase(
+    caseId: string,
+  ): Promise<{ snapshotId: string; snapshot: AuditSnapshot } | null> {
+    const state = this.cases.get(caseId);
+    const snapshot = state ? latestSnapshot(state) : null;
+    if (state === null || snapshot === null) return null;
+    const entry = [...this.snapshotsById.entries()].find(
+      ([, record]) => record.caseId === caseId && record.snapshot === snapshot,
+    );
+    return entry ? { snapshotId: entry[0], snapshot } : null;
+  }
+
   /** Appends a snapshot generation, mirroring the append-only table. */
   async appendSnapshot(caseId: string, snapshot: AuditSnapshot): Promise<void> {
     const state = this.cases.get(caseId);

@@ -673,22 +673,26 @@ export class AuditReadModelRepository {
       .where(inArray(auditCases.sourceRecordId, sourceIds));
     const caseIds = caseRows.map((row) => row.id);
 
-    // Verification rows to remove: every verification that belongs to a demo
-    // case. The earlier "demo-owned AND pointing at a demo source record"
-    // restriction left rows whose source record had already vanished (or was
-    // never one of the seeded records), and those orphans then blocked the
-    // audit_cases delete on the FK. A verification row cannot outlive its
-    // case: it is either deleted here or its case is not a demo case at all.
-    // The id lists are passed as real array parameters — `= ANY(${sql.param
-    // (ids)})` — because a bare interpolation expands the list inside the ANY
-    // parentheses as scalars, which Postgres rejects with "op ANY/ALL (array)
-    // requires array on right side".
-    const verificationSources = await tx.execute<{ id: string }>(sql`
-      SELECT DISTINCT v.id
+    // Verification answers belong to their case. Fixture source records can
+    // be reclaimed after that case is removed, provided no surviving row
+    // references them. Real provider records retain their separate lifecycle.
+    const verificationSources = await tx.execute<{
+      id: string;
+      source_record_id: string | null;
+      provider: string | null;
+    }>(sql`
+      SELECT v.id, v.source_record_id, s.metadata->>'provider' AS provider
       FROM subject_verifications v
+      LEFT JOIN source_records s ON s.id = v.source_record_id
       WHERE v.audit_case_id = ANY(${sql.param(caseIds)})
     `);
     const verificationIds = verificationSources.map((row) => row.id);
+    const ownedSourceIds = new Set(sourceIds);
+    for (const row of verificationSources) {
+      if (row.provider === "qcc-fixture" && row.source_record_id) {
+        ownedSourceIds.add(row.source_record_id);
+      }
+    }
 
     if (caseIds.length > 0) {
       // Shadow rows are removed explicitly (feedback before jobs) even though
@@ -736,11 +740,10 @@ export class AuditReadModelRepository {
         await tx.delete(contracts).where(eq(contracts.id, contractId));
       }
     }
-    // A demo source record is removed only when nothing still references it:
-    // a surviving case, revision or verification row that points at it means
-    // the record is shared, and deleting it would break that reference.
+    // Shared evidence survives a demo reset, including fixture verification
+    // answers that a non-demo case still cites.
     const deletableSources: string[] = [];
-    for (const sourceId of sourceIds) {
+    for (const sourceId of ownedSourceIds) {
       const references = await tx.execute<{ remaining: number }>(sql`
         SELECT (
           (SELECT COUNT(*)::int FROM audit_cases WHERE source_record_id = ${sourceId}) +

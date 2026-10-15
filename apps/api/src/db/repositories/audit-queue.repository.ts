@@ -413,6 +413,28 @@ export class AuditQueueRepository {
   }
 
   /**
+   * The latest snapshot for a case together with its persisted row id.
+   *
+   * The domain `AuditSnapshot` deliberately carries no row id — it is a value
+   * object, not a database row — so shadow derivation reads the identity
+   * explicitly from this accessor instead of probing the returned object for a
+   * field it does not have. A case with no snapshot yields null; a snapshot
+   * always yields a non-empty id, because the column is the table's primary
+   * key.
+   */
+  async getSnapshotRecordByCase(
+    caseId: string,
+  ): Promise<{ snapshotId: string; snapshot: AuditSnapshot } | null> {
+    const [row] = await this.db
+      .select()
+      .from(auditSnapshots)
+      .where(eq(auditSnapshots.auditCaseId, caseId))
+      .orderBy(desc(auditSnapshots.createdAt))
+      .limit(1);
+    return row ? { snapshotId: row.id, snapshot: toSnapshot(row) } : null;
+  }
+
+  /**
    * Appends a snapshot generation for a case. Reassessment rebuilds the
    * snapshot under the rules in force now and appends rather than overwrites:
    * the earlier generation stays readable as the record of what a past

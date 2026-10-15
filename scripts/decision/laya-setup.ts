@@ -155,6 +155,9 @@ const start = async (): Promise<void> => {
     // is what makes this standalone revision the one that serves.
     LAYA_EXTRA_MODELS: `{"multilingual":"${LAYA_MODEL_REPO}"}`,
     LAYA_JEV_STRICT: "1",
+    // The serve entry point defaults to 0.0.0.0; a decision service is a
+    // loopback-only neighbour, so the bind address is pinned explicitly.
+    LAYA_HOST: "127.0.0.1",
   };
   console.log(`[laya-setup] starting offline CPU service on http://127.0.0.1:${port}`);
   const proc = Bun.spawn([`${VENV_PATH}/bin/python`, "-m", "laya.serve"], {

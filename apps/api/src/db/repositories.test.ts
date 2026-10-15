@@ -719,7 +719,8 @@ dbTest(
     const keepId = uniqueSourceRecordId();
     // A shared DB may already hold demo-seeded rows; assert relative deletion.
     const alreadySeeded = (await repository.listDemoSeededCases()).length;
-    await repository.createPendingCase(demoId, seedSnapshot(demoId), null, {
+    const demoSnapshot = seedPartySnapshot(demoId);
+    const { caseId: demoCaseId } = await repository.createPendingCase(demoId, demoSnapshot, null, {
       metadata: { demoSeed: true, scenarioId: "x", caseKey: "k" },
     });
     const { caseId: keepCaseId } = await repository.createPendingCase(
@@ -730,6 +731,36 @@ dbTest(
         displayName: null,
       },
     );
+    const verification = await runSubjectVerification({
+      parties: demoSnapshot.parties,
+      port: {
+        provider: "qcc-fixture",
+        tool: "get_company_risk_scan",
+        async verify() {
+          return {
+            status: "UNAVAILABLE",
+            candidates: [],
+            matched: null,
+            dimensions: [],
+            summary: "",
+            capturedAt: new Date().toISOString(),
+            expiresAt: null,
+            failureReason: "synthetic reset fixture",
+          };
+        },
+      },
+    });
+    await repository.saveSubjectVerifications(demoCaseId, verification);
+    const exclusiveSource = verification.sourceRecords[0];
+    const sharedAnswer = verification.verifications[1];
+    if (!exclusiveSource || !sharedAnswer?.sourceRecordId) {
+      throw new Error("reset fixture must provide two verification source records");
+    }
+    await repository.saveSubjectVerifications(keepCaseId, {
+      ...verification,
+      sourceRecords: [],
+      verifications: [sharedAnswer],
+    });
     // resetDemoWorld refuses while a demo case is queued or running. The
     // wrapper only neutralizes formal PENDING cases before the body runs, so
     // the demo case this test itself creates (and any shared-DB demo rows)
@@ -752,5 +783,8 @@ dbTest(
     expect(outcome.removed).toBe(alreadySeeded + 1);
     expect(await repository.listDemoSeededCases()).toEqual([]);
     expect(await repository.getCase(keepCaseId)).not.toBeNull();
+    expect(await repository.getSourceRecord(exclusiveSource.id)).toBeNull();
+    expect(await repository.getSourceRecord(sharedAnswer.sourceRecordId)).not.toBeNull();
+    expect((await repository.getSubjectDimension(keepCaseId)).verifications).toHaveLength(1);
   },
 );

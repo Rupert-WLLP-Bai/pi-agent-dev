@@ -44,6 +44,8 @@ export const createDecisionRuntime = (input: {
   managedFixture?: (auditCaseId: string) => boolean;
   /** True when the caller explicitly marked the submission internal. */
   callerMarkedInternal?: (auditCaseId: string) => boolean;
+  /** Proves a formal audit case exists; wired from the case repository. */
+  caseExists: (auditCaseId: string) => Promise<boolean>;
 }): DecisionRuntime => {
   const repository = new ShadowDecisionRepository(input.db);
   const provider = createDecisionProvider(input.config);
@@ -61,6 +63,7 @@ export const createDecisionRuntime = (input: {
     repository,
     routeDeps: {
       repository,
+      caseExists: input.caseExists,
       mode: input.config.decisionMode,
       provider: input.config.decisionProvider,
     },

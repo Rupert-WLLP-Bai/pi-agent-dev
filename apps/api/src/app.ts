@@ -11,6 +11,8 @@ import { createDb, createRepository } from "./db/repositories";
 import { createRuleRepository } from "./db/rule-repository";
 import { seedRules } from "./db/seed-rules";
 import { seedValidationCases } from "./db/seed-validation-cases";
+import { createDecisionRuntime } from "./decision/runtime";
+import { InMemoryShadowDecisionRepository } from "./decision/testing/in-memory-shadow-repository";
 import { demoProposalsFor } from "./demo-agent";
 import { AuditDispatcher } from "./dispatcher";
 import { createLiveOcrPort, loadOcrConfig, type OcrPort } from "./document/ocr";
@@ -40,6 +42,7 @@ import {
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { contractsRoutes } from "./routes/contracts";
+import { type DecisionsRouteDeps, decisionsRoutes } from "./routes/decisions";
 import { demoWorldRoutes } from "./routes/demo-world";
 import { dossiersRoutes } from "./routes/dossiers";
 import { findingsRoutes } from "./routes/findings";
@@ -56,6 +59,8 @@ import { AuditEventBroker } from "./sse";
 export type AppDeps = AuditRouteDeps & {
   /** Shared-workspace token/session policy; injectable without mutating process env. */
   access?: AccessControlOptions;
+  /** Independent shadow history; an in-memory store is used by isolated app tests. */
+  decisions?: Omit<DecisionsRouteDeps, "caseExists">;
   /** Model-service persistence; absent falls back to the in-memory store (tests). */
   llmProviders?: LlmProviderStore;
   /** The runtime registry shared by the agent factory and the health snapshot. */
@@ -146,6 +151,11 @@ export function createApp(deps: AppDeps) {
   // Persisted OCR configuration. Absent (tests) falls back to the in-memory
   // store, so the settings routes behave identically without a database.
   const ocrSettings = deps.ocrSettings ?? createMemoryOcrSettingsStore();
+  const decisions = deps.decisions ?? {
+    repository: new InMemoryShadowDecisionRepository(),
+    mode: "off" as const,
+    provider: "disabled" as const,
+  };
   // The recognizer the whole app shares: the health route probes it and every
   // parse reaches through it. It is a *live* port — it resolves its
   // configuration per operation, so a settings save changes what the next PDF
@@ -185,6 +195,12 @@ export function createApp(deps: AppDeps) {
     .use(rulesRoutes({ rules: deps.rules }))
     .use(validationRoutes({ rules: deps.rules }))
     .use(agentRunsRoutes({ repository: deps.repository }))
+    .use(
+      decisionsRoutes({
+        ...decisions,
+        caseExists: async (id) => (await deps.repository.getCase(id)) !== null,
+      }),
+    )
     .use(findingsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(remediationsRoutes({ repository: deps.repository, broker: deps.broker }))
     .use(
@@ -299,6 +315,11 @@ if (import.meta.main) {
     const stored = await ocrSettingsRepository.rawConfig();
     return stored ?? loadOcrConfig();
   });
+  const decision = createDecisionRuntime({
+    db,
+    config: config.decision,
+    caseExists: async (id) => (await repository.getCase(id)) !== null,
+  });
   const dispatcher = new AuditDispatcher(
     repository,
     agentFactoryFor(config.agentMode, providerRegistry),
@@ -308,6 +329,7 @@ if (import.meta.main) {
     config.agentTimeoutMs,
     rulesRepository,
     ocrPort,
+    decision.derive,
   );
   app = createApp({
     repository,
@@ -319,8 +341,12 @@ if (import.meta.main) {
     redisCache,
     ocrSettings: ocrSettingsRepository,
     ocr: ocrPort,
+    decisions: decision.routeDeps,
   });
   await dispatcher.start();
+  await decision.start();
+  process.once("SIGTERM", () => void decision.stop());
+  process.once("SIGINT", () => void decision.stop());
   app.listen(config.apiPort);
 }
 

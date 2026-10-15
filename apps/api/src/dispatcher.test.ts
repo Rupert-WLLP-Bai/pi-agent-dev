@@ -504,3 +504,145 @@ test("skips subject verification when SUBJECT_RED_LINE_RISK is not enabled", asy
     stage: "AWAITING_REVIEW",
   });
 });
+
+// ── Shadow derivation (the `deriveShadow` hook) ─────────────────────────
+
+test("hands a successful run's persisted snapshot identity to shadow derivation", async () => {
+  // The derivation hook itself is the awaited signal: when it fires, the
+  // dispatcher has already reached its call site after the formal writes, so
+  // no wall-clock wait is needed.
+  const { promise: derived, resolve: resolveDerived } = Promise.withResolvers<{
+    auditCaseId: string;
+    snapshotId: string;
+    agentRunId: string;
+    snapshot: AuditSnapshot;
+  }>();
+  const derivingDispatcher = new AuditDispatcher(
+    repository.asRepository(),
+    () => agent,
+    broker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+    0,
+    rules.asRepository(),
+    undefined,
+    async (input) => {
+      resolveDerived(input);
+    },
+  );
+  await derivingDispatcher.start();
+
+  const { caseId } = await repository.createPendingCase(
+    "source-shadow",
+    snapshotFor("source-shadow"),
+  );
+  await derivingDispatcher.enqueue(caseId);
+  await drainAsync();
+  agent.resolveRun([proposal]);
+  const derivation = await derived;
+
+  expect(derivation.auditCaseId).toBe(caseId);
+  // The id is the persisted snapshot row's, resolved through the record
+  // accessor — not "" and not a guess at "the latest snapshot".
+  expect(derivation.snapshotId).toBe(`snapshot-${caseId}-1`);
+  expect(derivation.agentRunId).toBe(repository.recordedRuns[0]?.id);
+  // The context is the exact snapshot the agent judged under, merged with the
+  // subject-verification evidence the fixture port produced — not a rebuilt one.
+  expect(derivation.snapshot).toEqual(agent.receivedSnapshots[0]);
+  expect(await repository.getCase(caseId)).toMatchObject({ status: "AWAITING_REVIEW" });
+});
+
+test("skips shadow derivation when no snapshot identity can be proven", async () => {
+  const derivations: unknown[] = [];
+  const emptyRepository = new InMemoryAuditCaseRepository();
+  // A repository whose record accessor cannot find the row: the observation's
+  // identity is unprovable, so nothing is derived.
+  emptyRepository.getSnapshotRecordByCase = async () => null;
+  // The formal completion event is the awaited signal that the run finished
+  // (and therefore that the skipped derivation point is behind it).
+  const { promise: completed, resolve: resolveCompleted } = Promise.withResolvers<void>();
+  const watchingBroker = new RecordingEventBroker();
+  const derivingDispatcher = new AuditDispatcher(
+    emptyRepository.asRepository(),
+    () => agent,
+    watchingBroker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+    0,
+    rules.asRepository(),
+    undefined,
+    async (input) => {
+      derivations.push(input);
+    },
+  );
+  await derivingDispatcher.start();
+
+  const { caseId } = await emptyRepository.createPendingCase(
+    "source-none",
+    snapshotFor("source-none"),
+  );
+  await derivingDispatcher.enqueue(caseId);
+  await drainAsync();
+  agent.resolveRun([proposal]);
+  void (async () => {
+    for (let turn = 0; turn < 64; turn += 1) {
+      await Promise.resolve();
+      if (watchingBroker.events.some((event) => event.type === "audit.awaiting_review")) {
+        resolveCompleted();
+        return;
+      }
+    }
+  })();
+  await completed;
+
+  expect(derivations).toHaveLength(0);
+  // The formal path is unaffected by the skipped derivation.
+  expect(await emptyRepository.getCase(caseId)).toMatchObject({ status: "AWAITING_REVIEW" });
+});
+
+test("a throwing shadow derivation does not fail the completed audit", async () => {
+  // The formal completion event is the awaited signal: it publishes after the
+  // throwing derivation call has already been swallowed.
+  const { promise: completed, resolve: resolveCompleted } = Promise.withResolvers<void>();
+  const watchingBroker = new RecordingEventBroker();
+  const throwingDispatcher = new AuditDispatcher(
+    repository.asRepository(),
+    () => agent,
+    watchingBroker.asBroker(),
+    1,
+    createFixtureSubjectVerificationPort(),
+    0,
+    rules.asRepository(),
+    undefined,
+    async () => {
+      throw new Error("shadow store missing tables");
+    },
+  );
+  await throwingDispatcher.start();
+
+  const { caseId } = await repository.createPendingCase(
+    "source-throw",
+    snapshotFor("source-throw"),
+  );
+  await throwingDispatcher.enqueue(caseId);
+  await drainAsync();
+  agent.resolveRun([proposal]);
+  void (async () => {
+    for (let turn = 0; turn < 64; turn += 1) {
+      await Promise.resolve();
+      if (watchingBroker.events.some((event) => event.type === "audit.awaiting_review")) {
+        resolveCompleted();
+        return;
+      }
+    }
+  })();
+  await completed;
+
+  // The formal outcome stayed successful; the failure is contained.
+  expect(await repository.getCase(caseId)).toMatchObject({
+    status: "AWAITING_REVIEW",
+    stage: "AWAITING_REVIEW",
+  });
+  expect(watchingBroker.events.filter((event) => event.type === "audit.failed")).toHaveLength(0);
+  expect((await repository.getFindingsByCase(caseId))[0].proposal).toEqual(proposal);
+});

@@ -33,11 +33,18 @@ const request: DecisionRequest = {
   traceId: "trace-a",
 };
 
-const app = (repository: InMemoryShadowDecisionRepository, mode: "off" | "shadow" = "shadow") =>
+const app = (
+  repository: InMemoryShadowDecisionRepository,
+  mode: "off" | "shadow" = "shadow",
+  existingCases: readonly string[] = [request.auditCaseId],
+) =>
   new Elysia()
     .use(
       decisionsRoutes({
-        repository: repository as unknown as Parameters<typeof decisionsRoutes>[0]["repository"],
+        repository,
+        // The fake does not track formal audit cases; the test states which
+        // ones the database would answer for.
+        caseExists: async (auditCaseId) => existingCases.includes(auditCaseId),
         mode,
         provider: "fake",
       }),
@@ -81,16 +88,22 @@ describe("decision routes", () => {
     expect(body.items).toHaveLength(1);
   });
 
-  test("answers an unknown case with an empty list, not a 404", async () => {
+  test("answers an unknown but well-formed case id with 404 audit_case_not_found", async () => {
     const repository = new InMemoryShadowDecisionRepository();
     const response = await app(repository).handle(
       new Request(
         "http://localhost/api/audit-cases/00000000-0000-4000-8000-0000000000ff/decisions",
       ),
     );
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as { items: unknown[] };
-    expect(body.items).toHaveLength(0);
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as {
+      schemaVersion: number;
+      error: string;
+      requestId: string;
+    };
+    expect(body.schemaVersion).toBe(1);
+    expect(body.error).toBe("audit_case_not_found");
+    expect(body.requestId).not.toBe("");
   });
 
   test("answers a malformed case id with 404", async () => {
@@ -99,6 +112,87 @@ describe("decision routes", () => {
       new Request("http://localhost/api/audit-cases/not-a-uuid/decisions"),
     );
     expect(response.status).toBe(404);
+  });
+
+  test("answers a known case with no shadow advice as an empty 200 list", async () => {
+    const repository = new InMemoryShadowDecisionRepository();
+    const knownEmptyCase = "00000000-0000-4000-8000-0000000000aa";
+    const response = await app(repository, "shadow", [knownEmptyCase]).handle(
+      new Request(`http://localhost/api/audit-cases/${knownEmptyCase}/decisions`),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { schemaVersion: number; items: unknown[] };
+    expect(body.schemaVersion).toBe(1);
+    expect(body.items).toHaveLength(0);
+  });
+
+  test("malformed case id errors carry the canonical body", async () => {
+    const repository = new InMemoryShadowDecisionRepository();
+    const response = await app(repository).handle(
+      new Request("http://localhost/api/audit-cases/not-a-uuid/decisions"),
+    );
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as {
+      schemaVersion: number;
+      error: string;
+      requestId: string;
+    };
+    expect(body.schemaVersion).toBe(1);
+    expect(body.error).toBe("audit_case_not_found");
+    expect(body.requestId).not.toBe("");
+  });
+
+  test("an unexpected repository failure is a sanitized 500 with a request id", async () => {
+    const failing = new InMemoryShadowDecisionRepository();
+    const { decisionId } = await seed(failing);
+    failing.getJob = () => Promise.reject(new Error("connection refused: secret-host:5432"));
+    const response = await app(failing).handle(
+      new Request(`http://localhost/api/decisions/${decisionId}`),
+    );
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    // The driver's message never reaches the caller.
+    expect(text).not.toContain("secret-host");
+    expect(text).not.toContain("connection refused");
+    const body = JSON.parse(text) as { schemaVersion: number; error: string; requestId: string };
+    expect(body.schemaVersion).toBe(1);
+    expect(body.error).toBe("internal_error");
+    expect(body.requestId).not.toBe("");
+  });
+
+  test("an invalid Idempotency-Key is a 422, not a keyless append", async () => {
+    const repository = new InMemoryShadowDecisionRepository();
+    const { decisionId } = await seed(repository);
+    const send = (key: string) =>
+      app(repository).handle(
+        new Request(`http://localhost/api/decisions/${decisionId}/feedback`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-operator": "operator-a",
+            "idempotency-key": key,
+          },
+          body: JSON.stringify({ schemaVersion: 1, decision: "accepted" }),
+        }),
+      );
+    const tooLong = await send("k".repeat(129));
+    expect(tooLong.status).toBe(422);
+    const tooLongBody = (await tooLong.json()) as { schemaVersion: number; error: string };
+    expect(tooLongBody.schemaVersion).toBe(1);
+    expect(tooLongBody.error).toBe("invalid_idempotency_key");
+
+    const nonPrintable = await send("bad\u00e9key");
+    expect(nonPrintable.status).toBe(422);
+    expect((await nonPrintable.json()) as { error: string }).toMatchObject({
+      error: "invalid_idempotency_key",
+    });
+
+    // Rejected keys never appended anything.
+    expect(await repository.listFeedback(decisionId)).toHaveLength(0);
+
+    const boundary = await send("k".repeat(128));
+    expect(boundary.status).toBe(201);
+    expect(await repository.listFeedback(decisionId)).toHaveLength(1);
   });
 
   test("returns the advice detail with its feedback", async () => {

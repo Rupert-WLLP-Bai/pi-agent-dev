@@ -1,17 +1,40 @@
+import { randomUUID } from "node:crypto";
+import { ENGINE_RULE_CODES, type RuleCode } from "@contract-audit/audit";
 import type {
   DecisionAdvice,
   DecisionAdviceList,
+  DecisionApiError,
   DecisionDetail,
-  DecisionFeedback,
 } from "@contract-audit/audit/decision";
-import { Elysia, t } from "elysia";
+import { Elysia, status as httpStatus, t } from "elysia";
 import type { ShadowDecisionRepository } from "../decision/shadow-repository";
 import { toDecisionAdvice, toDecisionFeedback } from "../decision/shadow-repository";
 import { openapiTags } from "../openapi";
 import { operatorFrom } from "../operator-header";
 
+/**
+ * The narrow persistence surface the decision routes consume: exactly the
+ * methods these handlers call, nothing the worker needs. Any store — the SQL
+ * repository or an in-memory test double — satisfies it structurally, so a
+ * test never casts a stand-in into place.
+ */
 export interface DecisionsRouteDeps {
-  repository: ShadowDecisionRepository;
+  repository: Pick<
+    ShadowDecisionRepository,
+    | "getJob"
+    | "listByCase"
+    | "listFeedback"
+    | "findFeedback"
+    | "appendFeedback"
+    | "terminalJobsOlderThan"
+    | "deleteTerminalJobs"
+  >;
+  /**
+   * Proves the addressed formal audit case exists. A well-formed UUID for a
+   * case the database does not have is an honest 404, not an empty history
+   * that would read as "this case ran with shadow mode off".
+   */
+  caseExists: (auditCaseId: string) => Promise<boolean>;
   /** The mode the deployment runs under; reads stay available when off. */
   mode: "off" | "shadow";
   /** The provider configured for shadow runs; reported so a viewer can label history. */
@@ -30,6 +53,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 /** Actor attribution: never empty, never longer than the domain allows. */
 const MAX_ACTOR_LENGTH = 128;
+
+/**
+ * The `Idempotency-Key` a caller may supply: printable ASCII, at most 128
+ * characters. A key outside this grammar is rejected with 422 instead of
+ * being silently downgraded to "no key", which would turn one intended retry
+ * shield into two independent appended events.
+ */
+const IDEMPOTENCY_KEY_PATTERN = /^[\x20-\x7E]{1,128}$/;
 
 const decisionErrorSchema = t.Object(
   {
@@ -50,7 +81,8 @@ const evidenceRefSchema = t.Object({
 
 const ruleConflictSchema = t.Object({
   assessmentId: t.String(),
-  ruleCode: t.String(),
+  // TypeBox needs a tuple for inference; runtime validation uses the full catalogue.
+  ruleCode: t.Unsafe<RuleCode>(t.Union(ENGINE_RULE_CODES.map((code) => t.Literal(code)))),
   conflictType: t.Literal("OPPOSED_ASSESSMENT"),
   baselineAnswer: t.Union([
     t.Object({ type: t.Literal("choice"), choice: t.String() }),
@@ -168,6 +200,27 @@ const feedbackBody = t.Object({
 });
 
 /**
+ * The request id these error bodies carry. Access control stamps
+ * `x-request-id` on every request; where it is absent (bare route tests, a
+ * request that failed before that hook ran) one is minted and echoed back so
+ * a caller can always correlate the body with the server logs.
+ */
+const requestIdFrom = (set: {
+  headers: { get?: (name: string) => string | null } & Record<string, unknown>;
+}): string => {
+  const stamp = set.headers["x-request-id"];
+  const existing =
+    typeof stamp === "string" && stamp !== ""
+      ? stamp
+      : typeof set.headers.get === "function"
+        ? set.headers.get("x-request-id")
+        : null;
+  const requestId = typeof existing === "string" && existing !== "" ? existing : randomUUID();
+  set.headers["x-request-id"] = requestId;
+  return requestId;
+};
+
+/**
  * The feedback routes' read of the acting operator. `X-Operator` is
  * attribution, never authentication: a missing or malformed header leaves the
  * actor as the anonymous default, which is recorded honestly rather than
@@ -181,22 +234,66 @@ const actorFromHeaders = (headers: Record<string, string | undefined>): string =
   return trimmed;
 };
 
-export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDeps) {
+export function decisionsRoutes({ repository, mode, provider, caseExists }: DecisionsRouteDeps) {
   return (
     new Elysia()
+      // Every error a decision route can produce carries the canonical
+      // `{schemaVersion, error, requestId}` body: the routes' own 404/409
+      // responses below, Elysia's validation rejections (which would
+      // otherwise echo the raw payload), and anything a handler throws
+      // unexpectedly — that last one is sanitized to a bare internal_error so
+      // a driver message can never leak into a response.
+      .onError(({ code, set }) => {
+        const requestId = requestIdFrom(set);
+        if (code === "VALIDATION" || code === "PARSE") {
+          return httpStatus(422, {
+            schemaVersion: 1,
+            error: "invalid_request",
+            requestId,
+          } satisfies DecisionApiError);
+        }
+        if (code === "NOT_FOUND") {
+          return httpStatus(404, {
+            schemaVersion: 1,
+            error: "not_found",
+            requestId,
+          } satisfies DecisionApiError);
+        }
+        return httpStatus(500, {
+          schemaVersion: 1,
+          error: "internal_error",
+          requestId,
+        } satisfies DecisionApiError);
+      })
       .get(
         "/api/audit-cases/:id/decisions",
-        async ({ params, set }): Promise<DecisionAdviceList | { error: string }> => {
+        async ({ params, set, status }) => {
+          const requestId = requestIdFrom(set);
           if (!UUID_PATTERN.test(params.id)) {
-            set.status = 404;
-            return { error: "audit_case_not_found" };
+            return status(404, {
+              schemaVersion: 1,
+              error: "audit_case_not_found",
+              requestId,
+            } satisfies DecisionApiError);
+          }
+          if (!(await caseExists(params.id))) {
+            return status(404, {
+              schemaVersion: 1,
+              error: "audit_case_not_found",
+              requestId,
+            } satisfies DecisionApiError);
           }
           const rows = await repository.listByCase(params.id);
           const items: DecisionAdvice[] = rows.map(toDecisionAdvice);
           // Reading history stays available when the layer is off: the list
           // reports the mode in force now, and the items are what was recorded
           // before. Switching off never erases what shadow mode observed.
-          return { schemaVersion: 1, mode, provider, items };
+          return status(200, {
+            schemaVersion: 1,
+            mode,
+            provider,
+            items,
+          } satisfies DecisionAdviceList);
         },
         {
           params: t.Object({ id: t.String({ description: "审计案件 id" }) }),
@@ -204,33 +301,40 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
             summary: "列出案件的影子建议",
             description:
               "返回一个审计案件的影子建议历史， newest first。影子功能关闭时仍可读取已有记录：mode 报告当前开关状态，items 是历史观测，不会因当前无 Provider 被抹去。\n\n" +
-              "辅助建议不改变正式审计结论；未经校准的分数只作参考。只读。",
+              "辅助建议不改变正式审计结论；未经校准的分数只作参考。只读。未知或无效的案件 id 返回 `404 audit_case_not_found`；已存在但没有建议的案件返回空列表。",
             tags: DECISION_TAGS,
           },
           response: {
             200: adviceListSchema,
-            404: t.Object({ error: t.String() }),
+            404: decisionErrorSchema,
           },
         },
       )
       .get(
         "/api/decisions/:decisionId",
-        async ({ params, set }): Promise<DecisionDetail | { error: string }> => {
+        async ({ params, set, status }) => {
+          const requestId = requestIdFrom(set);
           if (!UUID_PATTERN.test(params.decisionId)) {
-            set.status = 404;
-            return { error: "decision_not_found" };
+            return status(404, {
+              schemaVersion: 1,
+              error: "decision_not_found",
+              requestId,
+            } satisfies DecisionApiError);
           }
           const row = await repository.getJob(params.decisionId);
           if (row === null) {
-            set.status = 404;
-            return { error: "decision_not_found" };
+            return status(404, {
+              schemaVersion: 1,
+              error: "decision_not_found",
+              requestId,
+            } satisfies DecisionApiError);
           }
           const feedback = await repository.listFeedback(params.decisionId);
-          return {
+          return status(200, {
             schemaVersion: 1,
             advice: toDecisionAdvice(row),
             feedback: feedback.map(toDecisionFeedback),
-          };
+          } satisfies DecisionDetail);
         },
         {
           params: t.Object({ decisionId: t.String({ description: "影子建议 id" }) }),
@@ -242,31 +346,46 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
           },
           response: {
             200: detailSchema,
-            404: t.Object({ error: t.String() }),
+            404: decisionErrorSchema,
           },
         },
       )
       .post(
         "/api/decisions/:decisionId/feedback",
-        async ({ params, body, headers, set }): Promise<DecisionFeedback | { error: string }> => {
+        async ({ params, body, headers, set, status }) => {
+          const requestId = requestIdFrom(set);
           if (!UUID_PATTERN.test(params.decisionId)) {
-            set.status = 404;
-            return { error: "decision_not_found" };
+            return status(404, {
+              schemaVersion: 1,
+              error: "decision_not_found",
+              requestId,
+            } satisfies DecisionApiError);
           }
+          // A key the caller supplied but the grammar rejects is a 422, not a
+          // silent downgrade to keyless submission: the caller asked for
+          // exactly-once append and gets told instead of double-recorded.
+          const rawKey = headers["idempotency-key"];
+          const trimmedKey = typeof rawKey === "string" ? rawKey.trim() : "";
+          if (trimmedKey !== "" && !IDEMPOTENCY_KEY_PATTERN.test(trimmedKey)) {
+            return status(422, {
+              schemaVersion: 1,
+              error: "invalid_idempotency_key",
+              requestId,
+            } satisfies DecisionApiError);
+          }
+          const idempotencyKey = trimmedKey === "" ? null : trimmedKey;
           const job = await repository.getJob(params.decisionId);
           if (job === null) {
-            set.status = 404;
-            return { error: "decision_not_found" };
+            return status(404, {
+              schemaVersion: 1,
+              error: "decision_not_found",
+              requestId,
+            } satisfies DecisionApiError);
           }
           const actor = actorFromHeaders(headers as Record<string, string | undefined>);
           // The idempotency key is scoped by (decision, actor): a network retry
           // of the same key returns the stored event instead of appending a
           // second one, which is what makes a double submit harmless.
-          const key = headers["idempotency-key"];
-          const idempotencyKey =
-            typeof key === "string" && key.trim() !== "" && key.trim().length <= 128
-              ? key.trim()
-              : null;
           const existing = await repository.findFeedback(params.decisionId, actor, idempotencyKey);
           // A different body under a key that already recorded an event is a
           // conflict, not a silent overwrite: the caller is told their retry
@@ -276,14 +395,16 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
               existing.decision === body.decision &&
               (existing.reason ?? null) === (body.reason ?? null);
             if (!sameBody) {
-              set.status = 409;
-              return { error: "feedback_idempotency_conflict" };
+              return status(409, {
+                schemaVersion: 1,
+                error: "feedback_idempotency_conflict",
+                requestId,
+              } satisfies DecisionApiError);
             }
             // Same key, same body: the stored event, at the same 201 a first
             // submission got, so a network retry cannot tell itself apart from
             // the original call.
-            set.status = 201;
-            return toDecisionFeedback(existing);
+            return status(201, toDecisionFeedback(existing));
           }
           const { event } = await repository.appendFeedback({
             decisionId: params.decisionId,
@@ -292,8 +413,7 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
             reason: body.reason ?? null,
             idempotencyKey,
           });
-          set.status = 201;
-          return toDecisionFeedback(event);
+          return status(201, toDecisionFeedback(event));
         },
         {
           params: t.Object({ decisionId: t.String({ description: "影子建议 id" }) }),
@@ -302,16 +422,16 @@ export function decisionsRoutes({ repository, mode, provider }: DecisionsRouteDe
             summary: "记录影子建议的评估反馈",
             description:
               "对一条影子建议追加接受/驳回/需复核的评估反馈。反馈是**只追加**的，且独立于 Finding 的人工复核历史：记录反馈不会接受、驳回或修改任何 Finding、规则评估或审计案件状态。\n\n" +
-              "- `Idempotency-Key` 按（decision, actor）作用域：同键同体返回已存事件（不追加），同键异体返回 `409`；缺键时每次提交都是独立事件。\n" +
+              "- `Idempotency-Key` 按（decision, actor）作用域：同键同体返回已存事件（不追加），同键异体返回 `409`；缺键时每次提交都是独立事件。键必须是可打印 ASCII 且不超过 128 字符，否则 `422 invalid_idempotency_key`。\n" +
               "- `X-Operator` 只是归属标注，不是认证。\n" +
               "- 该入口仅用于评估影子建议，不能借它绕过正式风险确认或人工复核。\n\n" +
-              "状态码：`201` 已追加；`404` 建议不存在；`409` 幂等键与已存事件体不一致；`422` 请求体不合法。",
+              "状态码：`201` 已追加；`404` 建议不存在；`409` 幂等键与已存事件体不一致；`422` 请求体或幂等键不合法。错误体统一为 `{schemaVersion, error, requestId}`。",
             tags: DECISION_TAGS,
           },
           response: {
             201: feedbackSchema,
-            404: t.Object({ error: t.String() }),
-            409: t.Object({ error: t.String() }),
+            404: decisionErrorSchema,
+            409: decisionErrorSchema,
             422: decisionErrorSchema,
           },
         },

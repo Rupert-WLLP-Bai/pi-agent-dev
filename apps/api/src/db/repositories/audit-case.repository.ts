@@ -93,6 +93,12 @@ export class AuditCaseRepository {
     return this.queue.getSnapshotByCase(...args);
   }
 
+  async getSnapshotRecordByCase(
+    ...args: Parameters<AuditQueueRepository["getSnapshotRecordByCase"]>
+  ) {
+    return this.queue.getSnapshotRecordByCase(...args);
+  }
+
   /**
    * Appends a snapshot generation for a case. Reassessment rebuilds the
    * snapshot under the rules in force now and appends rather than overwrites:

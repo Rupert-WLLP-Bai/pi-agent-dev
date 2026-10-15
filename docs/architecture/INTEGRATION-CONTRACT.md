@@ -2,6 +2,8 @@
 
 冻结日期：2026-10-15。输入代码基线`d9a84a4`，S0审计提交`a4c6119`。本文冻结S2的Interface、职责和安全不变量；**S1只交付契约，不声称影子推理/持久化/界面已经运行**。实际验证见[基线](../project-management/BASELINE.md)。
 
+当前执行依据为2026-10-15 Milestone Master Plan；任务状态仅由[唯一任务板](../project/TASK-BOARD.md)管理。本文领域/API/隐私不变量继续有效，第7节五Agent工作树表仅作历史记录；现行最多三个主要Agent的所有权由[FILE-OWNERSHIP](../project/FILE-OWNERSHIP.md)替代。公共契约、根配置与文档归Main；现有实现直接继承，M1验收前不进入M2。受管演示必须固定使用仓库`compose.yaml`，不得隐式加载本机override；HTTP200不能代替DB/Redis/objectStore/dispatcher真实就绪。
+
 ## 1. 规范与唯一真相
 
 - 新增规范类型：`packages/audit/src/decision.ts`，通过`@contract-audit/audit/decision`导出。沿用现有strict TypeScript、相对包内引用和明确跨包export。

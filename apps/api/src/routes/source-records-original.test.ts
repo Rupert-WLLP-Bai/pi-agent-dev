@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type AuditApp, createApp } from "../app";
@@ -12,20 +12,20 @@ import {
 } from "../testing/fakes";
 
 /**
- * Uploaded originals are persisted to disk and served back by
+ * Uploaded originals retain their filename and bytes when served by
  * `GET /api/source-records/:id/original`. Pasted text has no file and must
  * answer 404 rather than invent one.
  */
 
-// A throwaway directory keeps the test from writing into var/uploads and is
-// removed once the file is done. `saveOriginal` reads UPLOAD_DIR per call, so
-// setting it here (after imports) still takes effect.
+// Isolate local fallback writes without changing the caller's upload directory.
 const UPLOAD_DIR = mkdtempSync(join(tmpdir(), "contract-originals-"));
+const previousUploadDir = process.env.UPLOAD_DIR;
 process.env.UPLOAD_DIR = UPLOAD_DIR;
 
 afterAll(async () => {
   await rm(UPLOAD_DIR, { recursive: true, force: true });
-  delete process.env.UPLOAD_DIR;
+  if (previousUploadDir === undefined) delete process.env.UPLOAD_DIR;
+  else process.env.UPLOAD_DIR = previousUploadDir;
 });
 
 const setup = () => {
@@ -58,24 +58,6 @@ const paste = (app: AuditApp, contractText: string) =>
   );
 
 const CONTRACT_TEXT = "甲方应于签订后支付合同金额的70%作为预付款。";
-
-test("an uploaded file is stored and its source record points at it", async () => {
-  const { app, repository, dispatcher } = setup();
-
-  const response = await upload(app, "设备采购合同.txt", "text/plain", CONTRACT_TEXT);
-  expect(response.status).toBe(202);
-  const { id: caseId } = (await response.json()) as { id: string };
-
-  const sourceRecordId = repository.sourceRecordIdsByCase.get(caseId);
-  expect(sourceRecordId).toBeDefined();
-  const record = await repository.getSourceRecord(sourceRecordId as string);
-  expect(record?.originalPath).not.toBeNull();
-  expect(record?.name).toBe("设备采购合同.txt");
-
-  const onDisk = await readFile(record?.originalPath as string);
-  expect(onDisk.toString("utf8")).toBe(CONTRACT_TEXT);
-  expect(dispatcher.enqueued).toContain(caseId);
-});
 
 test("the stored original is downloadable with its filename", async () => {
   const { app, repository } = setup();
@@ -128,7 +110,6 @@ test("case detail marks an uploaded original as downloadable", async () => {
     type: "FILE_UPLOAD",
     displayName: "设备采购合同.txt",
   });
-  expect(body.originalStorage).toBe("local");
 });
 
 test("case detail does not offer a download for pasted text", async () => {

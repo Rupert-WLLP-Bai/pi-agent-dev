@@ -353,21 +353,22 @@ export async function reassessAuditCase(id: string) {
 // ── 辅助决策（影子建议）────────────────────────────────
 
 /**
- * The shadow-decision reads and the feedback write.
- *
- * These use `fetch` rather than Eden Treaty because the decision routes are
- * still being assembled by the backend owner; the shapes are the frozen
- * canonical DTOs from `@contract-audit/audit/decision`, so no second copy of
- * the contract exists here. When the routes land in `AuditApp`, these calls
- * move onto Treaty without a shape change.
+ * The shadow-decision reads and the feedback write, typed through the same
+ * Eden Treaty client as every other call: the response shapes come from
+ * `AuditApp`, which carries the decision routes, so no second copy of the
+ * contract exists here — the types are the canonical named contracts the
+ * routes' handlers return. The routes declare `404/409/422` bodies with the
+ * versioned `DecisionApiError` (`{schemaVersion, error, requestId}`); Treaty
+ * surfaces those as `error`, and the body's stable `error` code is forwarded
+ * as the message while `error.status` keeps the status, so the page can still
+ * tell a not-found from an idempotency conflict.
  *
  * Reads never require the operator header, but the feedback write is a
  * mutation, so it carries one: attribution, not authentication.
- */
 
 /** One replay-protected feedback submission. */
 export interface DecisionFeedbackInput {
-  decision: "accepted" | "rejected" | "needs_review";
+  decision: DecisionFeedback["decision"];
   reason?: string;
   /**
    * The key a retry reuses. The API scopes it by decision and actor: the same
@@ -378,57 +379,46 @@ export interface DecisionFeedbackInput {
   idempotencyKey: string;
 }
 
-export async function listDecisionAdvice(auditCaseId: string) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/audit-cases/${encodeURIComponent(auditCaseId)}/decisions`,
-    { headers: operatorHeader(), credentials: "same-origin" },
-  );
-  return decodeDecisionResponse<DecisionAdviceList>(response, "加载辅助建议失败");
+export async function listDecisionAdvice(auditCaseId: string): Promise<DecisionAdviceList> {
+  const { data, error } = await api.api["audit-cases"]({ id: auditCaseId }).decisions.get();
+  if (error) {
+    throw new ApiRequestError(apiErrorDetail(error) ?? "加载辅助建议失败", Number(error.status));
+  }
+  if (!data) throw new ApiRequestError("加载辅助建议失败", 500);
+  return data;
 }
 
-export async function getDecisionAdvice(decisionId: string) {
-  const response = await fetch(`${API_BASE_URL}/api/decisions/${encodeURIComponent(decisionId)}`, {
-    headers: operatorHeader(),
-    credentials: "same-origin",
-  });
-  return decodeDecisionResponse<DecisionDetail>(response, "加载建议详情失败");
+export async function getDecisionAdvice(decisionId: string): Promise<DecisionDetail> {
+  const { data, error } = await api.api.decisions({ decisionId }).get();
+  if (error) {
+    throw new ApiRequestError(apiErrorDetail(error) ?? "加载建议详情失败", Number(error.status));
+  }
+  if (!data) throw new ApiRequestError("加载建议详情失败", 500);
+  return data;
 }
 
-export async function submitDecisionFeedback(decisionId: string, input: DecisionFeedbackInput) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/decisions/${encodeURIComponent(decisionId)}/feedback`,
+export async function submitDecisionFeedback(
+  decisionId: string,
+  input: DecisionFeedbackInput,
+): Promise<DecisionFeedback> {
+  const { data, error } = await api.api.decisions({ decisionId }).feedback.post(
     {
-      method: "POST",
-      headers: {
-        ...operatorHeader(),
-        "content-type": "application/json",
-        "Idempotency-Key": input.idempotencyKey,
-      },
-      credentials: "same-origin",
-      body: JSON.stringify({
-        schemaVersion: 1,
-        decision: input.decision,
-        ...(input.reason === undefined || input.reason === "" ? {} : { reason: input.reason }),
-      }),
+      schemaVersion: 1,
+      decision: input.decision,
+      ...(input.reason === undefined || input.reason === "" ? {} : { reason: input.reason }),
+    },
+    {
+      headers: { "Idempotency-Key": input.idempotencyKey },
     },
   );
-  return decodeDecisionResponse<DecisionFeedback>(response, "提交评估反馈失败");
-}
-
-/**
- * Decodes a decision response against the versioned error contract. A 404 is
- * reported as such so the page can say "not found" rather than "failed"; a 409
- * means the idempotency key was replayed with a different body, which the
- * caller surfaces instead of silently retrying.
- */
-async function decodeDecisionResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (response.ok) {
-    return (await response.json()) as T;
+  if (error) {
+    throw new ApiRequestError(apiErrorDetail(error) ?? "提交评估反馈失败", Number(error.status));
   }
-  const body = (await response.json().catch(() => null)) as { error?: string } | null;
-  throw new ApiRequestError(body?.error ?? fallbackMessage, response.status);
+  if (!data) throw new ApiRequestError("提交评估反馈失败", 500);
+  return data;
 }
 
+/** Response types derived from `AuditApp` through Treaty, not a second DTO copy. */
 export type { DecisionAdviceList, DecisionDetail, DecisionFeedback };
 
 export async function getApiHealth(): Promise<ApiHealth> {

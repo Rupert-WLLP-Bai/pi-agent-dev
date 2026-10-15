@@ -8,7 +8,7 @@ import type {
   DecisionRuleConflict,
   DecisionStatus,
 } from "@contract-audit/audit/decision";
-import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { DrizzleDB } from "../db/repositories";
 import { type ShadowJobRow, shadowFeedback, shadowJobs } from "../db/schema";
 
@@ -158,6 +158,10 @@ export class ShadowDecisionRepository {
   async claimJobs(owner: string, leaseMs: number, limit: number): Promise<ShadowJobClaim[]> {
     const now = new Date();
     const leaseExpiresAt = new Date(now.getTime() + Math.max(1, leaseMs));
+    // Dates go in as ISO strings with an explicit timestamptz cast: through
+    // drizzle's raw-execute path the driver receives an untyped parameter and
+    // a JS Date fails to serialize there, so a bare Date would turn every
+    // claim into a 500 against real Postgres.
     const rows = await this.db.execute<{
       decision_id: string;
       audit_case_id: string;
@@ -176,14 +180,14 @@ export class ShadowDecisionRepository {
       UPDATE shadow_jobs j
       SET status = 'RUNNING',
           lease_owner = ${owner},
-          lease_expires_at = ${leaseExpiresAt},
+          lease_expires_at = ${leaseExpiresAt.toISOString()}::timestamptz,
           attempts = j.attempts + 1,
           updated_at = now()
       WHERE j.decision_id IN (
         SELECT j2.decision_id
         FROM shadow_jobs j2
         WHERE j2.status = 'PENDING'
-           OR (j2.status = 'RUNNING' AND (j2.lease_expires_at IS NULL OR j2.lease_expires_at < ${now}))
+           OR (j2.status = 'RUNNING' AND (j2.lease_expires_at IS NULL OR j2.lease_expires_at < ${now.toISOString()}::timestamptz))
         ORDER BY j2.created_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -382,7 +386,10 @@ export class ShadowDecisionRepository {
         and(
           inArray(shadowJobs.status, ["SUCCEEDED", "FAILED", "SKIPPED"]),
           lt(shadowJobs.completedAt, cutoff),
-          or(eq(shadowJobs.leaseExpiresAt, sql`NULL`), lt(shadowJobs.leaseExpiresAt, now)),
+          // `lease_expires_at IS NULL` — a plain `= NULL` comparison is never
+          // true in Postgres, which would silently spare claimable rows from
+          // retention and make the SQL store diverge from the in-memory one.
+          or(isNull(shadowJobs.leaseExpiresAt), lt(shadowJobs.leaseExpiresAt, now)),
         ),
       );
     return rows.map((row) => row.decisionId);

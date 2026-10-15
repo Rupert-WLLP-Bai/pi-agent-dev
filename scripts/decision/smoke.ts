@@ -79,6 +79,15 @@ const check = (name: string, ok: boolean, detail: string): void => {
   console.log(`${ok ? "ok  " : "FAIL"} ${name}: ${detail}`);
 };
 
+/**
+ * Records an environment-dependent probe that did not run. A skip is neither
+ * pass nor fail: it is excluded from the passed count so "N/M checks passed"
+ * only ever counts work the run actually performed.
+ */
+const skip = (name: string, detail: string): void => {
+  console.log(`skip ${name}: ${detail}`);
+};
+
 const clause = syntheticClauseFixtures[0]?.clause ?? "甲方应在合同签订后十个工作日内支付预付款。";
 const identity = (provider: string, modelVersion: string) => ({
   auditCaseId: requestFor(clause).auditCaseId,
@@ -94,11 +103,15 @@ const identity = (provider: string, modelVersion: string) => ({
   frozenInput: requestFor(clause),
 });
 
-// ── 1. off/shadow formal invariance ─────────────────────────────────────
+// ── 1. shadow writes stay inside the shadow layer ───────────────────────
 // The formal outcome is computed by the audit pipeline, which this layer does
-// not touch. What this check proves is that the shadow layer's presence — on
-// with a working provider, on with a failing provider, or absent entirely —
-// changes nothing the worker can reach: it only ever writes shadow rows.
+// not touch. What this section proves is the shadow side of that claim in
+// isolation: the worker — with a working provider, or a failing one — only
+// ever writes shadow rows through the shadow repository, and a failure is
+// recorded as a typed shadow failure. The full formal invariance (the same
+// case producing identical Finding/review/remediation rows with the layer off
+// and on, against a real database) is proven by the real-PG smoke and the
+// dispatcher tests, not here: this script runs without a database.
 {
   const repository = new InMemoryShadowDecisionRepository();
   const request = requestFor(clause);
@@ -240,10 +253,9 @@ if (endpoint !== undefined && endpoint !== "") {
     outcome.ok ? JSON.stringify(outcome.result) : JSON.stringify(outcome.failure),
   );
 } else {
-  check(
+  skip(
     "local Laya CPU service probe",
-    true,
-    "skipped: LAYA_ENDPOINT not set (off/Fake paths above remain valid)",
+    "not run: LAYA_ENDPOINT is not set — the off/Fake checks above ran; the real-service path was not exercised",
   );
 }
 
