@@ -178,10 +178,42 @@ export interface SourceRecordOriginal {
   name: string | null;
   provenance: SourceProvenance | null;
   /**
-   * The Source Record's stored metadata, including the upload integrity facts
-   * (`originalSha256`, `originalSizeBytes`, `originalMimeType`,
-   * `originalBackend`) a download or re-audit verifies the bytes against.
-   * Null when the record carries none.
+   * The source record's metadata, carried so the original download can verify
+   * the bytes against the hash and size recorded at upload time. Null when the
+   * row carries no metadata.
    */
   metadata: Record<string, unknown> | null;
+}
+
+/**
+ * The result of a guarded demo reset. A refusal carries a stable code and a
+ * reason the operator can read; an approval carries how many cases went away.
+ * The caller maps the code to an HTTP status or an exit code — never to a
+ * message it invents.
+ */
+export type DemoResetOutcome =
+  | { ok: true; removed: number }
+  | { ok: false; code: DemoResetRefusalCode; reason: string };
+
+/**
+ * The refusal codes a reset can return. Each names one precondition, so a
+ * caller can tell "wrong environment" from "database is busy" without parsing
+ * the reason text. The first two come from the pure environment guard, the rest
+ * from the in-transaction identity and activity checks.
+ */
+export type DemoResetRefusalCode =
+  | "app_env_not_demo"
+  | "confirmation_required"
+  | "database_url_missing"
+  | "environment_id_missing"
+  | "database_name_missing"
+  | "database_identity_mismatch"
+  | "registration_mismatch"
+  | "demo_run_active";
+
+/** Rows a completed reset must have left at zero; each is checked, none faked. */
+export interface DemoResetOrphans {
+  shadowJobs: number;
+  shadowFeedback: number;
+  verificationSources: number;
 }

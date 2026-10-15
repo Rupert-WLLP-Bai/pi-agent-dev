@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { findDemoContract } from "@contract-audit/audit/demo-contracts";
 import type { AuditCaseStatus, SourceProvenance } from "@contract-audit/audit/model";
 import { evaluateSubjectRiskRule } from "@contract-audit/audit/subject-rule";
@@ -7,7 +8,13 @@ import { type AuditCaseRepository, contractTitleFromFirstBlock } from "../db/rep
 import type { RuleRepository } from "../db/rule-repository";
 import type { AuditDispatcher } from "../dispatcher";
 import { validateMimeType } from "../document";
-import { originalStorageOf, readOriginal, saveOriginal } from "../document/original-store";
+import {
+  describeStorageError,
+  originalStorageOf,
+  readOriginal,
+  removeOriginal,
+  saveOriginal,
+} from "../document/original-store";
 import { errorSchema, notFoundSchema, openapiTags } from "../openapi";
 import { type AuditEventBroker, sseResponse } from "../sse";
 
@@ -208,6 +215,11 @@ export function auditCasesRoutes({
 }: AuditCasesRouteDeps) {
   /** Wire-declared part MIME per in-flight upload, captured before parsing. */
   const declaredUploadMime = new WeakMap<Request, string>();
+  const wakeQueuedCase = (auditCaseId: string) => {
+    void dispatcher.enqueue(auditCaseId).catch(() => {
+      console.warn("AUDIT_QUEUE_WAKEUP_FAILED", { auditCaseId });
+    });
+  };
   return (
     new Elysia()
       .post(
@@ -226,7 +238,7 @@ export function auditCasesRoutes({
               contractId: body.contractId ?? null,
             },
           );
-          await dispatcher.enqueue(caseId);
+          wakeQueuedCase(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };
         },
@@ -278,9 +290,7 @@ export function auditCasesRoutes({
             return { error: mimeError };
           }
           const sourceRecordId = crypto.randomUUID();
-          // Read the bytes once: the parser and the original-store both need
-          // them, and a File body is not guaranteed to be re-readable cheaply.
-          const fileBytes = new Uint8Array(await body.file.arrayBuffer());
+          const fileBytes = Buffer.from(await body.file.arrayBuffer());
           const rawLimit = Number(body.policyLimitRatio);
           const policyLimit =
             body.policyLimitRatio === undefined || Number.isNaN(rawLimit)
@@ -288,26 +298,51 @@ export function auditCasesRoutes({
               : rawLimit > 1
                 ? rawLimit / 100
                 : rawLimit;
-          const { caseId } = await repository.createQueuedCase(
-            sourceRecordId,
-            "",
-            { type: "FILE_UPLOAD", displayName: body.file.name },
-            {
-              metadata: {
-                uploadFileName: body.file.name,
-                ...(policyLimit === undefined ? {} : { policyLimitRatio: policyLimit }),
-              },
-            },
-          );
-          // Persist the uploaded original and point the Source Record at it.
-          // Only file uploads reach here; pasted text keeps a null path.
+          // The original bytes are persisted BEFORE the case is registered, and
+          // the locator travels inside the same transaction that writes the
+          // source record, the contract revision and the case. So a database
+          // failure after the Put can never leave a PENDING case whose
+          // original is unreachable — the only recovery needed is the object
+          // this route already owns, which is removed explicitly below.
           const originalPath = await saveOriginal(
             sourceRecordId,
-            Buffer.from(fileBytes),
+            fileBytes,
             body.file.name,
           );
-          await repository.updateSourceOriginalPath(sourceRecordId, originalPath);
-          await dispatcher.enqueue(caseId);
+          let caseId: string;
+          try {
+            const queuedCaseOptions = {
+              originalPath,
+              metadata: {
+                uploadFileName: body.file.name,
+                originalSha256: createHash("sha256").update(fileBytes).digest("hex"),
+                originalSizeBytes: fileBytes.length,
+                originalMimeType: declaredUploadMime.get(request) ?? "application/octet-stream",
+                originalBackend: originalStorageOf(originalPath),
+                ...(policyLimit === undefined ? {} : { policyLimitRatio: policyLimit }),
+              },
+            };
+            const created = await repository.createQueuedCase(
+              sourceRecordId,
+              "",
+              { type: "FILE_UPLOAD", displayName: body.file.name },
+              queuedCaseOptions,
+            );
+            caseId = created.caseId;
+          } catch (error) {
+            // Registration failed, so no case and no source row exist. The
+            // bytes this route just wrote are unreferenced garbage; deleting
+            // the exact locator the store returned keeps the bucket free of
+            // orphans without touching anything else. A cleanup failure is
+            // reported, never swallowed: the operator must know one object may
+            // need manual removal, and the request still fails.
+            const removed = await removeOriginal(originalPath);
+            if (!removed) {
+              console.error("ORIGINAL_ORPHAN_CLEANUP_FAILED", { sourceRecordId });
+            }
+            throw error;
+          }
+          wakeQueuedCase(caseId);
           set.status = 202;
           return { id: caseId, status: "PENDING" as const };
         },
@@ -327,16 +362,24 @@ export function auditCasesRoutes({
               "- `.xlsx` 额外保留单元格地址、公式与数字格式，供跨文档金额核对引用。\n" +
               "- 大小上限由 `MAX_UPLOAD_BYTES` 控制，超过即返回 `413`，**在任何解析之前**拒绝。\n" +
               "- 类型校验以线上声明的 part MIME 为准（解析器会按扩展名改写 `file.type`，不可信），扩展名与声明类型不符返回 `422`。\n" +
+              "- 保存顺序：先落原件字节，再在**同一个事务**里写入 Source Record、合同修订与案件（原件定位随事务一起登记），" +
+              "因此失败不会留下“案件已入队但原件缺失”的状态；登记失败时只会清理本次上传产生的那一个对象。\n" +
+              "`S3_STRICT` 为真（demo/production 默认）时对象存储写入失败即本次上传失败，不会悄悄改写到本地目录。\n" +
               "- 副作用：写入 Source Record、保存原件（对象存储或本地）、入队并异步运行；`202` 只表示已受理。\n" +
               "- 幂等性：**非幂等**，重复上传会生成新的案件与原件。\n\n" +
-              "状态码：`202` 已受理；`413` 文件过大；`422` 类型不被支持或文件内容为空。",
+              "状态码：`202` 已受理；`413` 文件过大；`422` 类型不被支持或文件内容为空；`500` 原件保存失败。",
             tags: AUDIT_CASE_TAGS,
           },
-          response: { 202: queuedCaseSchema, 413: errorSchema, 422: errorSchema },
+          response: {
+            202: queuedCaseSchema,
+            413: errorSchema,
+            422: errorSchema,
+            500: errorSchema,
+          },
         },
       )
       // Download the uploaded original for a Source Record. Pasted submissions
-      // have no file, so they answer 404 rather than fabricating one.
+      // have no file, so they answer 404 rather than fabricate one.
       .get(
         "/api/source-records/:id/original",
         async ({ params, set }) => {
@@ -347,10 +390,14 @@ export function auditCasesRoutes({
           }
           let buffer: Buffer;
           try {
-            buffer = await readOriginal(record.originalPath);
-          } catch {
-            set.status = 404;
-            return { error: "original_missing" };
+            buffer = await readOriginal(record.originalPath, record.metadata);
+          } catch (error) {
+            const code = describeStorageError(error);
+            set.status = code === "original_missing" ? 404
+              : code === "original_integrity_mismatch" ? 409
+              : code === "access_denied" || code === "original_bucket_not_allowed" || code === "original_path_outside_upload_dir" ? 403
+              : 503;
+            return { error: code };
           }
           const filename = record.name ?? "contract";
           // RFC 6266: a byte-safe fallback plus a UTF-8 form, so non-ASCII
@@ -377,7 +424,7 @@ export function auditCasesRoutes({
               "- 只读，可重复调用。",
             tags: AUDIT_CASE_TAGS,
           },
-          response: { 404: notFoundSchema },
+          response: { 403: errorSchema, 404: notFoundSchema, 409: errorSchema, 503: errorSchema },
         },
       )
       .get("/api/audit-cases", async () => repository.getCasesWithContractTitle(), {
@@ -655,7 +702,7 @@ export function auditCasesRoutes({
             set.status = 409;
             return { error: "rerun_already_active" };
           }
-          await dispatcher.enqueue(result.caseId);
+          wakeQueuedCase(result.caseId);
           set.status = 202;
           return {
             id: result.caseId,
@@ -713,7 +760,7 @@ export function auditCasesRoutes({
             pendingReassess: true,
           });
           await repository.updateCaseStatus(params.id, "PENDING", "QUEUED");
-          await dispatcher.enqueue(params.id);
+          wakeQueuedCase(params.id);
           set.status = 202;
           return { case: { ...existing, status: "PENDING" as const, stage: "QUEUED" as const } };
         },

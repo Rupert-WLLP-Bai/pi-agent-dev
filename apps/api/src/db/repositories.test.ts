@@ -712,7 +712,7 @@ dbTest(
   },
 );
 
-dbTest("deleteDemoSeededCases removes only rows tagged demoSeed", async (repository) => {
+dbTest("resetDemoWorld deletes only demo rows and preserves non-demo neighbors", async (repository) => {
   const demoId = uniqueSourceRecordId();
   const keepId = uniqueSourceRecordId();
   // A shared DB may already hold demo-seeded rows; assert relative deletion.
@@ -725,7 +725,16 @@ dbTest("deleteDemoSeededCases removes only rows tagged demoSeed", async (reposit
     displayName: null,
   });
 
-  expect(await repository.deleteDemoSeededCases()).toBe(alreadySeeded + 1);
+  // The registration table arrives with the decision slice's migration. On a
+  // database that predates it, the reset refuses and there is nothing to
+  // assert; the refusal itself is covered by the guard tests.
+  const tableReady = await repository.hasDemoEnvironmentTable();
+  if (!tableReady) return;
+  const databaseName = await repository.currentDatabaseName();
+  await repository.registerDemoEnvironment({ environmentId: "test", databaseName });
+  const outcome = await repository.resetDemoWorld({ environmentId: "test", databaseName });
+  if (!outcome.ok) throw new Error(outcome.reason);
+  expect(outcome.removed).toBe(alreadySeeded + 1);
   expect(await repository.listDemoSeededCases()).toEqual([]);
   expect(await repository.getCase(keepCaseId)).not.toBeNull();
 });

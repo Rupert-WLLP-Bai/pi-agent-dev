@@ -74,6 +74,7 @@ const baseInputs = (overrides: Partial<HealthInputs> = {}): HealthInputs => ({
     secretKey: "secret",
     bucket: "contract-originals",
     region: "us-east-1",
+    strict: true,
   },
   agent: {
     mode: "pi",

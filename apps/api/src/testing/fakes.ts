@@ -232,6 +232,7 @@ export class InMemoryAuditCaseRepository {
       metadata?: Record<string, unknown>;
       assignee?: string | null;
       contractId?: string | null;
+      /** The locator registered with the source record in this same step. */
       originalPath?: string | null;
     } = {},
   ): Promise<{ caseId: string }> {
@@ -402,6 +403,7 @@ export class InMemoryAuditCaseRepository {
 
   async getSourceRecord(sourceRecordId: string): Promise<SourceRecordOriginal | null> {
     if (!this.sourceRecordIds.has(sourceRecordId)) return null;
+    const metadata = this.sourceMetadata.get(sourceRecordId);
     return {
       id: sourceRecordId,
       originalPath: this.sourceOriginalPaths.get(sourceRecordId) ?? null,

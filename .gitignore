@@ -22,8 +22,15 @@ apps/api/var/
 compose.override.yaml
 .superpowers/
 
-# Local agent plan scratch.
-.cursor/plans/
-
 # Local throwaway smoke scripts.
 apps/api/src/tmp-smoke/
+
+# The demo stack's protected local environment. `scripts/demo/cli.ts up`
+# generates the access token and object-store credentials into this file
+# instead of printing them; it is never committed, and the compose stack reads
+# it through `--env-file`.
+.demo.env
+.demo.env.*
+
+# Demo run state written by the CLI: PIDs, logs and diagnostics output.
+.demo/

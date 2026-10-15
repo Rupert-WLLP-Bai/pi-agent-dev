@@ -16,7 +16,8 @@ import {
 import { normalizeContractDocument } from "@contract-audit/audit/plaintext-adapter";
 import { runSubjectVerification } from "@contract-audit/audit/subject-verification";
 import { createFixtureSubjectVerificationPort } from "@contract-audit/audit/subject-verification-fixture";
-import type { AuditCaseRepository } from "../db/repositories";
+import type { AuditCaseRepository, DemoResetOutcome } from "../db/repositories";
+import { checkDemoResetEnvironment } from "./demo-environment";
 import { demoProposalsFor } from "../demo-agent";
 
 type DemoWorldRepository = Pick<
@@ -33,7 +34,6 @@ type DemoWorldRepository = Pick<
   | "completeCaseIfAllFindingsReviewed"
   | "updateRemediation"
   | "closeRemediation"
-  | "deleteDemoSeededCases"
   | "listDemoSeededCases"
   | "contractIdForCase"
 >;
@@ -42,6 +42,15 @@ export interface SeedDemoWorldInput {
   reset?: boolean;
   fillerCount?: number;
   rngSeed?: number;
+  /**
+   * The guard inputs a reset requires. `reset: false` ignores them; a reset
+   * without them is refused, never downgraded to an unguarded seed.
+   */
+  appEnv?: string | undefined;
+  confirmation?: string | undefined;
+  environmentId?: string | undefined;
+  databaseName?: string | undefined;
+  databaseUrl?: string | undefined;
 }
 
 export interface SeededScenarioView {
@@ -202,13 +211,17 @@ async function plantCase(
   return caseId;
 }
 
-export async function seedDemoWorld(
+/**
+ * Plants the demo cases. No deletion happens here: the reset is a separate,
+ * guarded operation, and a caller that wants both gets them atomically through
+ * `rebuildDemoWorld` — never by calling a delete and then this.
+ */
+export async function plantDemoCases(
   repository: DemoWorldRepository,
-  input: SeedDemoWorldInput = {},
+  input: { fillerCount?: number; rngSeed?: number } = {},
 ): Promise<SeedDemoWorldResult> {
   const fillerCount = input.fillerCount ?? DEFAULT_FILLER_COUNT;
   const rngSeed = input.rngSeed ?? DEFAULT_RNG_SEED;
-  const removed = input.reset === false ? 0 : await repository.deleteDemoSeededCases();
   const specs = [...demoScenarioCases, ...generateFillerCases(rngSeed, fillerCount)].sort(
     (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
   );
@@ -224,7 +237,22 @@ export async function seedDemoWorld(
     }
   }
   const view = await readDemoWorld(repository);
-  return { ...view, planted: specs.length, removed, rngSeed, fillerCount };
+  return { ...view, planted: specs.length, removed: 0, rngSeed, fillerCount };
+}
+
+/**
+ * Thrown when a requested reset is refused. A distinct type lets the HTTP
+ * layer answer 409 with the code and reason, and the CLI exit non-zero, without
+ * either of them pattern-matching a message string.
+ */
+export class DemoResetRefusedError extends Error {
+  constructor(
+    readonly code: string,
+    readonly reason: string,
+  ) {
+    super(reason);
+    this.name = "DemoResetRefusedError";
+  }
 }
 
 export async function readDemoWorld(repository: DemoWorldRepository): Promise<DemoWorldView> {
@@ -260,4 +288,51 @@ export async function readDemoWorld(repository: DemoWorldRepository): Promise<De
     fillerCount: filler.length,
     scenarios,
   };
+}
+
+/**
+ * Deletes the demo world, or refuses before touching anything.
+ *
+ * Two layers, deliberately:
+ *
+ * 1. The *environment* guard is pure and runs first — `APP_ENV` must be `demo`
+ *    or `test` and the confirmation must name the target database. It needs no
+ *    connection, so a misconfigured deployment is refused before one is opened.
+ * 2. The *identity and activity* guards run inside the same transaction, on the
+ *    same connection, as the delete itself (`repository.resetDemoWorld`). They
+ *    read `current_database()` and the registration row and refuse while a demo
+ *    case is queued or running — under the demo-world lock, so nothing can be
+ *    claimed between the check and the delete.
+ *
+ * Splitting the two is what keeps a string comparison from ever being the only
+ * thing standing between an operator and the wrong database.
+ */
+export interface DemoResetRepository extends DemoWorldRepository {
+  /** The guarded, transactional reset. Refusals come back as codes. */
+  resetDemoWorld(input: { environmentId: string; databaseName: string }): Promise<DemoResetOutcome>;
+}
+
+export interface ResetDemoWorldInput {
+  appEnv: string | undefined;
+  /** Must equal the target database name exactly. */
+  confirmation: string | undefined;
+  environmentId: string | undefined;
+  databaseName: string | undefined;
+  databaseUrl: string | undefined;
+}
+
+export type ResetDemoWorldResult = DemoResetOutcome;
+
+export async function resetDemoWorld(
+  repository: DemoResetRepository,
+  input: ResetDemoWorldInput,
+): Promise<ResetDemoWorldResult> {
+  const guard = checkDemoResetEnvironment(input);
+  if (!guard.ok) return { ok: false, code: guard.refusal.code, reason: guard.refusal.reason };
+  // The identity/activity guards and the delete happen in one transaction; the
+  // repository owns both so no caller can separate them.
+  return repository.resetDemoWorld({
+    environmentId: guard.environmentId,
+    databaseName: guard.databaseName,
+  });
 }
