@@ -1,0 +1,37 @@
+requirement_id,requirement,design_ref,code_ref,test_ref,evidence_ref,status
+R-ADVANCE_PAYMENT_LIMIT,预付款比例超制度上限给出 POLICY_CONFLICT,packages/audit/src/rule-catalog.ts,packages/audit/src/payment-rule.ts,packages/audit/src/payment-rule.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-PENALTY_RATIO_LIMIT,违约金比例超上限给出 POLICY_CONFLICT,packages/audit/src/rule-catalog.ts,packages/audit/src/penalty-rule.ts,packages/audit/src/new-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-TERMINATION_CLAUSE_PRESENT,缺少解除条款路由人工复核,packages/audit/src/rule-catalog.ts,packages/audit/src/termination-rule.ts,packages/audit/src/new-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-DISPUTE_JURISDICTION,争议管辖地与我方不一致给出 POLICY_CONFLICT,packages/audit/src/rule-catalog.ts,packages/audit/src/dispute-rule.ts,packages/audit/src/new-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-PERFORMANCE_BOND_RATIO_LIMIT,履约保证金超 10% 上限,packages/audit/src/rule-catalog.ts,packages/audit/src/performance-bond-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-PAYMENT_TERM_LIMIT,付款期限超 60 天上限,packages/audit/src/rule-catalog.ts,packages/audit/src/payment-term-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-BACK_TO_BACK_PAYMENT_CLAUSE,背靠背付款条款被识别,packages/audit/src/rule-catalog.ts,packages/audit/src/back-to-back-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-DEPOSIT_RATIO_LIMIT,定金超 20% 上限且区分订金/押金,packages/audit/src/rule-catalog.ts,packages/audit/src/deposit-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-WARRANTY_RETENTION_RATIO_LIMIT,质保金比例与缺陷期上限,packages/audit/src/rule-catalog.ts,packages/audit/src/warranty-retention-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-DISPUTE_RESOLUTION_CONFLICT,仲裁与诉讼并存视为冲突,packages/audit/src/rule-catalog.ts,packages/audit/src/dispute-conflict-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-BID_BOND_RATIO_LIMIT,投标保证金超 2% 上限,packages/audit/src/rule-catalog.ts,packages/audit/src/bid-bond-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-IP_OWNERSHIP_MISSING,定制开发缺少知识产权归属条款,packages/audit/src/rule-catalog.ts,packages/audit/src/ip-ownership-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-GUARANTEE_MODE_AMBIGUOUS,保证方式约定不明,packages/audit/src/rule-catalog.ts,packages/audit/src/guarantee-mode-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-CONFIDENTIALITY_PERIOD_MISSING,保密期限缺失或超参考上限,packages/audit/src/rule-catalog.ts,packages/audit/src/confidentiality-period-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-FORCE_MAJEURE_OVERBROAD,不可抗力范围过宽,packages/audit/src/rule-catalog.ts,packages/audit/src/force-majeure-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-LIABILITY_CAP_MISSING,责任上限单方缺失,packages/audit/src/rule-catalog.ts,packages/audit/src/liability-cap-rule.ts,packages/audit/src/wave2-rules.test.ts,packages/audit/src/golden-set.test.ts,implemented_tested
+R-PARTY_HISTORY_ASSOCIATION,相对方历史风险关联,packages/audit/src/rule-catalog.ts,packages/audit/src/party-history-rule.ts,packages/audit/src/party-history-rule.test.ts,tests/acceptance/audit-case.spec.ts,implemented_tested
+R-AMOUNT_IN_WORDS_MISMATCH,大小写金额不一致,packages/audit/src/rule-catalog.ts,packages/audit/src/amount-words-rule.ts,packages/audit/src/amount-words-rule.test.ts,tests/acceptance/validation.spec.ts,implemented_tested
+R-SUBJECT_RED_LINE_RISK,主体红线风险并入评估,packages/audit/src/rule-catalog.ts,packages/audit/src/subject-rule.ts,packages/audit/src/subject-rule.test.ts,tests/acceptance/subject-verification.spec.ts,implemented_tested
+R-STANCE,Contract Stance 决定规则适用范围与 NOT_APPLICABLE 语义,packages/audit/src/contract-stance.ts,packages/audit/src/contract-stance.ts,packages/audit/src/contract-stance.test.ts,packages/audit/src/orchestrator.test.ts,implemented_tested
+R-GUARD,Proposal Guard 拒绝未开启/不合规/无规则 finding type,packages/audit/src/proposal-guard.ts,packages/audit/src/proposal-guard.ts,packages/audit/src/proposal-guard.test.ts,apps/api/src/routes/audit-cases.test.ts,implemented_tested
+R-PI-TOOLS,受控 Pi 工具白名单与证据锚点,packages/pi-agent/src/tools.ts,packages/pi-agent/src/tools.ts,packages/pi-agent/src/tools.test.ts,apps/api/src/routes/agent-runs.test.ts,implemented_tested
+R-HUMAN-REVIEW,人工复核接受/驳回并写回复核理由,packages/audit/src/model.ts,apps/api/src/routes/reviews.ts,apps/api/src/routes/reviews.test.ts,tests/acceptance/review-center.spec.ts,implemented_tested
+R-REMEDIATION,复核接受事务性创建整改并跟踪状态,packages/audit/src/remediation.ts,apps/api/src/db/repositories,tests/acceptance/remediations.spec.ts,tests/acceptance/remediations.spec.ts,implemented_tested
+R-RERUN-CONTRACT,重新审计新建案件且原历史不变,apps/api/src/routes/audit-cases.ts,apps/api/src/db/repositories/audit-queue.repository.ts,apps/api/src/routes/audit-cases.test.ts,tests/acceptance/audit-case.spec.ts,implemented_tested
+R-QUEUE-CLAIM,PG 队列 SKIP LOCKED 排他领取,apps/api/src/dispatcher.ts,apps/api/src/db/repositories/audit-queue.repository.ts,tests/integration/audit-lifecycle.test.ts,apps/api/src/dispatcher.test.ts,implemented_tested
+R-SSE,SSE 首帧快照与事件推送,apps/api/src/sse.ts,apps/api/src/sse.ts,tests/integration/audit-lifecycle.test.ts,tests/acceptance/agent-trace.spec.ts,implemented_tested
+R-S3-FALLBACK,S3 失败本地回退且 locator 记录实际后端,apps/api/src/document/original-store.ts,apps/api/src/document/original-store.ts,tests/integration/original-store.test.ts,apps/api/src/document/original-store.test.ts,implemented_tested
+R-REDIS-DEGRADE,Redis 不可用主体核验直连不失败,apps/api/src/qcc/cache.ts,apps/api/src/qcc/cache.ts,tests/integration/redis-cache.test.ts,apps/api/src/qcc/cache.test.ts,implemented_tested
+R-ACCESS-GATE,服务端访问门禁匿名拒绝/会话/Bearer,apps/api/src/access-control.ts,apps/api/src/access-control.ts,tests/integration/access-gate.test.ts,docs/project-management/evidence/s2-security.json,implemented_unverified
+R-UPLOAD-SAFETY,上传大小/类型/路径穿越拒绝,apps/api/src/routes/audit-cases.ts,apps/api/src/document,apps/api/src/routes/audit-cases-upload.test.ts,tests/integration/access-gate.test.ts,implemented_tested
+R-DECISION-SHADOW,影子建议为辅助且不改正式结论,packages/audit/src/decision.ts,packages/audit/src/decision-contract.ts,packages/audit/src/decision-contract.test.ts,docs/architecture/INTEGRATION-CONTRACT.md,implemented_unverified
+R-DECISION-API,决策 API 版本/错误/幂等契约,packages/audit/src/decision-contract.ts,apps/api/src/routes,tests/fixtures/decision/contract.ts,packages/audit/src/decision-contract.test.ts,implemented_unverified
+R-OCR-DEGRADE,OCR 关闭/失败时扫描件不可读而非伪造,apps/api/src/document/ocr,apps/api/src/document/ocr,apps/api/src/document/ocr/vlm.test.ts,apps/api/src/health.test.ts,implemented_tested
+R-SECRETS,LLM 密钥密封/轮换/不明文返回,apps/api/src/llm/api-key-crypto.ts,apps/api/src/llm/api-key-crypto.ts,apps/api/src/llm/api-key-crypto.test.ts,docs/project-management/evidence/key-rotation-smoke.json,implemented_tested
+R-DEMO-RESET,demo 重置只删演示数据且可重复,docs/architecture/INTEGRATION-CONTRACT.md,apps/api/src/db/repositories/audit-read-model.repository.ts,apps/api/src/demo/seed-world.test.ts,make demo-ready,implemented_unverified

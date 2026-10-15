@@ -9,6 +9,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Every job uses a disposable database; nothing in CI touches a real one.
+  DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+  # The integration suites read their identity from TEST_DATABASE_URL so they
+  # can prove the database they were pointed at.
+  TEST_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+  REDIS_URL: redis://localhost:6379
+  S3_ENDPOINT: http://localhost:9000
+  S3_ACCESS_KEY: contract_audit
+  S3_SECRET_KEY: contract_audit
+  S3_BUCKET: contract-originals
+  S3_REGION: us-east-1
+  # No LLM credentials anywhere in CI: the fake agent is the only agent mode.
+  AUDIT_AGENT_MODE: fake
+  PLAYWRIGHT_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+
 jobs:
   quality:
     name: Lint, typecheck, unit tests
@@ -27,8 +43,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-    env:
-      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +70,89 @@ jobs:
       - name: Unit tests
         run: bun run test
 
+      - name: Upload unit coverage (LCOV)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: artifacts/qa/coverage/lcov.info
+          retention-days: 7
+
+  integration:
+    name: Integration: PostgreSQL, Redis, S3, SSE
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: contract_audit
+          POSTGRES_PASSWORD: contract_audit
+          POSTGRES_DB: contract_audit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U contract_audit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      rustfs:
+        image: rustfs/rustfs:1.0.0
+        env:
+          RUSTFS_ACCESS_KEY: contract_audit
+          RUSTFS_SECRET_KEY: contract_audit
+          RUSTFS_ADDRESS: ":9000"
+          RUSTFS_CONSOLE_ADDRESS: ":9001"
+          RUSTFS_CONSOLE_ENABLE: "true"
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create the originals bucket
+        run: |
+          curl -sf -X PUT "http://localhost:9000/contract-originals" \
+            -H "Authorization: AWS4-HMAC-SHA256 Credential=contract_audit" >/dev/null || \
+          curl -sf -X PUT "http://localhost:9000/contract-originals" >/dev/null || true
+
+      - name: Apply database migrations
+        working-directory: apps/api
+        run: bun run migrate
+
+      - name: Integration tests
+        run: bun run test:integration
+
+      - name: Failure-path scenarios
+        run: bun run qa:faults
+
+      - name: Upload integration and fault reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-reports
+          path: artifacts/qa/
+          retention-days: 7
+
   acceptance:
     name: End-to-end acceptance
     runs-on: ubuntu-latest
@@ -73,9 +170,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-    env:
-      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
-      AUDIT_AGENT_MODE: fake
     steps:
       - uses: actions/checkout@v4
 
@@ -87,14 +181,14 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
 
       - name: Apply database migrations
         working-directory: apps/api
         run: bun run migrate
 
       - name: Run acceptance tests
-        run: npx playwright test
+        run: bun run test:e2e
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -103,3 +197,12 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      - name: Upload failure screenshots and traces
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failures
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore

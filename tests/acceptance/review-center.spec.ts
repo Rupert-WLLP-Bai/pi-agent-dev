@@ -1,20 +1,12 @@
-import { readFileSync } from "node:fs";
 import { expect, type Page, test } from "@playwright/test";
-import postgres from "postgres";
+import { deleteCasesAndRelations } from "./db-cleanup";
 
 const createdCaseIds: string[] = [];
 
 /** Accepting findings opens remediation items — remove this run's artifacts. */
 test.afterAll(async () => {
   if (createdCaseIds.length === 0) return;
-  const match = readFileSync(".env", "utf8").match(/^DATABASE_URL=(.*)$/m);
-  if (!match) throw new Error("DATABASE_URL missing from .env");
-  const sql = postgres(match[1].trim());
-  try {
-    await sql`delete from remediations where audit_case_id in ${sql(createdCaseIds)}`;
-  } finally {
-    await sql.end();
-  }
+  await deleteCasesAndRelations(createdCaseIds);
 });
 
 /**

@@ -1,0 +1,12 @@
+# Bun test configuration.
+#
+# Coverage output goes to artifacts/qa/coverage so `bun run test:coverage` and
+# the standalone report share one location. The longer per-test timeout covers
+# the suites that open a real PostgreSQL connection: a cold container can take
+# seconds to accept the first one, and a timeout there would look like a product
+# failure rather than an environment one.
+[test]
+coverage = true
+coverageReporter = ["text", "lcov"]
+coverageDir = "artifacts/qa/coverage"
+timeout = 30000

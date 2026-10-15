@@ -1,4 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
+import { deleteCasesAndRelations } from "./db-cleanup";
+
+/** Cases this file audits through the live API, removed afterAll. */
+const createdCaseIds: string[] = [];
+
+test.afterAll(async () => {
+  await deleteCasesAndRelations(createdCaseIds.splice(0));
+});
 
 /**
  * End-to-end lifecycle of one audit case, exercising every layer the demo
@@ -32,6 +40,7 @@ async function createDemoAudit(page: Page): Promise<string> {
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
+  createdCaseIds.push(page.url().split("/").pop()!);
   // The list shows finding-type labels; the inspector may be on another finding.
   await expect(page.getByText("预付款比例超过制度上限").first()).toBeVisible({ timeout: 15000 });
 
@@ -173,6 +182,7 @@ test("a needs-review case shows the agent reading the contract once", async ({ p
   await page.getByRole("spinbutton", { name: "制度允许的预付款上限" }).fill("30");
   await page.getByRole("button", { name: "开始审计" }).click();
   await page.waitForURL(/\/audit-cases\/.+$/);
+  createdCaseIds.push(page.url().split("/").pop()!);
   await expect(page.getByText("缺少违约责任条款").first()).toBeVisible({ timeout: 15000 });
 
   await page.getByRole("button", { name: "运行轨迹" }).click();

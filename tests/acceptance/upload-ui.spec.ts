@@ -1,4 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
+import { deleteCasesAndRelations } from "./db-cleanup";
+
+/** Cases this file audits through the live API, removed afterAll. */
+const createdCaseIds: string[] = [];
+
+test.afterAll(async () => {
+  await deleteCasesAndRelations(createdCaseIds.splice(0));
+});
 
 /** Fails fast with a clear reason when the API is not reachable through the web origin. */
 async function assertApiReachable(page: Page) {
@@ -48,6 +56,7 @@ test("uploads a .txt contract through the drawer and lands on the case page", as
   // AWAITING_REVIEW rather than COMPLETED: this contract's 70% advance payment
   // raises a finding, and an undecided finding still owes a human a decision.
   await page.waitForURL(/\/audit-cases\/.+$/, { timeout: 15_000 });
+  createdCaseIds.push(page.url().split("/").pop()!);
   await expect
     .poll(
       async () => {
