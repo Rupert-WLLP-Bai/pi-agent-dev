@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-17T14:54:44.068Z",
+  "runId": 39042297765,
+  "headSha": "d82b66c3805d73110bf6527a41d2680a2ad04560",
+  "branch": "main",
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/Rupert-WLLP-Bai/pi-agent-dev/actions/runs/39042297765",
+  "createdAt": "2026-10-17T14:48:17Z",
+  "updatedAt": "2026-10-17T14:53:45Z",
+  "jobs": [
+    {
+      "name": "Lint, typecheck, migrations, unit tests",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Rupert-WLLP-Bai/pi-agent-dev/actions/runs/39042297765/job/117424063197",
+      "startedAt": "2026-10-17T14:48:20Z",
+      "completedAt": "2026-10-17T14:49:34Z"
+    },
+    {
+      "name": "End-to-end acceptance (Chromium)",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Rupert-WLLP-Bai/pi-agent-dev/actions/runs/39042297765/job/117424325395",
+      "startedAt": "2026-10-17T14:49:36Z",
+      "completedAt": "2026-10-17T14:52:39Z"
+    },
+    {
+      "name": "Integration: PostgreSQL, Redis, S3, faults",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Rupert-WLLP-Bai/pi-agent-dev/actions/runs/39042297765/job/117424325482",
+      "startedAt": "2026-10-17T14:49:41Z",
+      "completedAt": "2026-10-17T14:50:34Z"
+    },
+    {
+      "name": "Web and Docker image builds",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Rupert-WLLP-Bai/pi-agent-dev/actions/runs/39042297765/job/117424961218",
+      "startedAt": "2026-10-17T14:52:41Z",
+      "completedAt": "2026-10-17T14:53:44Z"
+    }
+  ],
+  "previousRun": {
+    "id": 39042065137,
+    "result": "failure",
+    "reason": "Newly archived evidence JSON formatting; corrected before successful run."
+  },
+  "notes": [
+    "Pinned Bun 1.4.0 and official service images; no local image alias override on GitHub.",
+    "Release documentation may follow this verified code revision without changing application source."
+  ]
+}

@@ -1,6 +1,6 @@
 # Contract Audit V1.0 · TASK-BOARD
 
-唯一权威 Master Roadmap。开发周期 **2026-09-11 至 2026-11-10**，V1 截止 **2026-11-10**。总体当前为 **M1 / Phase B**、目标v0.7.0，发布闸门未通过。既有四 Milestone、33项任务原定义保留；旧任务逐ID登记在下方，Execution Inspector是关联M2-B01的子工作包。
+唯一权威Master Roadmap。开发周期**2026-09-11至2026-11-10**，V1截止**2026-11-10**。M1/v0.7.0已完成发布验收；后续M2待启动。既有四Milestone、33项任务原定义保留；旧任务逐ID登记在下方，Execution Inspector仍为关联M2-B01的子工作包。
 
 当前任务状态使用 TODO、IN_PROGRESS、BLOCKED、DONE、CANCELLED；历史能力分类 IMPLEMENTED/PARTIAL/MISSING/BROKEN/DEFERRED 保留在 [BASELINE](./BASELINE.md)。Owner路径见 [FILE-OWNERSHIP](./FILE-OWNERSHIP.md)，视图切换规则见 [task-management](./task-management.md)。原33项未逐条指定P值，优先级如实记“未记录”；补列模块、阶段依赖和更新日期不改任务验收内容。
 
@@ -24,8 +24,8 @@
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | M1-B01 真实浏览器业务闭环 | Main、A/C / DONE | 独立Demo与标准合同 → 上传、审计、证据、复核、整改、轨迹、原件记录 | 浏览器实际操作、刷新后持久化、S3 locator/hash；A apps/web，C acceptance，Main证据 | [浏览器证明](./evidence/m1/browser.json)：790e61fe上传、双来源证据、5项复核/整改、整改关闭刷新保持、Fake Trace46步、S3重启后读取与同源重新审计通过；不替代全站E2E | 业务闭环 / M1 | 未记录 / M1 Phase A | 2026-10-15 |
-| M1-B02 完整Release Gate | Main、B/C / IN_PROGRESS | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | [本地严格Gate](./evidence/m1/release-gate-2026-10-17.json)：835单元/14集成/48浏览器/835覆盖层全过、0skip，故障4过；镜像与受管reset/seed/verify通过；首轮远端CI归档格式失败已修，等待重跑 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-17 |
-| M1-B03 发布与交接 | Main / TODO | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 暂停已解除，仍依赖M1-B02；未发布，没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02 | 2026-10-17 |
+| M1-B02 完整Release Gate | Main、B/C / DONE | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | [本地Gate](./evidence/m1/release-gate-2026-10-17.json)：835单元/14集成/48浏览器/835覆盖层、0失败/0skip，故障4过；镜像及reset/seed/verify通过；[GitHub四job全过](./evidence/m1/github-ci-2026-10-17.json) | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-17 |
+| M1-B03 发布与交接 | Main / DONE | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | [v0.7.0发布记录](./RELEASE-v0.7.0.md)，main分批fast-forward、正常推送及独立Tag；后续M2不计作完成 | 发布交接 / M1 | 未记录 / M1-B02 | 2026-10-17 |
 
 ## M2 · v0.8.0 · Phase A 设计与实现
 
@@ -98,8 +98,8 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 | Q1 | 建立需求—设计—代码—测试—证据 RTM | 质量治理 | M4-B03 | IN_PROGRESS | P0 | 19条均映射到实际回归，不混同golden与独立测试 | QA | [原矩阵第21行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`31bb8d1`）；局部证据不代替完整验收 | 2026-10-15 |
 | Q2 | 建立单元、集成和 E2E 分开统计的覆盖率基线 | 质量治理 | M4-A01 | IN_PROGRESS | P0 | 行/函数、集成场景、E2E需求分开统计；不可测分支明确标注 | QA | [原矩阵第22行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`de7ea2d`）；局部证据不代替完整验收 | 2026-10-15 |
 | Q3 | 完善领域、数据库、存储、缓存、SSE、密钥及 UI 行为测试 | 系统回归 | M1-B02；M4-A02 | IN_PROGRESS | P0 | 复用现有fakes与隔离PG，新增行为测试 | QA | [原矩阵第23行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`de7ea2d`、`f7ce8d1`）；局部证据不代替完整验收 | 2026-10-15 |
-| Q4 | 提供规范测试入口与可追溯机器报告 | 验证入口 | M1-B02；M4-A01 | IN_PROGRESS | P0 | 保留原命令，新增可运行入口与SHA/退出码 | QA | [原矩阵第24行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`de7ea2d`）；局部证据不代替完整验收 | 2026-10-15 |
-| Q5 | 扩充 CI 的 Redis/RustFS 验证与工件归档 | 持续集成 | M4-A01 | IN_PROGRESS | P0 | 不使用外部LLM凭证；机器摘要、LCOV与失败工件可归档 | QA | [原矩阵第25行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`de7ea2d`）；局部证据不代替完整验收 | 2026-10-15 |
+| Q4 | 提供规范测试入口与可追溯机器报告 | 验证入口 | M1-B02；M4-A01 | DONE | P0 | 保留原命令，新增可运行入口与SHA/退出码 | QA / Main | [完整严格Gate](./evidence/m1/release-gate-2026-10-17.json)：4层全过、0skip，保留dirty与SHA、脱敏日志、HTML及覆盖结果；缺少必需配置实测拒绝 | 2026-10-17 |
+| Q5 | 扩充CI的Redis/RustFS验证与工件归档 | 持续集成 | M4-A01；M1-CI01 | DONE | P0 | 不使用外部LLM凭证；机器摘要、LCOV与失败工件可归档 | QA / Main | [GitHub CI 39042297765](./evidence/m1/github-ci-2026-10-17.json)：质量、真实Redis/RustFS集成/故障、浏览器、构建四job全过，工件上传完成 | 2026-10-17 |
 | Q6 | 完善模型、存储、缓存、重复操作和上传失败回归 | 故障回归 | M1-B02 | IN_PROGRESS | P0 | 故障明确，正式审计不受影子失败污染 | QA | [原矩阵第26行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`de7ea2d`）；局部证据不代替完整验收 | 2026-10-15 |
 | I1 | 核对并改进 Compose、版本、端口、健康检查与持久化 | 基础设施 | M1-A04；M4-A04 | IN_PROGRESS | P0 | 可复制本机配置，区分demo与生产设置 | Infra | [原矩阵第32行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`908cb5a`）；局部证据不代替完整验收 | 2026-10-15 |
 | I2 | 验证 Amazon S3 接口与 RustFS 原件完整读写链路 | 原件存储 | M1-B02 | IN_PROGRESS | P0 | 原字节hash一致、错误不伪报写入成功 | Infra | [原矩阵第33行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`908cb5a`）；局部证据不代替完整验收 | 2026-10-15 |
@@ -221,7 +221,7 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 ## 当前执行视图
 
-用户已要求继续，并授权分批合入main、推送GitHub和完善CI。OMP保留M1-B01完成、M1-B02进行中、M1-B03待办及GitHub交付任务。2026-10-17新增优先指令M1-AUTH01：移除当前登录口令，SEC3延期到最后且不阻塞M1。TI仍依赖M1发布，原29项保留不变。历史暂停断点见[HANDOFF](./HANDOFF.md)，REC恢复记录不改写。
+当前执行交付为M1/v0.7.0发布、main分批集成/推送及真实GitHub CI，均已完成。M1-AUTH01按用户要求移除登录口令；SEC3延期到最后且不阻塞M1。后续M2/TI尚未启动功能开发，原29项与既有状态完整保留，不因M1完成而批量标绿。REC恢复快照不改写。
 
 恢复时登记口径为123条主任务记录及8条历史验收/名称变更记录，快照保持原样；本轮新增M1-CI01、M1-GIT01、M1-GIT02和M1-AUTH01四项，当前127条主记录。不同层级有关联，不据此计算产品完成率。原无编号操作及延期范围仍保留。
 
@@ -230,7 +230,7 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 | ID | 名称 | 模块 | 所属总体Milestone | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| M1-CI01 | 完善GitHub Actions CI并验证真实运行结果 | CI | M1-B02；关联Q5/M4-A01 | IN_PROGRESS | P1 | 现有测试入口和已验证依赖配置 | CI Agent / Main | 沿用.github/workflows/ci.yml；修正实际服务初始化、分层验证、构建及工件，不将跳过冒充通过 | 2026-10-17 |
+| M1-CI01 | 完善GitHub Actions CI并验证真实运行结果 | CI | M1-B02；关联Q5/M4-A01 | DONE | P1 | 现有测试入口和已验证依赖配置 | CI Agent / Main | `1ed3f90`配置；`d82b66c`证据格式修正；[实际CI四job全过](./evidence/m1/github-ci-2026-10-17.json)，首轮失败仍保留 | 2026-10-17 |
 | M1-GIT01 | 分批将通过验证的改动合入main | 集成 | M1-B03 | DONE | P1 | 对应批次验证；保留用户历史 | Main | `11bdc68`修复与认证延期、`1ed3f90`CI；main从a849b29 fast-forward合入，无历史重写，继承全部检查点 | 2026-10-17 |
-| M1-GIT02 | 推送main及发布记录到GitHub并核对CI | 远端交付 | M1-B03 | IN_PROGRESS | P1 | M1-GIT01；GitHub认证；CI配置 | Main | 已推送main到`1ed3f90`，远端从1c1dc7b正常前进；正在等待该SHA的真实GitHub CI，发布记录待归集 | 2026-10-17 |
+| M1-GIT02 | 推送main及发布记录到GitHub并核对CI | 远端交付 | M1-B03 | DONE | P1 | M1-GIT01；GitHub认证；CI配置 | Main | main与v0.7.0正常推送，无force；[CI证明](./evidence/m1/github-ci-2026-10-17.json)及[发布交接](./RELEASE-v0.7.0.md) | 2026-10-17 |
 | M1-AUTH01 | 移除当前登录口令并将认证延期到最后 | API / Web / Demo | M1-B02；SEC3延期 | DONE | P1 | 2026-10-17用户优先指令 | Main / API / UX | [实际浏览器/API证明](./evidence/m1/authentication-deferred-2026-10-17.json)：直达业务页面、案件接口200、会话路由404、来源限制403；容器实际审计/2项复核及整改；认证配置与实现已删除 | 2026-10-17 |

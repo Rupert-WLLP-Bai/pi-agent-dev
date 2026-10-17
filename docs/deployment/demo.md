@@ -122,15 +122,8 @@ RESTORE_DATABASE_NAME=contract_audit_restore \
 | Redis 不可达 | 主体核验缓存关闭，直接调用提供方；不影响审计结论 |
 | 决策影子不可用 | 正式审计、规则、发现、复核、整改完全不受影响 |
 
-## 7. 限制与尚未实测的部分
+## 7. 实测依据与剩余边界
 
-以下为**未在本工作树实际运行**的项目，需由 Main 在集成环境执行并记录证据：
+2026-10-17独立环境结果见[本地发布Gate](../project/evidence/m1/release-gate-2026-10-17.json)：固定Bun1.4.0镜像构建、demo模式Compose健康启动、reset/seed两次各39案件及孤儿0、保留非Demo人工复核记录、无需登录的API/Web访问均已实际验证。主机严格集成使用真实PostgreSQL、Redis、RustFS，14项全过；故障注入4项全过。备份恢复的39案件/19迁移及拒绝已有目标见[回归记录](../project/evidence/m1/release-regressions-2026-10-17.json)。
 
-- 真实 RustFS 的上传/下载/哈希/重启持久化/凭据错误/对象缺失/重复上传矩阵。
-- 连续两次 `reset` 的非演示哨兵与计数保持、孤儿计数为 0。
-- `docker compose --build` 在 `APP_ENV=demo` 下的实际启动（含加密 secret 校验）。
-- `minimal` 与 `full` 两档的真实启动耗时。
-- `backup` / `restore` 的一次完整往返（含目标已存在时的拒绝路径）。
-- `ready` 的完整就绪演练（两次 reset 对比、非演示哨兵保护、API 应答与孤儿检查）。
-
-本页只描述脚本与配置的真实行为，不声称上述场景已经跑过。
+原件S3重启后读取与重新审计、较早的完整ready演练依据见[浏览器记录](../project/evidence/m1/browser.json)及[交接](../project/HANDOFF.md)；不把它们冒充本轮重新执行。真实模型与Fake结果分开记录；该Gate未使用外部模型。minimal/full启动耗时的对照测量、对象存储独立灾备、真实多用户授权及多实例部署不属于本轮已验证能力。

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-现有代码包含确定性审计、Pi Agent、REST/SSE、PostgreSQL 留痕、RustFS 原件存储、Redis 核验缓存、模型配置、人工复核与整改工作台。本轮正在进行 **M1 / v0.7.0 稳定化验收，尚未发布**；当前状态以[唯一任务板](./docs/project/TASK-BOARD.md)及[交接记录](./docs/project/HANDOFF.md)为准，后续里程碑不提前计作完成。
+现有代码包含确定性审计、Pi Agent、REST/SSE、PostgreSQL留痕、RustFS原件存储、Redis核验缓存、模型配置、人工复核与整改工作台。**M1/v0.7.0已完成发布验收**，见[发布记录](./docs/project/RELEASE-v0.7.0.md)；当前与后续范围以[唯一任务板](./docs/project/TASK-BOARD.md)为准，M2及以后不提前计作完成。
 
 领域语言见 [CONTEXT.md](./CONTEXT.md)，架构决策见 [ADR-0001](./docs/adr/0001-bun-modular-monolith-with-embedded-pi.md)，技术方案见 [Architecture](./docs/architecture/mvp.md)。`docs/superpowers/plans/`保留历史计划；当前实施与验收只更新[任务板](./docs/project/TASK-BOARD.md)。
 
