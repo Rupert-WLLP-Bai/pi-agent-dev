@@ -9,9 +9,10 @@
 | `bun run lint` | 通过 |
 | `bun run typecheck` | 通过（app + tests tsconfig） |
 | `bun --env-file=.env test apps/web/src` | 95 pass / 0 fail |
+| `bun run verify` | **824 pass / 27 skip / 0 fail**（851 tests / 91 files，≈25.9s） |
 | `bun scripts/decision/evaluate.ts`（fake） | 60/60 answered；见 `../m3/decision-evaluate-fake.json` |
 
-完整 `bun run verify`（含 packages + apps 全量单测）在提交前于本环境执行；若 DATABASE_URL 指向可达 PG，部分 DB 用例实跑，否则按项目惯例跳过并注明。
+`verify` = lint + typecheck + `bun test packages apps`。27 skip 为环境依赖（如不可达 PG）的惯例跳过，非失败。
 
 ## 继承的 M1 闸门（可复用，非本分支重跑）
 
