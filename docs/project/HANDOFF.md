@@ -24,7 +24,7 @@
 | TI-PREP-03 | 冻结 TraceEvent | TODO | 依赖 PREP-02；未冻结不改 Trace 产品代码 |
 | TI-M1-* | 基础轨迹 | TODO | 依赖 PREP-03 |
 
-下一项：收口 M2-A03/B01–B03 与 TI-M1 阶段验收；M3/M4 待 v0.8.0 闸门后再启动。不启动 M3 功能发布；不做登录认证。
+下一项：收口 M2-A03/B01–B03 与 TI-M1 阶段验收；M3/M4 待 v0.8.0 闸门后再启动。不启动 M3 功能发布；不做登录认证。M3 代码盘点见 [decision-stack-inventory](./evidence/m3/decision-stack-inventory.md)（影子栈已在树内，验收未关闭）。
 
 云端分支：`cursor/m2-v080-startup-5ade`（双主题、面包屑、Trace 契约与 TI-M1 初版）。
 
