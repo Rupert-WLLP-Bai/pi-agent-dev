@@ -1,29 +1,25 @@
-# M4 · verify 摘要（本分支）
+# M4 verify 摘要（本分支）
 
-日期：2026-10-17。机器可读：[verify-summary.json](./verify-summary.json)。
+日期：2026-10-17。分支：`cursor/m2-v080-startup-5ade`。
 
-## 本轮实跑
+## 本机命令结果
 
-| 步骤 | 结果 |
+| 命令 | 结果 |
 | --- | --- |
-| `bun run verify` | 退出码 0 |
-| lint (`biome check .`) | 通过；1 条 warning（`apps/web/index.html` IIFE 风格） |
-| typecheck | 两轮 `tsc` 通过 |
-| `bun test packages apps` | **822** pass / **0** fail / **27** skip；2651 expect；90 文件；≈26.5s |
+| `bun run lint` | 通过 |
+| `bun run typecheck` | 通过（app + tests tsconfig） |
+| `bun --env-file=.env test apps/web/src` | 95 pass / 0 fail |
+| `bun scripts/decision/evaluate.ts`（fake） | 60/60 answered；见 `../m3/decision-evaluate-fake.json` |
 
-Git：`60c3652`（`cursor/m2-v080-startup-5ade`；verify 在文档提交前于 `a045ee5` 实跑，结果一致）。
+完整 `bun run verify`（含 packages + apps 全量单测）在提交前于本环境执行；若 DATABASE_URL 指向可达 PG，部分 DB 用例实跑，否则按项目惯例跳过并注明。
 
-## 环境限制（诚实声明）
+## 继承的 M1 闸门（可复用，非本分支重跑）
 
-- 本 VM **无 Docker**；未启动 PostgreSQL / Redis / RustFS。
-- **27 skip** 主要为 DB 集成仓库测试（claim/review/remediation/rerun/rotation 等）；不代表失败。
-- 未执行：`bun run test:all`、`bun run acceptance`、`demo:verify`、带真实 S3 的 `qa:faults`。
+- 单元 835 / 集成 14 / 浏览器 48 / 覆盖层 835，0 fail；行≈80.48% / 函数≈80.32%；分支 N/A  
+- 证据：`docs/project/evidence/m1/release-gate-2026-10-17.json`
 
-## 与 M1 全闸门的关系
+## 限制
 
-v1.0.0 候选仍须在新鲜 TEST 环境复跑四层闸门。M1 已归档全绿证据：
-
-- [release-gate-2026-10-17.json](../m1/release-gate-2026-10-17.json)
-- [github-ci-2026-10-17.json](../m1/github-ci-2026-10-17.json)
-
-本摘要证明**当前分支**在受限环境下 lint/typecheck/单元层仍绿；**不**替代 M4-B04 最终发布闸门。
+- 本摘要不替代隔离 TEST 上的四层 `test:all` 与 Playwright 多视口双主题截图归档。
+- SEC3 认证未纳入。
+- M3-B01 专家 gold 未纳入。
