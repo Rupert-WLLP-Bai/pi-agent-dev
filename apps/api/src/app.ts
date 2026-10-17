@@ -5,7 +5,6 @@ import { FakeAuditAgent, PiAuditAgent } from "@contract-audit/pi-agent";
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { type AccessControlOptions, createAccessControl } from "./access-control";
 import { loadApiConfig, maxUploadBytes } from "./config";
 import { createDb, createRepository } from "./db/repositories";
 import { createRuleRepository } from "./db/rule-repository";
@@ -39,6 +38,7 @@ import {
   createCachedSubjectVerificationPort,
   type VerificationCache,
 } from "./qcc/cache";
+import { createRequestContext, type RequestContextOptions } from "./request-context";
 import { agentRunsRoutes } from "./routes/agent-runs";
 import { type AuditRouteDeps, auditCasesRoutes } from "./routes/audit-cases";
 import { contractsRoutes } from "./routes/contracts";
@@ -57,8 +57,8 @@ import { verificationsRoutes } from "./routes/verifications";
 import { AuditEventBroker } from "./sse";
 
 export type AppDeps = AuditRouteDeps & {
-  /** Shared-workspace token/session policy; injectable without mutating process env. */
-  access?: AccessControlOptions;
+  /** Request correlation, write-origin policy and sanitized access observations. */
+  requestContext?: RequestContextOptions;
   /** Independent shadow history; an in-memory store is used by isolated app tests. */
   decisions?: Omit<DecisionsRouteDeps, "caseExists">;
   /** Model-service persistence; absent falls back to the in-memory store (tests). */
@@ -186,7 +186,7 @@ export function createApp(deps: AppDeps) {
       if (status >= 500) return { error: "internal_error", requestId };
       return { error: String(code).toLowerCase(), requestId };
     })
-    .use(createAccessControl({ ...deps.access, webOrigin: config.webOrigin }))
+    .use(createRequestContext({ ...deps.requestContext, webOrigin: config.webOrigin }))
     .use(cors({ origin: config.webOrigin }))
     .use(auditCasesRoutes({ ...deps, maxUploadBytes }))
     .use(contractsRoutes({ repository: deps.repository }))
@@ -275,17 +275,8 @@ if (import.meta.main) {
   const config = loadApiConfig();
   if (process.env.APP_ENV === "demo" || process.env.APP_ENV === "production") {
     const encryptionSecret = process.env.LLM_KEY_ENCRYPTION_SECRET?.trim();
-    const accessToken = process.env.API_ACCESS_TOKEN?.trim();
     if (!encryptionSecret || encryptionSecret.length < 32) {
       throw new Error("LLM_KEY_ENCRYPTION_SECRET_REQUIRED_MINIMUM_32_CHARACTERS");
-    }
-    if (
-      !accessToken ||
-      accessToken.length < 32 ||
-      accessToken.length > 512 ||
-      /\s/u.test(accessToken)
-    ) {
-      throw new Error("API_ACCESS_TOKEN_REQUIRED_MINIMUM_32_CHARACTERS");
     }
   }
   const { db } = createDb(config.databaseUrl);
@@ -345,8 +336,27 @@ if (import.meta.main) {
   });
   await dispatcher.start();
   await decision.start();
-  process.once("SIGTERM", () => void decision.stop());
-  process.once("SIGINT", () => void decision.stop());
+  let shuttingDown = false;
+  const shutdown = async (): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const deadline = setTimeout(() => {
+      console.error("API_SHUTDOWN_TIMEOUT");
+      process.exit(1);
+    }, 5_000);
+    deadline.unref();
+    try {
+      await app?.stop(true);
+      await decision.stop();
+      // Termination closes DB/cache sockets; startup recovers interrupted runs.
+      process.exit(0);
+    } catch {
+      console.error("API_SHUTDOWN_FAILED");
+      process.exit(1);
+    }
+  };
+  process.once("SIGTERM", () => void shutdown());
+  process.once("SIGINT", () => void shutdown());
   app.listen(config.apiPort);
 }
 

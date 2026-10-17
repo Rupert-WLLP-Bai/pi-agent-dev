@@ -326,7 +326,6 @@ switch (command) {
   case "verify": {
     const env = await loadManagedDemoEnvironment(false);
     const base = env.apiOrigin;
-    const token = env.values.API_ACCESS_TOKEN ?? "";
     const failures: string[] = [];
     const check = async (name: string, body: () => Promise<void>) => {
       try {
@@ -337,32 +336,19 @@ switch (command) {
         console.error(`  ✗ ${name}：${error instanceof Error ? error.message : String(error)}`);
       }
     };
-    const authedGet = async (path: string) => {
-      const response = await fetch(`${base}${path}`, {
-        headers: token === "" ? {} : { authorization: `Bearer ${token}` },
-      });
-      return { response, body: await response.text() };
-    };
 
     console.log(`验证目标：${base}`);
     await check("必需组件与 Web 真实就绪", async () => {
       const issues = await checkLiveStack(env);
       if (issues.length > 0) throw new Error(issues.join("；"));
     });
-    await check("会话门禁报告认证状态", async () => {
-      const response = await fetch(`${base}/api/session`);
+    await check("无需登录即可读取审计队列", async () => {
+      const response = await fetch(`${base}/api/audit-cases`);
       if (!response.ok) throw new Error(`status ${response.status}`);
-      const parsed: unknown = await response.json();
-      if (
-        !isRecord(parsed) ||
-        parsed.authenticationRequired !== true ||
-        parsed.authenticated !== false
-      ) {
-        throw new Error("Demo 必须启用访问门禁，且匿名请求不能已认证");
-      }
+      if (!Array.isArray(await response.json())) throw new Error("审计队列响应不是案件列表");
     });
     await check("演示世界可读", async () => {
-      const { response } = await authedGet("/api/demo/world");
+      const response = await fetch(`${base}/api/demo/world`);
       if (!response.ok) throw new Error(`status ${response.status}`);
     });
     if (failures.length > 0) fail(`验证未通过：${failures.join("、")}`);

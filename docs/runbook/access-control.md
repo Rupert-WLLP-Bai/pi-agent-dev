@@ -1,36 +1,41 @@
-# 工作区访问与模型数据边界
+# 访问控制状态：认证延期（2026-10-17）
 
-本系统提供单工作区共享口令门禁。它保护审计记录、合同原件、SSE、规则与模型配置、影子建议；不提供个人账户、角色授权、SSO或多租户隔离。
+**状态**：单工作区身份认证（登录口令、Bearer、Cookie 会话、`/api/session` 路由）已由用户在 2026-10-17 明确指示**延期到最后实现**。当前 API 与 Web **没有任何认证强制**，本文不再描述已移除的登录/登出路由。
 
-## 启动与登录
+**这不是缺陷遗漏，也不是未完成项**：它是有意排期的范围决策。当前生产边界的事实是——任何能访问该服务地址的人都可以读写全部 API，包括案件、合同原件下载、SSE 事件流、规则与模型配置、影子建议。因此**部署必须自行做网络入口隔离**（内网/VPN/反向代理前置认证），不要把"系统自身无认证"当作"系统有防护"。
 
-设置随机、无空白的`API_ACCESS_TOKEN`，长度32–512字符。`APP_ENV=demo|production`必须配置；`development|test`可不配置，仅适用于可信本机。通过受保护的本地环境文件或容器secret注入，权限设为600，不写入仓库、URL或日志。API和Web应通过同一站点或开发代理访问。
+## 当前仍生效的控制（与认证无关，不得放宽）
 
-- `GET /api/session`返回`{authenticationRequired,authenticated}`。健康检查与会话入口无需凭证。
-- `POST /api/session`提交`{token}`，成功创建8小时HttpOnly、SameSite=Strict Cookie `audit_session`。production设置Secure，须使用HTTPS。错误口令返回401。
-- `DELETE /api/session`返回204，服务端撤销该会话并清除Cookie；立即结束该会话已建立的SSE并取消上游订阅。8小时到期也会主动结束SSE，无需另一客户端请求。捕获旧Cookie不能在登出后再次访问。
-- 自动化客户端可通过`Authorization: Bearer <token>`访问。不要把口令放入查询参数。`X-Operator`只用于操作归属记录，不能授权。
+- **跨站写入拒绝**：非本站点且不匹配配置 `WEB_ORIGIN` 的 `Origin` 一律拒绝。`WEB_ORIGIN` 必须固定为实际受控 Web 源。
+- **操作归属标注 `X-Operator`**：只记录操作者，**不是认证**。actor 校验为去空白、长度 ≤128，否则回落 `anonymous`。
+- **请求日志脱敏**：`api_access`记录关联ID、方法、路由模板、状态、耗时；不记录请求体、原文、Authorization/Cookie、查询参数、资源ID或模型密钥。未知路由以`<unmatched>`记录。
+- **凭据密封与最小暴露**：模型服务与 OCR key 密封存储、不随 API 返回、不进日志；demo/production 启动前校验 `LLM_KEY_ENCRYPTION_SECRET` ≥32。
+- **出网与数据边界**：`LLM_INTERNAL_DATA_ORIGINS` 精确 origin 白名单（默认空）；原始合同默认不出网；模型输入最小化脱敏。
+- **存储 locator 归属**：原件读取按 Source Record 查库解析内部引用，不接受任意 `s3://` 或路径参数。
+- **演示世界守卫**：重置仅限 demo/test、库身份登记、明确确认、保留非 demo 哨兵。
 
-Cookie中是随机会话标识，服务端仅保存其SHA-256摘要。应用重启会撤销全部会话；同时最多256个有效会话。该实现仍要求单应用实例，不能声称跨副本会话一致。替换`API_ACCESS_TOKEN`后重启API可轮换访问凭证并撤销旧会话。浏览器不在localStorage保存口令。
+## 历史记录（保留，不改写）
 
-跨站写入拒绝非本站点且不匹配配置`WEB_ORIGIN`的Origin。`WEB_ORIGIN`须固定为实际受控Web源。部署仍应限制网络入口并终止HTTPS；共享口令持有人拥有整个工作区权限。
+2026-10-15 前后曾实现并实测单工作区口令门禁：`API_ACCESS_TOKEN`（32–512 字符，无空白）启用 Bearer 与 HttpOnly 会话，`GET/POST/DELETE /api/session` 登录/登出，8 小时会话、SHA-256 摘要、登出与到期关闭已建立 SSE。历史证据保持原样：
 
-## 访问日志
+- `docs/project-management/evidence/s2-security.json`（匿名 401/授权 200/登出 204/重放 401）
+- `docs/project-management/evidence/sse-revocation-smoke.json`（登出即关闭流、到期 249 ms 关闭）
+- `docs/project-management/evidence/security-review.json`
 
-`api_access`记录请求关联ID、HTTP方法、路由模板、状态、耗时和是否通过门禁。不记录请求体、原文、Authorization/Cookie、查询参数、资源ID或模型密钥。未知路由以`<unmatched>`记录。日志由部署端限制读取，按组织留存策略轮转；应用不把日志另存入业务审计表。业务复核与整改历史继续使用已有追加记录，访问日志不能替代业务记录。
+这些证明**当时的实现曾通过验证**；2026-10-17 延期决定后该实现已从当前代码移除，**不得**再把上述证据当作当前行为引用，也不得据此声称系统当前有访问门。
 
-轨迹持久化、主体核验缓存和Redis连接失败只输出固定事件码；轨迹日志可包含run ID与步骤序号。底层错误对象可能携带SQL参数、合同片段或连接凭据，因此不直接打印。可选Redis使用1.5秒连接超时并关闭自动重连；首次连接失败返回禁用缓存，主体核验继续直连，恢复Redis后重启API恢复缓存。实际不可达端口smoke与隐私回归见[缓存故障证据](../project-management/evidence/cache-failure-smoke.json)。
+## legacy 变量口径
 
-## 模型数据
+`API_ACCESS_TOKEN`已从当前配置模板及演示脚本移除。历史文档中的该变量对当前API无效果；现有受管配置中遗留该值也不会启用门禁。未来是否复用该名称由重新实施时决定。
 
-`LLM_INTERNAL_DATA_ORIGINS`是允许处理原始内部合同的精确origin列表，逗号分隔，默认空。必须包含协议、主机及实际端口，不能附带`/v1`路径、查询、用户凭据或fragment。例如受控私有服务可填`https://model.intranet.example:8443`。该设置是管理员的数据处理授权，不是供应商隐私能力证明。
+## 未来实现认证时的最低要求（排期恢复时评估）
 
-loopback网关本身可能再转发到外部，因此`http://127.0.0.1:3425`不会自动取得处理真实合同的权限。默认仅放行内容hash与内置合成合同目录匹配的文档；服务端重新计算规范文本hash，不接受调用者伪报的DEMO标记或hash。附带真实外部核验或历史人工复核数据时，不享有合成文档豁免。被拒绝时返回稳定执行错误`MODEL_DATA_OUTBOUND_FORBIDDEN`，不发送模型请求。
+以下为历史经验沉淀的验收要求，供将来实现时直接引用，不表示当前已做：
 
-服务端在运行上下文写入`subjectVerificationProvider`，包括未成功核验且没有外部Evidence Locator的情况。带主体评估的上下文只有明确来自`qcc-fixture`才享有合成豁免；真实来源和缺少该字段的旧上下文都需显式内部origin授权。已持久化快照不回写。面向模型的主体basis只说明不可用状态，不拼接上游失败详情；MCP传输错误只返回固定码。
-
-真实Pi演示使用指定网关`http://127.0.0.1:3425/v1`与模型`panda-local/cqmoma/cqcm/deepseek-v4-flash`，只发送未修改的标准合成合同。Pi模型HTTP请求禁止重定向；配置的模型地址不能把合同和工具输出带往另一origin。Laya使用独立本地origin允许列表、最小脱敏输入、明确来源和未校准标记，规则与正式发现的权限保持独立。
-
-## 已执行验证
-
-S2门禁切片已执行9项行为测试，涵盖匿名读取拒绝、Bearer、登录、Cookie保护属性、过期/伪造、登出撤销、已建立SSE的撤销/到期、跨站写入拒绝和日志字段。另使用真实HTTP监听与独立已迁移PostgreSQL验证：匿名案件列表401，会话发现200，登录200，授权案件列表200，登出204，撤销Cookie重放401。后续真实HTTP流smoke证明登出即关闭、250毫秒剩余会话在观测249毫秒后结束、重放返回401；见[SSE证据](../project-management/evidence/sse-revocation-smoke.json)及[审查与回归](../project-management/evidence/security-review.json)。完整集成、浏览器及部署验收由S3报告提供；这里不把共享口令描述成生产身份治理完成。
+1. 单工作区共享口令门 ≠ SSO/RBAC/多租户；文档不得宣称个人账户或角色授权。
+2. 认证必须覆盖全部业务 API（含 SSE、原件下载、影子详情、规则与模型配置），不得只保护前端页面。
+3. 口令不进 URL、查询参数、日志、公开 health、localStorage；Cookie 须 HttpOnly + SameSite + production Secure。
+4. 会话须服务端可撤销（登出、过期、重启、口令轮换都要使既有连接失效），并主动关闭已建立的 SSE，不能只拦后续 HTTP 请求。
+5. 匿名拒绝与授权访问都要有可复跑证据；失败码稳定（401 与 404 可区分）。
+6. 跨站写入拒绝与 `X-Operator` 归属校验是认证之外必须保留的层，不因登录态存在而省略。
+7. 单实例假设下的会话一致性限制必须写进文档（多副本需重新评估）。

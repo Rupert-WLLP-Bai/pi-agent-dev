@@ -15,7 +15,7 @@ test("generated demo credentials stay private and stable across repeated launche
     const first = await loadManagedDemoEnvironment(true);
     const second = await loadManagedDemoEnvironment();
     expect((await stat(first.path)).mode & 0o777).toBe(0o600);
-    expect(first.values.API_ACCESS_TOKEN === second.values.API_ACCESS_TOKEN).toBe(true);
+    expect(first.values.S3_SECRET_KEY).toBe(second.values.S3_SECRET_KEY);
     expect(first.values.POSTGRES_PASSWORD === second.values.POSTGRES_PASSWORD).toBe(true);
     expect((first.values.LLM_KEY_ENCRYPTION_SECRET?.length ?? 0) >= 32).toBe(true);
   } finally {
@@ -25,21 +25,21 @@ test("generated demo credentials stay private and stable across repeated launche
   }
 });
 
-test("demo command logs exclude S3 credentials access tokens and database passwords", () => {
+test("demo command logs exclude S3 credentials provider tokens and database passwords", () => {
   const values = {
     POSTGRES_PASSWORD: "SYNTHETIC_DATABASE_PASSWORD_6258",
     S3_SECRET_KEY: "SYNTHETIC_S3_SECRET_7246",
-    API_ACCESS_TOKEN: "SYNTHETIC_ACCESS_TOKEN_8362",
+    QCC_TOKEN: "SYNTHETIC_PROVIDER_TOKEN_8362",
     LLM_KEY_ENCRYPTION_SECRET: "SYNTHETIC_ENCRYPTION_SECRET_1937",
   };
   const log = redactDemoOutput(
     "source=synthetic-id postgres://user:SYNTHETIC_DATABASE_PASSWORD_6258@localhost/demo " +
-      "SYNTHETIC_S3_SECRET_7246 SYNTHETIC_ACCESS_TOKEN_8362 SYNTHETIC_ENCRYPTION_SECRET_1937",
+      "SYNTHETIC_S3_SECRET_7246 SYNTHETIC_PROVIDER_TOKEN_8362 SYNTHETIC_ENCRYPTION_SECRET_1937",
     values,
   );
   expect(log).not.toContain(values.POSTGRES_PASSWORD);
   expect(log).not.toContain(values.S3_SECRET_KEY);
-  expect(log).not.toContain(values.API_ACCESS_TOKEN);
+  expect(log).not.toContain(values.QCC_TOKEN);
   expect(log).not.toContain(values.LLM_KEY_ENCRYPTION_SECRET);
   expect(log).toContain("source=synthetic-id");
 });

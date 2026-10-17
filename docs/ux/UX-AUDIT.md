@@ -47,15 +47,13 @@
 | `apps/web/src/decision-presentation.ts` | 新增。影子建议的呈现规则：状态/提供方/任务类型标签、答案呈现、原始分布、置信与校准（区分集中度/自评分/无、未经校准/不可用/已校准+阈值）、同命题分歧、证据锚点、失败原因翻译、空/关闭态区分。 |
 | `apps/web/src/components/decision-advice-panel.tsx` | 新增。只读决策面板：列表 + 详情 + 独立评估反馈；每个影子表面都带「仅用于评估，不改变审计结论」声明。 |
 | `apps/web/src/routes/decision-advice.tsx` | 新增。按案件读取建议列表与详情；反馈幂等键按操作生成、失败时保留以复用。 |
-| `apps/web/src/session.ts` | 新增。访问口令登录/退出与门禁状态查询；口令只进请求体，不落 `localStorage`、不进 URL。 |
-| `apps/web/src/components/access-gate.tsx` | 新增。口令输入页（`type=password`、可读错误、无法确认状态时不加载业务数据）。 |
-| `apps/web/src/components/app-shell.tsx` | 门禁未通过时只渲染口令页，健康查询加 `enabled` 门禁；已登录且需要口令时顶栏显示「退出登录」；导航选中与面包屑支持 `/audit-cases/$id/decisions`。 |
+| `apps/web/src/components/app-shell.tsx` | 2026-10-17按用户要求移除登录与会话查询，直接加载导航、业务页面和健康状态；保留辅助决策导航与面包屑。 |
 | `apps/web/src/components/audit-case-workbench.tsx` | 案件头新增「辅助决策」入口；≤767px 三栏切换器。 |
 | `apps/web/src/api.ts` | 新增决策列表/详情/反馈三个客户端函数，使用冻结的 `@contract-audit/audit/decision` DTO；错误按 `DecisionApiError` 版本化契约解码（404/409 可区分）。 |
 | `apps/web/src/app.tsx` | 注册 `/audit-cases/$id/decisions` 路由。 |
 | `apps/web/src/audit-presentation.ts` | 新增 `describeRunError`。 |
 | `apps/web/src/routes/audit-trace.tsx` | 失败运行使用中文说明。 |
-| `apps/web/src/styles.css` | 移动端三栏切换、决策面板、口令页样式。 |
+| `apps/web/src/styles.css` | 移动端三栏切换与决策面板；2026-10-17删除口令页样式。 |
 
 ## 4. 影子建议的呈现不变量
 
@@ -70,30 +68,23 @@
 7. **幂等**：一次操作生成一个 `Idempotency-Key`，网络重试复用同一键；请求失败不清除键，避免重复追加；下一次操作生成新键。
 8. **来源可读**：提供方显示为「离线演示（Fake）」/「本地 Laya CPU」+ 模型版本，Fake 不被表述为实时模型记录。
 
-## 5. 访问口令门禁（SEC3 UX 部分）
+## 5. 直接进入工作台
 
-- 壳层在 `GET /api/session` 返回 `authenticationRequired: true` 且未认证时，只渲染口令页：不挂载导航、不发起任何业务查询。
-- 口令通过 `POST /api/session` 请求体提交，会话由服务端写入 HttpOnly Cookie；前端不保存、不读取口令，URL 不含口令。
-- 无法读取会话状态时（网络故障/响应格式不符）按「未授权」处理并提示，不按「无门禁」放行。
-- 退出登录调用 `DELETE /api/session`，随后失效会话查询，壳层回到口令页。
+2026-10-17用户要求移除登录口令，将认证留到项目后期。当前壳层直接渲染业务页面，不查询会话、不显示登录或退出控件。原会话方案及历史截图不能作为当前能力说明。
 
-**未实现（明确不在本轮）**：RBAC、SSO、多用户体系。该门禁是单工作区访问控制，`X-Operator` 仍只是操作归属而非认证。
+`X-Operator`继续只记录操作归属。请求来源检查、脱敏日志、密钥加密及模型出网约束保留；身份认证、RBAC、SSO均不属于当前能力。
 
 ## 6. 需要 Main 执行的浏览器验证
 
 以下为建议场景与判定标准。本文未运行这些检查；运行结果由 Main 记录。
 
-### 6.1 会话与门禁
+### 6.1 无需登录的业务入口
 
 | # | 场景 | 步骤 | 判定 |
 | --- | --- | --- | --- |
-| S1 | 匿名拒绝 | 配置 `API_ACCESS_TOKEN` 启动；不带 Cookie 请求 `GET /api/audit-cases`、`GET /api/audit-cases/:id/decisions`、SSE、原件下载 | 全部 401，响应体为 `{schemaVersion:1,error:"authentication_required",requestId}` |
-| S2 | 门禁页 | 浏览器访问 `/audit-cases` | 只见「访问口令」页；无导航、无队列内容；口令框 `type=password` |
-| S3 | 错误口令 | 输入错误口令提交 | 显示「访问口令不正确，请重新输入」；仍停在口令页 |
-| S4 | 登录成功 | 输入正确口令 | 进入工作台；`/api/audit-cases` 等恢复 200 |
-| S5 | 登出 | 已登录状态点「退出登录」 | 回到口令页；再请求受保护接口为 401 |
-| S6 | 撤销 | 服务端重启或会话过期后刷新 | 回到口令页，不展示陈旧业务数据 |
-| S7 | 无门禁部署 | 不配置 `API_ACCESS_TOKEN`（development/test）启动 | 直接进入工作台，无口令页；接口无需登录 |
+| S1 | 新会话直达 | 全新浏览器打开 `/audit-cases` | 直接显示导航和真实审计队列，可新建案件；没有登录中间页 |
+| S2 | API直接读取 | 无Cookie或Authorization请求案件列表 | 返回真实案件列表，不要求登录 |
+| S3 | 刷新与深链接 | 刷新驾驶舱、案件详情及轨迹页 | 页面直接加载；不请求已移除的会话接口 |
 
 ### 6.2 影子建议界面
 
@@ -139,7 +130,6 @@
 | decision-off.png / decision-empty.png | 1440×900 | 关闭态与空态两种可区分文案 |
 | decision-detail.png | 1440×900 | 成功建议详情：来源、答案、置信与校准、证据 |
 | decision-feedback.png | 1440×900 | 反馈提交后的反馈列表 |
-| access-gate.png | 1440×900 | 口令页 |
 | review-remediation.png | 1440×900 | 复核中心与整改看板 |
 
 截图命名与存放目录由 Main 在集成时统一（建议 `docs/ux/screenshots/`）。本文不声称已生成这些截图。
@@ -148,8 +138,8 @@
 
 - **Ant Design 6 / React 19 体系保持不变**（F2）。改造只复用现有 `Layout`/`Menu`/`Table`/`Drawer`/`Alert`/`Tag`/`Segmented` 与 CSS 变量，未引入新组件库或迁移框架。
 - **既有验收规格未改**（`tests/acceptance/*.spec.ts` 中除本次新增两个文件外的内容）。既有用例由 QA 与 Main 维护，避免跨 Agent 冲突。
-- **后端路由、DTO、schema 未改**。决策客户端使用冻结的 `@contract-audit/audit/decision` 类型；服务端路由由 AI 组装、访问门禁由 Main 组装，本文不预设其文件内容。
-- **未新增环境变量**。门禁与影子模式的配置由 Main/Infra/QA 负责。
+- **后端路由、DTO、schema由对应实现负责人维护**。决策客户端继续使用冻结的领域类型；2026-10-17认证延期，当前不存在口令或会话接口。
+- **未新增环境变量**。登录口令变量已从当前配置模板及演示工具移除。
 
 ## 9. 已知限制
 

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-17T14:40:13.941Z",
+  "request": "2026-10-17 user deferred authentication until the final project stage",
+  "development": {
+    "responses": [
+      {
+        "path": "/api/health",
+        "status": 200
+      },
+      {
+        "path": "/api/audit-cases",
+        "status": 200,
+        "caseCount": 0
+      },
+      {
+        "path": "/api/session",
+        "status": 404,
+        "error": "not_found"
+      }
+    ],
+    "navigationVisible": true,
+    "loginVisible": false,
+    "logoutVisible": false,
+    "businessHeadingVisible": true,
+    "pageErrors": false
+  },
+  "deployed": {
+    "web": "http://127.0.0.1:28080",
+    "api": "http://127.0.0.1:23002",
+    "health": 200,
+    "caseList": 200,
+    "removedSession": 404,
+    "loginVisible": false,
+    "auditCaseId": "78b0b303-e3f7-410f-9739-a46b7b093fb6",
+    "sourceRecordId": "400b3853-9893-4e98-b57a-559d6b1e867c",
+    "agent": "Fake (deterministic replay)",
+    "expectedFindings": [
+      "ADVANCE_PAYMENT_LIMIT",
+      "DISPUTE_JURISDICTION"
+    ],
+    "confirmedFindings": 2,
+    "createdRemediations": 2,
+    "foreignWriteStatus": 403
+  },
+  "shutdownUnderDatabaseLock": [
+    {
+      "version": "before",
+      "signal": "SIGTERM",
+      "exited": false,
+      "code": null,
+      "durationMs": 6795,
+      "stillServing": true,
+      "timeoutLogged": false
+    },
+    {
+      "version": "after",
+      "signal": "SIGTERM",
+      "exited": true,
+      "code": 1,
+      "durationMs": 5511,
+      "stillServing": false,
+      "timeoutLogged": true
+    },
+    {
+      "version": "after",
+      "signal": "SIGINT",
+      "exited": true,
+      "code": 1,
+      "durationMs": 5511,
+      "stillServing": false,
+      "timeoutLogged": true
+    }
+  ],
+  "remainingControls": [
+    "write-origin checks",
+    "request correlation and sanitized access events",
+    "operator attribution",
+    "sealed provider/OCR credentials",
+    "model egress policy",
+    "storage locator ownership",
+    "demo environment ownership"
+  ],
+  "limitations": [
+    "Authentication/RBAC/SSO remain deferred.",
+    "No real model run was performed in this smoke.",
+    "PostgreSQL maintenance timeout exits with code 1 and a sanitized diagnostic."
+  ]
+}

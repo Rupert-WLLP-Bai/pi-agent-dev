@@ -5,8 +5,9 @@ import { expect, type Page, test } from "@playwright/test";
  *
  * These specs walk the real product surface: upload → evidence → review →
  * remediation, the 375px review-accessibility defect that hid the risk list and
- * the review actions, desktop widths, and the workspace access gate. They use
- * role/label locators and measure what is actually rendered.
+ * the review actions, desktop widths, and the fresh-browser direct entry into
+ * the workspace. They use role/label locators and measure what is actually
+ * rendered.
  *
  * Screenshots and load measurements are the evidence this suite produces; the
  * assertions themselves never claim an improvement they did not observe.
@@ -36,15 +37,6 @@ async function createDemoAudit(page: Page) {
   await expect(
     page.locator(".finding-list").getByText("预付款比例超过制度上限", { exact: true }),
   ).toBeVisible({ timeout: 15000 });
-}
-
-/** The gate state, read exactly as the shell reads it. */
-async function readSession(page: Page): Promise<{
-  authenticationRequired: boolean;
-  authenticated: boolean;
-}> {
-  const response = await page.request.get("/api/session");
-  return (await response.json()) as { authenticationRequired: boolean; authenticated: boolean };
 }
 
 test.describe("上传→证据→复核→整改", () => {
@@ -173,59 +165,5 @@ test.describe("辅助决策入口", () => {
     // Whatever the server holds, the state is explicit: an empty reason or items.
     const panel = page.locator(".decision-panel");
     await expect(panel).toBeVisible();
-  });
-});
-
-test.describe("工作区访问口令", () => {
-  test("未授权时受保护接口返回 401，会话接口说明门禁状态", async ({ page }) => {
-    await assertApiReachable(page);
-
-    const session = await readSession(page);
-    expect(typeof session.authenticationRequired).toBe("boolean");
-    expect(typeof session.authenticated).toBe("boolean");
-
-    // The gate is consistent: either it is off, or the browser is not in.
-    if (session.authenticationRequired) {
-      const protectedRead = await page.request.get("/api/audit-cases");
-      expect(protectedRead.status()).toBe(401);
-    }
-  });
-
-  test("未登录时壳层显示访问口令页面，不加载业务数据", async ({ page }) => {
-    const session = await readSession(page);
-    test.skip(!session.authenticationRequired, "该部署未启用访问口令");
-
-    await page.goto("/audit-cases");
-
-    // The gate replaces the shell: no navigation, no queue content.
-    await expect(page.getByRole("heading", { name: "访问口令" })).toBeVisible();
-    await expect(page.getByLabel("访问口令")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "主导航" })).toBeHidden();
-
-    // The passphrase field is masked, so the value is not readable on screen.
-    const inputType = await page.getByLabel("访问口令").evaluate((el) => el.getAttribute("type"));
-    expect(inputType).toBe("password");
-
-    // No credential is kept in storage or the URL.
-    const stored = await page.evaluate(() => ({
-      local:
-        window.localStorage.getItem("audit_session") ?? window.localStorage.getItem("access-token"),
-      url: window.location.href,
-    }));
-    expect(stored.local).toBeNull();
-    expect(stored.url).not.toContain("token=");
-  });
-
-  test("错误口令给出可读提示且不进入工作台", async ({ page }) => {
-    const session = await readSession(page);
-    test.skip(!session.authenticationRequired, "该部署未启用访问口令");
-
-    await page.goto("/audit-cases");
-    await page.getByLabel("访问口令").fill("definitely-not-the-passphrase");
-    await page.getByRole("button", { name: "进入工作台" }).click();
-
-    // A readable error, and the shell still does not appear.
-    await expect(page.getByText("访问口令不正确，请重新输入")).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "主导航" })).toBeHidden();
   });
 });

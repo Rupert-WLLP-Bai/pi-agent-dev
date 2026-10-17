@@ -375,6 +375,7 @@ export class AuditQueueRepository {
    */
 
   async getCase(caseId: string): Promise<AuditCase | null> {
+    if (!UUID_PATTERN.test(caseId)) return null;
     const [row] = await this.db.select().from(auditCases).where(eq(auditCases.id, caseId)).limit(1);
     return row ? toCase(row) : null;
   }

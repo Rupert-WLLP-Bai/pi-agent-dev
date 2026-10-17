@@ -8,20 +8,20 @@
 | 档位 | 用途 | 需要的凭据 | 对象存储 | 决策影子 |
 | --- | --- | --- | --- | --- |
 | minimal | 本地开发、离线演示 | 无 | 本地目录 `UPLOAD_DIR` | `off` |
-| full | 完整演示、集成验收 | 访问口令 + 加密密钥（各 ≥32 字符） | RustFS（严格模式） | 显式开启 |
+| full | 完整演示、集成验收 | 加密密钥（≥32 字符） | RustFS（严格模式） | 显式开启 |
 
-选择方式由环境变量决定，不需要改文件：
+`demo:up`始终读取受管环境文件（默认`.demo.env`），启动PostgreSQL、Redis、严格RustFS和API/Web；行内环境变量不会改写该文件。首次使用时脚本自动生成独立凭据。
 
 ```bash
-# minimal：无模型凭据，fake 审计代理，原件落本地磁盘
-APP_ENV=development AUDIT_AGENT_MODE=fake S3_ENDPOINT= bun --env-file=.env scripts/demo/cli.ts up
+# minimal：主机API；先准备PostgreSQL；Web在另一个终端运行
+APP_ENV=development AUDIT_AGENT_MODE=fake SUBJECT_VERIFICATION_MODE=fixture S3_ENDPOINT= bun --env-file=.env apps/api/src/app.ts
+bun --filter @contract-audit/web dev
 
-# full：容器内跑完整栈，对象存储与访问门禁都生效
-APP_ENV=demo bun --env-file=.demo.env scripts/demo/cli.ts up
+# full：受管容器栈，默认Fake审计、决策影子关闭，无需模型凭据
+bun run demo:up
 ```
 
-`minimal` 不需要任何密钥即可跑通上传、审计、复核、整改全流程：`AUDIT_AGENT_MODE=fake` 使用确定性的
-演示代理，`S3_ENDPOINT` 留空时原件写入 `UPLOAD_DIR`。
+真实模型与影子能力需在受管环境文件或系统设置中显式配置。当前无登录步骤：默认受管Web地址为`http://127.0.0.1:18080`（以文件中的`WEB_PORT`为准），浏览器直接进入业务页面。应用口令变量已从模板及工具移除，遗留值无效果；认证安排见[当前边界](../runbook/access-control.md)。
 
 ## 2. 必备环境变量
 
@@ -31,7 +31,6 @@ APP_ENV=demo bun --env-file=.demo.env scripts/demo/cli.ts up
 | 变量 | 要求 | 说明 |
 | --- | --- | --- |
 | `APP_ENV` | `demo` 或 `production` 时强制校验 | 同时决定演示重置是否被允许（仅 `demo`/`test`）与对象存储默认是否严格 |
-| `API_ACCESS_TOKEN` | ≥32 字符 | 除 `/api/health` 与 `/api/session` 外的所有 API 路径都要求 Bearer 或 HttpOnly 会话 |
 | `LLM_KEY_ENCRYPTION_SECRET` | ≥32 字符 | 封存模型服务与 OCR 凭据的密钥；轮换见 `docs/runbook/key-rotation.md` |
 | `DEMO_ENVIRONMENT_ID` | 已注册 | 演示环境标识 |
 | `DEMO_DATABASE_NAME` | 与 `current_database()` 一致 | 目标库身份 |
@@ -129,7 +128,7 @@ RESTORE_DATABASE_NAME=contract_audit_restore \
 
 - 真实 RustFS 的上传/下载/哈希/重启持久化/凭据错误/对象缺失/重复上传矩阵。
 - 连续两次 `reset` 的非演示哨兵与计数保持、孤儿计数为 0。
-- `docker compose --build` 在 `APP_ENV=demo` 下的实际启动（含 ≥32 字符口令校验）。
+- `docker compose --build` 在 `APP_ENV=demo` 下的实际启动（含加密 secret 校验）。
 - `minimal` 与 `full` 两档的真实启动耗时。
 - `backup` / `restore` 的一次完整往返（含目标已存在时的拒绝路径）。
 - `ready` 的完整就绪演练（两次 reset 对比、非演示哨兵保护、API 应答与孤儿检查）。

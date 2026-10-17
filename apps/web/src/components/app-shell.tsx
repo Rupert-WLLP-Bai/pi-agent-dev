@@ -23,8 +23,6 @@ import { useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 import { readOperator } from "../operator";
-import { sessionAllowsQueries, useSession, useSessionActions } from "../session";
-import { AccessGate } from "./access-gate";
 
 const { Sider, Header, Content } = Layout;
 
@@ -238,18 +236,12 @@ export function AppShell() {
   const location = useLocation();
   const origin = readOrigin(location.search);
 
-  const session = useSession();
-  const { login, logout } = useSessionActions();
-  // Protected queries stay withheld until the gate answers: an unresolved
-  // session (still loading, or the endpoint itself failing) must not be read
-  // as "no gate", because the server is going to refuse those queries anyway.
-  const queriesAllowed = sessionAllowsQueries(session.data);
-
+  // The shell asks the API for health directly: there is no access gate to
+  // answer first, so a fresh browser reaches business data on its own.
   const healthQuery = useQuery({
     queryKey: ["api-health"],
     queryFn: getApiHealth,
     refetchInterval: 30_000,
-    enabled: queriesAllowed,
   });
   const health = healthQuery.data?.status ?? "checking";
   const showHealth = health !== "ok";
@@ -277,19 +269,6 @@ export function AppShell() {
       />
     </nav>
   );
-
-  // The gate renders instead of the shell while a passphrase is required and
-  // missing, so no protected query is mounted and no route content is shown.
-  if (session.data?.authenticationRequired === true && !session.data.authenticated) {
-    return (
-      <AccessGate
-        pending={login.isPending}
-        error={login.error instanceof Error ? login.error.message : null}
-        unreachable={session.isError}
-        onSubmit={(passphrase) => login.mutate(passphrase)}
-      />
-    );
-  }
 
   return (
     <Layout className="app-shell">
@@ -351,16 +330,6 @@ export function AppShell() {
                 <span aria-hidden="true" className="health-indicator__dot" />
                 {healthLabels[health]}
               </span>
-            )}
-            {session.data?.authenticationRequired === true && session.data.authenticated && (
-              <Button
-                size="small"
-                loading={logout.isPending}
-                onClick={() => logout.mutate()}
-                aria-label="退出登录"
-              >
-                退出登录
-              </Button>
             )}
             <Avatar size={28} style={{ background: "#1D4E79" }}>
               审

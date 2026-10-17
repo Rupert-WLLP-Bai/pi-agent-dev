@@ -8,6 +8,7 @@
 - **领域**：Contract Document IR、Fact Builder、19 条确定性规则、Contract Stance、Proposal Guard、证据 locator（码点区间）、Audit Snapshot 不可变、Finding Revision 追加。
 - **Agent**：六工具白名单；资源发现关闭；thinking `off`；轨迹含嵌套调用与轮次 token（ADR-0004/0005）。
 - **影子（S2）**：DecisionRequest/Advice/Feedback 契约 + TypeBox 校验；provider disabled/fake/laya-cpu；默认 off；持久化/worker/决策 UI 已随切片合并（`a6ec041`、`cc942b2`）；本地 Laya CPU 冒烟通过（单样本）。off/shadow 对照与详情授权回归在 S3。
+- **访问控制（2026-10-17）**：认证（登录口令、Bearer、Cookie 会话、`/api/session`）已延期到最后实现；当前无任何认证强制，仍保留跨站写入拒绝、`X-Operator` 归属标注、日志脱敏、凭据密封、出网与 locator 边界。
 
 ## 2. 关键工程决策与代价
 
@@ -17,7 +18,7 @@
 | 参数版本化而非规则 DSL | 发布门禁可执行、golden 回归可复用 | 加规则必须改代码 |
 | PG `SKIP LOCKED` 队列 | 无新基础设施 | 单实例假设；多副本需重新评估 |
 | RustFS + 本地回退（仅开发 opt-in） | 数据不出域可选、写入结果诚实 | 严格模式（demo/production）下 S3 故障即失败；两套后端行为需分别验证 |
-| 访问门（口令） | 演示/内网可用、实现轻 | 非 RBAC/SSO；无审计到人 |
+| 访问控制 | **已延期（2026-10-17 用户指示）**：无登录/Bearer/session 强制，部署靠网络入口隔离 | 实现与维护成本低；当前边界必须如实写明 | 无身份认证，任何人可访问地址即可读写全部 API；历史口令门实测（`s2-security.json`）只作历史记录 |
 | 影子默认 off + 未校准标记 | 不污染正式结论 | 影子价值需 S2 完成后评估 |
 | 不做 RAG/K8s/OTel | 复制成本低 | 大规模检索/编排场景不覆盖 |
 
@@ -27,7 +28,7 @@
 | --- | --- | --- |
 | 单测/typecheck/lint | commit `b2033e1`（Main 记录） | 693 通过/0 失败，78 文件；S2 五切片合并后集成检查点 `a849b29` 835 通过/0 失败（Main 观察；其后未提交决策契约修订待收尾，最终以 S3 为准） |
 | 分层测试/覆盖率基线 | `de7ea2d` | 冻结基线 670/0；行 81.1%/函数 82.8%；分支不可测（Bun LCOV 无 BRDA） |
-| 访问门/SSE 吊销 | `evidence/s2-security.json`、`evidence/sse-revocation-smoke.json` | 匿名 401/授权 200/登出 204/重放 401；登出关闭流；到期前 250 ms 的流在 249 ms 关闭，无原始错误日志 |
+| 访问门/SSE 吊销（**历史记录**） | `evidence/s2-security.json`、`evidence/sse-revocation-smoke.json` | 匿名 401/授权 200/登出 204/重放 401；登出关闭流；到期前 250 ms 的流在 249 ms 关闭，无原始错误日志。**2026-10-17 认证延期后该实现已移除**：当前无登录/Bearer/session，这两份只证明延期前实现曾通过验证 |
 | 安全评审修复 | `evidence/security-review.json` | QCC 固定错误码且模型 basis 无原始诊断；`subjectVerificationProvider` 仅授权 fixture 上下文 |
 | 真实 Pi 单样本 | `docs/project-management/evidence/real-pi-smoke.json` | 29727 ms、42 步骤、Guard 通过；provenance 守卫后复跑 30365 ms（`b2033e1`） |
 | Laya CPU 单样本 | `docs/project-management/evidence/laya-cpu-smoke.json` | 642 ms、未校准、cpu/线程 4 |
@@ -52,10 +53,10 @@
 
 1. **基础设施**：PostgreSQL 18；可选 RustFS/任意 S3；可选 Redis；Docker + Compose。
 2. **模型**：任一 OpenAI 兼容网关（Pi）；视觉模型端点（OCR vlm）或 MinerU 4.x 服务；本地 Laya（影子，可选）。
-3. **配置**：`.env.example` 全量注释；demo/production 需 `API_ACCESS_TOKEN` 与 ≥32 位加密 secret。
+3. **配置**：`.env.example` 全量注释；demo/production 需 ≥32 位加密 secret（`LLM_KEY_ENCRYPTION_SECRET`）。**`API_ACCESS_TOKEN` 是 legacy 变量，对当前 API 无效果**：认证已延期（2026-10-17），不设置也能启动。
 4. **规则适配**：参数可配；新规则需开发 + golden 案例（工作量按规则计）。
 5. **数据**：演示用合成；生产接入需评估出网策略与脱敏需求。
-6. **不做**：不提供多租户/SSO；不承诺生产合规认证。
+6. **不做**：不提供多租户/SSO；不承诺生产合规认证；**当前不提供身份认证**（登录/Bearer/session 已延期到最后实现，2026-10-17 用户指示），部署需自行网络隔离。
 
 ## 6. 已知限制（复制方必须知道）
 

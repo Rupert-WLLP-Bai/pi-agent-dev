@@ -81,18 +81,29 @@ const upload = (app: AuditApp, filename: string, mimeType: string, data: Uint8Ar
 
 test("an oversized upload is refused with 413 without being parsed", async () => {
   const { app, dispatcher } = setup();
+  app.listen({ hostname: "127.0.0.1", port: 0 });
+  try {
+    const port = app.server?.port;
+    if (port === undefined) throw new Error("upload test server did not start");
+    const form = new FormData();
+    form.set(
+      "file",
+      new File([new Uint8Array(MAX_UPLOAD_BYTES + 1)], "contract.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    const response = await fetch(`http://127.0.0.1:${port}/api/audit-cases/upload`, {
+      method: "POST",
+      body: form,
+      signal: AbortSignal.timeout(2_000),
+    });
 
-  const response = await upload(
-    app,
-    "contract.pdf",
-    "application/pdf",
-    new Uint8Array(MAX_UPLOAD_BYTES + 1),
-  );
-
-  expect(response.status).toBe(413);
-  expect(await response.json()).toEqual({ error: "file_too_large" });
-  // Refused before a case was scheduled.
-  expect(dispatcher.enqueued).toHaveLength(0);
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "file_too_large" });
+    expect(dispatcher.enqueued).toHaveLength(0);
+  } finally {
+    await app.stop(true);
+  }
 });
 
 test("a declared type that contradicts the extension is refused with 422", async () => {

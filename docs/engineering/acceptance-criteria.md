@@ -25,23 +25,13 @@ bun run acceptance    # Playwright（默认自动以 fake 模式起服务）
 
 实测基线（S0/S1，独立迁移库）：`bun run verify` 670 通过/0 失败（S1，75 文件、1938 断言）；`CI=true ... bun run acceptance` 38 例中 37 通过/1 失败（失败用例 `tests/acceptance/audit-case.spec.ts:191`，属验收契约过期，QA 已列修正项）。**这些数字对应各自 commit 与库，不能外推到其它配置。**
 
-### 2.2 访问门（安全切片，已实测）
+### 2.2 访问门（**已延期，2026-10-17**）
 
-```bash
-# 匿名访问受保护资源 → 401
-curl -i http://localhost:3000/api/audit-cases
-# 会话发现
-curl -i http://localhost:3000/api/session
-# 登录（设置 HttpOnly cookie）
-curl -i -c cookies.txt -H 'content-type: application/json' \
-  -d '{"token":"<API_ACCESS_TOKEN>"}' http://localhost:3000/api/session
-# 授权读取 → 200
-curl -i -b cookies.txt http://localhost:3000/api/audit-cases
-# 登出 → 204
-curl -i -b cookies.txt -X DELETE http://localhost:3000/api/session
-```
+认证（登录口令、Bearer、Cookie 会话、`/api/session`）已由用户明确指示延期到最后实现。当前 API **无任何认证强制**：匿名请求即返回正常业务响应，没有 401 语义，也没有 `/api/session` 路由可探测。legacy `API_ACCESS_TOKEN` 对当前 API 无效果。
 
-证据：`docs/project-management/evidence/s2-security.json`（含重放 cookie 401）；运维说明：`docs/runbook/access-control.md`。
+因此本节不再给出 token/cookie curl 复现命令（那样的命令在当前代码上必然失败，且失败原因正是延期本身）。历史实测保留为**历史记录**：`docs/project-management/evidence/s2-security.json`（匿名 401/授权 200/登出 204/重放 401）、`sse-revocation-smoke.json`；其上下文是延期前的 commit（`1f33d99`、`b2033e1`），不得当作当前行为引用。重新排期认证时，验收命令与判据在 `docs/runbook/access-control.md` 的"未来实现认证时的最低要求"节。
+
+延期期间仍需验收的边界（与认证无关）：跨站写入拒绝、请求日志脱敏、凭据密封与不随 API 返回、出网默认禁止、原件 locator 归属、演示重置守卫。这些的判据见 §3。
 
 ### 2.3 真实模型冒烟（单合成样本）
 

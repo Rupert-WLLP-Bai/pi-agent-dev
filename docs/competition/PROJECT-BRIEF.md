@@ -31,7 +31,7 @@ Contract Audit 是一个**可追溯的合同智能审计系统**：用 19 条确
 | 2 | **多来源证据锚定**：`DOCUMENT_SPAN` 带原件 hash + 块 ID + Unicode 码点区间；主体核验记录也是 Source Record | `packages/audit/src/model.ts`、ADR-0002 |
 | 3 | **人审整改闭环**：确认/误报追加式修订，自动开整改、四态看板、关闭留痕 | `apps/api/src/routes/{findings,remediations}.ts` 及验收 |
 | 4 | **快照/版本/轨迹**：Audit Snapshot 不可变，规则参数版本化 + 发布前案例门禁，Agent 轨迹含嵌套工具调用与轮次 token | ADR-0003/0004/0005、`agent-trace.ts` |
-| 5 | **私有部署与可复制**：S3/本地可切、OCR 三选一、模型服务运行时配置、访问门与出网默认禁止 | `compose.yaml`、`access-control.ts`、`llm/audit-data-policy.ts` |
+| 5 | **私有部署与可复制**：S3/本地可切、OCR 三选一、模型服务运行时配置、出网默认禁止。**访问控制现状**：认证已延期（2026-10-17 用户指示），当前无登录/Bearer/session，访问控制依赖部署侧网络隔离 | `compose.yaml`、`llm/audit-data-policy.ts`、`docs/runbook/access-control.md` |
 
 ## 5. 与"模型审合同"的本质区别
 
@@ -45,7 +45,8 @@ Contract Audit 是一个**可追溯的合同智能审计系统**：用 19 条确
 
 ## 6. 当前状态摘要（2026-10-15，S2 五切片合并至 `a849b29` 后）
 
-- 已完成并验证：审计核心、规则治理、复核/整改闭环、轨迹、金额链核对、上传/解析、访问门（HTTP 实测）、密钥轮换/重封（`cd24aac`）、单测 688/0（`1f33d99`）。
+- 已完成并验证：审计核心、规则治理、复核/整改闭环、轨迹、金额链核对、上传/解析、密钥轮换/重封（`cd24aac`）、单测 688/0（`1f33d99`）。
+- **认证已延期（2026-10-17 用户指示，放到最后实现）**：访问门（登录口令/Bearer/`/api/session` 会话）已从当前代码移除，legacy `API_ACCESS_TOKEN` 无效果；历史实测（`evidence/s2-security.json` 等）为延期前记录。仍生效：跨站写入拒绝、`X-Operator` 归属标注、日志脱敏、凭据密封、出网与 locator 边界。
 - 已实现待统一验收（S3）：决策影子层（provider/持久化/worker/UI，`a6ec041`+`cc942b2`）、演示 CLI 与环境保护（`908cb5a`+`a849b29`）、分层测试与覆盖率/RTM（`de7ea2d`）、375px 窄屏修复与行为验收（`cc942b2`）。合并后集成检查点 `bun run verify` 835 通过/0 失败（`a849b29`，Main 观察；其后有未提交决策契约修订待收尾）。
 - 已验证的单样本观察（不作一般结论）：真实 Pi 合同冒烟（29727 ms、42 轨迹步骤、两项提案过 Guard）；本地 Laya CPU 冒烟（642 ms、未校准）。
 - 已知待办：决策契约修订收尾与影子详情授权回归、off/shadow 对照运行、字段级出网抓包、全量 Laya 数据集评测、第三方复现记录。
@@ -62,4 +63,4 @@ bun run verify                # lint + 两轮 typecheck + 单测
 docker compose up --build     # 演示栈 → http://localhost:8080
 ```
 
-若 `API_ACCESS_TOKEN` 已启用（demo/production 要求），访问需 Bearer 或登录会话，详见 [访问门 runbook](../runbook/access-control.md)。演示 CLI（`bun --env-file=.demo.env scripts/demo/cli.ts up|down|reset|seed|verify|check|ready`；minimal 用根 `.env` 不含 `ready`）已入树，命令口径见 [docs/deployment/demo.md](../deployment/demo.md)；统一回归（S3）前按"已实现待验收"对待。
+若 `API_ACCESS_TOKEN` 已设置：对当前 API **无效果**（认证已延期，2026-10-17），不需要 Bearer 或登录会话即可访问；历史访问门 runbook 见 [访问控制状态](../runbook/access-control.md)。演示 CLI（`bun --env-file=.demo.env scripts/demo/cli.ts up|down|reset|seed|verify|check|ready`；minimal 用根 `.env` 不含 `ready`）已入树，命令口径见 [docs/deployment/demo.md](../deployment/demo.md)；统一回归（S3）前按"已实现待验收"对待。

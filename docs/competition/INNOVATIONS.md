@@ -12,7 +12,7 @@
 | 推理 | ——（不训练模型） | OpenAI 兼容网关（Pi 用）、本地 Laya（影子用） | 模型可替换；结论不依赖单一模型 |
 | 存储 | original-store 适配（S3/本地降级）、locator 语义 | RustFS（S3 兼容）、PostgreSQL、Redis | 领域不依赖具体厂商 |
 | OCR | 可插拔 `OcrPort`、栅格化、几何取舍（不带 bbox） | 视觉模型（网关）、MinerU 4.x 服务 | 我们拥有锚定策略与降级语义 |
-| 界面 | 全部页面与交互 | React/Ant Design/TanStack | —— |
+| 界面 | 全部页面与交互（**无登录/访问门页面**：认证已延期） | React/Ant Design/TanStack | —— |
 | 测试与治理工装 | 分层测试入口/机器报告/故障注入、demo 环境保护与备份恢复 | —— | —— |
 | 基础设施 | compose（镜像 digest 固定、端口默认 localhost）、迁移、种子、受管演示 CLI、CI | Docker、GitHub Actions | —— |
 
@@ -64,7 +64,7 @@
 
 ### 2.8 失败可观测与隐私回归（S2 修复）
 
-- **是什么**：四处真实缺陷的修复——trace/cache 原始错误日志移除；Redis 不可达时默认无限重试改为 1.5 s 超时/不重试（观测 33 ms 返回 disabled cache）；主体核验失败不再被合成文本豁免吞掉（保留稳定失败状态与私有 Source Record，面向模型的 basis 剥掉上游 body/错误细节；新增附加字段 `AuditSnapshot.subjectVerificationProvider` 标注执行上下文，真实/未分类主体评估阻断合成豁免，已持久化快照不动）；SSE 连接在会话登出/过期时主动关闭（门响应映射层，无路由/DTO 变更）。
+- **是什么**：四处真实缺陷的修复——trace/cache 原始错误日志移除；Redis 不可达时默认无限重试改为 1.5 s 超时/不重试（观测 33 ms 返回 disabled cache）；主体核验失败不再被合成文本豁免吞掉（保留稳定失败状态与私有 Source Record，面向模型的 basis 剥掉上游 body/错误细节；新增附加字段 `AuditSnapshot.subjectVerificationProvider` 标注执行上下文，真实/未分类主体评估阻断合成豁免，已持久化快照不动）。SSE 连接在会话登出/过期时主动关闭属**历史修复**：该机制随访问门一起在 2026-10-17 延期，当前无会话可吊销；重新排期认证时该验收要求恢复（见 runbook 未来要求节）。
 - **证据**：commit `2d63f15` 及后续安全切片（Main 拥有）；`docs/project-management/evidence/cache-failure-smoke.json`；7 项隐私/降级回归通过。**最终计数待集成后统一**，本文不提前固化。
 - **意义**：降级路径"安静失败"是审计系统最危险的形态——本轮把"失败必须留下稳定状态、缓存不可达必须快速返回、模型侧不得回显上游错误"做成可回归的行为。
 
@@ -83,6 +83,6 @@
 | OCR | 配置后可用（vlm/MinerU） | 视觉模型需端点；MinerU 需服务 |
 | 主体核验 | 需 adapter（fixture/qcc） | 生产需企查查凭证 |
 | 多部门适配 | 需业务改造 | 规则集面向采购/服务/建设/运维通用条款；行业专属需新增规则 |
-| 多用户/权限 | **不具备** | 单工作区口令门；RBAC/SSO 为路线图 |
+| 多用户/权限 | **不具备（认证已延期）** | 当前无登录/Bearer/session 强制，无 RBAC/SSO；访问控制依赖部署侧网络隔离。认证为路线图最后一项（2026-10-17 用户指示延期） |
 
 **不给**的承诺：不承诺准确率提升百分比、不承诺人力成本节省数字、不承诺多租户/多副本、不承诺生产合规认证。KPI 只给定义与测量计划（见 `METRICS.md`）。

@@ -32,7 +32,7 @@
 | FR-13 | 系统必须提供可观测健康端点：`/api/health` 汇总 database/dispatcher/objectStore/redis/llm/qcc，503 仅由 database/dispatcher 驱动 | 降级依赖不改变 status；目标串剥离凭据 | 已实现且已验证（S0 实测 `status=ok`） |
 | FR-14 | 系统必须提供 OpenAI 兼容模型服务管理：运行时增改 provider、恰好一个"当前"、key 不随 API 返回 | 表空回退 `XYG_*`；mask 提示；空 key 编辑不抹掉已存 key | 已实现且已验证（llm-providers 用例） |
 | FR-15 | 系统应提供演示世界种子：固定 RNG、场景化案件（历史关联/版本 diff/主体红线/误报对照/背靠背等） | `seed:demo` 可重复执行；场景与预期在源码中声明 | 已实现且已验证（`demo-scenarios.ts` + seed 测试） |
-| FR-16 | 系统必须实现工作区访问门：`API_ACCESS_TOKEN` 启用时除 health/session 外全部 API（含 SSE、原件下载）要求 Bearer 或 HttpOnly 会话；登出/过期关闭已建立 SSE | 匿名 401、授权 200、登出 204、重放 cookie 401 | 已实现且已验证（`1f33d99` 及后续安全修复；`evidence/s2-security.json`） |
+| FR-16 | 系统应实现工作区访问门：`API_ACCESS_TOKEN` 启用时除 health/session 外全部 API（含 SSE、原件下载）要求 Bearer 或 HttpOnly 会话；登出/过期关闭已建立 SSE | 匿名 401、授权 200、登出 204、重放 cookie 401 | **已延期（2026-10-17 用户指示，认证放到最后实现）**：当前 API 无登录/Bearer/session 强制，无 `/api/session` 路由；历史实测（`1f33d99`、`evidence/s2-security.json`、`sse-revocation-smoke.json`）保留为历史记录，不代表当前行为；legacy `API_ACCESS_TOKEN` 无效果。重新排期时验收判据不变 |
 | FR-17 | 系统必须实现决策影子层（S2）：`DecisionRequest`/`DecisionAdvice`/`DecisionFeedback`，provider 为 disabled/fake/laya-cpu，默认 off | 契约测试通过；off 不创建/不领取/不推理 | 契约已冻结并验证（`6a59906`，18 测试）；实现已合并（`a6ec041`、`f7ce8d1`），待 S3 统一验收 |
 | FR-18 | 系统必须实现影子反馈（S2）：append-only，`Idempotency-Key` 作用域为 decision+actor，同键同体重放返回既有事件，异体 409 | 幂等与冲突行为有测试 | 实现已合并（`a6ec041`：幂等 201/409、UUID 形状 404），待 S3 统一验收 |
 | FR-19 | 系统应提供演示 CLI（S2）：`up/down/reset/seed/verify/check`，带环境登记、确认与事务化重置 | 两次 reset 结果一致；非 demo 数据保留 | 已实现待统一验收（`908cb5a`+`a849b29`；minimal 根`.env`不含`ready`，demo profile 另含`ready`；`logs`/`status`由 Infra 收尾后登记） |
@@ -45,17 +45,17 @@
 | NFR-01 可维护性 | 领域（`packages/audit`）不得依赖 HTTP/PG/Pi/React；适配器集中在 `apps/api` | 依赖方向可由 import 图检查；架构文档与代码一致 | 已实现且已验证（ADR-0001；`bun run typecheck` 两轮） |
 | NFR-02 可靠性 | 单实例部署；PG 队列 `SKIP LOCKED`；Redis/对象存储可降级且不导致审计失败；缓存不可达须快速返回而非无限重试 | 降级矩阵实测（未配置/不可达）；Redis 不可达观测 33 ms 返回 disabled cache（`cache-failure-smoke.json`） | 部分验证：缓存失败已实测；真实 S3 故障回归待 QA 补（I5/Q3） |
 | NFR-03 功能适合性 | 19 条规则覆盖采购/服务/建设/运维常见风险维度；disposition 四态可区分 | golden 集 + 规则目录研究；覆盖矩阵在演示文档 | 已实现且已验证（规则用例） |
-| NFR-04 安全 | 密钥/口令绝不进 Git、日志、测试工件、URL 或**未授权**浏览器上下文；合同原文只允许经授权的证据界面渲染（按 Source Record 授权），不因"防泄露"而禁止授权展示 | 密钥扫描；API 不返回 key；`LLM_INTERNAL_DATA_ORIGINS` 默认空；授权/未授权访问对照 | 部分验证：访问门已实测；出网抓包验证待 QA（SEC4） |
+| NFR-04 安全 | 密钥/口令绝不进 Git、日志、测试工件、URL 或**未授权**浏览器上下文；合同原文只允许经授权的证据界面渲染（按 Source Record 授权），不因"防泄露"而禁止授权展示 | 密钥扫描；API 不返回 key；`LLM_INTERNAL_DATA_ORIGINS` 默认空；授权/未授权访问对照 | 部分验证：访问门已延期（2026-10-17 用户指示），当前无认证强制，授权/未授权访问对照属历史证据（`evidence/s2-security.json`）；密钥密封与出网抓包验证待 QA（SEC4） |
 | NFR-05 可移植性 | 一条 `compose.yaml` 描述开发/演示；应用容器自迁移；`AUDIT_AGENT_MODE=fake` 免凭证演示 | 第三方按 runbook 从零起步 | 已实现；第三方复现记录待 Infra 归集（I7） |
 | NFR-06 性能（已知边界） | 单次完整审计约 62 s（约 20 次工具调用，真实 LLM 路径）；OCR 视觉模型 24.6 MB 扫描件约 396 s | 只报实测样本，不宣称吞吐指标 | 已实现且有历史实测（升级记录、ICT 调研 §5） |
 | NFR-07 可访问性 | 桌面 1440×900 复核操作可达；窄屏 375px 亦须可达 | 浏览器实测可见操作数 | 修复已合并（`cc942b2`：375px 行为验收+1280/1440/1920 断言）；截图归档待 S3 |
-| NFR-08 失败可观测 | 依赖故障必须留下稳定状态：trace/cache 不回显上游原始错误；主体核验真实失败不被合成豁免吞掉（保留失败状态与私有 Source Record，模型侧 basis 剥离上游 body/错误）；缓存不可达不得无限重试；会话失效关闭已建立 SSE | 隐私/降级回归；health 与日志行为；快照附加 `subjectVerificationProvider` 标注 | 已实现且已验证（`2d63f15` 及后续修复；`cache-failure-smoke.json`；7 项回归） |
+| NFR-08 失败可观测 | 依赖故障必须留下稳定状态：trace/cache 不回显上游原始错误；主体核验真实失败不被合成豁免吞掉（保留失败状态与私有 Source Record，模型侧 basis 剥离上游 body/错误）；缓存不可达不得无限重试 | 隐私/降级回归；health 与日志行为；快照附加 `subjectVerificationProvider` 标注 | 已实现且已验证（`2d63f15` 及后续修复；`cache-failure-smoke.json`；7 项回归）。原"会话失效关闭已建立 SSE"子句随认证延期（2026-10-17），当前无会话可失效，重新排期时恢复该验收 |
 
 ## 4. 安全需求（SEC）
 
 | ID | 需求 | 验收 | 状态 |
 | --- | --- | --- | --- |
-| SEC-01 | 访问门为单工作区口令门，不等于 SSO/RBAC；不得宣称多租户隔离 | 文档与实现一致 | 已实现且已验证 |
+| SEC-01 | 工作区访问门为单工作区口令门，不等于 SSO/RBAC；不得宣称多租户隔离 | 文档与实现一致 | **已延期（2026-10-17 用户指示，认证放到最后实现）**：当前无任何认证实现，"访问门不存在"本身必须如实记录；文档不得声称系统当前受口令保护。重新排期时按历史 runbook（`docs/runbook/access-control.md` 的未来实现要求节）验收 |
 | SEC-02 | `X-Operator` 仅为归属标记，不是认证；须做 trim/128 字符/控制字符校验 | 畸形输入按缺省处理 | 已实现且已验证（`1f33d99`） |
 | SEC-03 | 原件下载必须按 Source Record 查库授权后解析内部引用，不接受任意 `s3://` 或路径参数 | 越界拒绝用例 | 已实现待统一验收（`908cb5a`：目录/桶归属拒绝+行为测试；`storage-boundary-smoke.json` 实测） |
 | SEC-04 | 原始/内部合同出网需**已授权 origin**（`LLM_INTERNAL_DATA_ORIGINS` 精确匹配）；已证明的合成内容 + 可信 fixture 上下文可豁免该白名单，无需配置列表 | 抓取实际发送字段；内置合成内容以 canonical hash 证明 | 策略已实现（`1f33d99`）；字段级抓包证据待 QA |

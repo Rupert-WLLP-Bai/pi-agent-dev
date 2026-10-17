@@ -43,9 +43,9 @@
 
 影子功能关闭时，这些读取仍可呈现已有历史，不能因当前无Provider把过去记录抹去。API不暴露可提交任意模型state、任意endpoint或直接修改正式Finding的路由。辅助反馈入口独立标识“仅用于评估，不改变审计结论”。
 
-`X-Operator`不是认证。Main统一实现服务端访问口令门禁：`API_ACCESS_TOKEN`启用时，除健康与登录外所有API（包括SSE、原件及影子详情）要求Bearer或HttpOnly会话；`GET /api/session`报告是否需要登录，`POST /api/session`接收`{token}`，`DELETE /api/session`登出。demo/production非测试启动要求口令；development/test可显式不配置，仅限可信本机。UX实现“访问口令”入口；QA分别证明匿名拒绝与授权访问。口令不进入URL、日志、公开health或localStorage。该单工作区门禁不等于SSO/RBAC/租户隔离；actor仍须校验空值与最大128字符。
+`X-Operator`不是认证。**认证已延期（2026-10-17 用户指示）**：当前 API 与 Web 没有任何登录/Bearer/session 强制，也没有 `/api/session` 路由；历史契约中描述的 `API_ACCESS_TOKEN` 访问口令门禁（`GET/POST/DELETE /api/session`、HttpOnly Cookie、Bearer）在当前代码中不存在，legacy `API_ACCESS_TOKEN` 环境变量无效果。单工作区身份认证推迟到最后统一实现；当前状态是**未认证开放**，任何人可访问该地址即可读写全部 API，因此生产部署必须依靠网络入口隔离。actor仍须校验空值与最大128字符；`X-Operator` 始终只是归属标注。原 §9 "认证失败401" 对应的是延期前门禁的错误码，当前无该语义。
 
-已建立的Cookie会话SSE也受撤销和到期约束：登出/到期主动结束流并取消上游订阅，不能只拦后续HTTP请求。Bearer连接的有效期随进程与访问口令轮换处理。
+Cookie会话SSE撤销/到期语义（登出/到期主动结束流并取消上游订阅）属历史契约，随认证一起延期；实现该机制时必须以服务端可撤销的会话标识为前提，不允许依赖仅客户端内存的登录态。
 
 ## 4. 持久化、恢复与正式链路
 
@@ -129,7 +129,7 @@ DTO不返回内部租约、凭据或原始request。公开status/fallbackReason�
 | --- | --- | --- |
 | G1 | versioned DTO、TypeBox解析、错误/幂等契约、边界测试 | API状态/版本与重试幂等行为 |
 | G2 | Provider没有正式写权限；独立队列与冻结身份约定 | 同输入off/shadow正式规则、Finding、复核和整改一致；影子故障不污染成功 |
-| G3 | 全API门禁、最小脱敏输入、保留与删除范围 | 匿名拒绝、授权原件/详情、模型请求无敏感标识、过期清理边界 |
+| G3 | 全API门禁、最小脱敏输入、保留与删除范围 | 匿名拒绝、授权原件/详情、模型请求无敏感标识、过期清理边界。**访问门禁已延期（2026-10-17 用户指示）**：当前无登录/Bearer/session 强制，`/api/session` 路由不存在；历史 `evidence/s2-security.json` 等为历史记录。其余（最小脱敏输入、保留与删除范围）不变 |
 | G4 | AI唯一schema Owner、Main唯一迁移执行者、增量回滚 | 新库及已有库迁移，off回退可用，不丢历史 |
 | G5 | 本地Laya CPU前置实测及失败交付路径 | 固定revision中文真实推理；不可达/超时/错误不得伪报成功 |
 | G6 | TASK-MATRIX逐项P0/P1/P2、Owner、依赖、工作量和证据 | 每行更新实际命令、状态与提交 |

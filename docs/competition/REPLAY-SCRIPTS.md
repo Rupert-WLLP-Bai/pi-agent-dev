@@ -19,7 +19,7 @@ cd apps/api && bunx drizzle-kit migrate && cd ../..
 curl -s http://localhost:3000/api/health
 ```
 
-若 `API_ACCESS_TOKEN` 已设置，以下 curl 需带 `-H "Authorization: Bearer $API_ACCESS_TOKEN"` 或先登录取 cookie（见 `docs/runbook/access-control.md`）。
+**无需任何认证头**：2026-10-17 起登录/Bearer/`/api/session` 会话已延期到最后实现，当前 API 不校验 `API_ACCESS_TOKEN`，直接请求即可。历史"若 `API_ACCESS_TOKEN` 已设置则带 Bearer/cookie"的口径已作废。
 
 ## 2. 3 分钟脚本：核心闭环（合成合同）
 
@@ -86,11 +86,11 @@ curl -s http://localhost:3000/api/ocr-settings/probe
 # 需要更新"最近检查"状态时用 POST /test（同一探测，会记录结果）
 curl -s -X POST http://localhost:3000/api/ocr-settings/test
 
-# 访问门（预期：匿名 401）
+# 访问控制现状（预期：匿名 200，无认证）
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/audit-cases
 ```
 
-失败判定：规则数不是 19 → 代码与文档漂移，按 README 校正流程处理；匿名返回 200 → 访问门回归失败（P0）。
+失败判定：规则数不是 19 → 代码与文档漂移，按 README 校正流程处理。**访问门已延期（2026-10-17）**：匿名返回 200 是预期，不再作为回归失败；若返回 401 说明运行的是延期前的旧进程。
 
 ## 4. 8 分钟脚本：影子、隐私与证据链
 
@@ -147,5 +147,5 @@ docker compose exec api bun run seed:demo
 
 1. 所有 POST 使用合成文本；不得粘贴真实合同。
 2. `seed:demo` 与任何 reset 只在 demo/test 库执行；未知/生产库必须被拒绝。
-3. 口令/token 只从环境变量读，不写进脚本文件、不打印。
+3. 当前无认证，不需要 token/cookie；若重新引入认证，凭据只从环境变量读，不写进脚本文件、不打印，也不进 URL/查询参数。
 4. 每支脚本的预期输出来自代码契约；契约变更时同步更新本文。

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-17T14:09:59.424Z",
+  "scope": "M1 release regression checks before authentication removal",
+  "shutdown": [
+    {
+      "version": "before",
+      "signal": "SIGTERM",
+      "exited": false,
+      "code": null
+    },
+    {
+      "version": "after",
+      "signal": "SIGTERM",
+      "exited": true,
+      "code": 0
+    },
+    {
+      "version": "before",
+      "signal": "SIGINT",
+      "exited": false,
+      "code": null
+    },
+    {
+      "version": "after",
+      "signal": "SIGINT",
+      "exited": true,
+      "code": 0
+    }
+  ],
+  "backupRestore": {
+    "before": {
+      "exitCode": 1,
+      "targetPublicTables": 0,
+      "stderr": "pg_restore: error: one of -d/--dbname and -f/--file must be specified"
+    },
+    "after": {
+      "exitCode": 0,
+      "sourceCases": 39,
+      "restoredCases": 39,
+      "sourceMigrations": 19,
+      "restoredMigrations": 19
+    },
+    "existingTarget": {
+      "refused": true,
+      "casesUnchanged": true
+    }
+  },
+  "upload": {
+    "before": {
+      "command": "bun test apps/api/src/routes/audit-cases-upload.test.ts --test-name-pattern \"an oversized upload\"",
+      "status": "failed",
+      "reason": "TimeoutError after 2072 ms on real HTTP"
+    },
+    "after": {
+      "status": "passed",
+      "httpStatus": 413,
+      "durationMs": 293,
+      "queuedCases": 0
+    }
+  },
+  "faultsBefore": {
+    "passed": 2,
+    "failed": 2,
+    "skipped": 0,
+    "failures": ["Malformed case ID returned HTTP 500", "Oversized upload connection reset"]
+  },
+  "faultsAfter": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0
+  },
+  "rustfsSmoke": {
+    "version": "1.0.1",
+    "bytes": 49,
+    "sha256": "9ed84beffc0a4ae98d0f5d02ec60bbe772095a3741f5c34747332ec0601bacf4",
+    "roundTrip": true,
+    "ownedObjectRemoved": true
+  },
+  "browserOrigin": {
+    "before": {
+      "status": 403,
+      "error": "origin_forbidden"
+    },
+    "after": {
+      "status": 202
+    },
+    "fix": "Playwright API webServer sets WEB_ORIGIN from isolated web port"
+  },
+  "limitations": [
+    "These checks preceded the user-requested authentication removal; final gate results are recorded separately.",
+    "All database and object-store checks used isolated synthetic data."
+  ]
+}

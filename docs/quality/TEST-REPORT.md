@@ -31,9 +31,7 @@ API_KEY 等），`summary.json`/`summary.html` 不含连接串或凭证。
 > 说明本片未改动既有单元套件的通过状态。**最终计数以 Main 集成后的统一运行为
 > 准**；本片不把该数字当作交付指标。
 
-访问门禁集成用例直接使用公开 `createApp` + `AppDeps.access`（Main b2033e1），
-不做实现文本探测、不做兼容性转换，也没有基于源码字符串的跳过；若某个构建不
-遵守该依赖，用例必须直接失败。
+上述访问门禁集成记录属于2026-10-15历史基线。2026-10-17用户明确延期认证，当前已移除口令/会话及其专用测试；独立来源检查、脱敏日志与操作人校验保留。当前结果由[任务板](../project/TASK-BOARD.md)及M1发布证据记录。
 
 ## 2. 覆盖范围与三层口径
 
@@ -52,7 +50,7 @@ API_KEY 等），`summary.json`/`summary.html` 不含连接串或凭证。
 | 集成：PG 生命周期 | `tests/integration/audit-lifecycle.test.ts` | 队列排他领取、案件快照读回、SSE 首帧。事务始终回滚。 |
 | 集成：Redis | `tests/integration/redis-cache.test.ts` | 未配置/拒绝/命中三种路径；缓存故障永不失败核验。 |
 | 集成：S3 | `tests/integration/original-store.test.ts` | 真实往返、显式非严格配置（`S3_STRICT=false`）下写失败回落本地且 locator 记实际后端、local 行不经过 S3 读、上传目录外 locator 拒绝。严格（demo/生产默认）下写失败必须外显，由存储实现与其自身测试/`qa:faults` 断言。 |
-| 集成：访问门禁 | `tests/integration/access-gate.test.ts` | 匿名 401（含 SSE 与原件）、会话登录/登出吊销、Bearer、伪造 cookie 拒绝、health 豁免。 |
+| 工作区认证延期 | [当前安排](../runbook/access-control.md) | 2026-10-17按用户要求移除口令/会话，原匿名401、登录/登出、Bearer用例不再适用；当前验证直接访问业务接口与请求来源、脱敏日志约束。 |
 
 ## 4. 故障注入（Q6）
 

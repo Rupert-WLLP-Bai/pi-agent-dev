@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 本地验证全流程 | `docs/runbook/mvp-local.md` | Docs | 已校正（路由表补齐 contracts/dossier-review/settings/ocr） |
 | macOS 本机差异与路由地图 | `docs/runbook/startup.md` | Docs | 已校正（21 张表、OCR 三选一） |
-| 访问门与口令策略 | `docs/runbook/access-control.md` | Main | 已实测（`1f33d99`） |
+| 访问控制状态（认证已延期） | `docs/runbook/access-control.md` | Main | 已延期（2026-10-17 用户指示）：当前无登录/Bearer/session 强制、无 `/api/session` 路由；仍生效的是跨站写入拒绝、`X-Operator` 归属标注、日志脱敏、凭据密封、出网与 locator 边界；历史实测（`1f33d99`）为历史记录 |
 | 密钥轮换 | `docs/runbook/key-rotation.md` | Main | 已实现且已验证（`cd24aac`；`key-rotation-smoke.json`、`startup-security.json`） |
 | 部署与复现 | `docs/deployment/` | Infra | 已入树（demo.md 两种 profile + 受管 CLI + 备份恢复；统一验收待S3） |
 | 决策/Laya | `docs/ai/` | AI | 已实现待统一验收（provider/持久化/worker/评测脚本已合并 `a6ec041`；全量 Laya 评测与 off/shadow 对照待S3） |
@@ -29,7 +29,7 @@
 - 运行模式：`AUDIT_AGENT_MODE`（pi/fake）、`SUBJECT_VERIFICATION_MODE`（fixture/qcc）。
 - 对象存储与缓存：`S3_*`、`UPLOAD_DIR`、`REDIS_URL`；demo/production 默认严格存储（S3 写失败即失败），本地回退为显式 `s3-fallback-local` 开发选项；Redis 缓存始终可降级。
 - OCR：`OCR_PROVIDER`（off/vlm/mineru）、`OCR_VLM_*`、`OCR_MAX_PAGES/SCALE/JPEG_QUALITY/CONCURRENCY/TIMEOUT_MS`、`MINERU_ENDPOINT`。
-- 访问与出网（S2 新增）：`API_ACCESS_TOKEN`、`LLM_INTERNAL_DATA_ORIGINS`（默认空）。
+- 访问与出网（S2 新增）：`LLM_INTERNAL_DATA_ORIGINS`（默认空）。`API_ACCESS_TOKEN` 是 **legacy 变量，无效果**：认证（登录/Bearer/`/api/session` 会话）已于 2026-10-17 延期到最后实现，当前 API 不读取它，设置与否都不改变行为。
 - 决策影子（S2 已入树）：`DECISION_MODE`（off/shadow，默认 off）、`DECISION_PROVIDER`（disabled/fake/laya-cpu，默认 disabled）、`DECISION_RETENTION_DAYS`（默认 30，1–365）；路由 `/api/decisions/:id`、反馈与保留期由 `apps/api/src/routes/decisions.ts` 提供（S3 统一回归前按"已实现待验收"对待）。
 
 **没有** Jev 相关变量或远程决策调用路径（该方向已取消）。
@@ -53,4 +53,4 @@
 | 扫描件"无法识别" | OCR provider 配置与 probe | 关闭时明确失败，不猜测内容 |
 | 原文下载异常 | Source Record locator 前缀与实际后端 | `s3://` 与本地路径记录真实写入方 |
 | 验收串台 | 是否复用 dev 服务/开发库 | `CI=true` + `PLAYWRIGHT_DATABASE_URL` + 端口覆盖 |
-| 全部 API 401 | 访问门已启用且未带 token/会话 | Bearer 或 HttpOnly 会话二合一 |
+| 全部 API 401 | 已无此现象：认证已延期（2026-10-17），当前 API 无任何 401 门禁。若观察到 401，说明运行的是延期前的旧版本/旧进程 | 当前代码不读取 `API_ACCESS_TOKEN` |

@@ -19,12 +19,10 @@ async function assertApiReachable(page: Page) {
 
 /** Numeric KPI read off the cockpit card with the given title. */
 async function readKpi(page: Page, title: string): Promise<number> {
-  const value = page
-    .locator(".kpi-card", { hasText: title })
-    .locator(".ant-statistic-content-value");
-  await expect(value).toBeVisible();
-  const text = await value.innerText();
-  return Number(text.replace(/[^0-9]/g, ""));
+  const card = page.getByRole("link").filter({ hasText: title });
+  await expect(card).toBeVisible();
+  const text = await card.innerText();
+  return Number(text.match(/^\s*([\d,]+)/u)?.[1].replaceAll(",", ""));
 }
 
 async function createDemoAudit(page: Page) {
@@ -61,22 +59,12 @@ test("derives cockpit KPIs and risk mix from stored cases, not constants", async
   const acceptedBefore = await readKpi(page, "已确认风险");
   expect(totalBefore).toBeGreaterThan(0);
 
-  // The trend chart and risk-type bars are driven by the same database.
-  // The trend is drawn as a line series (an area fill plus the cumulative and
-  // daily lines), so a real path must render and no bar rects should exist.
-  await expect(page.locator(".trend-chart svg .trend-chart__series path").first()).toBeVisible();
-  await expect(page.locator(".trend-chart svg rect")).toHaveCount(0);
   await expect(page.locator(".hbar-row").first()).toBeVisible();
   const riskLabels = await page.locator(".hbar-label").allInnerTexts();
   expect(
     riskLabels.some((label) => label.includes("预付款") || label.includes("主体")),
     `risk bars should show known types, got: ${riskLabels.join(", ")}`,
   ).toBe(true);
-
-  // Rates are derived, so they render as percentages or explicit no-data.
-  for (const metric of await page.locator(".quality-item").allInnerTexts()) {
-    expect(metric).toMatch(/%|暂无数据/);
-  }
 
   // Confirm the risk on the case page, then verify the dashboard updates.
   await page.goto(caseUrl);

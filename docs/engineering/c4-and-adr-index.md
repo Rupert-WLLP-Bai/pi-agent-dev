@@ -38,8 +38,8 @@ C4Container
     Person(user, "法务/运维")
 
     Container_Boundary(c1, "Contract Audit 部署单元（单实例）") {
-        Container(web, "Web 工作台", "React 19 + Vite + Ant Design 6 + TanStack", "SPA：队列/工作台/复核/整改/规则/案例/合同/卷宗/设置/访问门/决策建议面板")
-        Container(api, "API 应用", "Bun + Elysia + Drizzle", "REST/SSE/OpenAPI；进程内 AuditDispatcher；嵌入式 Pi runtime；访问门；影子决策 worker（默认 off）")
+        Container(web, "Web 工作台", "React 19 + Vite + Ant Design 6 + TanStack", "SPA：队列/工作台/复核/整改/规则/案例/合同/卷宗/设置/决策建议面板（无登录页：认证已延期）")
+        Container(api, "API 应用", "Bun + Elysia + Drizzle", "REST/SSE/OpenAPI；进程内 AuditDispatcher；嵌入式 Pi runtime；影子决策 worker（默认 off）；当前无访问门/认证（2026-10-17 延期）")
         ContainerDb(pg, "PostgreSQL", "21", "快照/事实/运行/轨迹/发现修订/规则参数/演示世界/OCR 设置/provider/shadow_jobs/shadow_feedback/demo_environments")
     }
 
@@ -63,7 +63,7 @@ C4Container
 | --- | --- | --- | --- |
 | 领域核心 | `packages/audit` | Contract Document IR、Fact Builder、19 条规则、Contract Stance、Proposal Guard、编排端口、决策契约 | HTTP/PG/Pi/React 依赖 |
 | Agent 适配 | `packages/pi-agent` | Pi 1.2.0 会话、六工具白名单、指令与资源隔离、轨迹上报 | 修改规则结论、直接访问数据库 |
-| 应用组合 | `apps/api` | 路由、DTO、仓库、dispatcher、SSE、原件存储适配、provider/OCR 解析、访问门、出网策略 | 领域判断 |
+| 应用组合 | `apps/api` | 路由、DTO、仓库、dispatcher、SSE、原件存储适配、provider/OCR 解析、出网策略、跨站写入拒绝 | 领域判断。**不承担**认证（登录/Bearer/session 已于 2026-10-17 延期） |
 | 前端 | `apps/web` | 工作台与治理页面（Eden Treaty + EventSource） | 直连数据库/对象存储 |
 | 演示数据 | `packages/audit/src/demo-scenarios.ts`、`apps/api/src/demo/` | 固定 RNG 场景化种子与重置 | 生产数据清理 |
 

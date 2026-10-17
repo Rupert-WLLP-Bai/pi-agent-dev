@@ -33,6 +33,10 @@ import { sanitizeCapturedText } from "./redact";
  *   it reaches the report, so a leaky tool cannot put a credential, a
  *   connection-string password, or a managed-environment literal into
  *   summary.json or summary.html;
+ * - the already-sanitized output of every layer that ran is persisted verbatim
+ *   under `<QA_REPORT_DIR>/<SHA>/logs/<layer>.log`, and the log is listed in
+ *   that layer's `artifacts`, so a later investigation can read the full
+ *   captured text without re-running the layers;
  * - a layer that exits 0 but observed **no case counts** is reported `failed`,
  *   not `passed`: a command that matched nothing (renamed suite, empty
  *   selector, cached-filter run) must not look like a green run with zero
@@ -256,7 +260,21 @@ const disposableDatabaseGuard = (): string | null => {
   return "TEST_DATABASE_URL not configured — set it to a disposable migrated database, or set INTEGRATION_ALLOW_DEFAULT_DB=1 to explicitly reuse DATABASE_URL";
 };
 
-const integrationGuard = (): string | null => disposableDatabaseGuard();
+const integrationGuard = (): string | null => {
+  const database = disposableDatabaseGuard();
+  if (database !== null) return database;
+  if (process.env.QA_REQUIRE_ALL !== "1") return null;
+  const missing = [
+    "REDIS_URL",
+    "S3_ENDPOINT",
+    "S3_ACCESS_KEY",
+    "S3_SECRET_KEY",
+    "S3_BUCKET",
+  ].filter((name) => !(process.env[name] ?? "").trim());
+  return missing.length > 0
+    ? `required integration configuration missing: ${missing.join(", ")}`
+    : null;
+};
 
 const e2eGuard = (): string | null => {
   const disposable = disposableDatabaseGuard();
@@ -310,6 +328,15 @@ const sha = git(["rev-parse", "HEAD"]);
 const branch = git(["rev-parse", "--abbrev-ref", "HEAD"]);
 const dirty = (git(["status", "--porcelain"]) ?? "") !== "";
 
+// Every artifact this run writes — summary, HTML and the per-layer logs — lives
+// under one per-SHA directory, so it is created before the first layer runs: a
+// layer that writes its log must never fail because the directory is absent.
+const outputDir = process.env.QA_REPORT_DIR ?? "artifacts/qa";
+const shaDir = sha ?? "unknown-sha";
+const targetDir = join(outputDir, shaDir);
+const logsDir = join(targetDir, "logs");
+mkdirSync(logsDir, { recursive: true });
+
 const layers: LayerResult[] = [];
 for (const layer of LAYERS) {
   const reason = layer.guard?.() ?? null;
@@ -328,20 +355,29 @@ for (const layer of LAYERS) {
     rmSync(resolve(REPO_ROOT, stale), { force: true, recursive: true });
   }
   const result = run(layer.command);
+  // The captured text was sanitized before it was returned, so persisting it
+  // here is verbatim: the log is the evidence a later investigation reads
+  // instead of re-running the layer, and it must match what the run saw.
+  const logPath = join(logsDir, `${layer.id}.log`);
+  writeFileSync(logPath, `${result.output}\n`);
+  const logArtifact = relative(REPO_ROOT, logPath);
   const counts =
     layer.id === "e2e"
       ? (readPlaywrightCounts()?.counts ?? parseBunCounts(result.output))
       : parseBunCounts(result.output);
-  const artifacts =
-    layer.artifacts?.filter((artifact) => existsSync(resolve(REPO_ROOT, artifact))) ?? [];
+  const artifacts = [
+    ...(layer.artifacts ?? []).filter((artifact) => existsSync(resolve(REPO_ROOT, artifact))),
+    logArtifact,
+  ];
   // A run that exited 0 but observed no case counts is not a pass: a command
   // that matched nothing (renamed suite, over-narrow filter, config that
   // resolved zero specs) exits 0 with no tallies at all, and reporting that as
   // a green layer would hide the fact that nothing was verified. The layer
   // still records its exit code and absence, so the operator can investigate.
-  const observedCases = counts ? counts.pass + counts.fail + counts.skip : 0;
+  const observedCases = counts ? counts.pass + counts.fail : 0;
+  const requiredCasesSkipped = process.env.QA_REQUIRE_ALL === "1" && (counts?.skip ?? 0) > 0;
   const status: LayerStatus =
-    result.exitCode !== 0 ? "failed" : observedCases > 0 ? "passed" : "failed";
+    result.exitCode !== 0 || requiredCasesSkipped || observedCases === 0 ? "failed" : "passed";
   layers.push({
     id: layer.id,
     status,
@@ -355,6 +391,9 @@ for (const layer of LAYERS) {
       : {}),
     ...(status === "failed" && observedCases === 0 && counts !== undefined
       ? { reason: "the layer exited 0 but reported zero cases — nothing was verified" }
+      : {}),
+    ...(requiredCasesSkipped
+      ? { reason: `QA_REQUIRE_ALL=1: ${counts?.skip} required checks were skipped` }
       : {}),
     ...(result.exitCode !== 0 && counts !== undefined
       ? { reason: `the layer exited with code ${result.exitCode}` }
@@ -384,11 +423,6 @@ const report: QaReport = {
     skipped: layers.filter((layer) => layer.status === "skipped").length,
   },
 };
-
-const outputDir = process.env.QA_REPORT_DIR ?? "artifacts/qa";
-const shaDir = sha ?? "unknown-sha";
-const targetDir = join(outputDir, shaDir);
-mkdirSync(targetDir, { recursive: true });
 
 const summaryPath = join(targetDir, "summary.json");
 writeFileSync(summaryPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -427,14 +461,20 @@ if (process.env.QA_REQUIRE_ALL === "1" && report.totals.skipped > 0) {
   process.exit(1);
 }
 
-/** Minimal HTML escaping: command output never reaches here, but a status,
- *  reason or count from a report could carry a character with markup meaning. */
-const escapeHtml = (text: string): string =>
-  text
+/**
+ * Minimal HTML escaping: command output never reaches here, but a status,
+ * reason or count from a report could carry a character with markup meaning.
+ * Declared as a function (not a `const` arrow) so it is hoisted above the
+ * `renderHtml` call near the top of the run: a `const` here was uninitialized
+ * at call time and threw a ReferenceError after summary.json had been written.
+ */
+function escapeHtml(text: string): string {
+  return text
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
 
 function renderHtml(value: QaReport): string {
   const rows = value.layers

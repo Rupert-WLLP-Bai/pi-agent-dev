@@ -20,7 +20,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Q1 | P0 | 需求—设计—代码—测试—证据RTM | 已建立机器可读RTM：`docs/engineering/traceability.csv`（44行，FR/NFR/SEC/AI映射）与`docs/quality/traceability.csv`（E2E需求映射）；19条规则中17条有golden标签，主体与历史规则由专门测试覆盖 | 19条均映射到实际回归，不混同golden与独立测试 | QA | S | `docs/quality/traceability.csv`、`docs/engineering/traceability.csv` | 已实现待统一验收（`31bb8d1`） |
 | Q2 | P0 | 分层覆盖率基线 | LCOV已产出：单元行81.1%/函数82.8%；Bun 1.4.3 LCOV无`BRDA`记录，**分支覆盖率不可测量**，报告为`null`，不以行冒充分支 | 行/函数、集成场景、E2E需求分开统计；不可测分支明确标注 | QA | M | `artifacts/qa/coverage/lcov.info`、`docs/quality/COVERAGE-BASELINE.md` | 已实现待统一验收（`de7ea2d`） |
-| Q3 | P0 | 完善领域、DB、S3、Redis、SSE、权限与浏览器回归 | 新增真实缝集成测试：PG生命周期（排他领取/快照/SSE首帧）、Redis三路径、S3真实往返与存储边界、访问门禁（401/登录/登出/重放/Bearer）；需要真实服务的集成在本机未运行（5432/6379/9000未监听），S3边界有`storage-boundary-smoke.json`实测 | 复用现有fakes与隔离PG，新增行为测试 | QA | L | `tests/integration/`、[storage-boundary-smoke](./evidence/storage-boundary-smoke.json) | 已实现待统一验收（`de7ea2d`、`f7ce8d1`） |
+| Q3 | P0 | 完善领域、DB、S3、Redis、SSE、权限与浏览器回归 | 新增真实缝集成测试：PG生命周期（排他领取/快照/SSE首帧）、Redis三路径、S3真实往返与存储边界；**访问门禁回归（401/登录/登出/重放/Bearer）已随认证延期（2026-10-17 用户指示）作废——当前无 `/api/session` 路由可测，历史 `s2-security.json` 只作历史记录**；需要真实服务的集成在本机未运行（5432/6379/9000未监听），S3边界有`storage-boundary-smoke.json`实测 | 复用现有fakes与隔离PG，新增行为测试 | QA | L | `tests/integration/`、[storage-boundary-smoke](./evidence/storage-boundary-smoke.json) | 已实现待统一验收（`de7ea2d`、`f7ce8d1`） |
 | Q4 | P0 | 规范测试入口与机器报告 | 已实现分层入口`Makefile`（test-unit/test-integration/test-e2e/coverage/verify/qa-report）与`scripts/qa/report.ts`机器报告（stdout+stderr合并计数、E2E只读本轮JSON、输出脱敏、Chromium实测探测）；冻结基线`6a59906`实测670 pass/0 fail | 保留原命令，新增可运行入口与SHA/退出码 | QA | M | `Makefile`、`docs/quality/TEST-REPORT.md` | 已实现待统一验收（`de7ea2d`） |
 | Q5 | P0 | CI服务及工件 | CI workflow已扩展（`quality` job lint/typecheck/单测 + `acceptance` job起PG跑Playwright）；不使用外部LLM凭证，`AUDIT_AGENT_MODE=fake`；覆盖率/trace工件job的实跑记录待S3归档 | 不使用外部LLM凭证；机器摘要、LCOV与失败工件可归档 | QA | M | `.github/workflows/ci.yml` | 已实现待统一验收（`de7ea2d`） |
 | Q6 | P0 | 故障、重复操作、上传与泄露回归 | 已实现：`scripts/qa/faults.ts`覆盖Redis不可达仍成功、S3回落本地、非法路由/UUID不伪装500、超大/伪造/路径穿越上传被拒；过期rerun E2E已重写为新案/旧案不变量（`tests/acceptance/audit-case.spec.ts`）；清理helper统一数据库身份解析（不再直读`.env`，RISK-01已修） | 故障明确，正式审计不受影子失败污染 | QA | L | `scripts/qa/faults.ts`、`tests/acceptance/db-cleanup.ts` | 已实现待统一验收（`de7ea2d`） |
@@ -35,7 +35,7 @@
 | I4 | P0 | demo-up/reset/check/down | 已实现受管CLI：minimal（根`.env`）`up\|down\|reset\|seed\|verify\|check`，demo profile（受管`.demo.env`）另含`ready`；`logs`/`status`由Infra本轮补齐后另定文档口径；package.json `demo:*`入口与`scripts/demo/backup-restore.ts`（仅受管`.demo.env`）入树；四入口可运行、可诊断、可停止自建服务 | 四入口可运行、可诊断、可停止自建服务 | Infra | M | `scripts/demo/cli.ts`、`docs/deployment/demo.md` | 已实现待统一验收（`908cb5a`+Infra收尾） |
 | I5 | P0 | 依赖降级矩阵 | 已实现：S3本地回退（显式）、Redis直连/关闭、fake已有；真实依赖故障与恢复行为有集成用例与`qa:faults`覆盖（真实服务未在本机运行，见Q3） | 真实依赖异常与恢复；PG失败明确；Laya不影响正式结果 | Infra + QA | L | `scripts/qa/faults.ts`、`tests/integration/` | 已实现待统一验收（`908cb5a`、`de7ea2d`） |
 | I6 | P0 | 配置、最小备份/恢复、部署与权限说明 | 已实现：`docs/deployment/`（demo.md两种profile、必备变量、备份恢复）与`.env.example`扩充；备份/恢复脚本入树 | 不打印密钥，文档命令与实测一致，恢复只进新测试库 | Infra | L | `docs/deployment/`、`scripts/demo/backup-restore.ts` | 已实现待统一验收（`908cb5a`） |
-| I7 | P0 | minimal与full/optional | 已实现：minimal（无模型密钥、fake、本地原件）与full（访问口令+加密secret、严格S3）两种profile，选择经环境变量；文档记录口径 | minimal无模型密钥；optional显式启用；记录真实启动耗时 | Infra | M | `docs/deployment/demo.md` | 已实现待统一验收（`908cb5a`） |
+| I7 | P0 | minimal与full/optional | 已实现：minimal（无模型密钥、fake、本地原件）与full（加密secret ≥32、严格S3）两种profile，选择经环境变量；**2026-10-17 认证延期后 full 不再要求访问口令**（legacy `API_ACCESS_TOKEN` 无效果）；文档记录口径 | minimal无模型密钥；optional显式启用；记录真实启动耗时 | Infra | M | `docs/deployment/demo.md` | 已实现待统一验收（`908cb5a`） |
 
 ## Agent 3：独立决策与影子治理
 
@@ -56,8 +56,8 @@
 | ID | 优先级 | 具体工作 | 现状/缺口 | 依赖与验收 | Owner | 工作量 | 验收证据/目标路径 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | F1 | P1 | 上传→证据→复核→整改实地走查 | 行为验收入树（`tests/acceptance/ux-workflow.spec.ts`）；相同合成数据的前后对照截图与失败依据仍待S3归档 | 相同合成数据的前后截图、操作步骤与失败依据 | UX + Main | M | `tests/acceptance/ux-workflow.spec.ts`、`docs/ux/` before/after screenshots | 已实现待统一验收（`cc942b2`） |
-| F2 | P1 | 复用Ant Design及tokens | 已保持React19/Ant Design6体系小步一致性（`decision-advice-panel.tsx`、`access-gate.tsx`），不迁移框架 | 小步一致性，不迁移框架 | UX | S | `apps/web/` + browser smoke | 已实现待统一验收（`cc942b2`） |
-| F3 | P1 | 队列、定位、分组、运行/复核/整改状态 | 工作台改造并入（`audit-case-workbench.tsx`接入决策面板与访问会话）；过期rerun验收已由QA按新语义重写 | 改实际缺口，保持证据链与状态清楚 | UX + QA | L | `upload→evidence→review→remediation browser smoke` | 已实现待统一验收（`cc942b2`） |
+| F2 | P1 | 复用Ant Design及tokens | 保持React19/Ant Design6体系（`decision-advice-panel.tsx`等）；2026-10-17删除口令页，框架与主题保留 | 小步一致性，不迁移框架 | UX | S | `apps/web/` + browser smoke | 已实现待统一验收（`cc942b2`）；认证延期见SEC3 |
+| F3 | P1 | 队列、定位、分组、运行/复核/整改状态 | 工作台接入决策面板；2026-10-17移除访问会话，直接进入业务页；过期rerun验收按新语义维护 | 保持证据链与状态清楚 | UX + QA | L | `upload→evidence→review→remediation browser smoke` | 已实现待统一验收；认证延期见SEC3 |
 | F4 | P1 | 决策治理详情与来源/未校准提示 | 已实现：`decision-advice-panel.tsx`+`decision-presentation.ts`（影子建议、来源、未校准标识、空态"未提供"非0%）+`/decision-advice`路由；配套验收`tests/acceptance/decision-advice.spec.ts` | S1 DTO→真实API；辅助意见不伪装正式结论 | UX | L | `tests/acceptance/decision-advice.spec.ts` | 已实现待统一验收（`cc942b2`） |
 | F5 | P1 | 可访问性与尺寸适配 | 已实现：375px风险/原文/复核入口恢复（`ux-workflow.spec.ts`实测375提交复核并回读）、1280/1440/1920三栏同可用断言；键盘/label/焦点走查与1440×900/1920×1080截图待S3归档；不做正式认证声称 | 实测键盘/label/焦点，1440×900与1920×1080，无正式认证声称 | UX | M | `tests/acceptance/ux-workflow.spec.ts`（375/1280/1440/1920） | 已实现待统一验收（`cc942b2`） |
 | F6 | P1 | 行为验收、截图与实际加载指标 | Playwright行为验收已入树（role/label定位、真实运行）；影子路径与对照证据、真实加载指标待S3 | role/label定位、真实运行，未测不报提升比例 | UX + QA | M | `tests/acceptance/ux-workflow.spec.ts` | 已实现待统一验收（`cc942b2`） |
@@ -91,7 +91,7 @@ S2条目状态以上表为准："已实现待统一验收"=代码已合并、S3�
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | SEC1 | P0 | 替换演示凭据、密钥重封装/轮换、部署访问保护 | Main + Infra | I1、I6、统一访问门禁 | L | 配置无固定生产密钥；轮换前后读取；匿名401/授权成功 | 部分已验证：轮换实测`key-rotation-smoke.json`、启动重封`startup-security.json`（`cd24aac`）；部署侧待S3统一验收 |
 | SEC2 | P0 | 上传大小/格式、路径穿越、异常PDF/DOCX与存储归属 | Infra + QA | I2、Q3 | L | 原件hash；拒绝跨目录/跨桶；异常输入行为测试 | 已实现待统一验收（`908cb5a`）：行为测试+`storage-boundary-smoke.json`实测 |
-| SEC3 | P0 | 审计、原件、SSE及影子详情服务端授权 | Main + UX + QA | S1访问口令契约 | L | 匿名拒绝；登录/退出；授权下载/详情；密钥不落URL/日志 | 已验证（HTTP层）：[s2-security](./evidence/s2-security.json)（匿名401/授权200/登出204/重放401，`1f33d99`）+ SSE吊销（`b2033e1`）；影子详情授权待S3回归 |
+| SEC3 | P0 | 审计、原件、SSE及影子详情服务端授权 | Main + UX + QA | 用户重新安排认证开发 | L | 最后阶段重新实现和验收认证；当前移除口令/会话，不阻塞M1 | 2026-10-17用户明确延期；原[s2-security](./evidence/s2-security.json)及SSE吊销仅为历史 |
 | SEC4 | P0 | 模型最小脱敏输入与外部真实合同出网默认禁止 | Main + AI + QA | A1–A3、模型origin策略 | L | 捕获实际发送字段；原始标识/gold/comparison不外发 | 已实现待统一验收：策略代码+守卫（`b2033e1`）；字段级抓包待QA归集 |
 | SEC5 | P0 | 脱敏访问日志、读取限制与影子保留/清理 | Main + AI | A6–A8、SEC3 | L | 过期终态清理/活动保留；公开DTO无原始payload或密钥 | 已实现待统一验收（`a6ec041`）：保留期路由+脱敏DTO测试 |
 | SEC6 | P0 | 明确存储降级及敏感数据持久化边界 | Infra + QA | I2、I5 | M | strict写失败明确；显式local模式；健康/记录显示实际后端 | 已实现待统一验收（`908cb5a`）：strict/local语义+health实际后端 |

@@ -12,7 +12,7 @@ Pi SDK 已升级至 1.2.0；版本依据、兼容性处理与验证记录见 [�
 
 ### 文档索引
 
-工程文档（需求、C4/ADR、测试、运维、研发历史、风险及追溯矩阵）见 [docs/engineering](./docs/engineering/)。竞赛材料见 [docs/competition](./docs/competition/)。安全与运维：[访问门](./docs/runbook/access-control.md)、[密钥轮换](./docs/runbook/key-rotation.md)。当前基线、风险、所有权和交接由 Main 维护于 [docs/project](./docs/project/)；`docs/project-management/`为历史记录。
+工程文档（需求、C4/ADR、测试、运维、研发历史、风险及追溯矩阵）见 [docs/engineering](./docs/engineering/)。竞赛材料见 [docs/competition](./docs/competition/)。安全与运维：[认证延期与当前边界](./docs/runbook/access-control.md)、[密钥轮换](./docs/runbook/key-rotation.md)。当前基线、风险、所有权和交接由 Main 维护于 [docs/project](./docs/project/)；`docs/project-management/`为历史记录。
 
 项目参加**第一届黄桷树 AI 智能体开发大赛**，赛道为**智创开发**——基于黄桷树 Panda 编程 IDE 开发解决实际业务问题的软件工具，并验证其可用性与推广价值。交付形态为独立系统，不做 Panda 技能插件。
 
@@ -31,13 +31,14 @@ Pi SDK 已升级至 1.2.0；版本依据、兼容性处理与验证记录见 [�
 
 ## 能力边界
 
-包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、Agent 运行轨迹（含嵌套工具调用与轮次用量）、合同台账与修订对比（`/contracts`）、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（`/settings/ocr` 三选一：关闭 / 视觉模型 / MinerU。视觉模型由 `pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型；MinerU 调用已验证过的 4.x `/v1/file_parse` 接口；均未配置时整体降级为关闭，扫描件以明确"无法识别"失败而非猜测内容）、审查报告 docx 导出（`/api/audit-cases/:id/report.docx`）、PostgreSQL 留痕、合同原文对象存储（S3/RustFS + 本地回退）、企查查核验缓存、OpenAI 兼容的模型服务管理（`/settings/providers`）、工作区访问口令门（`API_ACCESS_TOKEN`，Bearer 或 HttpOnly 会话）与演示世界种子。
+包含：文本粘贴与合同文件上传（`.txt` / `.md` / `.docx` / `.pdf` / `.xlsx`）、文本规范化、内置 19 条确定性规则、合同立场 Contract Stance（规则按立场分档）、受控 Pi 分析、SSE 进度、Finding 的人工接受/驳回、规则参数版本化与运行时启停、复核分派与整改跟踪、Agent 运行轨迹（含嵌套工具调用与轮次用量）、合同台账与修订对比（`/contracts`）、卷宗跨文档金额链核对（`/dossier-review`，无状态，不落库）、可插拔 OCR 扫描件识别（`/settings/ocr` 三选一：关闭 / 视觉模型 / MinerU。视觉模型由 `pdfjs-dist` 逐页栅格化后交给 OpenAI 兼容网关上的视觉模型；MinerU 调用已验证过的 4.x `/v1/file_parse` 接口；均未配置时整体降级为关闭，扫描件以明确"无法识别"失败而非猜测内容）、审查报告 docx 导出（`/api/audit-cases/:id/report.docx`）、PostgreSQL 留痕、合同原文对象存储（S3/RustFS + 本地回退）、企查查核验缓存、OpenAI 兼容的模型服务管理（`/settings/providers`）与演示世界种子。
 
 不包含（附原因）：
 
 - **MongoDB**：不引入。审计快照、Facts 与规则参数已经存放在 PostgreSQL 的 JSONB 中，且没有独立的文档检索或 change-stream 需求。
 - **独立消息队列**：审计队列暂由 PostgreSQL `SKIP LOCKED` 承担。重新评估的触发条件是 API 需要多个副本置于负载均衡之后——届时进程内调度器与内存队列不再成立。
-- **SSO、RBAC、多租户、OpenTelemetry、WebSocket**：暂不需要；访问门是单工作区口令门，不是身份体系。
+- **登录与权限**：按 2026-10-17 用户安排移除当前口令登录，认证放到项目后期。当前页面与 API 直接访问，`X-Operator` 仅记录操作人；SSO、RBAC、多租户仍未实现。
+- **OpenTelemetry、WebSocket**：暂不需要。
 - **RAG、多 Agent 编排**：暂不需要。
 - **报告中心**：尚未实现（单案件 docx 导出已具备）。
 - **生产合规认证**：未宣称通过任何标准认证（ISO 25010、NIST AI RMF 等仅作为文档方法与威胁清单参考）。
@@ -83,7 +84,7 @@ bun run test:all                 # 严格分层报告：unit + integration + e2e
 
 Biome 配置见 `biome.json`：2 空格缩进、100 列、双引号、尾逗号、`organizeImports`。`docs/design` 下的设计稿与 `apps/web/src/styles.css`（覆盖 antd 内联样式的层）有针对性豁免，理由写在配置注释与本节。`tsconfig.tests.json` 让 `tests/`、`playwright.config.ts`、`vite.config.ts`、`drizzle.config.ts` 也纳入类型检查——这些文件此前不在闸门内，曾漏掉真实的类型错误。
 
-CI 见 `.github/workflows/ci.yml`：`quality` job 跑 lint/typecheck/单测；`acceptance` job 起 PostgreSQL service、应用迁移并跑 Playwright。
+CI 见 `.github/workflows/ci.yml`：`quality`执行lint/typecheck、迁移和单元覆盖率；`integration`使用真实PostgreSQL、Redis、RustFS验证集成及故障；`acceptance`使用独立数据库执行完整浏览器验收；`builds`构建Web与API/Web容器。各层保留可下载报告，运行状态以GitHub Actions实际结果为准。
 
 验收必须显式指定新建、已迁移的独立 TEST 库。`TEST_DATABASE_URL`供集成层使用；`PLAYWRIGHT_DATABASE_URL`供浏览器 API 与清理助手共同使用，不能依赖开发`.env`。每轮使用空的专用验收库，避免历史案件改变相对方关联规则；使用新端口并禁止复用，确保浏览器运行当前代码。
 

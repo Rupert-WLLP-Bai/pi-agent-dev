@@ -15,7 +15,7 @@ curl -s http://localhost:3000/api/health | jq .      # status=ok
 
 预期：`status=ok`、`database=true`、`dispatcher=true`；`objectStore`/`redis` 可降级（`ok` false 不阻塞）。
 
-**若访问门已启用**（`API_ACCESS_TOKEN`）：浏览器会要求访问口令，输入后进入（Bearer 或登录会话，见 [access-control](../runbook/access-control.md)）。**口令不进 URL、不写进任何共享材料**。
+**直接进入，无登录步骤**：2026-10-17 起认证（访问口令/Bearer/`/api/session` 会话）已延期到最后实现，浏览器打开即进入，不需要口令、Cookie 或 token。legacy `API_ACCESS_TOKEN` 对当前 API 无效果。详见 [访问控制状态](../runbook/access-control.md)。
 
 失败兜底：任一依赖不可用 → 演示降级路径本身就是卖点（讲"对象存储/缓存可降级"）；数据库不可用 → 停止演示并修环境，不要继续。
 
@@ -58,7 +58,7 @@ curl -s http://localhost:3000/api/health | jq .      # status=ok
 | 13 | 影子反馈入口 | 提交"接受/驳回/需复核"；注明"仅评估，不改变审计结论" | 反馈 append-only，独立于 Finding Review |
 | 14 | 对比演示：同一合同 off vs shadow | 正式规则结论、Finding、复核、整改完全一致 | 影子故障/存在都不污染正式链路 |
 | 15 | 隐私口径讲解（配合 `audit-data-policy.ts`） | 原始合同默认不出网；`LLM_INTERNAL_DATA_ORIGINS` 默认空；合成内容以 hash 证明 | 数据边界是代码强制的 |
-| 16 | 访问门演示 | 匿名 401 → 登录 200 → 登出 204 | 单工作区门禁（非 SSO/RBAC） |
+| 16 | 访问控制口径讲解（配合 `access-control` 状态页） | 当前无认证；跨站写入拒绝、`X-Operator` 归属标注、日志脱敏、凭据密封仍生效 | 如实说明"认证延期到最后实现"，不讲未实现的门禁；历史口令门实测（`s2-security.json`）只能作为历史记录引用 |
 | 17 | 收尾：`bun run verify` 数字 + 一键复现命令 | 单测 693/0（commit `b2033e1`）；合并后集成检查点 835/0（`a849b29`，Main 观察）；最终统一计数以 S3 为准，不同 commit 数字不可混用 | 质量证据可复跑 |
 
 **步骤 12–14 的就绪度**：决策层代码与持久化/worker/UI 已随 S2 切片合并（`a6ec041`、`cc942b2`，含未提交契约修订待 Main 收尾）；off/shadow 对照与故障隔离的**统一回归在 S3**。S3 通过前该环节按"已实现待验收"对待；不得用 Fake 冒充实时影子。
@@ -71,7 +71,7 @@ curl -s http://localhost:3000/api/health | jq .      # status=ok
 2. **数据流**（2 min）：上传 → 原件存储（locator 记录真实后端）→ 解析（txt/docx/pdf/xlsx/OCR）→ IR → Facts → 主体核验 → 规则评估 → 不可变快照 → Pi 六工具 → Guard → Finding Revision → 人工复核 → 整改。
 3. **不变量**（2 min）：快照不可变；修订只追加；码点 offset；影子不是真值源；rerun 新建案件、旧案保留（`409 case_active`/`rerun_already_active`）。
 4. **治理**（1.5 min）：规则参数版本化 + 发布门禁；轨迹含嵌套调用与轮次 token（ADR-0004/0005）。
-5. **隐私与安全**（1.5 min）：访问门（实测 401/200/204）；出网默认禁止；最小脱敏输入；key 密封 + 轮换 dry-run 默认。
+5. **隐私与安全**（1.5 min）：出网默认禁止；最小脱敏输入；key 密封 + 轮换 dry-run 默认；跨站写入拒绝与操作归属标注。**当前无认证**（延期，2026-10-17），历史口令门实测只能作为历史记录讲。
 6. **复现**（1 min）：clone → `.env`（可空）→ compose → migrate → `bun run verify` → `docker compose up --build`。
 
 失败兜底：每一步都可回到"代码位置 + 测试名字"口头讲解；现场不调试。
@@ -96,7 +96,7 @@ curl -s http://localhost:3000/api/health | jq .      # status=ok
 | 声明 | 证据 |
 | --- | --- |
 | 单测全绿 | commit `b2033e1`，693/0（Main 验证记录；78 文件）；S2 合并检查点 `a849b29` 835/0（Main 观察，最终以 S3 统一运行为准） |
-| 访问门行为 | `docs/project-management/evidence/s2-security.json` |
+| 访问控制（历史记录） | `docs/project-management/evidence/s2-security.json`、`sse-revocation-smoke.json` | 认证已延期（2026-10-17）：匿名 401/授权 200/登出 204/重放 401 是延期前的实现实测，只能作为历史记录引用，不代表当前行为 |
 | 真实 Pi 单样本 | `docs/project-management/evidence/real-pi-smoke.json` |
 | Laya CPU 单样本 | `docs/project-management/evidence/laya-cpu-smoke.json` |
 | 密钥轮换 | `docs/project-management/evidence/key-rotation-smoke.json`、`startup-security.json` |

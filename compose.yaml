@@ -4,8 +4,8 @@
 #
 #   minimal — deterministic fake audit, shadow off, no model credentials.
 #   full    — explicitly configured model/shadow providers.
-# Both modes use the same access gate and encrypted credential storage.
-# scripts/demo/cli.ts generates private local access/encryption credentials.
+# Both modes use encrypted credential storage and open directly without login.
+# scripts/demo/cli.ts generates private database, storage and encryption credentials.
 #
 # Reproducibility rules this file follows:
 #   * every third-party image is pinned to an exact release tag, never
@@ -22,7 +22,7 @@ name: ${COMPOSE_PROJECT_NAME:-contract-audit}
 
 services:
   postgres:
-    image: postgres:18@sha256:08870f282d0dc6df6540cb710bd69144a994efd7a70a40fbf65bc921e6f5ec48
+    image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-contract_audit}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contract_audit}
@@ -83,7 +83,7 @@ services:
         aws --endpoint-url http://rustfs:9000 s3api create-bucket --bucket "$$S3_BUCKET"
 
   redis:
-    image: redis:7-alpine@sha256:e0df28b7b89bee1a9e32778ae7d7acfe2b6881da3b9d21b4f5a52554b27cdae1
+    image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
     ports:
       - "${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6379}:6379"
     volumes:
@@ -119,10 +119,7 @@ services:
       XYG_API_KEY: ${XYG_API_KEY:-}
       XYG_MODEL: ${XYG_MODEL:-}
       QCC_TOKEN: ${QCC_TOKEN:-}
-      # The single-workspace access gate. Required in demo/production; the
-      # compose stack runs APP_ENV=demo, so the token must be supplied.
       APP_ENV: ${APP_ENV:-demo}
-      API_ACCESS_TOKEN: ${API_ACCESS_TOKEN:-}
       LLM_KEY_ENCRYPTION_SECRET: ${LLM_KEY_ENCRYPTION_SECRET:-}
       # Raw-contract outbound policy: empty means no external model origin is
       # permitted to receive contract text. Loopback alone is not an exemption.

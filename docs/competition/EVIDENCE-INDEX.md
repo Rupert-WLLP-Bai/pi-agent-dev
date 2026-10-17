@@ -9,7 +9,7 @@
 | S0 基线审计 | `docs/project-management/BASELINE.md`、`evidence/s0-results.json` | 只读审计 + 独立 worktree 实测 | 输入 `d9a84a4`，提交 `a4c6119` |
 | S1 契约验证 | `evidence/s1-verification.json` | 18 项契约测试 + 670 测试 | commit `6a59906` 基线 |
 | 窄屏缺陷复现 | `evidence/s0-review-375.png`、`s0-review-1440.png` | 真实浏览器 375/1440 对照 | 同一合成案件 |
-| 访问门行为 | `evidence/s2-security.json` | HTTP + 隔离 PG：匿名 401/授权 200/登出 204/重放 401 | commit `1f33d99`；SSE 吊销见 `sse-revocation-smoke.json`（`b2033e1`） |
+| 访问门行为（**历史记录**） | `evidence/s2-security.json` | HTTP + 隔离 PG：匿名 401/授权 200/登出 204/重放 401 | commit `1f33d99`；SSE 吊销见 `sse-revocation-smoke.json`（`b2033e1`）。**2026-10-17 认证延期后该实现已移除**：当前 API 无登录/Bearer/session 强制、无 `/api/session`，这两份 JSON 只证明延期前的实现曾通过验证 |
 | 安全评审 | `evidence/security-review.json` | 发现项与修复记录（QCC 固定错误码、模型 basis 无原始诊断、SSE 关闭） | commit `b2033e1` |
 | 全量质量门禁 | Main 提交记录（`b2033e1`） | `bun run verify` 693/0、78 文件、lint/typecheck | 迁移后隔离 PG；集成后全局计数以 Main 最终记录为准 |
 | 真实 Pi 冒烟 | `evidence/real-pi-smoke.json` | 单合成样本 `equipment-lease`；请求端点/模型 + 环境凭据 | 29727 ms、42 步骤、Guard 通过、快照未变；provenance 守卫后复跑 30365 ms、同样 2 项 Guard 有效提案、快照不可变（`b2033e1`） |
@@ -31,7 +31,7 @@
 | 质量门禁 | `bun run verify` | 数据库不可达时部分测试 SKIP，不是完整验证 |
 | 单元/集成 | `DATABASE_URL=<独立库> bun run test` | 用独立迁移库，勿用开发/演示库 |
 | 浏览器验收 | `CI=true PLAYWRIGHT_DATABASE_URL=<独立库> PLAYWRIGHT_API_PORT=3023 PLAYWRIGHT_WEB_PORT=5193 bunx playwright test` | 单 worker；端口/库都可覆盖 |
-| 访问门 | 见 `docs/engineering/acceptance-criteria.md` §2.2 | 需 `API_ACCESS_TOKEN` |
+| 访问门 | 见 `docs/engineering/acceptance-criteria.md` §2.2（**已延期**：无命令可复现；历史证据须配 commit 上下文） | 延期前需 `API_ACCESS_TOKEN`；当前无该语义 |
 | 真实模型冒烟 | Main 执行的脚本（归档证据 JSON） | 只发合成合同；凭据来源为请求值 + 环境变量 |
 | Laya CPU | Main 执行的本地 smoke（归档证据 JSON） | 需本地 Python/torch CPU 环境 |
 | 密钥轮换 | `bun run secrets:rotate`（默认 dry-run） | `--apply` 才写；库名必须匹配 |
@@ -55,3 +55,4 @@
 2. 单样本证据不得表述为基准或一般结论。
 3. 不同 commit 的数字不可平均、不可合并成"总体通过率"。
 4. 本文条目与 Main 的 `evidence/` 目录一一对应；新增证据由 Main 归档后在此登记。
+5. 2026-10-17 起访问门/认证相关证据（`s2-security.json`、`sse-revocation-smoke.json`、`security-review.json`）是**历史记录**：认证已延期到最后实现，引用时必须带"延期前"上下文，不得表述为当前能力。

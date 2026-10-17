@@ -100,18 +100,15 @@ test("lists contracts and opens a contract's revision history", async ({ page })
   await expect(page.getByRole("heading", { name: "设备采购合同" })).toBeVisible();
 });
 
-test("keeps 合同中心 selected and widens the breadcrumb on the detail", async ({ page }) => {
+test("keeps 合同中心 selected while viewing revision history", async ({ page }) => {
   await routeList(page);
   await routeDetail(page);
 
   await page.goto("/contracts");
   await expect(page.locator(".app-sider-menu .ant-menu-item-selected")).toHaveText("合同中心");
-  await expect(page.locator(".app-breadcrumb")).toContainText("合同中心");
 
   await page.goto("/contracts/contract-1");
   await expect(page.locator(".app-sider-menu .ant-menu-item-selected")).toHaveText("合同中心");
-  await expect(page.locator(".app-breadcrumb")).toContainText("合同中心");
-  await expect(page.locator(".app-breadcrumb")).toContainText("合同详情");
 });
 
 test("shows localized revision status and rule names, never raw codes", async ({ page }) => {

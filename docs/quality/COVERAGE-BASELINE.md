@@ -37,7 +37,7 @@ bun run qa:coverage       # 解析 LCOV，写出分层摘要
 | 案件生命周期 / 队列排他 / SSE | `tests/integration/audit-lifecycle.test.ts` | 3 | PostgreSQL |
 | Redis 缓存命中与降级 | `tests/integration/redis-cache.test.ts` | 3 | Redis（1 个需真实实例） |
 | S3 往返 / 回退 / 穿越 | `tests/integration/original-store.test.ts` | 5 | RustFS/S3（2 个需真实实例） |
-| 访问门禁黑盒 | `tests/integration/access-gate.test.ts` | 8 | 无（需 `AppDeps.access` 已集成） |
+| 工作区认证 | 已按2026-10-17用户要求延期 | 不纳入当前门禁 | 原8条访问门用例及证据仅作历史 |
 | 故障注入 | `scripts/qa/faults.ts` | 4 | PostgreSQL |
 
 场景是否可运行由环境决定，并在报告里记为 `skipped` + 原因；未运行的场景

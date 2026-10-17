@@ -157,7 +157,7 @@ gantt
 | ID | 计划窗口 | 内容 | Owner | 验收（可判定） |
 | --- | --- | --- | --- | --- |
 | P1 | 10-15 → 10-22 | 决策层：provider（disabled/fake/laya-cpu）、独立 shadow 任务、冻结身份、反馈与详情 DTO | AI | off/shadow 同输入正式结论一致；影子故障不污染成功 case |
-| P2 | 10-15 → 10-22 | 访问门全 API 覆盖（含 SSE/originals）、`LLM_INTERNAL_DATA_ORIGINS` 默认空、compose 转发 | Main + Infra | 匿名 401、授权 200 实测；默认不出网策略有证据 |
+| P2 | 10-15 → 10-22 | ~~访问门全 API 覆盖（含 SSE/originals）~~、`LLM_INTERNAL_DATA_ORIGINS` 默认空、compose 转发。**访问门部分已于 2026-10-17 用户指示延期到最后实现**：当前无登录/Bearer/session 强制、无 `/api/session`；重新排期前该行只保留出网策略与 compose 转发验收 | Main + Infra | 匿名 401、授权 200 实测**已作废（延期）**；默认不出网策略有证据（仍有效） |
 | P3 | 10-15 → 10-24 | 影子建议展示、未校准标识、反馈入口、375px 复核可达 | UX | 浏览器实测三档宽度；空/off/失败/未校准可区分 |
 | P4 | 10-15 → 10-24 | RTM/覆盖率/真实 PG/Redis/S3 回归、失败注入 | QA | 报告含 SHA/退出码；不可测项标 BLOCKED |
 | P5 | 10-15 → 10-24 | `scripts/demo/cli.ts`（up/down/reset/seed/verify/check + demo profile `ready`；`logs`/`status`由 Infra 收尾后登记）+ demo 环境保护 | Infra | 两次 reset 结果一致，非 demo 哨兵保留 |

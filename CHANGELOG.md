@@ -5,18 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-10-15
+## [Unreleased] - 2026-10-17
+
+### Changed
+
+- Removed workspace passphrase login, Bearer/session enforcement and login/logout UI
+  at the user's request. Authentication is deferred; the workbench and API open directly.
+  Demo tooling no longer generates or requires an application access token.
 
 ### Added
 
-- Shared-workspace API access with Bearer credentials or revocable HttpOnly sessions,
-  protected original downloads/SSE/configuration, origin checks for writes, and
-  access logs that omit request content and credentials. Demo/production require a token.
+- Write-origin checks and request access logs that omit request content and credentials.
 - Raw internal contract processing requires an explicitly authorized model origin;
   standard synthetic documents are identified from recomputed content hashes.
   Pi refuses HTTP redirects for both keyed and keyless model requests.
-- Active session SSE streams close on logout/expiry and cancel their subscriptions.
-  Synthetic model exemptions now require trusted subject-verification provenance,
+- Synthetic model exemptions require trusted subject-verification provenance,
   including failed checks without external evidence; upstream diagnostics stay out of model basis.
 - Atomic model/OCR encryption-key rotation with database identity confirmation,
   a dry-run default, corrupt-row rollback and no credential logging. Startup seals
@@ -76,6 +79,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Strict release reports reject missing Redis/S3 configuration and skipped test cases.
+  Shutdown stops HTTP before releasing shadow leases and exits within five seconds
+  even when database maintenance holds a conflicting lock.
+
+- QA HTML rendering now initializes its escaping helper before use and retains
+  sanitized per-layer logs under the tested Git SHA. Playwright collects the
+  browser acceptance directory without attempting to execute Bun integration tests.
+- SIGTERM and SIGINT stop the decision runtime and HTTP server, then terminate
+  the API process, so fault scenarios do not hang waiting for child processes.
+- Database restore explicitly selects the new destination with `pg_restore --dbname`;
+  the existing-database refusal remains in place.
+- Multipart upload header inspection no longer waits for cancellation of a cloned
+  request stream before parsing the original. A real HTTP regression covers oversized files.
+- Malformed audit case identifiers now return not-found before PostgreSQL UUID casts.
 - Decision HTTP errors now retain their explicit Elysia status and bounded success
   schemas, so the typed client no longer needs response casts or a parallel fetch path.
 - Managed demo commands select `compose.yaml` explicitly, check required component

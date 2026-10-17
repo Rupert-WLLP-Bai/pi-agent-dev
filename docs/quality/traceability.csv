@@ -28,8 +28,8 @@ R-QUEUE-CLAIM,PG 队列 SKIP LOCKED 排他领取,apps/api/src/dispatcher.ts,apps
 R-SSE,SSE 首帧快照与事件推送,apps/api/src/sse.ts,apps/api/src/sse.ts,tests/integration/audit-lifecycle.test.ts,tests/acceptance/agent-trace.spec.ts,implemented_tested
 R-S3-FALLBACK,S3 失败本地回退且 locator 记录实际后端,apps/api/src/document/original-store.ts,apps/api/src/document/original-store.ts,tests/integration/original-store.test.ts,apps/api/src/document/original-store.test.ts,implemented_tested
 R-REDIS-DEGRADE,Redis 不可用主体核验直连不失败,apps/api/src/qcc/cache.ts,apps/api/src/qcc/cache.ts,tests/integration/redis-cache.test.ts,apps/api/src/qcc/cache.test.ts,implemented_tested
-R-ACCESS-GATE,服务端访问门禁匿名拒绝/会话/Bearer,apps/api/src/access-control.ts,apps/api/src/access-control.ts,tests/integration/access-gate.test.ts,docs/project-management/evidence/s2-security.json,implemented_unverified
-R-UPLOAD-SAFETY,上传大小/类型/路径穿越拒绝,apps/api/src/routes/audit-cases.ts,apps/api/src/document,apps/api/src/routes/audit-cases-upload.test.ts,tests/integration/access-gate.test.ts,implemented_tested
+R-ACCESS-GATE,工作区认证按2026-10-17用户要求延期,docs/runbook/access-control.md,,,docs/project-management/evidence/s2-security.json,deferred
+R-UPLOAD-SAFETY,上传大小/类型/路径穿越拒绝,apps/api/src/routes/audit-cases.ts,apps/api/src/document,apps/api/src/routes/audit-cases-upload.test.ts,scripts/qa/faults.ts,implemented_tested
 R-DECISION-SHADOW,影子建议为辅助且不改正式结论,packages/audit/src/decision.ts,packages/audit/src/decision-contract.ts,packages/audit/src/decision-contract.test.ts,docs/architecture/INTEGRATION-CONTRACT.md,implemented_unverified
 R-DECISION-API,决策 API 版本/错误/幂等契约,packages/audit/src/decision-contract.ts,apps/api/src/routes,tests/fixtures/decision/contract.ts,packages/audit/src/decision-contract.test.ts,implemented_unverified
 R-OCR-DEGRADE,OCR 关闭/失败时扫描件不可读而非伪造,apps/api/src/document/ocr,apps/api/src/document/ocr,apps/api/src/document/ocr/vlm.test.ts,apps/api/src/health.test.ts,implemented_tested

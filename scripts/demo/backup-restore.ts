@@ -213,7 +213,7 @@ switch (command) {
     // takes the new name as its only positional argument — no URL anywhere.
     run(["createdb", restoreName], adminConnectionEnv(values), "创建目标库");
     run(
-      ["pg_restore", "--no-owner", "--no-privileges", dumpPath],
+      ["pg_restore", "--no-owner", "--no-privileges", "--dbname", restoreName, dumpPath],
       connectionEnv(values, restoreName),
       "恢复",
     );

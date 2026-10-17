@@ -38,7 +38,15 @@ const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? 5173);
 const databaseUrl = process.env.PLAYWRIGHT_DATABASE_URL?.trim();
 
 const config: Config = {
-  testDir: "./tests",
+  // Browser specs only. `./tests` also holds Bun's own suites
+  // (`tests/integration/*.test.ts`, `tests/fixtures/**`), which import
+  // `bun:test`; Playwright's runner is plain Node and cannot load them, so a
+  // whole-tree testDir collected those files and failed the run before a single
+  // browser spec executed. `tests/acceptance/*.spec.ts` is the complete set of
+  // browser acceptance specs, so every one of them still runs — nothing is
+  // skipped, only the non-browser files stop being collected here. `bun run
+  // test:integration` remains the entry point for the integration suites.
+  testDir: "./tests/acceptance",
   // The web server is Vite in dev mode, which compiles routes on first request.
   // Line for console + HTML for artifact upload. The CLI `--reporter` flag
   // overrides this entirely, so CI must not pass one.
@@ -77,6 +85,7 @@ const config: Config = {
       env: {
         ...(databaseUrl === undefined ? {} : { DATABASE_URL: databaseUrl }),
         API_PORT: String(apiPort),
+        WEB_ORIGIN: `http://localhost:${webPort}`,
         AUDIT_AGENT_MODE: "fake",
       },
     },

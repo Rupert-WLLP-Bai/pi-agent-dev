@@ -201,7 +201,9 @@ async function readDeclaredFileMime(request: Request): Promise<string> {
   } catch {
     return "";
   } finally {
-    await reader.cancel().catch(() => {});
+    // A cloned stream's cancellation waits for the original branch to finish.
+    // Let multipart parsing consume that branch instead of blocking it here.
+    void reader.cancel().catch(() => {});
   }
   return FILE_PART_MIME.exec(text)?.[1]?.trim() ?? "";
 }

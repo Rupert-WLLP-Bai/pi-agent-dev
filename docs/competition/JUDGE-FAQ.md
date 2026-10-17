@@ -43,8 +43,8 @@
 1. **边界**：原始合同默认不出网；仅当 endpoint origin 精确列入 `LLM_INTERNAL_DATA_ORIGINS` 才放行，且默认空；loopback 不构成数据留域证明（`apps/api/src/llm/audit-data-policy.ts`）。
 2. **最小化**：影子模型只收到最小脱敏构造，不接收身份、gold、完整请求或原始响应（契约 §5）；公开 DTO 不含原始 provider 响应。
 3. **凭据**：provider/OCR key 密封存储，不随 API 返回、不进日志/浏览器；启动时校验 demo/production 加密 secret ≥32 并重封旧明文；轮换默认 dry-run（证据 `key-rotation-smoke.json`、`startup-security.json`）。
-4. **访问**：单工作区口令门（Bearer/HttpOnly 会话），匿名 401 实测（`s2-security.json`）。
-5. **诚实边界**：脱敏不是匿名化保证；口令门不是 RBAC/SSO；这些写进文档而非话术。
+4. **访问**：**当前无认证**（2026-10-17 用户指示延期到最后实现）：无登录页、无 Bearer/Cookie 会话、无 `/api/session`；能访问地址即可读写全部 API，因此部署必须自行做网络入口隔离。历史口令门实测（匿名 401，`s2-security.json`，commit `1f33d99`）只作为延期前的历史记录。
+5. **诚实边界**：脱敏不是匿名化保证；系统当前没有身份认证，更没有 RBAC/SSO；这些写进文档而非话术。
 
 ## Q7. 19 条规则怎么维护和扩展？
 
@@ -75,7 +75,7 @@
 
 ## Q11. 这个系统能直接上生产吗？
 
-不能直接宣称。已知边界：单实例；无 SSO/RBAC/多租户；无备份恢复演练；无多副本；影子层 S2 完成前不具备。生产门禁清单见 `docs/engineering/risk-and-release-plan.md` §1；缺口不隐藏，按 P0/P1 排序跟踪（Main 的风险表）。
+不能直接宣称。已知边界：单实例；**当前无身份认证**（登录/Bearer/session 已于 2026-10-17 延期到最后实现，访问控制依赖部署侧网络隔离）；无 SSO/RBAC/多租户；无备份恢复演练；无多副本；影子层 S2 完成前不具备。生产门禁清单见 `docs/engineering/risk-and-release-plan.md` §1；缺口不隐藏，按 P0/P1 排序跟踪（Main 的风险表）。
 
 ## Q12. 如果大模型升级/换厂商，系统要重写吗？
 

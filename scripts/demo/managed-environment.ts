@@ -43,7 +43,6 @@ const generatedValues = (): Record<string, string> => {
     S3_REGION: "us-east-1",
     S3_STRICT: "true",
     S3_TIMEOUT_MS: "10000",
-    API_ACCESS_TOKEN: randomBytes(32).toString("hex"),
     LLM_KEY_ENCRYPTION_SECRET: randomBytes(32).toString("hex"),
     WEB_ORIGIN: "http://127.0.0.1:18080",
     API_BASE_URL: "http://127.0.0.1:13002",
@@ -112,12 +111,7 @@ export async function loadManagedDemoEnvironment(create = false): Promise<Manage
       throw new Error("DEMO_DISTINCT_PORTS_REQUIRED");
     ports.add(port);
   }
-  for (const key of [
-    "POSTGRES_PASSWORD",
-    "S3_SECRET_KEY",
-    "API_ACCESS_TOKEN",
-    "LLM_KEY_ENCRYPTION_SECRET",
-  ]) {
+  for (const key of ["POSTGRES_PASSWORD", "S3_SECRET_KEY", "LLM_KEY_ENCRYPTION_SECRET"]) {
     if ((values[key]?.length ?? 0) < 32 || /\s/u.test(values[key] ?? ""))
       throw new Error("DEMO_SECRET_REQUIRED_MINIMUM_32_CHARACTERS");
   }

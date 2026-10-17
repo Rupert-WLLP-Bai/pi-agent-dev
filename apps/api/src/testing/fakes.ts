@@ -34,6 +34,7 @@ import {
   type AgentRunSummary,
   type AuditCaseRepository,
   type AuditOverview,
+  type CaseSummary,
   type CreateRerunCaseResult,
   compareReviewQueueItems,
   contractTitleFromFirstBlock,
@@ -58,6 +59,7 @@ import {
 import type { RuleParams } from "../db/schema";
 import type { AuditDispatcher } from "../dispatcher";
 import type { OcrBlock, OcrPort, OcrProbe, OcrResult } from "../document/ocr";
+import { originalStorageOf } from "../document/original-store";
 import type { AuditEventBroker } from "../sse";
 
 interface FakeCaseState {
@@ -876,6 +878,45 @@ export class InMemoryAuditCaseRepository {
       createdAt: state.createdAt,
       updatedAt: state.updatedAt,
     }));
+  }
+
+  async getCasesWithContractTitle(): Promise<CaseSummary[]> {
+    const result: CaseSummary[] = [];
+    for (const [caseId, state] of this.cases) {
+      const auditCase = await this.getCase(caseId);
+      if (auditCase === null) continue;
+      const findings = this.chainHeads(state);
+      let highestSeverity: Severity | null = null;
+      for (const { proposal } of findings) {
+        if (proposal.severity === "HIGH") {
+          highestSeverity = "HIGH";
+          break;
+        }
+        if (proposal.severity === "MEDIUM" || highestSeverity === null) {
+          highestSeverity = proposal.severity;
+        }
+      }
+      const { verifications } = await this.getSubjectDimension(caseId);
+      let subjectRedLineCount = 0;
+      for (const verification of verifications) {
+        if (verification.status !== "RESOLVED") continue;
+        for (const dimension of verification.dimensions) {
+          if (dimension.severity === "RED_LINE" && dimension.count > 0) subjectRedLineCount++;
+        }
+      }
+      result.push({
+        ...auditCase,
+        contractTitle: contractTitleFromFirstBlock(
+          latestSnapshot(state)?.contractDocument.blocks[0]?.text,
+        ),
+        findingCount: findings.length,
+        highestSeverity,
+        subjectRedLineCount,
+        sourceProvenance: this.sourceProvenanceByRecord.get(auditCase.sourceRecordId) ?? null,
+        originalStorage: originalStorageOf(this.sourceOriginalPaths.get(auditCase.sourceRecordId)),
+      });
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async getFinding(findingId: string): Promise<FindingRevision | null> {

@@ -24,8 +24,8 @@
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | M1-B01 真实浏览器业务闭环 | Main、A/C / DONE | 独立Demo与标准合同 → 上传、审计、证据、复核、整改、轨迹、原件记录 | 浏览器实际操作、刷新后持久化、S3 locator/hash；A apps/web，C acceptance，Main证据 | [浏览器证明](./evidence/m1/browser.json)：790e61fe上传、双来源证据、5项复核/整改、整改关闭刷新保持、Fake Trace46步、S3重启后读取与同源重新审计通过；不替代全站E2E | 业务闭环 / M1 | 未记录 / M1 Phase A | 2026-10-15 |
-| M1-B02 完整Release Gate | Main、B/C / BLOCKED | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | 用户要求暂停；本次四层入口失败，报告HTML初始化错误、Playwright混入Bun测试、测试进程未收到S3/Redis配置。两套新TEST库迁移及check:migrations通过；具体结果/路径见HANDOFF暂停断点，尚未修复 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01；用户要求继续后解除暂停 | 2026-10-15 |
-| M1-B03 发布与交接 | Main / BLOCKED | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 用户要求暂停，且M1-B02尚未通过；未发布，没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02；用户要求继续 | 2026-10-15 |
+| M1-B02 完整Release Gate | Main、B/C / IN_PROGRESS | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | 用户已要求继续；从HANDOFF的已观察失败及两项静态审查问题修复，独立环境复验；旧失败保留，尚未通过 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-17 |
+| M1-B03 发布与交接 | Main / TODO | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 暂停已解除，仍依赖M1-B02；未发布，没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02 | 2026-10-17 |
 
 ## M2 · v0.8.0 · Phase A 设计与实现
 
@@ -139,7 +139,7 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 | V1 | 全站视觉重设计（用户显式请求）：React19+AntD6/TanStack桌面web；企业SaaS专业浅色方向（navy `#0F172A`、blue `#0369A1`、light `#F8FAFC`、white表面、slate `#475569`次级、语义风险色）；保留中文UI、现有路由与真实API数据、Ant自带图标与本地中文字体；不新增UI框架/外部字体/GSAP/图标依赖；CSS tokens与Ant主题对齐；键盘焦点可见、reduced motion；不做dark mode | 全站视觉 | M2-A01；M2-A03 | IN_PROGRESS | P1 | 桌面留白与层级实质改善；375/1280/1440/1920四档视口+键盘操作通过Playwright并留存截图；375px面板控制不回退 | VisualRedesign | [原矩阵第69行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：实施中；局部证据不代替完整验收 | 2026-10-15 |
 | SEC1 | 替换演示凭据、密钥重封装/轮换、部署访问保护 | 密钥与访问 | M1-B02；M4-A03 | IN_PROGRESS | P0 | I1、I6、统一访问门禁 | Main + Infra | [原矩阵第92行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：部分已验证：轮换实测`key-rotation-smoke.json`、启动重封`startup-security.json`（`cd24aac`）；部署侧待S3统一验收；局部证据不代替完整验收 | 2026-10-15 |
 | SEC2 | 上传大小/格式、路径穿越、异常PDF/DOCX与存储归属 | 上传边界 | M1-B02；M4-A03 | IN_PROGRESS | P0 | I2、Q3 | Infra + QA | [原矩阵第93行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`908cb5a`）：行为测试+`storage-boundary-smoke.json`实测；局部证据不代替完整验收 | 2026-10-15 |
-| SEC3 | 审计、原件、SSE及影子详情服务端授权 | 服务端授权 | M1-B02 | IN_PROGRESS | P0 | S1访问口令契约 | Main + UX + QA | [原矩阵第94行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已验证（HTTP层）：[s2-security](../project-management/evidence/s2-security.json)（匿名401/授权200/登出204/重放401，`1f33d99`）+ SSE吊销（`b2033e1`）；影子详情授权待S3回归；局部证据不代替完整验收 | 2026-10-15 |
+| SEC3 | 审计、原件、SSE及影子详情服务端授权 | 服务端授权 | V1后期；原M1-B02 | BLOCKED | P0 | 用户重新安排认证开发 | Main + UX + QA | 2026-10-17用户明确要求“去掉这个登录口令，暂时不需要这个功能，最后再来做”；当前移除口令/会话，不阻塞M1；原HTTP/SSE授权证据仅为历史，不代表当前能力 | 2026-10-17 |
 | SEC4 | 模型最小脱敏输入与外部真实合同出网默认禁止 | 模型出网 | M4-A03 | IN_PROGRESS | P0 | A1–A3、模型origin策略 | Main + AI + QA | [原矩阵第95行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收：策略代码+守卫（`b2033e1`）；字段级抓包待QA归集；局部证据不代替完整验收 | 2026-10-15 |
 | SEC5 | 脱敏访问日志、读取限制与影子保留/清理 | 数据治理 | M4-A03 | IN_PROGRESS | P0 | A6–A8、SEC3 | Main + AI | [原矩阵第96行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`a6ec041`）：保留期路由+脱敏DTO测试；局部证据不代替完整验收 | 2026-10-15 |
 | SEC6 | 明确存储降级及敏感数据持久化边界 | 存储降级 | M1-B02 | IN_PROGRESS | P0 | I2、I5 | Infra + QA | [原矩阵第97行](../project-management/TASK-MATRIX.md)，a1e6191；原状态：已实现待统一验收（`908cb5a`）：strict/local语义+health实际后端；局部证据不代替完整验收 | 2026-10-15 |
@@ -221,7 +221,16 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 ## 当前执行视图
 
-OMP保留M1-B01完成、M1-B02与M1-B03因用户要求暂停而BLOCKED，以及暂停的M2-B01/TI工作包入口。恢复断点见[HANDOFF](./HANDOFF.md)；用户要求继续后解除暂停。临时REC操作保存在[恢复记录](./recovery/2026-10-15/README.md)。TI原29项仍为DONE 1 / IN_PROGRESS 1 / TODO 27，不因入口暂停而改变。
+用户已要求继续，并授权分批合入main、推送GitHub和完善CI。OMP保留M1-B01完成、M1-B02进行中、M1-B03待办及GitHub交付任务。2026-10-17新增优先指令M1-AUTH01：移除当前登录口令，SEC3延期到最后且不阻塞M1。TI仍依赖M1发布，原29项保留不变。历史暂停断点见[HANDOFF](./HANDOFF.md)，REC恢复记录不改写。
 
-登记口径：原53项 + 后增8项 + 四Milestone33项 + TI29项 = **123条主任务记录**；另有G1–G7和A2-P0共**8条历史验收/名称变更记录**。不同层级有关联和重叠，不据此计算产品完成率。原无编号的操作、延期范围及REC恢复步骤单列保留。
+恢复时登记口径为123条主任务记录及8条历史验收/名称变更记录，快照保持原样；本轮新增M1-CI01、M1-GIT01、M1-GIT02和M1-AUTH01四项，当前127条主记录。不同层级有关联，不据此计算产品完成率。原无编号操作及延期范围仍保留。
 
+
+## M1续作 · GitHub交付（2026-10-17用户新增）
+
+| ID | 名称 | 模块 | 所属总体Milestone | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 最近更新 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| M1-CI01 | 完善GitHub Actions CI并验证真实运行结果 | CI | M1-B02；关联Q5/M4-A01 | IN_PROGRESS | P1 | 现有测试入口和已验证依赖配置 | CI Agent / Main | 沿用.github/workflows/ci.yml；修正实际服务初始化、分层验证、构建及工件，不将跳过冒充通过 | 2026-10-17 |
+| M1-GIT01 | 分批将通过验证的改动合入main | 集成 | M1-B03 | TODO | P1 | 对应批次验证；保留用户历史 | Main | 用户明确授权；优先非破坏性fast-forward或普通merge，不重写历史 | 2026-10-17 |
+| M1-GIT02 | 推送main及发布记录到GitHub并核对CI | 远端交付 | M1-B03 | TODO | P1 | M1-GIT01；GitHub认证；CI配置 | Main | origin已fetch，gh认证含repo/workflow权限；推送后观察实际运行，不只提交YAML | 2026-10-17 |
+| M1-AUTH01 | 移除当前登录口令并将认证延期到最后 | API / Web / Demo | M1-B02；SEC3延期 | DONE | P1 | 2026-10-17用户优先指令 | Main / API / UX | [实际浏览器/API证明](./evidence/m1/authentication-deferred-2026-10-17.json)：直达业务页面、案件接口200、会话路由404、来源限制403；容器实际审计/2项复核及整改；认证配置与实现已删除 | 2026-10-17 |
