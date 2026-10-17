@@ -1,7 +1,7 @@
 import type { FindingRevision } from "@contract-audit/audit/model";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { App as AntApp, Button, Result, Skeleton } from "antd";
+import { App as AntApp, Card } from "antd";
 import { useCallback, useState } from "react";
 import {
   ApiRequestError,
@@ -14,6 +14,7 @@ import {
 import type { AuditCaseOrigin } from "../app";
 import { rerunAuditCase } from "../audit-rerun-api";
 import { AuditCaseWorkbench } from "../components/audit-case-workbench";
+import { PageError, PageLoading } from "../components/page-status";
 import { ReviewDrawer } from "../components/review-drawer";
 import { useAuditEvents } from "../hooks/use-audit-events";
 
@@ -141,23 +142,24 @@ export default function AuditCaseDetail({
   if (detailQuery.isLoading) {
     return (
       <div className="page workbench-loading" aria-busy="true">
-        <Skeleton active paragraph={{ rows: 8 }} />
+        <Card>
+          <PageLoading rows={8} />
+        </Card>
       </div>
     );
   }
 
   if (detailQuery.isError || detail === undefined) {
     return (
-      <Result
-        status="error"
-        title="无法加载审计详情"
-        subTitle={detailQuery.error instanceof Error ? detailQuery.error.message : undefined}
-        extra={
-          <Button type="primary" onClick={() => void detailQuery.refetch()}>
-            重新加载
-          </Button>
-        }
-      />
+      <div className="page">
+        <Card>
+          <PageError
+            title="无法加载审计详情"
+            description={detailQuery.error instanceof Error ? detailQuery.error.message : undefined}
+            onRetry={() => void detailQuery.refetch()}
+          />
+        </Card>
+      </div>
     );
   }
 
@@ -168,7 +170,9 @@ export default function AuditCaseDetail({
   if (detail.snapshot === null) {
     return (
       <div className="page workbench-loading" aria-busy="true">
-        <Skeleton active paragraph={{ rows: 8 }} title={{ width: "40%" }} />
+        <Card>
+          <PageLoading rows={8} />
+        </Card>
       </div>
     );
   }

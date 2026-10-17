@@ -30,12 +30,12 @@
 
 | ID | 原 OMP 名称 | 模块 / 总体归属 | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TI-M1-1.2A | TI-M1 1.2A · 展示真实运行概况与缺失指标状态 | 运行概况 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | TraceRunOverviewCard + 未提供语义 | 2026-10-17 |
-| TI-M1-1.2B | TI-M1 1.2B · 实现对话与轨迹双视图 | 双视图 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | audit-trace 对话/轨迹/泳道 Segmented | 2026-10-17 |
-| TI-M1-1.2C | TI-M1 1.2C · 实现输入/模型/工具三泳道、真实时间与等宽模式、缩放定位及异常降级 | 时间轴 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | TraceLaneView 初版；缩放定位待补 | 2026-10-17 |
-| TI-M1-1.2D | TI-M1 1.2D · 实现紧凑事件列表、工具配对、输入输出折叠与定位 | 事件列表 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | 泳道折叠 + 既有 timeline 配对 | 2026-10-17 |
-| TI-M1-1.3 | TI-M1 1.3 · 完成浅色开发者工具视觉、中文排版及紧凑行高 | 视觉 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
-| TI-M1-1.4 | TI-M1 1.4 · 实现稳定排序、原始事件映射、时间可信度与脱敏适配 | 规范化 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-A | 待实现；UI语义不改变领域结论 | 2026-10-15 |
+| TI-M1-1.2A | TI-M1 1.2A · 展示真实运行概况与缺失指标状态 | 运行概况 / M2-B01 | DONE | 未记录 | TI-PREP-03 | TI-B | `TraceRunOverviewCard` + `normalize-trace-events` 未提供语义；`apps/web` 单测 | 2026-10-17 |
+| TI-M1-1.2B | TI-M1 1.2B · 实现对话与轨迹双视图 | 双视图 / M2-B01 | DONE | 未记录 | TI-PREP-03 | TI-B | `audit-trace` 对话/轨迹/泳道 Segmented + `TraceChatView` | 2026-10-17 |
+| TI-M1-1.2C | TI-M1 1.2C · 实现输入/模型/工具三泳道、真实时间与等宽模式、缩放定位及异常降级 | 时间轴 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | `TraceLaneView` 泳道筛选/折叠/未提供耗时；时间轴缩放定位仍待 TI-M2 | 2026-10-17 |
+| TI-M1-1.2D | TI-M1 1.2D · 实现紧凑事件列表、工具配对、输入输出折叠与定位 | 事件列表 / M2-B01 | DONE | 未记录 | TI-PREP-03 | TI-B | 泳道折叠 + `AgentTraceTimeline` 工具配对；`toChatTurns` 单测 | 2026-10-17 |
+| TI-M1-1.3 | TI-M1 1.3 · 完成浅色开发者工具视觉、中文排版及紧凑行高 | 视觉 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | 双主题 tokens + trace 样式已接入；独立浅色验收仍待 TI-M3 | 2026-10-17 |
+| TI-M1-1.4 | TI-M1 1.4 · 实现稳定排序、原始事件映射、时间可信度与脱敏适配 | 规范化 / M2-B01 | DONE | 未记录 | TI-PREP-03 | TI-A | `normalize-trace-events.ts` + `TRACE-EVENT-CONTRACT.md`；脱敏字段预留 | 2026-10-17 |
 | TI-M1-1.5 | TI-M1 1.5 · 验证历史Run、空状态、真实API及审计回归并提交基础轨迹版本 | 阶段验收 / M2-B03 | TODO | 未记录 | TI-M1全部实现项 | Main + TI-C | 尚无TI阶段发布提交 | 2026-10-15 |
 
 ## TI-M2 交互检查器

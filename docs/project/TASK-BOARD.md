@@ -227,15 +227,15 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 | ID | 名称 | 状态 |
 | --- | --- | --- |
-| M2-A01 | 双主题设计系统 | IN_PROGRESS |
-| M2-A02 | 信息架构与路由 | IN_PROGRESS |
-| M2-A03 | 核心工作区 | TODO（依赖 A01/A02） |
-| M2-B01 | 其余页面一致性（含 Execution Inspector） | TODO |
-| M2-B02 | 交互、主题与响应式 | TODO |
-| M2-B03 | 浏览器验收与发布 v0.8.0 | TODO |
-| TI-PREP-02 | 数据审计 | IN_PROGRESS |
-| TI-PREP-03 | 冻结 TraceEvent 契约 | TODO |
-| TI-M1-* | 基础轨迹（工作包入口） | TODO（依赖 PREP-03） |
+| M2-A01 | 双主题设计系统 | DONE |
+| M2-A02 | 信息架构与路由 | DONE |
+| M2-A03 | 核心工作区 | IN_PROGRESS |
+| M2-B01 | 其余页面一致性（含 Execution Inspector） | IN_PROGRESS |
+| M2-B02 | 交互、主题与响应式 | IN_PROGRESS |
+| M2-B03 | 浏览器验收与发布 v0.8.0 | IN_PROGRESS |
+| TI-PREP-02 | 数据审计 | DONE |
+| TI-PREP-03 | 冻结 TraceEvent 契约 | DONE |
+| TI-M1-* | 基础轨迹（工作包入口） | IN_PROGRESS |
 
 ### M3 / M4 准备（文档与局部证据）
 

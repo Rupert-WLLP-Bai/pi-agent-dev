@@ -1343,6 +1343,22 @@ a.todo-item:focus-visible {
   outline: 2px solid rgb(3 105 161 / 35%);
   outline-offset: 2px;
 }
+button.document-block--interactive {
+  display: block;
+  width: 100%;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: inherit;
+  cursor: pointer;
+}
+button.document-block--interactive:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 .document-block.has-problem {
   border-left: 3px solid var(--color-danger);
   background: var(--tone-danger-bg);

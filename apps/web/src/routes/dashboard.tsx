@@ -1,25 +1,12 @@
-import { ReloadOutlined } from "@ant-design/icons";
 import type { AuditOverview } from "@contract-audit/api";
 import type { Severity } from "@contract-audit/audit/model";
 import { Link } from "@tanstack/react-router";
-import {
-  Button,
-  Card,
-  Col,
-  Empty,
-  Pagination,
-  Result,
-  Row,
-  Segmented,
-  Space,
-  Spin,
-  Tooltip,
-  Typography,
-} from "antd";
+import { Card, Col, Empty, Pagination, Row, Segmented, Space, Tooltip, Typography } from "antd";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getAuditOverview } from "../api";
 import type { AuditLifecycleFilter } from "../audit-presentation";
 import { getFindingTypeLabel, severityLabels } from "../audit-presentation";
+import { PageHead, PageHeadActions, PageQueryBody } from "../components/page-status";
 import { TrendChart } from "../components/trend-chart";
 
 const RANGE_OPTIONS = [
@@ -121,118 +108,8 @@ export default function DashboardPage() {
     return counts;
   }, [overview]);
 
-  if (error) {
-    return (
-      <div className="page">
-        <Card>
-          <Result
-            status="error"
-            title={error}
-            extra={
-              <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>
-                重试
-              </Button>
-            }
-          />
-        </Card>
-      </div>
-    );
-  }
-  if (!overview) {
-    return (
-      <div className="page" style={{ display: "grid", placeItems: "center", minHeight: 320 }}>
-        <Spin />
-      </div>
-    );
-  }
-
-  const weeklyNew = overview.dailyCounts.slice(-7).reduce((sum, day) => sum + day.count, 0);
-  // The running total is the window's own: switching to 7 days must show what
-  // those 7 days accumulated, not the tail of a 30-day climb.
-  let running = 0;
-  const series = overview.dailyCounts.slice(-rangeDays).map((day) => {
-    running += day.count;
-    return { date: day.date, count: day.count, cumulative: running };
-  });
-  const riskTypes = [...overview.findingsByType].sort((left, right) => right.count - left.count);
-  const riskTotal = overview.chainHeadFindings;
-  const medianSeconds =
-    overview.medianAgentDurationMs === null ? null : overview.medianAgentDurationMs / 1000;
-  const reviewedTotal = overview.acceptedFindings + overview.rejectedFindings;
-
-  const kpis: Kpi[] = [
-    {
-      title: "审计案件总量",
-      value: overview.totalCases,
-      suffix: "",
-      delta: `近 7 天新增 ${weeklyNew} 件`,
-      tone: "primary",
-      to: "/audit-cases",
-    },
-    {
-      title: "待复核案件",
-      value: overview.awaitingReview,
-      suffix: "",
-      delta: "点击打开待复核队列",
-      tone: "warning",
-      to: "/audit-cases",
-      lifecycle: "AWAITING_REVIEW",
-    },
-    {
-      title: "自动审查中位耗时",
-      value: medianSeconds === null ? "-" : medianSeconds.toFixed(1),
-      suffix: medianSeconds === null ? "" : " 秒",
-      delta: `成功运行 ${overview.successfulAgentRuns} 次`,
-      tone: "success",
-      to: "/audit-runs",
-    },
-    {
-      title: "已确认风险",
-      value: overview.acceptedFindings,
-      suffix: "",
-      delta: `误报判定 ${overview.rejectedFindings} 条`,
-      tone: "danger",
-      to: "/audit-cases",
-      lifecycle: "COMPLETED",
-    },
-  ];
-
-  const qualityMetrics = [
-    {
-      label: "风险确认率",
-      value: percentOf(overview.acceptedFindings, reviewedTotal),
-      note: "人工复核确认为风险的比例：确认 ÷（确认 + 误报）",
-    },
-    {
-      label: "自动审查完成率",
-      value: percentOf(overview.reachedReview, overview.totalCases),
-      note: "已进入人工复核或完成闭环的案件占比",
-    },
-    {
-      label: "证据引用率",
-      value: percentOf(overview.citedFindings, overview.chainHeadFindings),
-      note: "当前发现中至少引用一条证据的比例，衡量结论可溯源程度",
-    },
-  ];
-
-  const visiblePending = overview.pendingReview.filter((item) =>
-    pendingSeverity === "ALL" ? true : item.highestSeverity === pendingSeverity,
-  );
-
-  // Clamp as well as slice: a refresh can shrink either list below the page the
-  // operator was on, and an empty page would otherwise render as a blank card.
-  const riskPageCount = Math.max(1, Math.ceil(riskTypes.length / RISK_PAGE_SIZE));
-  const currentRiskPage = Math.min(riskPage, riskPageCount);
-  const pagedRiskTypes = riskTypes.slice(
-    (currentRiskPage - 1) * RISK_PAGE_SIZE,
-    currentRiskPage * RISK_PAGE_SIZE,
-  );
-  const pendingPageCount = Math.max(1, Math.ceil(visiblePending.length / PENDING_PAGE_SIZE));
-  const currentPendingPage = Math.min(pendingPage, pendingPageCount);
-  const pagedPending = visiblePending.slice(
-    (currentPendingPage - 1) * PENDING_PAGE_SIZE,
-    currentPendingPage * PENDING_PAGE_SIZE,
-  );
+  const initialLoading = loading && overview === null;
+  const initialError = error !== null && overview === null && !loading;
 
   const kpiCard = (kpi: Kpi) => (
     <Card className={`kpi-card kpi-card--${kpi.tone}`}>
@@ -248,235 +125,340 @@ export default function DashboardPage() {
     </Card>
   );
 
-  return (
-    <div className="page">
-      <div className="page-head">
-        <div>
-          <Typography.Title level={3} style={{ margin: 0, fontSize: 20 }}>
-            审计驾驶舱
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>
-            处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。点击任一指标可下钻到对应记录。
-          </Typography.Text>
-        </div>
-        <div className="page-head-actions">
-          {updatedAt !== null && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }} className="tnum">
-              更新于 {updatedAt.toLocaleTimeString("zh-CN", { hour12: false })}
-            </Typography.Text>
-          )}
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={load}>
-            刷新
-          </Button>
-        </div>
-      </div>
+  const dashboardBody =
+    overview === null
+      ? null
+      : (() => {
+          const weeklyNew = overview.dailyCounts.slice(-7).reduce((sum, day) => sum + day.count, 0);
+          let running = 0;
+          const series = overview.dailyCounts.slice(-rangeDays).map((day) => {
+            running += day.count;
+            return { date: day.date, count: day.count, cumulative: running };
+          });
+          const riskTypes = [...overview.findingsByType].sort(
+            (left, right) => right.count - left.count,
+          );
+          const riskTotal = overview.chainHeadFindings;
+          const medianSeconds =
+            overview.medianAgentDurationMs === null ? null : overview.medianAgentDurationMs / 1000;
+          const reviewedTotal = overview.acceptedFindings + overview.rejectedFindings;
+          const kpis: Kpi[] = [
+            {
+              title: "审计案件总量",
+              value: overview.totalCases,
+              suffix: "",
+              delta: `近 7 天新增 ${weeklyNew} 件`,
+              tone: "primary",
+              to: "/audit-cases",
+            },
+            {
+              title: "待复核案件",
+              value: overview.awaitingReview,
+              suffix: "",
+              delta: "点击打开待复核队列",
+              tone: "warning",
+              to: "/audit-cases",
+              lifecycle: "AWAITING_REVIEW",
+            },
+            {
+              title: "自动审查中位耗时",
+              value: medianSeconds === null ? "-" : medianSeconds.toFixed(1),
+              suffix: medianSeconds === null ? "" : " 秒",
+              delta: `成功运行 ${overview.successfulAgentRuns} 次`,
+              tone: "success",
+              to: "/audit-runs",
+            },
+            {
+              title: "已确认风险",
+              value: overview.acceptedFindings,
+              suffix: "",
+              delta: `误报判定 ${overview.rejectedFindings} 条`,
+              tone: "danger",
+              to: "/audit-cases",
+              lifecycle: "COMPLETED",
+            },
+          ];
+          const qualityMetrics = [
+            {
+              label: "风险确认率",
+              value: percentOf(overview.acceptedFindings, reviewedTotal),
+              note: "人工复核确认为风险的比例：确认 ÷（确认 + 误报）",
+            },
+            {
+              label: "自动审查完成率",
+              value: percentOf(overview.reachedReview, overview.totalCases),
+              note: "已进入人工复核或完成闭环的案件占比",
+            },
+            {
+              label: "证据引用率",
+              value: percentOf(overview.citedFindings, overview.chainHeadFindings),
+              note: "当前发现中至少引用一条证据的比例，衡量结论可溯源程度",
+            },
+          ];
+          const visiblePending = overview.pendingReview.filter((item) =>
+            pendingSeverity === "ALL" ? true : item.highestSeverity === pendingSeverity,
+          );
+          const riskPageCount = Math.max(1, Math.ceil(riskTypes.length / RISK_PAGE_SIZE));
+          const currentRiskPage = Math.min(riskPage, riskPageCount);
+          const pagedRiskTypes = riskTypes.slice(
+            (currentRiskPage - 1) * RISK_PAGE_SIZE,
+            currentRiskPage * RISK_PAGE_SIZE,
+          );
+          const pendingPageCount = Math.max(
+            1,
+            Math.ceil(visiblePending.length / PENDING_PAGE_SIZE),
+          );
+          const currentPendingPage = Math.min(pendingPage, pendingPageCount);
+          const pagedPending = visiblePending.slice(
+            (currentPendingPage - 1) * PENDING_PAGE_SIZE,
+            currentPendingPage * PENDING_PAGE_SIZE,
+          );
 
-      <Row gutter={[12, 12]} className="dash-kpis">
-        {kpis.map((kpi) => (
-          <Col key={kpi.title} xs={24} sm={12} xl={6}>
-            {kpi.to === "/audit-runs" ? (
-              <Link className="kpi-link" to="/audit-runs">
-                {kpiCard(kpi)}
-              </Link>
-            ) : (
-              <Link className="kpi-link" to="/audit-cases" search={{ lifecycle: kpi.lifecycle }}>
-                {kpiCard(kpi)}
-              </Link>
-            )}
-          </Col>
-        ))}
-      </Row>
-
-      <Row gutter={[12, 12]} className="dash-row">
-        <Col xs={24} lg={15}>
-          <Card
-            className="dash-fill-card card-head-strong"
-            title="审计处理趋势"
-            size="small"
-            extra={
-              <Segmented
-                size="small"
-                value={rangeDays}
-                options={RANGE_OPTIONS}
-                onChange={(value) => setRangeDays(value as number)}
-              />
-            }
-          >
-            <TrendChart series={series} rangeLabel={`${rangeDays} 天`} formatDay={formatDay} />
-            <div className="chart-legend">
-              <span>
-                <i className="chart-legend__line" />
-                累计案件
-              </span>
-              <span>
-                <i className="chart-legend__daily" />
-                当日新增
-              </span>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={9}>
-          <Card
-            className="dash-fill-card card-head-strong"
-            title="风险发现类型"
-            size="small"
-            extra={
-              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                共 {riskTotal} 条
-              </Typography.Text>
-            }
-          >
-            {riskTotal === 0 ? (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无风险发现" />
-            ) : (
-              <div className="dash-list-body">
-                <div className="hbar-list">
-                  {pagedRiskTypes.map((item) => {
-                    const pct = (item.count / riskTotal) * 100;
-                    return (
-                      <Tooltip
-                        key={item.findingType}
-                        title={`${getFindingTypeLabel(item.findingType)} · ${item.count} 条 · 占全部发现的 ${pct.toFixed(1)}%`}
+          return (
+            <>
+              <Row gutter={[12, 12]} className="dash-kpis">
+                {kpis.map((kpi) => (
+                  <Col key={kpi.title} xs={24} sm={12} xl={6}>
+                    {kpi.to === "/audit-runs" ? (
+                      <Link className="kpi-link" to="/audit-runs">
+                        {kpiCard(kpi)}
+                      </Link>
+                    ) : (
+                      <Link
+                        className="kpi-link"
+                        to="/audit-cases"
+                        search={{ lifecycle: kpi.lifecycle }}
                       >
-                        <div className="hbar-row">
-                          <span className="hbar-label">
-                            {getFindingTypeLabel(item.findingType)}
-                          </span>
-                          <div className="hbar-track">
-                            <div
-                              className="hbar-fill"
-                              style={{
-                                width: `${Math.max(pct, 4)}%`,
-                                background: pct > 60 ? "#B91C1C" : pct > 35 ? "#B45309" : "#0369A1",
-                              }}
+                        {kpiCard(kpi)}
+                      </Link>
+                    )}
+                  </Col>
+                ))}
+              </Row>
+
+              <Row gutter={[12, 12]} className="dash-row">
+                <Col xs={24} lg={15}>
+                  <Card
+                    className="dash-fill-card card-head-strong"
+                    title="审计处理趋势"
+                    size="small"
+                    extra={
+                      <Segmented
+                        size="small"
+                        value={rangeDays}
+                        options={RANGE_OPTIONS}
+                        onChange={(value) => setRangeDays(value as number)}
+                      />
+                    }
+                  >
+                    <TrendChart
+                      series={series}
+                      rangeLabel={`${rangeDays} 天`}
+                      formatDay={formatDay}
+                    />
+                    <div className="chart-legend">
+                      <span>
+                        <i className="chart-legend__line" />
+                        累计案件
+                      </span>
+                      <span>
+                        <i className="chart-legend__daily" />
+                        当日新增
+                      </span>
+                    </div>
+                  </Card>
+                </Col>
+                <Col xs={24} lg={9}>
+                  <Card
+                    className="dash-fill-card card-head-strong"
+                    title="风险发现类型"
+                    size="small"
+                    extra={
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                        共 {riskTotal} 条
+                      </Typography.Text>
+                    }
+                  >
+                    {riskTotal === 0 ? (
+                      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无风险发现" />
+                    ) : (
+                      <div className="dash-list-body">
+                        <div className="hbar-list">
+                          {pagedRiskTypes.map((item) => {
+                            const pct = (item.count / riskTotal) * 100;
+                            return (
+                              <Tooltip
+                                key={item.findingType}
+                                title={`${getFindingTypeLabel(item.findingType)} · ${item.count} 条 · 占全部发现的 ${pct.toFixed(1)}%`}
+                              >
+                                <div className="hbar-row">
+                                  <span className="hbar-label">
+                                    {getFindingTypeLabel(item.findingType)}
+                                  </span>
+                                  <div className="hbar-track">
+                                    <div
+                                      className="hbar-fill"
+                                      style={{
+                                        width: `${Math.max(pct, 4)}%`,
+                                        background:
+                                          pct > 60 ? "#B91C1C" : pct > 35 ? "#B45309" : "#0369A1",
+                                      }}
+                                    />
+                                  </div>
+                                  <b className="hbar-value">{item.count}</b>
+                                </div>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                        {riskPageCount > 1 && (
+                          <div className="dash-pager">
+                            <Pagination
+                              size="small"
+                              simple
+                              current={currentRiskPage}
+                              pageSize={RISK_PAGE_SIZE}
+                              total={riskTypes.length}
+                              onChange={setRiskPage}
                             />
                           </div>
-                          <b className="hbar-value">{item.count}</b>
-                        </div>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-                {riskPageCount > 1 && (
-                  <div className="dash-pager">
-                    <Pagination
-                      size="small"
-                      simple
-                      current={currentRiskPage}
-                      pageSize={RISK_PAGE_SIZE}
-                      total={riskTypes.length}
-                      onChange={setRiskPage}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[12, 12]} className="dash-row">
-        <Col xs={24} lg={15}>
-          <Card className="dash-fill-card card-head-strong" title="质量指标" size="small">
-            <Row gutter={10}>
-              {qualityMetrics.map((metric) => (
-                <Col key={metric.label} flex={1}>
-                  <Tooltip title={metric.note}>
-                    <div className="quality-item">
-                      <span className="quality-item__label">{metric.label}</span>
-                      <b className="tnum">{metric.value}</b>
-                      <span className="quality-item__note">{metric.note}</span>
-                    </div>
-                  </Tooltip>
+                        )}
+                      </div>
+                    )}
+                  </Card>
                 </Col>
-              ))}
-            </Row>
-          </Card>
-        </Col>
-        <Col xs={24} lg={9}>
-          <Card
-            className="dash-fill-card card-head-strong"
-            title="待我处理"
-            size="small"
-            extra={
-              <Space size={8}>
-                <Segmented
-                  size="small"
-                  value={pendingSeverity}
-                  options={PENDING_FILTERS.map((option) => ({
-                    value: option.value,
-                    label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
-                  }))}
-                  onChange={(value) => {
-                    // Narrowing the severity filter shortens the list under the
-                    // pager, so the page returns to the first one with it.
-                    setPendingSeverity(value as Severity | "ALL");
-                    setPendingPage(1);
-                  }}
-                />
-                <Link to="/reviews">去复核中心</Link>
-              </Space>
-            }
-          >
-            {visiblePending.length === 0 ? (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  overview.pendingReview.length === 0
-                    ? "暂无待复核案件"
-                    : "该严重级别下暂无待复核案件"
-                }
-              />
-            ) : (
-              <div className="dash-list-body">
-                <div className="todo-list">
-                  {pagedPending.map((item) => {
-                    const tag =
-                      item.highestSeverity === null
-                        ? "待复核"
-                        : severityLabels[item.highestSeverity];
-                    const color = todoTagColors[tag] ?? "#0369A1";
-                    return (
-                      <Link
-                        key={item.id}
-                        to="/audit-cases/$id"
-                        params={{ id: item.id }}
-                        search={{ origin: "reviews" }}
-                        className="todo-item"
-                      >
-                        <b>{item.title ?? "未命名合同"}</b>
-                        <span
-                          className="todo-tag"
-                          style={{
-                            color,
-                            background: `${color}15`,
-                            border: `1px solid ${color}40`,
+              </Row>
+
+              <Row gutter={[12, 12]} className="dash-row">
+                <Col xs={24} lg={15}>
+                  <Card className="dash-fill-card card-head-strong" title="质量指标" size="small">
+                    <Row gutter={10}>
+                      {qualityMetrics.map((metric) => (
+                        <Col key={metric.label} flex={1}>
+                          <Tooltip title={metric.note}>
+                            <div className="quality-item">
+                              <span className="quality-item__label">{metric.label}</span>
+                              <b className="tnum">{metric.value}</b>
+                              <span className="quality-item__note">{metric.note}</span>
+                            </div>
+                          </Tooltip>
+                        </Col>
+                      ))}
+                    </Row>
+                  </Card>
+                </Col>
+                <Col xs={24} lg={9}>
+                  <Card
+                    className="dash-fill-card card-head-strong"
+                    title="待我处理"
+                    size="small"
+                    extra={
+                      <Space size={8}>
+                        <Segmented
+                          size="small"
+                          value={pendingSeverity}
+                          options={PENDING_FILTERS.map((option) => ({
+                            value: option.value,
+                            label: `${option.label} ${pendingCounts[option.value] ?? 0}`,
+                          }))}
+                          onChange={(value) => {
+                            // Narrowing the severity filter shortens the list under the
+                            // pager, so the page returns to the first one with it.
+                            setPendingSeverity(value as Severity | "ALL");
+                            setPendingPage(1);
                           }}
-                        >
-                          {tag}
-                        </span>
-                        <time>{relativeTime(item.updatedAt)}</time>
-                      </Link>
-                    );
-                  })}
-                </div>
-                {pendingPageCount > 1 && (
-                  <div className="dash-pager">
-                    <Pagination
-                      size="small"
-                      simple
-                      current={currentPendingPage}
-                      pageSize={PENDING_PAGE_SIZE}
-                      total={visiblePending.length}
-                      onChange={setPendingPage}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </Card>
-        </Col>
-      </Row>
+                        />
+                        <Link to="/reviews">去复核中心</Link>
+                      </Space>
+                    }
+                  >
+                    {visiblePending.length === 0 ? (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={
+                          overview.pendingReview.length === 0
+                            ? "暂无待复核案件"
+                            : "该严重级别下暂无待复核案件"
+                        }
+                      />
+                    ) : (
+                      <div className="dash-list-body">
+                        <div className="todo-list">
+                          {pagedPending.map((item) => {
+                            const tag =
+                              item.highestSeverity === null
+                                ? "待复核"
+                                : severityLabels[item.highestSeverity];
+                            const color = todoTagColors[tag] ?? "#0369A1";
+                            return (
+                              <Link
+                                key={item.id}
+                                to="/audit-cases/$id"
+                                params={{ id: item.id }}
+                                search={{ origin: "reviews" }}
+                                className="todo-item"
+                              >
+                                <b>{item.title ?? "未命名合同"}</b>
+                                <span
+                                  className="todo-tag"
+                                  style={{
+                                    color,
+                                    background: `${color}15`,
+                                    border: `1px solid ${color}40`,
+                                  }}
+                                >
+                                  {tag}
+                                </span>
+                                <time>{relativeTime(item.updatedAt)}</time>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                        {pendingPageCount > 1 && (
+                          <div className="dash-pager">
+                            <Pagination
+                              size="small"
+                              simple
+                              current={currentPendingPage}
+                              pageSize={PENDING_PAGE_SIZE}
+                              total={visiblePending.length}
+                              onChange={setPendingPage}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              </Row>
+            </>
+          );
+        })();
+
+  return (
+    <div className="page">
+      <PageHead
+        title="审计驾驶舱"
+        description="处理规模、审查时效、待办积压和已确认风险，均来自当前数据库。点击任一指标可下钻到对应记录。"
+        actions={
+          <PageHeadActions refreshing={loading} onRefresh={load}>
+            {updatedAt !== null ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }} className="tnum">
+                更新于 {updatedAt.toLocaleTimeString("zh-CN", { hour12: false })}
+              </Typography.Text>
+            ) : null}
+          </PageHeadActions>
+        }
+      />
+      <PageQueryBody
+        initialLoading={initialLoading}
+        initialError={initialError}
+        errorMessage={error ?? undefined}
+        onRetry={load}
+        skeletonRows={8}
+      >
+        {dashboardBody}
+      </PageQueryBody>
     </div>
   );
 }

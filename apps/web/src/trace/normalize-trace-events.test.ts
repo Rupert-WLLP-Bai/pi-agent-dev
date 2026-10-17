@@ -87,6 +87,21 @@ describe("pairToolEvents / toChatTurns", () => {
     expect(pairs[0]?.result?.kind).toBe("TOOL_RESULT");
   });
 
+  test("chat turns surface orphan tool results", () => {
+    const events = normalizeTraceEvents([
+      baseStep({
+        sequence: 1,
+        kind: "TOOL_RESULT",
+        label: "search_contract",
+        ref: "orphan",
+        output: { ok: true },
+      }),
+    ]);
+    const turns = toChatTurns(events);
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.role).toBe("tool");
+  });
+
   test("chat turns collapse paired tools", () => {
     const events = normalizeTraceEvents([
       baseStep({ sequence: 1, kind: "STAGE", label: "TURN_STARTED" }),

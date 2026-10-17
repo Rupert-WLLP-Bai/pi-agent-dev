@@ -35,7 +35,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   assessmentsForFinding,
   canDownloadOriginal,
@@ -178,18 +178,33 @@ function isHeading(text: string): boolean {
 
 function renderDocumentBlocks(
   document: ContractDocument,
-  selectedBlockId: string | null,
+  highlightBlockId: string | null,
   problemBlockIds: Set<string>,
+  onActivateBlock?: (blockId: string) => void,
 ) {
   return document.blocks.map((block) => {
     const isHeadingBlock = isHeading(block.text);
-    const isSelected = selectedBlockId === block.blockId;
+    const isSelected = highlightBlockId === block.blockId;
     const hasProblem = problemBlockIds.has(block.blockId);
     const className = `document-block ${isHeadingBlock ? "heading" : ""} ${isSelected ? "selected" : ""} ${hasProblem ? "has-problem" : ""}`;
+    if (isHeadingBlock || onActivateBlock === undefined) {
+      return (
+        <div key={block.blockId} className={className} data-block-id={block.blockId}>
+          {block.text}
+        </div>
+      );
+    }
     return (
-      <div key={block.blockId} className={className} data-block-id={block.blockId}>
+      <button
+        key={block.blockId}
+        type="button"
+        className={`${className} document-block--interactive`}
+        data-block-id={block.blockId}
+        onClick={() => onActivateBlock(block.blockId)}
+        title="查看引用此段落的审计发现"
+      >
         {block.text}
-      </div>
+      </button>
     );
   });
 }
@@ -225,7 +240,11 @@ function FindingListItem({
         )}
       </div>
       <div className="f-title">{findingTypeLabels[finding.proposal.findingType]}</div>
-      <div className="f-loc">证据 {finding.proposal.evidenceIds.length} 条</div>
+      <div className="f-loc">
+        {finding.proposal.evidenceIds.length === 0
+          ? "无文档证据锚点"
+          : `证据 ${finding.proposal.evidenceIds.length} 条 · 可在正文定位`}
+      </div>
     </button>
   );
 }
@@ -462,6 +481,14 @@ function InspectorPanel({
 
         <div className="inspect-section">
           <h4>证据来源 ({citedEvidence.length})</h4>
+          {citedEvidence.some((loc) => loc.location.kind === "DOCUMENT_SPAN") ? (
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 11, display: "block", marginBottom: 6 }}
+            >
+              文档区块证据可点击，在左侧正文中高亮定位；正文段落也可反查对应发现。
+            </Typography.Text>
+          ) : null}
           {citedEvidence.length === 0 ? (
             <Typography.Text type="secondary" style={{ fontSize: 11 }}>
               暂无关联证据
@@ -670,12 +697,27 @@ export function AuditCaseWorkbench({
       .find((e) => e !== undefined);
     return firstEvidence ? documentBlockId(firstEvidence) : null;
   }, [selectedFinding, evidence]);
+  const highlightBlockId = focusedBlockId ?? selectedBlockId;
+
+  const activateDocumentBlock = useCallback(
+    (blockId: string) => {
+      setFocusedBlockId(blockId);
+      const index = findings.findIndex((finding) =>
+        finding.proposal.evidenceIds.some((eid) => {
+          const locator = evidence.find((entry) => entry.id === eid);
+          return locator !== undefined && documentBlockId(locator) === blockId;
+        }),
+      );
+      if (index >= 0) setSelectedFindingIndex(index);
+    },
+    [evidence, findings],
+  );
 
   useEffect(() => {
-    if (!selectedBlockId || !documentRef.current) return;
-    const el = documentRef.current.querySelector(`[data-block-id="${selectedBlockId}"]`);
+    if (!highlightBlockId || !documentRef.current) return;
+    const el = documentRef.current.querySelector(`[data-block-id="${highlightBlockId}"]`);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [selectedBlockId]);
+  }, [highlightBlockId]);
 
   useEffect(() => {
     if (!focusedBlockId || !documentRef.current) return;
@@ -1017,7 +1059,12 @@ export function AuditCaseWorkbench({
               <div className="doc-no">
                 合同版本 · 区块 {snapshot.document.blocks[0]?.blockId ?? "-"}
               </div>
-              {renderDocumentBlocks(snapshot.document, selectedBlockId, problemBlockIds)}
+              {renderDocumentBlocks(
+                snapshot.document,
+                highlightBlockId,
+                problemBlockIds,
+                activateDocumentBlock,
+              )}
             </div>
           </main>
 

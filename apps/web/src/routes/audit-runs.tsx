@@ -1,18 +1,25 @@
 import type { AgentRunSummary } from "@contract-audit/api";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Alert, Button, Empty, Table, Tag, Tooltip, Typography } from "antd";
+import { Button, Card, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { getAgentRuns } from "../api";
 import {
   agentRunStateLabels,
   agentRunStateTagColors,
   formatAgentRuntime,
-  formatDuration,
   getAgentRunState,
   shortAuditId,
 } from "../audit-presentation";
+import {
+  PageEmpty,
+  PageError,
+  PageHead,
+  PageHeadActions,
+  PageLoading,
+} from "../components/page-status";
 import { TokenUsage } from "../components/token-usage";
+import { formatMetricMs, METRIC_NOT_PROVIDED } from "../trace/normalize-trace-events";
 
 const formatTime = (iso: string): string =>
   new Date(iso).toLocaleString("zh-CN", { hour12: false });
@@ -119,13 +126,18 @@ export default function AuditRunsPage() {
       dataIndex: "durationMs",
       width: 100,
       align: "right",
-      render: (value: number | null) => formatDuration(value) ?? "-",
+      render: (value: number | null) => formatMetricMs(value),
     },
     {
       title: "Token",
       key: "usage",
       width: 230,
-      render: (_value, record) => <TokenUsage usage={record.usage} />,
+      render: (_value, record) =>
+        record.usage === null ? (
+          <span className="trace-overview__muted">{METRIC_NOT_PROVIDED}</span>
+        ) : (
+          <TokenUsage usage={record.usage} />
+        ),
     },
     {
       title: "开始时间",
@@ -155,50 +167,55 @@ export default function AuditRunsPage() {
     },
   ];
 
+  const runs = runsQuery.data ?? [];
+  const initialLoading = runsQuery.isLoading && runs.length === 0;
+  const initialError = runsQuery.isError && runs.length === 0;
+
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            运行轨迹
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            每次智能体运行都会留下完整轨迹：调用了哪些工具、传入了什么、返回了什么。
-          </Typography.Text>
-        </div>
-        <Button onClick={() => void runsQuery.refetch()} loading={runsQuery.isFetching}>
-          刷新
-        </Button>
-      </div>
+      <PageHead
+        title="运行轨迹"
+        description="每次智能体运行都会留下完整轨迹：调用了哪些工具、传入了什么、返回了什么。"
+        actions={
+          <PageHeadActions
+            refreshing={runsQuery.isFetching && !runsQuery.isLoading}
+            onRefresh={() => void runsQuery.refetch()}
+          />
+        }
+      />
 
-      {runsQuery.isError ? (
-        <Alert
-          type="error"
-          showIcon
-          title="无法加载运行记录"
-          description={runsQuery.error.message}
-          action={<Button onClick={() => void runsQuery.refetch()}>重试</Button>}
-        />
+      {initialLoading ? (
+        <Card>
+          <PageLoading rows={8} />
+        </Card>
+      ) : initialError ? (
+        <Card>
+          <PageError
+            title="无法加载运行记录"
+            description={runsQuery.error instanceof Error ? runsQuery.error.message : undefined}
+            onRetry={() => void runsQuery.refetch()}
+          />
+        </Card>
       ) : (
-        <Table<AgentRunSummary>
-          rowKey="id"
-          columns={columns}
-          dataSource={runsQuery.data ?? []}
-          loading={runsQuery.isLoading}
-          scroll={{ x: "max-content" }}
-          pagination={false}
-          locale={{
-            emptyText: (
-              <Empty
-                description={
-                  <span>
-                    还没有运行记录。到 <Link to="/audit-cases">审计队列</Link> 发起一次审计。
-                  </span>
-                }
-              />
-            ),
-          }}
-        />
+        <Card size="small" className="queue-table">
+          <Table<AgentRunSummary>
+            rowKey="id"
+            columns={columns}
+            dataSource={runs}
+            loading={runsQuery.isFetching && !runsQuery.isLoading}
+            scroll={{ x: "max-content" }}
+            pagination={false}
+            locale={{
+              emptyText: (
+                <PageEmpty description="还没有运行记录。">
+                  <Link to="/audit-cases">
+                    <Button type="primary">去审计队列</Button>
+                  </Link>
+                </PageEmpty>
+              ),
+            }}
+          />
+        </Card>
       )}
     </div>
   );

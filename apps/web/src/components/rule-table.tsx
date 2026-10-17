@@ -4,6 +4,7 @@ import {
   Alert,
   App as AntApp,
   Button,
+  Card,
   Empty,
   Input,
   Select,
@@ -25,6 +26,7 @@ import {
   ruleVersionStatusLabels,
   ruleVersionStatusTagColors,
 } from "../rule-presentation";
+import { PageError } from "./page-status";
 
 export interface RuleTableProps {
   rules: RuleListItem[];
@@ -283,7 +285,11 @@ export function RuleTable({
         />
       </Space>
 
-      {error ? (
+      {error && rules.length === 0 && !loading ? (
+        <Card>
+          <PageError title="无法加载规则列表" description={error.message} onRetry={onRefresh} />
+        </Card>
+      ) : error ? (
         <Alert
           type="error"
           showIcon

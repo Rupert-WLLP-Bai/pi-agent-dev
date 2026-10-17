@@ -1,10 +1,8 @@
-import { PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import { PlusOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Alert,
   App as AntApp,
   Button,
-  Card,
   Drawer,
   Empty,
   Form,
@@ -32,6 +30,7 @@ import {
   testLlmProvider,
   updateLlmProvider,
 } from "../api";
+import { PageHead, PageHeadActions, PageQueryBody } from "../components/page-status";
 
 interface ProviderFormValues {
   name: string;
@@ -299,60 +298,49 @@ export default function LlmProvidersPage() {
     },
   ];
 
+  const initialLoading = providersQuery.isLoading && providers.length === 0;
+  const initialError = providersQuery.isError && providers.length === 0;
+
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            模型服务
-          </Typography.Title>
-          <Typography.Text type="secondary">
-            配置审计所用的 OpenAI 兼容接口，并切换当前生效的模型服务。
-          </Typography.Text>
-        </div>
-        <Space className="page-head-actions">
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => void providersQuery.refetch()}
-            loading={providersQuery.isFetching}
+      <PageHead
+        title="模型服务"
+        description="配置审计所用的 OpenAI 兼容接口，并切换当前生效的模型服务。"
+        actions={
+          <PageHeadActions
+            refreshing={providersQuery.isFetching && !providersQuery.isLoading}
+            onRefresh={() => void providersQuery.refetch()}
           >
-            刷新
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            新增模型服务
-          </Button>
-        </Space>
-      </div>
-
-      {providersQuery.isError && (
-        <Alert
-          type="error"
-          showIcon
-          title="无法加载模型服务"
-          description={providersQuery.error?.message ?? "加载模型服务失败"}
-          action={<Button onClick={() => void providersQuery.refetch()}>重试</Button>}
-        />
-      )}
-
-      {!providersQuery.isError && providers.length === 0 && !providersQuery.isLoading ? (
-        <Card>
-          <Empty description="尚未配置模型服务">
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               新增模型服务
             </Button>
-          </Empty>
-        </Card>
-      ) : (
+          </PageHeadActions>
+        }
+      />
+
+      <PageQueryBody
+        initialLoading={initialLoading}
+        initialError={initialError}
+        errorMessage={providersQuery.error?.message ?? "加载模型服务失败"}
+        onRetry={() => void providersQuery.refetch()}
+        empty={!initialLoading && !initialError && providers.length === 0}
+        emptyDescription="尚未配置模型服务"
+        emptyAction={
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新增模型服务
+          </Button>
+        }
+      >
         <Table<LlmProvider>
           rowKey="id"
           columns={columns}
           dataSource={providers}
-          loading={providersQuery.isLoading}
+          loading={providersQuery.isFetching && !providersQuery.isLoading}
           scroll={{ x: "max-content" }}
           pagination={false}
           locale={{ emptyText: <Empty description="暂无模型服务" /> }}
         />
-      )}
+      </PageQueryBody>
 
       <Drawer
         title={editing ? "编辑模型服务" : "新增模型服务"}

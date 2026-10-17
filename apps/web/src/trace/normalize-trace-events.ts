@@ -198,13 +198,20 @@ export function toChatTurns(events: readonly TraceEvent[]): Array<{
     }
   }
 
+  const toolCallRefs = new Set<string>();
+  for (const event of events) {
+    if (event.kind === "TOOL_CALL" && event.ref !== null) {
+      toolCallRefs.add(event.ref);
+    }
+  }
+
   for (const event of events) {
     if (event.kind === "TOOL_RESULT") {
       if (event.ref !== null && consumedResults.has(event.id)) continue;
-      if (event.ref !== null && resultByRef.has(event.ref)) {
-        // Paired results render under their call.
-        continue;
-      }
+      // Results paired under their call are rendered once with the call.
+      if (event.ref !== null && toolCallRefs.has(event.ref)) continue;
+      turns.push({ key: event.id, role: "tool", event, result: event });
+      continue;
     }
     if (event.kind === "MESSAGE") {
       turns.push({ key: event.id, role: "assistant", event });

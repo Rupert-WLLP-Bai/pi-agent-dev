@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import type { MenuProps } from "antd";
 import { Avatar, Button, Drawer, Layout, Menu, Tooltip } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 import { readOperator } from "../operator";
@@ -240,6 +240,18 @@ export function AppShell() {
   const location = useLocation();
   const origin = readOrigin(location.search);
   const { mode, toggleMode } = useThemeMode();
+
+  // Alt+Shift+L toggles appearance without fighting browser find shortcuts.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.altKey && event.shiftKey && event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        toggleMode();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleMode]);
 
   // The shell asks the API for health directly: there is no access gate to
   // answer first, so a fresh browser reaches business data on its own.

@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 
-- Shadow decision stack remains default-off; expert gold labels for M3-B01 are blocked.
+- Shadow decision stack remains default-off (`DECISION_MODE=off`); expert gold for M3-B01 is
+  **blocked** (human sign-off required). Fake evaluation JSON uses developer reference labels only;
+  historical Laya macro-F1 is reference-only, not production accuracy. Jev remains cancelled.
+- M3/M4 evidence: `docs/project/evidence/m3/acceptance-checklist.md`,
+  `decision-evaluate-fake.json`, `docs/project/evidence/m4/demo-script.md`, `rtm-index.md`,
+  `verify-summary.md` (branch verify: 822 pass / 27 skip without Docker/PostgreSQL).
 - Authentication (SEC3) remains deferred per product owner.
 
 ## [0.7.0] - 2026-10-17
