@@ -1,37 +1,54 @@
 name: CI
 
+# Valid triggers only: pushes to main, pull requests, and manual dispatch. The
+# least-privilege token scope the jobs need is read-only repository contents —
+# nothing here pushes code, comments or uploads anywhere.
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Every job uses a disposable database; nothing in CI touches a real one.
-  DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
-  # The integration suites read their identity from TEST_DATABASE_URL so they
-  # can prove the database they were pointed at.
-  TEST_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
-  REDIS_URL: redis://localhost:6379
-  S3_ENDPOINT: http://localhost:9000
-  S3_ACCESS_KEY: contract_audit
-  S3_SECRET_KEY: contract_audit
-  S3_BUCKET: contract-originals
-  S3_REGION: us-east-1
-  # No LLM credentials anywhere in CI: the fake agent is the only agent mode.
+  # ── Test identity, global to every job ──────────────────────────────
+  # Nothing in CI may reach a real environment or a real provider:
+  #   APP_ENV=test        → disposable test identity; encryption secret optional
+  #   AUDIT_AGENT_MODE=fake → FakeAuditAgent, no LLM credentials at all
+  #   SUBJECT_VERIFICATION_MODE=fixture → deterministic subjects, QCC never called
+  #   OCR_PROVIDER=off    → scans stay unreadable, no vision endpoint called
+  #   DECISION_MODE=off   → the shadow layer creates, claims and calls nothing
+  # No secret is read from the repository: every value below is either a
+  # literal for a disposable local service container or empty by design.
+  # Service endpoints (DATABASE_URL, REDIS_URL, S3_*) are deliberately NOT
+  # global: each job declares only the services it actually runs, so a job
+  # without Redis cannot point at one that does not exist.
+  APP_ENV: test
   AUDIT_AGENT_MODE: fake
-  PLAYWRIGHT_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+  SUBJECT_VERIFICATION_MODE: fixture
+  OCR_PROVIDER: "off"
+  DECISION_MODE: "off"
+  DECISION_PROVIDER: disabled
 
 jobs:
   quality:
-    name: Lint, typecheck, unit tests
+    name: Lint, typecheck, migrations, unit tests
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+      TEST_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+      # Where the fault harness writes its per-SHA report; kept beside the
+      # unit coverage so one artifact upload carries both.
+      QA_FAULT_DIR: artifacts/qa
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_USER: contract_audit
           POSTGRES_PASSWORD: contract_audit
@@ -59,16 +76,22 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      # Schema and the committed migrations must agree before anything is
+      # applied; this check is static (it compares schema.ts against the
+      # migration snapshots) and runs against the disposable database's URL.
       - name: Check schema and migrations agree
         working-directory: apps/api
-        run: bunx drizzle-kit check
+        run: bun run check:migrations
 
+      # Actually apply the committed migrations to the disposable database, so
+      # the unit suites see the real schema rather than skipping their
+      # database-backed cases.
       - name: Apply database migrations
         working-directory: apps/api
         run: bun run migrate
 
-      - name: Unit tests
-        run: bun run test
+      - name: Unit tests with coverage
+        run: bun run test:coverage
 
       - name: Upload unit coverage (LCOV)
         if: ${{ !cancelled() }}
@@ -76,14 +99,34 @@ jobs:
         with:
           name: unit-coverage
           path: artifacts/qa/coverage/lcov.info
-          retention-days: 7
+          retention-days: 14
 
   integration:
-    name: Integration: PostgreSQL, Redis, S3, SSE
+    name: "Integration: PostgreSQL, Redis, S3, faults"
     runs-on: ubuntu-latest
+    needs: quality
+    env:
+      # The suites' own database, separate from the one `quality` migrated:
+      # disposable, container-scoped, never a real one.
+      TEST_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit_test
+      # The fault harness boots the API against the same database.
+      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit_test
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_ACCESS_KEY: contract_audit
+      S3_SECRET_KEY: contract_audit
+      S3_BUCKET: contract-originals
+      S3_REGION: us-east-1
+      S3_TIMEOUT_MS: "10000"
+      # The local fallback backend, if a non-strict write ever lands on disk.
+      UPLOAD_DIR: /tmp/ci-integration-uploads
+      # The disposable test database credential the psql/createdb calls need;
+      # without it the client prompts and hangs in a non-interactive job.
+      PGPASSWORD: contract_audit
+      QA_FAULT_DIR: artifacts/qa
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_USER: contract_audit
           POSTGRES_PASSWORD: contract_audit
@@ -96,7 +139,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
       redis:
-        image: redis:7-alpine
+        image: redis:7-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
         ports:
           - 6379:6379
         options: >-
@@ -104,21 +147,9 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
-      rustfs:
-        image: rustfs/rustfs:1.0.0
-        env:
-          RUSTFS_ACCESS_KEY: contract_audit
-          RUSTFS_SECRET_KEY: contract_audit
-          RUSTFS_ADDRESS: ":9000"
-          RUSTFS_CONSOLE_ADDRESS: ":9001"
-          RUSTFS_CONSOLE_ENABLE: "true"
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/health"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
+      # No RustFS service declaration: a service container cannot receive the
+      # `/data` command argument RustFS requires. The real one is started by
+      # the explicit `docker run` step below, with its own bounded health wait.
     steps:
       - uses: actions/checkout@v4
 
@@ -129,36 +160,151 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Create the originals bucket
+      # RustFS needs `/data` to exist as a writable directory, and a service
+      # container cannot receive that command argument — so the real one is
+      # started here, exactly as the RustFS docs specify: pinned digest,
+      # `/data` as the final command argument, a named volume for the data
+      # directory, and a bounded health wait below. Credentials are the
+      # throwaway pair for this container only; no repository secret is used.
+      # Argument order matters: every docker flag comes before the image,
+      # because Docker treats everything after the image as the container's
+      # own command line and would hand these to the RustFS binary instead.
+      - name: Start RustFS with its /data argument
         run: |
-          curl -sf -X PUT "http://localhost:9000/contract-originals" \
-            -H "Authorization: AWS4-HMAC-SHA256 Credential=contract_audit" >/dev/null || \
-          curl -sf -X PUT "http://localhost:9000/contract-originals" >/dev/null || true
+          docker volume create rustfs-ci-data
+          docker run -d --name rustfs \
+            --env RUSTFS_ACCESS_KEY=contract_audit \
+            --env RUSTFS_SECRET_KEY=contract_audit \
+            --env RUSTFS_ADDRESS=":9000" \
+            --env RUSTFS_CONSOLE_ADDRESS=":9001" \
+            --env RUSTFS_CONSOLE_ENABLE="true" \
+            --publish 9000:9000 \
+            --volume rustfs-ci-data:/data \
+            rustfs/rustfs:1.0.1@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c \
+            /data
 
-      - name: Apply database migrations
+      # Bounded wait: the job fails instead of running suites against a
+      # container that is still booting or died on startup. `/health` is
+      # registered by default (RUSTFS_HEALTH_ENDPOINT_ENABLE=true).
+      - name: Wait for RustFS to become healthy
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error http://127.0.0.1:9000/health >/dev/null; then
+              echo "rustfs healthy after ${attempt} attempt(s)"
+              exit 0
+            fi
+            echo "waiting for rustfs (${attempt}/30)"
+            sleep 2
+          done
+          echo "rustfs did not become healthy in 60s"
+          docker logs rustfs || true
+          exit 1
+
+      # Create the bucket through the AWS SDK from apps/api, where
+      # @aws-sdk/client-s3 is a declared dependency — never unsigned curl.
+      # After creating it, prove it answers a HeadBucket before the suites run.
+      - name: Create and verify the originals bucket (AWS SDK)
+        working-directory: apps/api
+        run: |
+          bun -e '
+          import { CreateBucketCommand, HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
+          const client = new S3Client({
+            endpoint: process.env.S3_ENDPOINT,
+            region: process.env.S3_REGION,
+            forcePathStyle: true,
+            maxAttempts: 1,
+            credentials: {
+              accessKeyId: process.env.S3_ACCESS_KEY,
+              secretAccessKey: process.env.S3_SECRET_KEY,
+            },
+          });
+          const bucket = process.env.S3_BUCKET;
+          try {
+            await client.send(new CreateBucketCommand({ Bucket: bucket }));
+            console.log(`bucket created: ${bucket}`);
+          } catch (error) {
+            const code = error?.name ?? "";
+            if (code === "BucketAlreadyOwnedByYou" || code === "BucketAlreadyExists") {
+              console.log(`bucket already present: ${bucket}`);
+            } else {
+              throw error;
+            }
+          }
+          // The suites write into this bucket; a create that did not take
+          // effect must fail here rather than inside a test.
+          await client.send(new HeadBucketCommand({ Bucket: bucket }));
+          console.log(`bucket verified: ${bucket}`);
+          '
+
+      # A second disposable database, separate from the one `quality` used:
+      # the fault harness and the integration suites both run migrations
+      # against it, and it dies with this job's containers. The PostgreSQL
+      # service already gates the job on its own health check, so this wait is
+      # a bounded belt-and-braces probe: if the server is still not accepting
+      # connections after 60s the job fails instead of hanging forever.
+      - name: Create the integration test database
+        run: |
+          ready=""
+          for attempt in $(seq 1 30); do
+            if pg_isready --quiet --host=localhost --port=5432 --username=contract_audit; then
+              ready="yes"
+              break
+            fi
+            echo "waiting for postgres (${attempt}/30)"
+            sleep 2
+          done
+          if [ -z "$ready" ]; then
+            echo "postgres did not accept connections in 60s"
+            exit 1
+          fi
+          createdb --host=localhost --port=5432 --username=contract_audit contract_audit_test
+          psql --host=localhost --port=5432 --username=contract_audit \
+            --dbname=contract_audit_test --command 'SELECT current_database()'
+
+      - name: Apply database migrations to the test database
         working-directory: apps/api
         run: bun run migrate
 
       - name: Integration tests
         run: bun run test:integration
 
-      - name: Failure-path scenarios
+      # The failure-path scenarios (Redis unreachable, S3 non-strict fallback,
+      # hostile uploads) boot the real API against the same disposable
+      # database; UPLOAD_DIR points at /tmp so a local-fallback write cannot
+      # land inside the uploaded artifacts.
+      - name: Failure-path fault scenarios
         run: bun run qa:faults
 
+      # always(): a red job is exactly when its logs and reports are needed.
+      - name: Stop RustFS
+        if: ${{ always() }}
+        run: |
+          docker rm -f rustfs || true
+          docker volume rm rustfs-ci-data || true
+
       - name: Upload integration and fault reports
-        if: ${{ !cancelled() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: integration-reports
           path: artifacts/qa/
-          retention-days: 7
+          retention-days: 14
 
   acceptance:
-    name: End-to-end acceptance
+    name: "End-to-end acceptance (Chromium)"
     runs-on: ubuntu-latest
+    needs: quality
+    env:
+      DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+      PLAYWRIGHT_DATABASE_URL: postgresql://contract_audit:contract_audit@localhost:5432/contract_audit
+      # The disposable database this job registers as the demo environment;
+      # the confirmation is the database name itself, never a shortcut.
+      DEMO_ENVIRONMENT_ID: ci-acceptance
+      DEMO_DATABASE_NAME: contract_audit
+      DEMO_RESET_CONFIRMATION: contract_audit
     services:
       postgres:
-        image: postgres:18
+        image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
         env:
           POSTGRES_USER: contract_audit
           POSTGRES_PASSWORD: contract_audit
@@ -180,15 +326,53 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Chromium
+      - name: Install Chromium with system dependencies
         run: bunx playwright install --with-deps chromium
 
       - name: Apply database migrations
         working-directory: apps/api
         run: bun run migrate
 
+      # The acceptance suite seeds the demo world through
+      # POST /api/demo/world with reset:true. That path is guarded: it runs
+      # only when APP_ENV is demo/test, the confirmation names the target
+      # database, and a demo_environments row registers it. Registration is
+      # the only way a database acquires a demo identity — the migration never
+      # inserts a row — so CI registers the disposable database explicitly,
+      # with the exact same guard the reset itself applies. The confirmation
+      # below is the disposable database name, which is not a secret and not
+      # an authorization shortcut: the guard also proves the connected
+      # database really is that name before it inserts anything.
+      - name: Register the disposable demo environment
+        working-directory: apps/api
+        run: |
+          bun -e '
+          import { createDb } from "./src/db/repositories";
+          import { registerDemoEnvironment } from "./src/demo/demo-environment";
+          const { db, client } = createDb(process.env.DATABASE_URL);
+          try {
+            const guard = await registerDemoEnvironment(db, {
+              environmentId: process.env.DEMO_ENVIRONMENT_ID,
+              databaseName: process.env.DEMO_DATABASE_NAME,
+              appEnv: process.env.APP_ENV,
+            });
+            if (!guard.ok) {
+              console.error(guard.refusal.code, guard.refusal.reason);
+              process.exit(1);
+            }
+            console.log(`registered ${guard.environmentId} -> ${guard.databaseName}`);
+          } finally {
+            await client.end();
+          }
+          '
+
+      # playwright.config.ts hands PLAYWRIGHT_DATABASE_URL to the API web
+      # server as DATABASE_URL through its structured env option (never
+      # interpolated into a command string) and never sources the repo .env.
       - name: Run acceptance tests
         run: bun run test:e2e
+        env:
+          CI: "true"
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
@@ -196,7 +380,7 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 7
+          retention-days: 14
 
       - name: Upload failure screenshots and traces
         if: ${{ !cancelled() }}
@@ -204,5 +388,28 @@ jobs:
         with:
           name: playwright-failures
           path: test-results/
-          retention-days: 7
+          retention-days: 14
           if-no-files-found: ignore
+
+  builds:
+    name: "Web and Docker image builds"
+    runs-on: ubuntu-latest
+    needs: [quality, integration, acceptance]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the web bundle
+        run: bun run --filter @contract-audit/web build
+
+      - name: Build the API image
+        run: docker build --file apps/api/Dockerfile --tag contract-audit-api:ci .
+
+      - name: Build the web image
+        run: docker build --file apps/web/Dockerfile --tag contract-audit-web:ci .
