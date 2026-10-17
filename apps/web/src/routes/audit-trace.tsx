@@ -2,22 +2,23 @@ import type { AgentRunTrace, AuditCase, FindingRevision } from "@contract-audit/
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Alert, Button, Card, Empty, Result, Segmented, Skeleton, Tag } from "antd";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getAgentRunTraces, getAuditCase } from "../api";
 import {
   agentRunStateLabels,
   agentRunStateTagColors,
   describeRunError,
   findingTypeLabels,
-  formatDuration,
-  formatModelIdentity,
   getAgentRunState,
   shortAuditId,
 } from "../audit-presentation";
 import { AgentTraceTimeline } from "../components/agent-trace-timeline";
 import { AuditStateBadge } from "../components/audit-state-badge";
-import { TokenUsage } from "../components/token-usage";
+import { TraceChatView } from "../components/trace-chat-view";
+import { TraceLaneView } from "../components/trace-lane-view";
+import { TraceRunOverviewCard } from "../components/trace-run-overview";
 import { type AuditConnectionState, useAuditEvents } from "../hooks/use-audit-events";
+import { normalizeTraceEvents } from "../trace/normalize-trace-events";
 
 // Stages where the backend can still produce trace steps for this case.
 const liveStages = new Set([
@@ -27,9 +28,6 @@ const liveStages = new Set([
   "SUBJECT_VERIFICATION",
   "AGENT_RUNNING",
 ]);
-
-const formatTime = (iso: string): string =>
-  new Date(iso).toLocaleString("zh-CN", { hour12: false });
 
 /**
  * One case's Agent Run traces. A retried case has more than one run, so the
@@ -229,7 +227,8 @@ function RunTraceSection({
 }) {
   const { run, steps } = trace;
   const state = getAgentRunState(run, caseStatus, isLatest);
-  const duration = formatDuration(run.durationMs);
+  const [viewMode, setViewMode] = useState<"chat" | "trajectory" | "lanes">("trajectory");
+  const events = useMemo(() => normalizeTraceEvents(steps), [steps]);
 
   // Tail-follow: keep the viewport pinned to the newest step while a run is
   // live, but only if the viewer was already near the bottom — scrolling away
@@ -263,7 +262,6 @@ function RunTraceSection({
       title={
         <span className="trace-card__title">
           <Tag color={agentRunStateTagColors[state]}>{agentRunStateLabels[state]}</Tag>
-          <b className="mono">{formatModelIdentity(run.provider, run.model, run.version)}</b>
           {state === "RUNNING" && connection === "connected" ? (
             <span className="trace-live">● 跟踪中</span>
           ) : null}
@@ -273,9 +271,16 @@ function RunTraceSection({
         </span>
       }
       extra={
-        <span className="trace-card__meta">
-          {steps.length} 步 · {duration ?? "-"}
-        </span>
+        <Segmented
+          size="small"
+          value={viewMode}
+          onChange={(value) => setViewMode(value as "chat" | "trajectory" | "lanes")}
+          options={[
+            { value: "chat", label: "对话" },
+            { value: "trajectory", label: "轨迹" },
+            { value: "lanes", label: "泳道" },
+          ]}
+        />
       }
     >
       {run.error === null ? null : (
@@ -286,16 +291,14 @@ function RunTraceSection({
           description={describeRunError(run.error)}
         />
       )}
-      <div className="trace-card__meta trace-card__meta--block">
-        运行 ID <b className="mono">{shortAuditId(run.id)}</b> · 开始于 {formatTime(run.createdAt)}
-        {run.usage === null ? null : (
-          <>
-            {" · "}
-            <TokenUsage usage={run.usage} />
-          </>
-        )}
-      </div>
-      <AgentTraceTimeline steps={steps} defaultExpanded={defaultExpanded} />
+      <TraceRunOverviewCard run={run} steps={steps} />
+      {viewMode === "chat" ? (
+        <TraceChatView events={events} />
+      ) : viewMode === "lanes" ? (
+        <TraceLaneView events={events} runStartedAt={run.createdAt} />
+      ) : (
+        <AgentTraceTimeline steps={steps} defaultExpanded={defaultExpanded} />
+      )}
       {findings.length > 0 ? (
         <div className="trace-findings">
           <div className="trace-findings__label">本次运行产生的审计发现</div>

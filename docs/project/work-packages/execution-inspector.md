@@ -2,7 +2,7 @@
 
 本文件是全局 [TASK-BOARD](../TASK-BOARD.md) 下的子工作包，不替换项目总体计划。开发周期沿用 2026-09-11 至 2026-11-10，首版截止 2026-11-10。定义来源：2026-10-15 用户《Agent Execution Inspector 重构》及其 OMP 执行清单；恢复时的原始标题与状态保存在 [TI 快照](../recovery/2026-10-15/ti-before-recovery.json)。
 
-本次任务恢复保持 29 项原状态：DONE 1、IN_PROGRESS 1、TODO 27。TI 功能开发暂停于准备阶段，未创建 TraceEvent 契约、未派发实现 Agent、未修改 Trace 产品代码。后续恢复开发以全局任务板的当前执行视图为准；暂停不等于取消或完成。
+2026-10-17 M2 启动后续作：TI-PREP-02/03 已收口并冻结契约；TI-M1 实现进行中。恢复时曾保持 29 项原状态；当前以本表与任务板执行视图为准。
 
 ## 总体计划归属
 
@@ -21,8 +21,8 @@
 | ID | 原 OMP 名称 | 模块 / 总体归属 | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TI-PREP-01 | TI准备 · 检查Git、保存既有改动并确认当前启动和测试命令 | 接管 / M2-B01 | DONE | 未记录 | 用户任务 | Main | `880ff97`、`a1e6191`；分支 feat/execution-inspector-20261015；现有启动/verify命令已读取 | 2026-10-15 |
-| TI-PREP-02 | TI准备 · 审计前端、Run API、Pi事件、持久化、SSE、指标及Harness参考 | 数据审计 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-01 | Main | 已读 timeline、audit-trace、agent-runs、Pi trace、model、SSE hook、ADR0005、本地 Harness TrajectoryView；完整持久化/指标核对未收口 | 2026-10-15 |
-| TI-PREP-03 | TI准备 · 冻结TraceEvent契约、三Agent文件所有权与简短设计说明 | 共享契约 / M2-B01 | TODO | 未记录 | TI-PREP-02 | Main | 契约及实现文件尚未创建；未把草案当成果 | 2026-10-15 |
+| TI-PREP-02 | TI准备 · 审计前端、Run API、Pi事件、持久化、SSE、指标及Harness参考 | 数据审计 / M2-B01 | DONE | 未记录 | TI-PREP-01 | Main | [ti-prep-02-audit.md](../evidence/m2/ti-prep-02-audit.md) | 2026-10-17 |
+| TI-PREP-03 | TI准备 · 冻结TraceEvent契约、三Agent文件所有权与简短设计说明 | 共享契约 / M2-B01 | DONE | 未记录 | TI-PREP-02 | Main | [TRACE-EVENT-CONTRACT.md](../../architecture/TRACE-EVENT-CONTRACT.md) | 2026-10-17 |
 
 ## TI-M1 基础轨迹
 
@@ -30,10 +30,10 @@
 
 | ID | 原 OMP 名称 | 模块 / 总体归属 | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TI-M1-1.2A | TI-M1 1.2A · 展示真实运行概况与缺失指标状态 | 运行概况 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
-| TI-M1-1.2B | TI-M1 1.2B · 实现对话与轨迹双视图 | 双视图 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
-| TI-M1-1.2C | TI-M1 1.2C · 实现输入/模型/工具三泳道、真实时间与等宽模式、缩放定位及异常降级 | 时间轴 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
-| TI-M1-1.2D | TI-M1 1.2D · 实现紧凑事件列表、工具配对、输入输出折叠与定位 | 事件列表 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
+| TI-M1-1.2A | TI-M1 1.2A · 展示真实运行概况与缺失指标状态 | 运行概况 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | TraceRunOverviewCard + 未提供语义 | 2026-10-17 |
+| TI-M1-1.2B | TI-M1 1.2B · 实现对话与轨迹双视图 | 双视图 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | audit-trace 对话/轨迹/泳道 Segmented | 2026-10-17 |
+| TI-M1-1.2C | TI-M1 1.2C · 实现输入/模型/工具三泳道、真实时间与等宽模式、缩放定位及异常降级 | 时间轴 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | TraceLaneView 初版；缩放定位待补 | 2026-10-17 |
+| TI-M1-1.2D | TI-M1 1.2D · 实现紧凑事件列表、工具配对、输入输出折叠与定位 | 事件列表 / M2-B01 | IN_PROGRESS | 未记录 | TI-PREP-03 | TI-B | 泳道折叠 + 既有 timeline 配对 | 2026-10-17 |
 | TI-M1-1.3 | TI-M1 1.3 · 完成浅色开发者工具视觉、中文排版及紧凑行高 | 视觉 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-B | 待实现 | 2026-10-15 |
 | TI-M1-1.4 | TI-M1 1.4 · 实现稳定排序、原始事件映射、时间可信度与脱敏适配 | 规范化 / M2-B01 | TODO | 未记录 | TI-PREP-03 | TI-A | 待实现；UI语义不改变领域结论 | 2026-10-15 |
 | TI-M1-1.5 | TI-M1 1.5 · 验证历史Run、空状态、真实API及审计回归并提交基础轨迹版本 | 阶段验收 / M2-B03 | TODO | 未记录 | TI-M1全部实现项 | Main + TI-C | 尚无TI阶段发布提交 | 2026-10-15 |

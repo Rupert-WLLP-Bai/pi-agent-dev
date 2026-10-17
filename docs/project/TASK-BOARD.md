@@ -1,6 +1,6 @@
 # Contract Audit V1.0 · TASK-BOARD
 
-唯一权威Master Roadmap。开发周期**2026-09-11至2026-11-10**，V1截止**2026-11-10**。M1/v0.7.0已完成发布验收；后续M2待启动。既有四Milestone、33项任务原定义保留；旧任务逐ID登记在下方，Execution Inspector仍为关联M2-B01的子工作包。
+唯一权威Master Roadmap。开发周期**2026-09-11至2026-11-10**，V1截止**2026-11-10**。M1/v0.7.0已完成发布验收；**M2/v0.8.0已启动**。既有四Milestone、33项任务原定义保留；旧任务逐ID登记在下方，Execution Inspector仍为关联M2-B01的子工作包。
 
 当前任务状态使用 TODO、IN_PROGRESS、BLOCKED、DONE、CANCELLED；历史能力分类 IMPLEMENTED/PARTIAL/MISSING/BROKEN/DEFERRED 保留在 [BASELINE](./BASELINE.md)。Owner路径见 [FILE-OWNERSHIP](./FILE-OWNERSHIP.md)，视图切换规则见 [task-management](./task-management.md)。原33项未逐条指定P值，优先级如实记“未记录”；补列模块、阶段依赖和更新日期不改任务验收内容。
 
@@ -33,9 +33,9 @@ M1-B03通过后才能开始。现有浅色改版是输入资产，不等于M2完
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M2-A01 双主题设计系统 | A / TODO | 现有Ant/CSS → 默认暗色、完整浅色tokens与组件 | 中文排版、语义色、motion/reduced-motion、真实主题切换；apps/web | 浅色+深色侧栏已存在；默认暗色未做 | 设计系统 / M2 | 未记录 / M1-B03 | 2026-10-15 |
-| M2-A02 信息架构与路由 | A / TODO | 当前全部路由 → 六类业务导航、面包屑、状态 | 旧路由兼容、主要动作与加载/错误完整；apps/web | M1后验收 | 信息架构 / M2 | 未记录 / M1-B03 | 2026-10-15 |
-| M2-A03 核心工作区 | A、B / TODO | 真实API → Dashboard、队列、三栏证据联动 | 无假统计/响应，上传/筛选/进度/取消/重试/复核可用；web归A、API归B | 既有实现优先复用 | 核心工作区 / M2 | 未记录 / M1-B03 | 2026-10-15 |
+| M2-A01 双主题设计系统 | A / IN_PROGRESS | 现有Ant/CSS → 默认暗色、完整浅色tokens与组件 | 中文排版、语义色、motion/reduced-motion、真实主题切换；apps/web | 浅色+深色侧栏已存在；默认暗色进行中 | 设计系统 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-A02 信息架构与路由 | A / IN_PROGRESS | 当前全部路由 → 现有五组业务导航、面包屑、状态 | 旧路由兼容、主要动作与加载/错误完整；apps/web | 以现有真实路由为准，不发明未实现入口 | 信息架构 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-A03 核心工作区 | A、B / TODO | 真实API → Dashboard、队列、三栏证据联动 | 无假统计/响应，上传/筛选/进度/取消/重试/复核可用；web归A、API归B | 既有实现优先复用；依赖A01/A02 | 核心工作区 / M2 | 未记录 / M1-B03；M2-A01；M2-A02 | 2026-10-17 |
 
 ## M2 · v0.8.0 · Phase B 集成、验收与发布
 
@@ -221,9 +221,23 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 ## 当前执行视图
 
-当前执行交付为M1/v0.7.0发布、main分批集成/推送及真实GitHub CI，均已完成。M1-AUTH01按用户要求移除登录口令；SEC3延期到最后且不阻塞M1。后续M2/TI尚未启动功能开发，原29项与既有状态完整保留，不因M1完成而批量标绿。REC恢复快照不改写。
+**当前 Milestone：M2 / v0.8.0。** M1/v0.7.0 发布、main 分批集成/推送及真实 GitHub CI 均已完成并移出执行视图；快照见 [recovery/2026-10-17/m1-execution-view-snapshot.md](./recovery/2026-10-17/m1-execution-view-snapshot.md)。M1-AUTH01 已移除登录口令；SEC3 延期到最后且不阻塞 M2。TI 原 29 项状态完整保留，不因 M1 完成而批量标绿。REC 恢复快照不改写。
 
-恢复时登记口径为123条主任务记录及8条历史验收/名称变更记录，快照保持原样；本轮新增M1-CI01、M1-GIT01、M1-GIT02和M1-AUTH01四项，当前127条主记录。不同层级有关联，不据此计算产品完成率。原无编号操作及延期范围仍保留。
+当前关键执行项：
+
+| ID | 名称 | 状态 |
+| --- | --- | --- |
+| M2-A01 | 双主题设计系统 | IN_PROGRESS |
+| M2-A02 | 信息架构与路由 | IN_PROGRESS |
+| M2-A03 | 核心工作区 | TODO（依赖 A01/A02） |
+| M2-B01 | 其余页面一致性（含 Execution Inspector） | TODO |
+| M2-B02 | 交互、主题与响应式 | TODO |
+| M2-B03 | 浏览器验收与发布 v0.8.0 | TODO |
+| TI-PREP-02 | 数据审计 | IN_PROGRESS |
+| TI-PREP-03 | 冻结 TraceEvent 契约 | TODO |
+| TI-M1-* | 基础轨迹（工作包入口） | TODO（依赖 PREP-03） |
+
+恢复时登记口径为 123 条主任务记录及 8 条历史验收/名称变更记录，快照保持原样；本轮新增 M1-CI01、M1-GIT01、M1-GIT02 和 M1-AUTH01 四项，当前 127 条主记录。不同层级有关联，不据此计算产品完成率。原无编号操作及延期范围仍保留。
 
 
 ## M1续作 · GitHub交付（2026-10-17用户新增）

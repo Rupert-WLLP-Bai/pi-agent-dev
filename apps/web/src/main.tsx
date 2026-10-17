@@ -1,10 +1,14 @@
-import { App as AntApp, ConfigProvider } from "antd";
-import zhCN from "antd/locale/zh_CN";
+import { App as AntApp } from "antd";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AppRouter } from "./app";
-import { appTheme } from "./theme";
+import { applyThemeModeToDocument, resolveInitialThemeMode } from "./theme-mode";
+import { ThemeProvider } from "./theme-provider";
 import "./styles.css";
+
+// Paint the document theme before React mounts so the first frame matches the
+// stored (or default dark) mode and avoids a light flash.
+applyThemeModeToDocument(resolveInitialThemeMode());
 
 const rootElement = document.getElementById("root");
 if (rootElement === null) {
@@ -13,10 +17,10 @@ if (rootElement === null) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ConfigProvider locale={zhCN} theme={appTheme}>
+    <ThemeProvider>
       <AntApp>
         <AppRouter />
       </AntApp>
-    </ConfigProvider>
+    </ThemeProvider>
   </StrictMode>,
 );

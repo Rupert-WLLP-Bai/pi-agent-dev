@@ -1,9 +1,24 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark" style="color-scheme: dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>合同智能审计智能体</title>
+    <script>
+      // Apply stored theme before CSS paints to avoid a light flash on dark default.
+      (function () {
+        var stored;
+        var mode;
+        try {
+          stored = localStorage.getItem("contract-audit:theme-mode");
+          mode = stored === "light" || stored === "dark" ? stored : "dark";
+          document.documentElement.dataset.theme = mode;
+          document.documentElement.style.colorScheme = mode;
+        } catch (_unused) {
+          /* keep data-theme="dark" from the html attribute */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

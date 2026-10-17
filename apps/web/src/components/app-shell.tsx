@@ -10,9 +10,11 @@ import {
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  MoonOutlined,
   NodeIndexOutlined,
   ScanOutlined,
   SettingOutlined,
+  SunOutlined,
   SyncOutlined,
 } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +25,8 @@ import { useState } from "react";
 import { getApiHealth } from "../api";
 import { useMediaQuery } from "../hooks/use-media-query";
 import { readOperator } from "../operator";
+import { useThemeMode } from "../theme-provider";
+import { AppBreadcrumbs } from "./app-breadcrumbs";
 
 const { Sider, Header, Content } = Layout;
 
@@ -235,6 +239,7 @@ export function AppShell() {
   const isTablet = useMediaQuery("(max-width: 1023px)");
   const location = useLocation();
   const origin = readOrigin(location.search);
+  const { mode, toggleMode } = useThemeMode();
 
   // The shell asks the API for health directly: there is no access gate to
   // answer first, so a fresh browser reaches business data on its own.
@@ -319,6 +324,7 @@ export function AppShell() {
                 />
               </Tooltip>
             )}
+            <AppBreadcrumbs />
           </div>
           <div className="app-header-right">
             {showHealth && (
@@ -331,6 +337,15 @@ export function AppShell() {
                 {healthLabels[health]}
               </span>
             )}
+            <Tooltip title={mode === "dark" ? "切换到浅色主题" : "切换到暗色主题"}>
+              <Button
+                type="text"
+                icon={mode === "dark" ? <SunOutlined /> : <MoonOutlined />}
+                onClick={toggleMode}
+                aria-label={mode === "dark" ? "切换到浅色主题" : "切换到暗色主题"}
+                aria-pressed={mode === "dark"}
+              />
+            </Tooltip>
             <Avatar size={28} style={{ background: "#1D4E79" }}>
               审
             </Avatar>
