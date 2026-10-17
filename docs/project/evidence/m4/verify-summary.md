@@ -11,7 +11,7 @@
 | typecheck | 两轮 `tsc` 通过 |
 | `bun test packages apps` | **822** pass / **0** fail / **27** skip；2651 expect；90 文件；≈26.5s |
 
-Git：`a045ee59e0498db5efa2f1fa33fce10f48cb37fd`（`cursor/m2-v080-startup-5ade`）。
+Git：`60c3652`（`cursor/m2-v080-startup-5ade`；verify 在文档提交前于 `a045ee5` 实跑，结果一致）。
 
 ## 环境限制（诚实声明）
 

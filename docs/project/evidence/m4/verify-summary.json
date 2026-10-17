@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "recordedAt": "2026-10-17T15:42:00.000Z",
   "branch": "cursor/m2-v080-startup-5ade",
-  "gitSha": "a045ee59e0498db5efa2f1fa33fce10f48cb37fd",
+  "gitSha": "60c3652",
   "command": "bun run verify",
   "exitCode": 0,
   "environment": {
