@@ -24,7 +24,7 @@
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | M1-B01 真实浏览器业务闭环 | Main、A/C / DONE | 独立Demo与标准合同 → 上传、审计、证据、复核、整改、轨迹、原件记录 | 浏览器实际操作、刷新后持久化、S3 locator/hash；A apps/web，C acceptance，Main证据 | [浏览器证明](./evidence/m1/browser.json)：790e61fe上传、双来源证据、5项复核/整改、整改关闭刷新保持、Fake Trace46步、S3重启后读取与同源重新审计通过；不替代全站E2E | 业务闭环 / M1 | 未记录 / M1 Phase A | 2026-10-15 |
-| M1-B02 完整Release Gate | Main、B/C / IN_PROGRESS | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | 用户已要求继续；从HANDOFF的已观察失败及两项静态审查问题修复，独立环境复验；旧失败保留，尚未通过 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-17 |
+| M1-B02 完整Release Gate | Main、B/C / IN_PROGRESS | 冻结候选 → verify、集成/E2E、Web/Docker、迁移、故障、安全结果 | 无阻塞缺陷；新鲜TEST端口/DB；真实Redis/S3；Fake与真实模型分报；按所有权 | [本地严格Gate](./evidence/m1/release-gate-2026-10-17.json)：835单元/14集成/48浏览器/835覆盖层全过、0skip，故障4过；镜像与受管reset/seed/verify通过；首轮远端CI归档格式失败已修，等待重跑 | 发布验收 / M1 | 未记录 / M1 Phase A；M1-B01 | 2026-10-17 |
 | M1-B03 发布与交接 | Main / TODO | 通过的候选与证据 → Release Summary、已知问题、提交、v0.7.0 Tag | 检查Tag冲突、不移动旧Tag、版本可回退；Main发布文档/Git | 暂停已解除，仍依赖M1-B02；未发布，没有v0.7.0 Tag | 发布交接 / M1 | 未记录 / M1-B02 | 2026-10-17 |
 
 ## M2 · v0.8.0 · Phase A 设计与实现
@@ -231,6 +231,6 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 | ID | 名称 | 模块 | 所属总体Milestone | 状态 | 优先级 | 依赖 | 负责人 | 证据 / Commit | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | M1-CI01 | 完善GitHub Actions CI并验证真实运行结果 | CI | M1-B02；关联Q5/M4-A01 | IN_PROGRESS | P1 | 现有测试入口和已验证依赖配置 | CI Agent / Main | 沿用.github/workflows/ci.yml；修正实际服务初始化、分层验证、构建及工件，不将跳过冒充通过 | 2026-10-17 |
-| M1-GIT01 | 分批将通过验证的改动合入main | 集成 | M1-B03 | TODO | P1 | 对应批次验证；保留用户历史 | Main | 用户明确授权；优先非破坏性fast-forward或普通merge，不重写历史 | 2026-10-17 |
-| M1-GIT02 | 推送main及发布记录到GitHub并核对CI | 远端交付 | M1-B03 | TODO | P1 | M1-GIT01；GitHub认证；CI配置 | Main | origin已fetch，gh认证含repo/workflow权限；推送后观察实际运行，不只提交YAML | 2026-10-17 |
+| M1-GIT01 | 分批将通过验证的改动合入main | 集成 | M1-B03 | DONE | P1 | 对应批次验证；保留用户历史 | Main | `11bdc68`修复与认证延期、`1ed3f90`CI；main从a849b29 fast-forward合入，无历史重写，继承全部检查点 | 2026-10-17 |
+| M1-GIT02 | 推送main及发布记录到GitHub并核对CI | 远端交付 | M1-B03 | IN_PROGRESS | P1 | M1-GIT01；GitHub认证；CI配置 | Main | 已推送main到`1ed3f90`，远端从1c1dc7b正常前进；正在等待该SHA的真实GitHub CI，发布记录待归集 | 2026-10-17 |
 | M1-AUTH01 | 移除当前登录口令并将认证延期到最后 | API / Web / Demo | M1-B02；SEC3延期 | DONE | P1 | 2026-10-17用户优先指令 | Main / API / UX | [实际浏览器/API证明](./evidence/m1/authentication-deferred-2026-10-17.json)：直达业务页面、案件接口200、会话路由404、来源限制403；容器实际审计/2项复核及整改；认证配置与实现已删除 | 2026-10-17 |

@@ -2,7 +2,7 @@
 
 更新：2026-10-17。当前 **M1 / Phase B**，目标v0.7.0；未发布。唯一任务板：[TASK-BOARD](./TASK-BOARD.md)。文件Owner：[FILE-OWNERSHIP](./FILE-OWNERSHIP.md)。能力与接管基线：[BASELINE](./BASELINE.md)。
 
-- 当前分支`feat/execution-inspector-20261015`，代码保护提交`880ff97`，继承改动检查点`a1e6191`；均不是版本发布，没有创建Tag。原接管分支`release/m1-stabilization-20261015`及本机`.git/m1-takeover-20261015.patch`保留。
+- 当前分支`main`，已正常推送`11bdc68`修复/认证延期及`1ed3f90`CI；从a849b29 fast-forward合入，无历史重写。保护提交880ff97、a1e6191、原接管分支及本机补丁保留。发布Tag待完整GitHub CI通过。
 - 总体仍为M1/Phase B。TI准备审计曾开始，现已暂停功能开发，先完成任务恢复；29项原状态完整保存于[TI子工作包](./work-packages/execution-inspector.md)。Main拥有恢复文件，两个scout仅核对历史与证据。
 - DEV配置保护指纹`53b135dd81bd00d001ce6bab4097efaaf1c0e227dbd9e08d42f9b081174cd15b`。DEV `.env`未修改；受管`.demo.env`0600且忽略提交。
 - M1-AUTH01已完成：2026-10-17按用户要求移除登录口令与会话API，认证延期到最后；[直达业务及容器实测](./evidence/m1/authentication-deferred-2026-10-17.json)记录200/404/来源403、2项复核与整改。SEC3仍延期、不阻塞M1；其他来源、日志、加密、出网与操作人约束保留。
@@ -11,11 +11,11 @@
 
 已修复分层HTML报告、Playwright收集与来源配置、真实HTTP上传限额、未知路由错误分类、备份恢复目标和SIGTERM/SIGINT退出。数据库维护锁定时先停HTTP，5秒截止后明确超时退出；严格测试入口拒绝缺少Redis/S3配置与测试跳过。两项最终审查发现均已修复并实际验证。
 
-最新`verify`通过：835pass/0fail/2704expect，87文件；两轮TypeScript检查及lint通过。完整四层Gate正在独立注册的TEST库执行，结果以最终报告归集；不以局部通过代替发布。固定Bun1.4.0的API/Web镜像已构建并重新部署；Web仍有1614.71kB单块警告。
+最新`verify`通过：835pass/0fail/2704expect，87文件；lint与两轮TypeScript通过。完整严格Gate为4层全通过：单元835、集成14、浏览器48、覆盖层835，均0失败/0跳过；行80.48%/函数80.32%，分支N/A。归档见[发布证据](./evidence/m1/release-gate-2026-10-17.json)。固定Bun1.4.0的API/Web镜像已构建并部署；Web单块1614.71kB警告保留。
 
 独立容器项目`contract-audit-demo-release-1792243640303`：Web28080/API23002，PG25434/Redis26380/RustFS29002与29003。私密环境文件`/tmp/contract-audit-container-1792243640303.env`及额外镜像覆盖文件同前缀`.yaml`，不提交凭据。`DEMO_ENV_FILE`指定该文件的reset/seed/verify已通过：两次各39案件、孤儿0、人工复核的非Demo案件仍COMPLETED。开发者`.env`未改。
 
-本机语言服务器文件重命名异常损坏了已安装SDK声明；从同锁文件的干净容器发行包逐字恢复3个声明文件后，主机与容器typecheck均通过。未修改依赖版本或提交node_modules。
+本机发现3个已安装SDK声明损坏；与同锁文件的干净容器发行包比较后逐字恢复，主机与容器typecheck均通过。未修改依赖版本或提交node_modules。首轮GitHub CI 39042065137在新证据JSON格式检查失败，尚未执行应用层；已按Biome格式修正归档并重跑，不能把首轮CI算通过。
 
 
 ## 实际通过的检查

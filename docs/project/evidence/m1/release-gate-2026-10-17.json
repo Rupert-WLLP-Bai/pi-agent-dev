@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-17T14:47:14.553Z",
+  "scope": "M1 v0.7.0 stabilization; Fake audit; authentication deferred",
+  "commits": {
+    "stabilization": "11bdc68",
+    "ci": "1ed3f90077ec66f76498b6120cc8af3617c71828"
+  },
+  "verification": {
+    "exitCode": 0,
+    "unitPass": 835,
+    "unitFail": 0,
+    "expectCalls": 2704,
+    "files": 87
+  },
+  "strictReport": {
+    "schemaVersion": 1,
+    "generatedAt": "2026-10-17T14:43:22.917Z",
+    "git": {
+      "sha": "8821e13b12a3b3231591a7937a56773d33c49b5d",
+      "branch": "feat/execution-inspector-20261015",
+      "dirty": true
+    },
+    "environment": {
+      "bun": "1.4.3",
+      "node": "v26.3.0",
+      "platform": "linux",
+      "arch": "x64",
+      "testDatabaseUrlConfigured": true,
+      "playwrightDatabaseUrlConfigured": true,
+      "redisUrlConfigured": true,
+      "s3EndpointConfigured": true,
+      "chromium": {
+        "executablePath": "/home/pejoy/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome",
+        "installed": true
+      }
+    },
+    "layers": [
+      {
+        "id": "unit",
+        "status": "passed",
+        "command": "bun run test",
+        "exitCode": 0,
+        "durationMs": 33933,
+        "counts": {
+          "pass": 835,
+          "fail": 0,
+          "skip": 0
+        },
+        "artifacts": [
+          "artifacts/qa/release-final-1792243640303/8821e13b12a3b3231591a7937a56773d33c49b5d/logs/unit.log"
+        ]
+      },
+      {
+        "id": "integration",
+        "status": "passed",
+        "command": "bun run test:integration",
+        "exitCode": 0,
+        "durationMs": 2738,
+        "counts": {
+          "pass": 14,
+          "fail": 0,
+          "skip": 0
+        },
+        "artifacts": [
+          "artifacts/qa/release-final-1792243640303/8821e13b12a3b3231591a7937a56773d33c49b5d/logs/integration.log"
+        ]
+      },
+      {
+        "id": "e2e",
+        "status": "passed",
+        "command": "bun run test:e2e",
+        "exitCode": 0,
+        "durationMs": 163526,
+        "counts": {
+          "pass": 48,
+          "fail": 0,
+          "skip": 0,
+          "flaky": 0
+        },
+        "artifacts": [
+          "artifacts/qa/e2e/results.json",
+          "playwright-report/",
+          "artifacts/qa/release-final-1792243640303/8821e13b12a3b3231591a7937a56773d33c49b5d/logs/e2e.log"
+        ]
+      },
+      {
+        "id": "coverage",
+        "status": "passed",
+        "command": "bun run test:coverage",
+        "exitCode": 0,
+        "durationMs": 30153,
+        "counts": {
+          "pass": 835,
+          "fail": 0,
+          "skip": 0
+        },
+        "artifacts": [
+          "artifacts/qa/coverage/lcov.info",
+          "artifacts/qa/release-final-1792243640303/8821e13b12a3b3231591a7937a56773d33c49b5d/logs/coverage.log"
+        ]
+      }
+    ],
+    "totals": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "coverage": {
+    "linesPercent": 80.48,
+    "functionsPercent": 80.32,
+    "branches": null
+  },
+  "strictRefusal": {
+    "exitCode": 1,
+    "totals": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 2
+    },
+    "layers": [
+      {
+        "id": "unit",
+        "status": "passed",
+        "counts": {
+          "pass": 835,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      {
+        "id": "integration",
+        "status": "skipped",
+        "reason": "required integration configuration missing: S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET"
+      },
+      {
+        "id": "e2e",
+        "status": "skipped",
+        "reason": "PLAYWRIGHT_DATABASE_URL not configured — playwright.config.ts passes it to the API web server as DATABASE_URL, so acceptance needs it on the disposable database"
+      },
+      {
+        "id": "coverage",
+        "status": "passed",
+        "counts": {
+          "pass": 835,
+          "fail": 0,
+          "skip": 0
+        }
+      }
+    ]
+  },
+  "faults": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0
+  },
+  "migrations": {
+    "consistencyExitCode": 0,
+    "freshE2eApplyExitCode": 0
+  },
+  "deployment": {
+    "bun": "1.4.0",
+    "apiImage": "a61c9b38a60d",
+    "webImage": "3f5c2ece5101",
+    "api": "http://127.0.0.1:23002",
+    "web": "http://127.0.0.1:28080",
+    "health": 200,
+    "webBundleKb": 1614.71,
+    "warning": "Vite chunk exceeds 500 kB",
+    "imageFetch": "Pinned upstream manifests verified through crane; local registry alias override used after Docker registry access failed."
+  },
+  "demo": {
+    "reset": {
+      "removed": 0,
+      "planted": 39,
+      "visible": 39
+    },
+    "seed": {
+      "removed": 39,
+      "planted": 39,
+      "visible": 39
+    },
+    "orphans": 0,
+    "verifyExitCode": 0,
+    "nonDemoCasePreserved": "78b0b303-e3f7-410f-9739-a46b7b093fb6",
+    "nonDemoStatus": "COMPLETED",
+    "nonDemoReviewedFindings": 2
+  },
+  "review": {
+    "standards": {
+      "findings": 1,
+      "resolved": "HTTP stops before shadow cleanup; bounded 5-second deadline; PostgreSQL lock before/after smoke."
+    },
+    "spec": {
+      "findings": 1,
+      "resolved": "Strict gate requires Redis/S3 configuration and rejects skipped cases; missing configuration returns 1 while unit/coverage pass."
+    }
+  },
+  "ci": {
+    "firstRun": 39042065137,
+    "firstResult": "failure",
+    "reason": "New evidence JSON formatting; application checks not reached."
+  },
+  "limitations": [
+    "Working-tree report preserves dirty=true and base SHA; resulting commits are listed separately.",
+    "No live model result claimed for this gate.",
+    "Bun LCOV branch coverage unavailable.",
+    "Authentication/RBAC/SSO and distributed execution remain outside this release.",
+    "M2+ and 29 Execution Inspector tasks remain in the master roadmap."
+  ]
+}

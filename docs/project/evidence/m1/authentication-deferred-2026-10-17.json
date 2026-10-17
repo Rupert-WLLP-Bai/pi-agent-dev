@@ -35,10 +35,7 @@
     "auditCaseId": "78b0b303-e3f7-410f-9739-a46b7b093fb6",
     "sourceRecordId": "400b3853-9893-4e98-b57a-559d6b1e867c",
     "agent": "Fake (deterministic replay)",
-    "expectedFindings": [
-      "ADVANCE_PAYMENT_LIMIT",
-      "DISPUTE_JURISDICTION"
-    ],
+    "expectedFindings": ["ADVANCE_PAYMENT_LIMIT", "DISPUTE_JURISDICTION"],
     "confirmedFindings": 2,
     "createdRemediations": 2,
     "foreignWriteStatus": 403
