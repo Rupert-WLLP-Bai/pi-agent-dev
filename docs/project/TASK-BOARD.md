@@ -33,17 +33,17 @@ M1-B03通过后才能开始。现有浅色改版是输入资产，不等于M2完
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M2-A01 双主题设计系统 | A / IN_PROGRESS | 现有Ant/CSS → 默认暗色、完整浅色tokens与组件 | 中文排版、语义色、motion/reduced-motion、真实主题切换；apps/web | 浅色+深色侧栏已存在；默认暗色进行中 | 设计系统 / M2 | 未记录 / M1-B03 | 2026-10-17 |
-| M2-A02 信息架构与路由 | A / IN_PROGRESS | 当前全部路由 → 现有五组业务导航、面包屑、状态 | 旧路由兼容、主要动作与加载/错误完整；apps/web | 以现有真实路由为准，不发明未实现入口 | 信息架构 / M2 | 未记录 / M1-B03 | 2026-10-17 |
-| M2-A03 核心工作区 | A、B / TODO | 真实API → Dashboard、队列、三栏证据联动 | 无假统计/响应，上传/筛选/进度/取消/重试/复核可用；web归A、API归B | 既有实现优先复用；依赖A01/A02 | 核心工作区 / M2 | 未记录 / M1-B03；M2-A01；M2-A02 | 2026-10-17 |
+| M2-A01 双主题设计系统 | A / DONE | 现有Ant/CSS → 默认暗色、完整浅色tokens与组件 | 中文排版、语义色、motion/reduced-motion、真实主题切换；apps/web | theme-mode + ThemeProvider；Alt+Shift+L；单测通过 | 设计系统 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-A02 信息架构与路由 | A / DONE | 当前全部路由 → 现有五组业务导航、面包屑、状态 | 旧路由兼容、主要动作与加载/错误完整；apps/web | AppBreadcrumbs；五组真实路由 | 信息架构 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-A03 核心工作区 | A、B / IN_PROGRESS | 真实API → Dashboard、队列、三栏证据联动 | 无假统计/响应，上传/筛选/进度/取消/重试/复核可用；web归A、API归B | 驾驶舱/队列真实 API；`page-status` 空错态；证据↔正文双向定位；`bun --env-file=.env test apps/web/src` | 核心工作区 / M2 | 未记录 / M1-B03；M2-A01；M2-A02 | 2026-10-17 |
 
 ## M2 · v0.8.0 · Phase B 集成、验收与发布
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M2-B01 其余页面一致性 | A / TODO | 复核/整改/治理/运行/设置 → 适合任务的布局 | 不以重复统计卡代替业务；apps/web | [Execution Inspector子工作包](./work-packages/execution-inspector.md)：29项完整保留，准备审计中；父任务仍待总体M2验收 | 其余业务页面 / M2 | 未记录 / M1-B03 | 2026-10-15 |
-| M2-B02 交互、主题与响应式 | A、C / TODO | 组件和URL状态 → 键盘/导航、记忆、复制、空错状态 | 1920×1080、1440×900、1024×768、768、375；可减少动效；web归A、测试C | Ctrl+K按现有条件决定，不列无条件阻塞 | 交互与响应式 / M2 | 未记录 / M1-B03 | 2026-10-15 |
-| M2-B03 浏览器验收与发布 | Main、A/C / TODO | 双主题候选 → E2E、前后截图、v0.8.0 | 两主题无阻塞溢出/遮挡/不可点击；完整统一闸门；Main文档/发布 | 未发布 | 体验发布 / M2 | 未记录 / M1-B03 | 2026-10-15 |
+| M2-B01 其余页面一致性 | A / IN_PROGRESS | 复核/整改/治理/运行/设置 → 适合任务的布局 | 不以重复统计卡代替业务；apps/web | `PageHead`+`page-status` 对齐运行/规则/模型/OCR；[TI](./work-packages/execution-inspector.md) TI-M1 概览/对话/泳道 DONE；全站 M2 闸门仍待 | 其余业务页面 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-B02 交互、主题与响应式 | A、C / IN_PROGRESS | 组件和URL状态 → 键盘/导航、记忆、复制、空错状态 | 1920×1080、1440×900、1024×768、768、375；可减少动效；web归A、测试C | [viewport-checklist](./evidence/m2/viewport-checklist.md)；主题快捷键 | 交互与响应式 / M2 | 未记录 / M1-B03 | 2026-10-17 |
+| M2-B03 浏览器验收与发布 | Main、A/C / IN_PROGRESS | 双主题候选 → E2E、前后截图、v0.8.0 | 两主题无阻塞溢出/遮挡/不可点击；完整统一闸门；Main文档/发布 | [RELEASE-v0.8.0](./RELEASE-v0.8.0.md) 候选；Tag待闸门 | 体验发布 / M2 | 未记录 / M1-B03 | 2026-10-17 |
 
 ## M3 · v0.9.0 · Phase A 设计与实现
 
@@ -51,35 +51,35 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M3-A01 决策公共契约 | Main、B / TODO | S1及已有Provider → 版本化请求/建议/反馈/查询/错误 | Disabled/Fixture/Laya可替换，最小脱敏输入，默认off；契约Main、实现B | 已有实现PARTIAL，待M3合并验收 | 决策契约 / M3 | 未记录 / M2-B03 | 2026-10-15 |
-| M3-A02 Laya CPU可行性 | B、C / TODO | 上游许可证/固定模型/60条中文样本 → 中文、结构、路由、冲突、资源和失败报告 | 真实推理与Fake分开；概率不称正确率；scripts/decision与fixtures归C、适配器B | 本轮60/60、macroF1=0.4033/P95=495ms，参考标签；缺完整人工标注/资源口径 | Laya实测 / M3 | 未记录 / M2-B03 | 2026-10-15 |
-| M3-A03 Shadow Mode | B / TODO | 既有独立影子任务 → 正式成功后冻结派生、独立建议与反馈 | 不写Finding/规则/复核/案件状态、不执行副作用工具；默认关、故障隔离；apps/api及领域包 | 本轮真实PG/HTTP绑定/幂等/正式行不变已证明，待M3全面闸门 | 影子决策 / M3 | 未记录 / M2-B03 | 2026-10-15 |
+| M3-A01 决策公共契约 | Main、B / IN_PROGRESS | S1及已有Provider → 版本化请求/建议/反馈/查询/错误 | Disabled/Fixture/Laya可替换，最小脱敏输入，默认off；契约Main、实现B | [inventory](./evidence/m3/decision-stack-inventory.md)、[acceptance-checklist](./evidence/m3/acceptance-checklist.md) | 决策契约 / M3 | 未记录 / M2-B03 | 2026-10-17 |
+| M3-A02 Laya CPU可行性 | B、C / IN_PROGRESS | 上游许可证/固定模型/60条中文样本 → 中文、结构、路由、冲突、资源和失败报告 | 真实推理与Fake分开；概率不称正确率；scripts/decision与fixtures归C、适配器B | [decision-evaluate-fake.json](./evidence/m3/decision-evaluate-fake.json)；Laya参考F1历史；缺专家标注 | Laya实测 / M3 | 未记录 / M2-B03 | 2026-10-17 |
+| M3-A03 Shadow Mode | B / IN_PROGRESS | 既有独立影子任务 → 正式成功后冻结派生、独立建议与反馈 | 不写Finding/规则/复核/案件状态、不执行副作用工具；默认关、故障隔离；apps/api及领域包 | 实现在树；待M3全面闸门 | 影子决策 / M3 | 未记录 / M2-B03 | 2026-10-17 |
 
 ## M3 · v0.9.0 · Phase B 集成、验收与发布
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M3-B01 对照与人工标签评测 | B、C / TODO | 固定规则/Pi/影子输出、标签来源 → 指标/冲突/延迟/错误报告 | 分母、模型、场景、版本明确；无专家签核不称独立人工gold；实现B、fixtures/报告脚本C | 人类标签需真实人员签核，不能由Agent代造 | 决策评测 / M3 | 未记录 / M2-B03 | 2026-10-15 |
-| M3-B02 AI建议可视化 | A、B / TODO | 真实Advice/Trace → 来源/版本/类别/概率/冲突/原因/耗时 | 明示shadow与未校准，不把动画当执行；web归A、DTO契约Main | 现有面板复用，待M3 | 建议可视化 / M3 | 未记录 / M2-B03 | 2026-10-15 |
-| M3-B03 关闭/兼容/发布 | Main、B/C / TODO | 完成候选或不合格Laya结果 → 回退验证、v0.9.0 | off核心不变且历史可读；Laya不合格则保持关闭、保留公共/Fixture，明确扩展限制；Main发布 | 未发布；Jev可选，未引入远程商业依赖 | 决策发布 / M3 | 未记录 / M2-B03 | 2026-10-15 |
+| M3-B01 对照与人工标签评测 | B、C / BLOCKED | 固定规则/Pi/影子输出、标签来源 → 指标/冲突/延迟/错误报告 | 分母、模型、场景、版本明确；无专家签核不称独立人工gold；实现B、fixtures/报告脚本C | Fake报告已有；**专家gold需真人签核** | 决策评测 / M3 | 未记录 / M2-B03 | 2026-10-17 |
+| M3-B02 AI建议可视化 | A、B / IN_PROGRESS | 真实Advice/Trace → 来源/版本/类别/概率/冲突/原因/耗时 | 明示shadow与未校准，不把动画当执行；web归A、DTO契约Main | decision-advice-panel 已有；待截图签收 | 建议可视化 / M3 | 未记录 / M2-B03 | 2026-10-17 |
+| M3-B03 关闭/兼容/发布 | Main、B/C / IN_PROGRESS | 完成候选或不合格Laya结果 → 回退验证、v0.9.0 | off核心不变且历史可读；Laya不合格则保持关闭、保留公共/Fixture，明确扩展限制；Main发布 | [RELEASE-v0.9.0](./RELEASE-v0.9.0.md)；Tag未打 | 决策发布 / M3 | 未记录 / M2-B03 | 2026-10-17 |
 
 ## M4 · v1.0.0 · Phase A 质量工程
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M4-A01 分层覆盖率 | C / TODO | 全套测试与工具 → 行/函数/分支及分层报告 | 争取核心行/分支80%，不凑数、不相加；工具无分支能力写N/A；tests/scripts归C | 旧Bun LCOV无BRDA，不伪造branch | 分层质量 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-A02 完整E2E与真实模型 | Main、B/C / TODO | 独立TEST全流程 → 文本/PDF/Word、审计/Guard/SSE/复核/整改/治理/存储/降级/决策/刷新/异常证据 | Fake与真实模型分别实测、环境隔离；按所有权 | M1/M2/M3有效证据可复用，注明版本 | 系统验收 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-A03 安全可靠性与性能 | B、C / TODO | 冻结候选+实际负载 → 安全/依赖/性能结果 | 隐私、上传、权限、超时、事务、迁移、并发、决策隔离；带条件和实测值 | 未完成项不得宣称生产就绪 | 安全与性能 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-A04 可复制部署运维 | Main、C / TODO | 现有Compose/env/脚本 → 部署/升级/备份恢复/降级验收 | 另一开发者可照文档复现；备份范围明确；Main根配置/文档、脚本C | 数据库备份不冒充对象存储完整DR | 复制运维 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
+| M4-A01 分层覆盖率 | C / IN_PROGRESS | 全套测试与工具 → 行/函数/分支及分层报告 | 争取核心行/分支80%，不凑数、不相加；工具无分支能力写N/A；tests/scripts归C | M1 gate行/函数≈80%；分支N/A；见verify-summary | 分层质量 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-A02 完整E2E与真实模型 | Main、B/C / TODO | 独立TEST全流程 → 文本/PDF/Word、审计/Guard/SSE/复核/整改/治理/存储/降级/决策/刷新/异常证据 | Fake与真实模型分别实测、环境隔离；按所有权 | 复用M1 gate；本分支未重跑 acceptance/全 E2E | 系统验收 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-A03 安全可靠性与性能 | B、C / IN_PROGRESS | 冻结候选+实际负载 → 安全/依赖/性能结果 | 隐私、上传、权限、超时、事务、迁移、并发、决策隔离；带条件和实测值 | SEC3延期；其余SEC部分证据见任务板 | 安全与性能 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-A04 可复制部署运维 | Main、C / IN_PROGRESS | 现有Compose/env/脚本 → 部署/升级/备份恢复/降级验收 | 另一开发者可照文档复现；备份范围明确；Main根配置/文档、脚本C | demo CLI + RELEASE-v1.0.0；完整DR未宣称 | 复制运维 / M4 | 未记录 / 总体M3 | 2026-10-17 |
 
 ## M4 · v1.0.0 · Phase B 比赛交付与发布
 
 | ID / Task | Owner / Status | 输入 → 交付物 | 验收条件 / 文件所有权 | Evidence / Commit | 模块 / 总体Milestone | 优先级 / 依赖 | 最近更新 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| M4-B01 5–8分钟演示 | Main、A/C / TODO | 已验收功能/样本 → 标准路径与故障备用 | 真实接口/日志/耗时，离线Fake明确标识；Main文档、A页面、C数据 | 旧演示资产复用 | 比赛演示 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-B02 全套技术与用户文档 | Main / TODO | 已验证代码/证据 → 架构/需求/使用/运维/竞品/推广文档 | 竞品有来源，规划与实装分开；docs | 既有竞品纠错已交接，待最终版本 | 技术文档 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-B03 真实软件工程过程证明 | Main / TODO | 2026-09-11起Git/提交/验收 → 生命周期/RTM/ADR/WBS/甘特/风险/变更/发布记录 | 计划时间、提交时间、验收时间分列；不把后补文档伪装历史；docs | 2026-11-10前未来仅计划 | 工程证据 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
-| M4-B04 最终发布 | Main、A/B/C / TODO | 通过全部闸门的候选 → 六份交付文档、v1.0.0 | verify、E2E、Web/Docker/Compose、数据、安全全跑；无阻塞；Main提交/Tag | 截止2026-11-10；未发布 | 最终发布 / M4 | 未记录 / 总体M3；细项未记录 | 2026-10-15 |
+| M4-B01 5–8分钟演示 | Main、A/C / IN_PROGRESS | 已验收功能/样本 → 标准路径与故障备用 | 真实接口/日志/耗时，离线Fake明确标识；Main文档、A页面、C数据 | [demo-script.md](./evidence/m4/demo-script.md) | 比赛演示 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-B02 全套技术与用户文档 | Main / IN_PROGRESS | 已验证代码/证据 → 架构/需求/使用/运维/竞品/推广文档 | 竞品有来源，规划与实装分开；docs | RELEASE v0.8/0.9/1.0 + RTM；竞品终稿待补 | 技术文档 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-B03 真实软件工程过程证明 | Main / IN_PROGRESS | 2026-09-11起Git/提交/验收 → 生命周期/RTM/ADR/WBS/甘特/风险/变更/发布记录 | 计划时间、提交时间、验收时间分列；不把后补文档伪装历史；docs | [rtm-index](./evidence/m4/rtm-index.md)；任务板为权威 | 工程证据 / M4 | 未记录 / 总体M3 | 2026-10-17 |
+| M4-B04 最终发布 | Main、A/B/C / TODO | 通过全部闸门的候选 → 六份交付文档、v1.0.0 | verify、E2E、Web/Docker/Compose、数据、安全全跑；无阻塞；Main提交/Tag | [RELEASE-v1.0.0](./RELEASE-v1.0.0.md)候选；[verify-summary](./evidence/m4/verify-summary.md)仅单元层 | 最终发布 / M4 | 未记录 / 总体M3 | 2026-10-17 |
 
 ## 继承与执行规则
 
@@ -221,9 +221,9 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 
 ## 当前执行视图
 
-**当前 Milestone：M2 / v0.8.0。** M1/v0.7.0 发布、main 分批集成/推送及真实 GitHub CI 均已完成并移出执行视图；快照见 [recovery/2026-10-17/m1-execution-view-snapshot.md](./recovery/2026-10-17/m1-execution-view-snapshot.md)。M1-AUTH01 已移除登录口令；SEC3 延期到最后且不阻塞 M2。TI 原 29 项状态完整保留，不因 M1 完成而批量标绿。REC 恢复快照不改写。
+**主执行 Milestone：M2 / v0.8.0。** M1/v0.7.0 已发布；快照见 [recovery/2026-10-17/m1-execution-view-snapshot.md](./recovery/2026-10-17/m1-execution-view-snapshot.md)。**并行准备：M3/v0.9.0 文档与证据、M4/v1.0.0 候选清单**（不提前打 Tag、不宣称专家 gold）。SEC3 延期到最后。TI 29 项状态完整保留。
 
-当前关键执行项：
+### M2 关键项
 
 | ID | 名称 | 状态 |
 | --- | --- | --- |
@@ -236,6 +236,17 @@ M2发布后开始；既有默认关闭的决策切片、真实PG和Laya结果保
 | TI-PREP-02 | 数据审计 | IN_PROGRESS |
 | TI-PREP-03 | 冻结 TraceEvent 契约 | TODO |
 | TI-M1-* | 基础轨迹（工作包入口） | TODO（依赖 PREP-03） |
+
+### M3 / M4 准备（文档与局部证据）
+
+| ID | 名称 | 状态 |
+| --- | --- | --- |
+| M3-A01–A03 | 决策契约 / Laya / Shadow | IN_PROGRESS |
+| M3-B01 | 专家 gold 评测 | **BLOCKED**（需真人签核） |
+| M3-B02–B03 | 可视化 / v0.9.0 发布 | IN_PROGRESS |
+| M4-B01 | 演示脚本 | IN_PROGRESS |
+| M4-B03 | RTM 精简 | IN_PROGRESS |
+| M4-B04 | v1.0.0 最终闸门 | TODO |
 
 恢复时登记口径为 123 条主任务记录及 8 条历史验收/名称变更记录，快照保持原样；本轮新增 M1-CI01、M1-GIT01、M1-GIT02 和 M1-AUTH01 四项，当前 127 条主记录。不同层级有关联，不据此计算产品完成率。原无编号操作及延期范围仍保留。
 

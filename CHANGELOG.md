@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **M2 dual theme**: default dark appearance with a complete light peer theme,
+  persisted toggle (`contract-audit:theme-mode`), Alt+Shift+L shortcut, and CSS
+  tokens aligned with Ant Design 6.
+- **Breadcrumbs** for the five existing business nav groups; legacy deep links kept.
+- **Execution Inspector (TI-M1)**: run overview with explicit 「未提供」 metrics,
+  chat / trajectory / lane views, TraceEvent contract freeze.
+- Shared `PageLoading` / `PageError` / `PageEmpty` for page-state consistency.
+- Release candidates and evidence for v0.8.0 / v0.9.0 / v1.0.0 under `docs/project/`.
+
+### Notes
+
+- Shadow decision stack remains default-off; expert gold labels for M3-B01 are blocked.
+- Authentication (SEC3) remains deferred per product owner.
+
 ## [0.7.0] - 2026-10-17
 
 ### Changed

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-17T15:42:00.000Z",
+  "branch": "cursor/m2-v080-startup-5ade",
+  "gitSha": "a045ee59e0498db5efa2f1fa33fce10f48cb37fd",
+  "command": "bun run verify",
+  "exitCode": 0,
+  "environment": {
+    "bun": "1.4.3",
+    "node": "v22.14.0",
+    "dockerAvailable": false,
+    "postgresReachable": false,
+    "note": "Cloud agent VM; DATABASE_URL from .env.example copy; no docker compose"
+  },
+  "lint": {
+    "tool": "biome check .",
+    "warnings": 1,
+    "errors": 0,
+    "passed": true
+  },
+  "typecheck": {
+    "passed": true
+  },
+  "unitTests": {
+    "passed": 822,
+    "failed": 0,
+    "skipped": 27,
+    "expectCalls": 2651,
+    "files": 90,
+    "durationSeconds": 26.53
+  },
+  "notRun": [
+    "tests/integration (QA_REQUIRE_ALL / test:all)",
+    "playwright acceptance",
+    "qa:faults with live Redis/S3",
+    "docker compose demo:verify"
+  ],
+  "priorFullGate": {
+    "reference": "docs/project/evidence/m1/release-gate-2026-10-17.json",
+    "milestone": "M1 v0.7.0",
+    "summary": "835 unit layer, 14 integration, 48 browser, 0 fail"
+  },
+  "ciReference": {
+    "reference": "docs/project/evidence/m1/github-ci-2026-10-17.json",
+    "runId": "39042297765",
+    "jobsPassed": 4
+  }
+}

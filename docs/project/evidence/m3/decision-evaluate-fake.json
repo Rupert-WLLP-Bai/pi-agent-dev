@@ -1,0 +1,899 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-17T15:40:21.806Z",
+  "evaluation": {
+    "task": "clause_category",
+    "inputRevision": "clause-fixture-v1",
+    "questionCatalogueVersion": "question-catalogue-v1",
+    "fixtureCount": 60,
+    "labelProvenance": "developer reference labels; not independent human gold"
+  },
+  "provider": {
+    "provider": "fake",
+    "modelVersion": "fake-deterministic-v1",
+    "modelRevision": null,
+    "codeRevision": null,
+    "endpoint": null
+  },
+  "outcome": {
+    "answered": 60,
+    "abstained": 0,
+    "succeeded": 60,
+    "failed": 0
+  },
+  "metrics": {
+    "accuracy": 0.15,
+    "macroF1": 0.30604575163398695,
+    "perCategory": [
+      {
+        "category": "payment",
+        "support": 6,
+        "truePositive": 2,
+        "precision": 0.2222222222222222,
+        "recall": 0.3333333333333333,
+        "f1": 0.26666666666666666
+      },
+      {
+        "category": "liability",
+        "support": 6,
+        "truePositive": 0,
+        "precision": null,
+        "recall": 0,
+        "f1": null
+      },
+      {
+        "category": "force_majeure",
+        "support": 6,
+        "truePositive": 1,
+        "precision": 0.3333333333333333,
+        "recall": 0.16666666666666666,
+        "f1": 0.2222222222222222
+      },
+      {
+        "category": "termination",
+        "support": 6,
+        "truePositive": 2,
+        "precision": 0.18181818181818182,
+        "recall": 0.3333333333333333,
+        "f1": 0.23529411764705885
+      },
+      {
+        "category": "acceptance",
+        "support": 6,
+        "truePositive": 4,
+        "precision": 0.4,
+        "recall": 0.6666666666666666,
+        "f1": 0.5
+      },
+      {
+        "category": "dispute",
+        "support": 6,
+        "truePositive": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": null
+      },
+      {
+        "category": "confidentiality",
+        "support": 6,
+        "truePositive": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": null
+      },
+      {
+        "category": "party",
+        "support": 6,
+        "truePositive": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": null
+      },
+      {
+        "category": "amount",
+        "support": 6,
+        "truePositive": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": null
+      },
+      {
+        "category": "attachment_conflict",
+        "support": 6,
+        "truePositive": 0,
+        "precision": 0,
+        "recall": 0,
+        "f1": null
+      }
+    ],
+    "confusionMatrix": {
+      "payment": {
+        "payment": 2,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 0,
+        "acceptance": 0,
+        "dispute": 0,
+        "confidentiality": 1,
+        "party": 1,
+        "amount": 1,
+        "attachment_conflict": 1
+      },
+      "liability": {
+        "payment": 0,
+        "liability": 0,
+        "force_majeure": 1,
+        "termination": 1,
+        "acceptance": 1,
+        "dispute": 1,
+        "confidentiality": 2,
+        "party": 0,
+        "amount": 0,
+        "attachment_conflict": 0
+      },
+      "force_majeure": {
+        "payment": 1,
+        "liability": 0,
+        "force_majeure": 1,
+        "termination": 1,
+        "acceptance": 1,
+        "dispute": 0,
+        "confidentiality": 0,
+        "party": 0,
+        "amount": 0,
+        "attachment_conflict": 2
+      },
+      "termination": {
+        "payment": 1,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 2,
+        "acceptance": 0,
+        "dispute": 0,
+        "confidentiality": 0,
+        "party": 1,
+        "amount": 2,
+        "attachment_conflict": 0
+      },
+      "acceptance": {
+        "payment": 1,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 0,
+        "acceptance": 4,
+        "dispute": 0,
+        "confidentiality": 0,
+        "party": 0,
+        "amount": 1,
+        "attachment_conflict": 0
+      },
+      "dispute": {
+        "payment": 0,
+        "liability": 0,
+        "force_majeure": 1,
+        "termination": 2,
+        "acceptance": 0,
+        "dispute": 0,
+        "confidentiality": 1,
+        "party": 0,
+        "amount": 0,
+        "attachment_conflict": 2
+      },
+      "confidentiality": {
+        "payment": 1,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 1,
+        "acceptance": 1,
+        "dispute": 2,
+        "confidentiality": 0,
+        "party": 0,
+        "amount": 0,
+        "attachment_conflict": 1
+      },
+      "party": {
+        "payment": 1,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 1,
+        "acceptance": 1,
+        "dispute": 1,
+        "confidentiality": 1,
+        "party": 0,
+        "amount": 1,
+        "attachment_conflict": 0
+      },
+      "amount": {
+        "payment": 2,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 1,
+        "acceptance": 0,
+        "dispute": 1,
+        "confidentiality": 1,
+        "party": 1,
+        "amount": 0,
+        "attachment_conflict": 0
+      },
+      "attachment_conflict": {
+        "payment": 0,
+        "liability": 0,
+        "force_majeure": 0,
+        "termination": 2,
+        "acceptance": 2,
+        "dispute": 0,
+        "confidentiality": 1,
+        "party": 0,
+        "amount": 1,
+        "attachment_conflict": 0
+      }
+    },
+    "latencyMs": {
+      "p50": 0,
+      "p95": 1,
+      "max": 6
+    }
+  },
+  "perClause": [
+    {
+      "id": "payment-01",
+      "category": "payment",
+      "kind": "positive",
+      "expected": "payment",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 4,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "payment-02",
+      "category": "payment",
+      "kind": "negative",
+      "expected": "payment",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "payment-03",
+      "category": "payment",
+      "kind": "ambiguous",
+      "expected": "payment",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "payment-04",
+      "category": "payment",
+      "kind": "exception",
+      "expected": "payment",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "payment-05",
+      "category": "payment",
+      "kind": "cross_clause",
+      "expected": "payment",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "payment-06",
+      "category": "payment",
+      "kind": "positive",
+      "expected": "payment",
+      "predicted": "party",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-01",
+      "category": "liability",
+      "kind": "positive",
+      "expected": "liability",
+      "predicted": "dispute",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-02",
+      "category": "liability",
+      "kind": "negative",
+      "expected": "liability",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-03",
+      "category": "liability",
+      "kind": "ambiguous",
+      "expected": "liability",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-04",
+      "category": "liability",
+      "kind": "exception",
+      "expected": "liability",
+      "predicted": "force_majeure",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-05",
+      "category": "liability",
+      "kind": "cross_clause",
+      "expected": "liability",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "liability-06",
+      "category": "liability",
+      "kind": "positive",
+      "expected": "liability",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-01",
+      "category": "force_majeure",
+      "kind": "positive",
+      "expected": "force_majeure",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-02",
+      "category": "force_majeure",
+      "kind": "negative",
+      "expected": "force_majeure",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-03",
+      "category": "force_majeure",
+      "kind": "ambiguous",
+      "expected": "force_majeure",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-04",
+      "category": "force_majeure",
+      "kind": "exception",
+      "expected": "force_majeure",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-05",
+      "category": "force_majeure",
+      "kind": "cross_clause",
+      "expected": "force_majeure",
+      "predicted": "force_majeure",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "force-majeure-06",
+      "category": "force_majeure",
+      "kind": "positive",
+      "expected": "force_majeure",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-01",
+      "category": "termination",
+      "kind": "positive",
+      "expected": "termination",
+      "predicted": "party",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-02",
+      "category": "termination",
+      "kind": "negative",
+      "expected": "termination",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-03",
+      "category": "termination",
+      "kind": "ambiguous",
+      "expected": "termination",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-04",
+      "category": "termination",
+      "kind": "exception",
+      "expected": "termination",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-05",
+      "category": "termination",
+      "kind": "cross_clause",
+      "expected": "termination",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "termination-06",
+      "category": "termination",
+      "kind": "positive",
+      "expected": "termination",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-01",
+      "category": "acceptance",
+      "kind": "positive",
+      "expected": "acceptance",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-02",
+      "category": "acceptance",
+      "kind": "negative",
+      "expected": "acceptance",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-03",
+      "category": "acceptance",
+      "kind": "ambiguous",
+      "expected": "acceptance",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-04",
+      "category": "acceptance",
+      "kind": "exception",
+      "expected": "acceptance",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-05",
+      "category": "acceptance",
+      "kind": "cross_clause",
+      "expected": "acceptance",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "acceptance-06",
+      "category": "acceptance",
+      "kind": "positive",
+      "expected": "acceptance",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-01",
+      "category": "dispute",
+      "kind": "positive",
+      "expected": "dispute",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-02",
+      "category": "dispute",
+      "kind": "negative",
+      "expected": "dispute",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-03",
+      "category": "dispute",
+      "kind": "ambiguous",
+      "expected": "dispute",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-04",
+      "category": "dispute",
+      "kind": "exception",
+      "expected": "dispute",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-05",
+      "category": "dispute",
+      "kind": "cross_clause",
+      "expected": "dispute",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "dispute-06",
+      "category": "dispute",
+      "kind": "positive",
+      "expected": "dispute",
+      "predicted": "force_majeure",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-01",
+      "category": "confidentiality",
+      "kind": "positive",
+      "expected": "confidentiality",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-02",
+      "category": "confidentiality",
+      "kind": "negative",
+      "expected": "confidentiality",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-03",
+      "category": "confidentiality",
+      "kind": "ambiguous",
+      "expected": "confidentiality",
+      "predicted": "dispute",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-04",
+      "category": "confidentiality",
+      "kind": "exception",
+      "expected": "confidentiality",
+      "predicted": "dispute",
+      "abstained": false,
+      "latencyMs": 1,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-05",
+      "category": "confidentiality",
+      "kind": "cross_clause",
+      "expected": "confidentiality",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "confidentiality-06",
+      "category": "confidentiality",
+      "kind": "positive",
+      "expected": "confidentiality",
+      "predicted": "attachment_conflict",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-01",
+      "category": "party",
+      "kind": "positive",
+      "expected": "party",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-02",
+      "category": "party",
+      "kind": "negative",
+      "expected": "party",
+      "predicted": "dispute",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-03",
+      "category": "party",
+      "kind": "ambiguous",
+      "expected": "party",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-04",
+      "category": "party",
+      "kind": "exception",
+      "expected": "party",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-05",
+      "category": "party",
+      "kind": "cross_clause",
+      "expected": "party",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "party-06",
+      "category": "party",
+      "kind": "positive",
+      "expected": "party",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-01",
+      "category": "amount",
+      "kind": "positive",
+      "expected": "amount",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 6,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-02",
+      "category": "amount",
+      "kind": "negative",
+      "expected": "amount",
+      "predicted": "payment",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-03",
+      "category": "amount",
+      "kind": "ambiguous",
+      "expected": "amount",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-04",
+      "category": "amount",
+      "kind": "exception",
+      "expected": "amount",
+      "predicted": "party",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-05",
+      "category": "amount",
+      "kind": "cross_clause",
+      "expected": "amount",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "amount-06",
+      "category": "amount",
+      "kind": "positive",
+      "expected": "amount",
+      "predicted": "dispute",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-01",
+      "category": "attachment_conflict",
+      "kind": "positive",
+      "expected": "attachment_conflict",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-02",
+      "category": "attachment_conflict",
+      "kind": "negative",
+      "expected": "attachment_conflict",
+      "predicted": "amount",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-03",
+      "category": "attachment_conflict",
+      "kind": "ambiguous",
+      "expected": "attachment_conflict",
+      "predicted": "confidentiality",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-04",
+      "category": "attachment_conflict",
+      "kind": "exception",
+      "expected": "attachment_conflict",
+      "predicted": "termination",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-05",
+      "category": "attachment_conflict",
+      "kind": "cross_clause",
+      "expected": "attachment_conflict",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    },
+    {
+      "id": "attachment-conflict-06",
+      "category": "attachment_conflict",
+      "kind": "positive",
+      "expected": "attachment_conflict",
+      "predicted": "acceptance",
+      "abstained": false,
+      "latencyMs": 0,
+      "fallbackReason": null,
+      "confidence": null
+    }
+  ]
+}
